@@ -9,7 +9,7 @@ Application server working with telephony hardware executing prepared and deploy
 With advanced Access Control System
 ![Access Control System](documentation/access-control-system.png)
 #### Hand-made integrated-developers-environment (IDE).
-Tool which allows engineers to focus on business algorithms not a programming language or libraries features.
+Tool which allows engineers to focus on business algorithms not on programming language or libraries features.
 ![Main Screen](documentation/ide-main-screen.png)
 
 Using Called Sub-Routines as well
