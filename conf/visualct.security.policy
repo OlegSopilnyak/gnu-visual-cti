@@ -1,0 +1,6 @@
+grant { 
+	permission java.security.AllPermission;
+    // Grant permission to listen a connection to an any host and port
+    permission java.net.SocketPermission "localhost:2888" "listen,resolve";
+};
+

@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+##############################################################################
+##
+##  DO NOT REMOVE THIS LICENSE AND COPYRIGHT NOTICE FOR ANY REASON
+##
+##############################################################################
+
+GNU VisualCTI - A Java multi-platform Computer Telephony Application Server
+Copyright (C) 2002 by Oleg Sopilnyak.
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+
+Contact oleg@visualcti.org or gennady@visualcti.org for more information.
+
+Ukraine point of contact: Oleg Sopilnyak - oleg@visualcti.org
+Home Phone:	380-62-3851086 (russian)
+
+USA point of contact: Justin Kuntz - jkuntz@prominic.com
+Prominic Technologies, Inc.
+PO Box 3233
+Champaign, IL 61826-3233
+Fax number: 217-356-3356
+##############################################################################
+
+-->
+<VisualCTI>
+	<WorkFlow>
+		<controls>
+			<group name="Tasks">
+				<action command="New" enable="true" icon="/icon/New16.gif" tooltip="To create new task"/>
+				<action command="Open" enable="true" icon="/icon/Open16.gif" tooltip="To open a task"/>
+				<action command="Save" enable="true" icon="/icon/Save16.gif" tooltip="To save a task"/>
+				<action command="Load"  enable="false" icon="/icon/Import16.gif" tooltip="To load task from a server"/>
+				<action command="Deploy" enable="false" icon="/icon/Export16.gif" tooltip="To deploy task to server"/>
+				<action command="Print" enable="true" icon="/icon/Print16.gif" tooltip="To print a task"/>
+			</group>
+			<group name="Briquettes">
+				<action command="Delete" enable="false" icon="/icon/Delete16.gif" tooltip="To delete a selection"/>
+				<action command="Cut" enable="false" icon="/icon/Cut16.gif" tooltip="To cut a selection"/>
+				<action command="Copy" enable="false" icon="/icon/Copy16.gif" tooltip="To copy a selection to clipboard"/>
+				<action command="Paste" enable="false" icon="/icon/Paste16.gif" tooltip="To paste from clipboard"/>
+			</group>
+			<group name="Runtime">
+				<action command="Stop" enable="false" icon="/icon/Stop16.gif" tooltip="To Reset the task's execution"/>
+				<action command="Run" enable="true" icon="/icon/Play16.gif" tooltip="To Run/Resume the task's execution"/>
+				<action command="Pause" enable="false" icon="/icon/Pause16.gif" tooltip="To Pause the task's execution"/>
+				<action command="Step" enable="true" icon="/icon/Step16.gif" tooltip="To execute current Operation"/>
+				<action command="Find" enable="false" icon="/icon/Find16.gif" tooltip="To find and center current operation"/>
+			</group>
+		</controls>
+		<briquettes>
+                        <base>
+                        <!-- Basis of briquette -->
+                              <briquette name="Basis">
+                                    <class package="org.visualcti.briquette" name="Operation"/>
+                                    <parameter icon="/icon/briquette.32.gif" tooltip="The parent of all workflow's briquettes"/>
+                              </briquette>
+                        </base>
+			<group name="control">
+                        <!-- To control a chain's execution -->
+                              <briquette name="Subroutine">
+                                    <class package="org.visualcti.briquette" name="Subroutine"/>
+                                    <parameter icon="/icon/Subroutine32.gif" tooltip="The subroutine briquette"/>
+                              </briquette>
+                              <briquette name="Begin">
+                                    <class package="org.visualcti.briquette.control" name="TrafficLight"/>
+                                    <parameter icon="/icon/TrafficLight32.gif" tooltip="The semaphore for subchain's executing"/>
+                              </briquette>
+                              <briquette name="End">
+                                    <class package="org.visualcti.briquette.control" name="Return"/>
+                                    <parameter icon="/icon/Return32.gif" tooltip="To return from the subroutine"/>
+                              </briquette>
+                              <briquette name="IF">
+                                    <class package="org.visualcti.briquette.control" name="Branching"/>
+                                    <parameter icon="/icon/Branching32.gif" tooltip="The conditional branching"/>
+                              </briquette>
+                        </group>
+			<group name="telephony">
+                        <!-- The telephony's briquettes -->
+                              <briquette name="Wait">
+                                    <class package="org.visualcti.briquette.telephony" name="Wait"/>
+                                    <parameter icon="/icon/Wait32.gif" tooltip="To wait an incoming call or timeout"/>
+                              </briquette>
+                              <briquette name="Input">
+                                    <class package="org.visualcti.briquette.telephony" name="Input"/>
+                                    <parameter icon="/icon/Input32.gif" tooltip="To accept an user's input"/>
+                              </briquette>
+                              <briquette name="Dial">
+                                    <class package="org.visualcti.briquette.telephony" name="Dial"/>
+                                    <parameter icon="/icon/Dial32.gif" tooltip="Dialing a DTMF's digits or make the call"/>
+                              </briquette>
+                              <briquette name="Play">
+                                    <class package="org.visualcti.briquette.telephony" name="Play"/>
+                                    <parameter icon="/icon/Play32.gif" tooltip="To play the sound from some sources"/>
+                              </briquette>
+                              <briquette name="Record">
+                                    <class package="org.visualcti.briquette.telephony" name="Record"/>
+                                    <parameter icon="/icon/Record32.gif" tooltip="To record the voice from the line"/>
+                              </briquette>
+                              <briquette name="SendFax">
+                                    <class package="org.visualcti.briquette.telephony" name="SendFax"/>
+                                    <parameter icon="/icon/SendFax32.gif" tooltip="To transmit a fax document"/>
+                              </briquette>
+                              <briquette name="ReceiveFax">
+                                    <class package="org.visualcti.briquette.telephony" name="ReceiveFax"/>
+                                    <parameter icon="/icon/ReceiveFax32.gif" tooltip="To receive a fax document"/>
+                              </briquette>
+                              <briquette name="Connect">
+                                    <class package="org.visualcti.briquette.telephony" name="Connect"/>
+                                    <parameter icon="/icon/Connect32.gif" tooltip="To make a parallel telephony connection"/>
+                              </briquette>
+                        </group>
+			<group name="data">
+                        <!-- The data manipulation's briquettes -->
+                              <briquette name="Math">
+                                    <class package="org.visualcti.briquette.data" name="Math"/>
+                                    <parameter icon="/icon/Math32.gif" tooltip="To realize mathematical operations"/>
+                              </briquette>
+                              <briquette name="Query">
+                                    <class package="org.visualcti.briquette.data" name="Query"/>
+                                    <parameter icon="/icon/Query32.gif" tooltip="To make the SQL's query to the DataSource"/>
+                              </briquette>
+                              <briquette name="Fetch">
+                                    <class package="org.visualcti.briquette.data" name="Fetch"/>
+                                    <parameter icon="/icon/Fetch32.gif" tooltip="The movement on the query to the DataSource"/>
+                              </briquette>
+                              <briquette name="Insert">
+                                    <class package="org.visualcti.briquette.data" name="Insert"/>
+                                    <parameter icon="/icon/Insert32.gif" tooltip="To insert the data to the DataSource"/>
+                              </briquette>
+                              <briquette name="Update">
+                                    <class package="org.visualcti.briquette.data" name="Update"/>
+                                    <parameter icon="/icon/Update32.gif" tooltip="To update the data in the DataSource"/>
+                              </briquette>
+                              <briquette name="Delete">
+                                    <class package="org.visualcti.briquette.data" name="Delete"/>
+                                    <parameter icon="/icon/Delete32.gif" tooltip="To delete the data from the DataSource"/>
+                              </briquette>
+                              <briquette name="Commit">
+                                    <class package="org.visualcti.briquette.data" name="Commit"/>
+                                    <parameter icon="/icon/Commit32.gif" tooltip="To accept the changes in the DataSource"/>
+                              </briquette>
+                              <briquette name="Roolback">
+                                    <class package="org.visualcti.briquette.data" name="Rollback"/>
+                                    <parameter icon="/icon/Rollback32.gif" tooltip="To cancel the changes in the DataSource"/>
+                              </briquette>
+                        </group>
+			<group name="filesystem">
+                        <!-- To filesystem briquettes -->
+                              <briquette name="FilesList">
+                                    <class package="org.visualcti.briquette.filesystem" name="FilesListQuery"/>
+                                    <parameter icon="/icon/FilesListQuery32.gif" tooltip="To find the file(s)"/>
+                              </briquette>
+                              <briquette name="FilesFetch">
+                                    <class package="org.visualcti.briquette.filesystem" name="FilesListFetch"/>
+                                    <parameter icon="/icon/FilesListFetch32.gif" tooltip="To fetch the the files list"/>
+                              </briquette>
+                              <briquette name="FileLoad">
+                                    <class package="org.visualcti.briquette.filesystem" name="FileLoad"/>
+                                    <parameter icon="/icon/FileLoad32.gif" tooltip="To load the file's content"/>
+                              </briquette>
+                              <briquette name="FileSave">
+                                    <class package="org.visualcti.briquette.filesystem" name="FileSave"/>
+                                    <parameter icon="/icon/FileSave32.gif" tooltip="To save the content to file"/>
+                              </briquette>
+                              <briquette name="FileCopy">
+                                    <class package="org.visualcti.briquette.filesystem" name="FileCopy"/>
+                                    <parameter icon="/icon/FileCopy32.gif" tooltip="To move the file to new location"/>
+                              </briquette>
+                              <briquette name="FileErase">
+                                    <class package="org.visualcti.briquette.filesystem" name="FileErase"/>
+                                    <parameter icon="/icon/FileErase32.gif" tooltip="To delete the file"/>
+                              </briquette>
+                        </group>
+			<group name="message">
+                        <!-- The messaging briquettes -->
+                              <briquette name="Sent">
+                                    <class package="org.visualcti.briquette.message" name="Sent"/>
+                                    <parameter icon="/icon/Sent32.gif" tooltip="To compose and sent the message"/>
+                              </briquette>
+                              <briquette name="Receive">
+                                    <class package="org.visualcti.briquette.message" name="Receive"/>
+                                    <parameter icon="/icon/Receive32.gif" tooltip="To receive the message"/>
+                              </briquette>
+                        </group>
+		</briquettes>
+                <equipment>
+                        <!-- The telephony group -->
+                        <info group="telephony" entity="SoundCard"/>
+                        <!-- The database group -->
+                        <info group="database" entity="source" options="ODBC:Base:Admin:Admin"/>
+                        <!-- The messenger group -->
+                        <info group="messenger" entity="Internal" options="IN"/>
+                        <info group="messenger" entity="Internal" options="OUT"/>
+                        <info group="messenger" entity="EMAIL/IMAP" options="IN"/>
+                        <info group="messenger" entity="EMAIL/POP3" options="IN"/>
+                        <info group="messenger" entity="EMAIL/SMTP" options="OUT"/>
+                        <info group="messenger" entity="Domino" options="IN"/>
+                        <info group="messenger" entity="Domino" options="OUT"/>
+                        <!-- The web group -->
+                </equipment>
+	</WorkFlow>
+</VisualCTI>

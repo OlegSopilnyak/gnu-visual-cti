@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+##############################################################################
+##
+##  DO NOT REMOVE THIS LICENSE AND COPYRIGHT NOTICE FOR ANY REASON
+##
+##############################################################################
+
+GNU VisualCTI - A Java multi-platform Computer Telephony Application Server
+Copyright (C) 2002 by Oleg Sopilnyak.
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+
+Contact oleg@visualcti.org or gennady@visualcti.org for more information.
+
+Ukraine point of contact: Oleg Sopilnyak - oleg@visualcti.org
+Home Phone:	380-62-3851086 (russian)
+
+USA point of contact: Justin Kuntz - jkuntz@prominic.com
+Prominic Technologies, Inc.
+PO Box 3233
+Champaign, IL 61826-3233
+Fax number: 217-356-3356
+##############################################################################
+
+-->
+<SecurityDatabase>
+	<group name="Administrators">
+User group, which have
+permissions to control a server
+<filter default="allowed">
+			<!--Filter for Administrators-->
+			<rule path="{Server}" type="allowed" error="true" event="stop|start|state" command="stop|start|get|set" response="true">
+				<!--Permissible definition of a rule of a filter-->
+			</rule>
+		</filter>
+	</group>
+	<group name="Guests">
+User group, the visitors,
+have not any permissions, by default
+<filter default="allowed">
+			<!--Filter for Guests-->
+			<rule path="{Server}" type="denied" error="true" event="stop|start|state" command="stop|start|get|set" response="true">
+				<!--Not permissible definition of a rule of a filter-->
+			</rule>
+			<rule path="/Service" type="denied" error="true" event="stop|start|state" command="stop|start|get|set" response="true">
+				<!--Not permissible definition of a rule of a filter-->
+			</rule>
+		</filter>
+	</group>
+	<group name="Servers">
+User group, server, have permissions to do everything,
+except for access to the stoppage of a server
+<filter default="allowed">
+			<!--Filter for Servers-->
+			<rule path="{Server}" type="allowed" error="true" event="stop|start|state" command="get|set" response="true">
+				<!--Permissible definition of a rule of a filter-->
+			</rule>
+		</filter>
+	</group>
+	<user login="adm" password="adm" group="Administrators" name="Oleg Sopilnyak">
+olegsopilnyak@yahoo.com
+    <filter default="allowed">
+			<!--Filter for Servers-->
+			<rule path="{Server}" type="allowed" error="true" event="stop|start|state" command="get|set" response="true">
+				<!--Permissible definition of a rule of a filter-->
+			</rule>
+		</filter>
+	</user>
+	<user login="g" password="g" group="Guests" name="Jon Dow">
+JonDow@yahoo.com
+    <filter default="denied">
+			<!--Filter for Servers-->
+			<rule path="{Server}" type="denied" error="true" event="stop|start|state" command="get|set" response="true">
+				<!--Permissible definition of a rule of a filter-->
+			</rule>
+		</filter>
+	</user>
+	<unit path="{Server}"/>
+	<unit path="/Service"/>
+	<unit path="/Service/Messenger"/>
+	<unit path="/Service/Messenger/EMAIL"/>
+	<unit path="/Service/Log"/>
+	<unit path="/Service/Security"/>
+</SecurityDatabase>

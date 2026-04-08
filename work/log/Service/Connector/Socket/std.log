@@ -1,0 +1,40 @@
+08 April 2026 13:25:51.475>Event: [start:12] from /Service/Connector/Socket
+08 April 2026 13:25:51.482>Event: [state:14] from /Service/Connector/Socket (Started manager for Socket_LinksManager)
+08 April 2026 13:26:07.218>Command: [get:17] for /Service/Connector/Socket. via link [Console_1] To wait for response? true
+parameter(s)
+{
+	{=> target(string) = meta}
+}
+>done:false
+>success:false
+
+08 April 2026 13:26:07.319> Response to command: [get:17] executed in /Service/Connector/Socket. via link [Console_1] Is executed well? true
+result(s)
+{
+	{<= meta.class(string) = org.visualcti.server.connector.control.SocketLinkFactory}
+	{<= meta.path(string) = /Service/Connector/Socket}
+	{<= meta.type(string) = [service] socket links factory}
+	{<= meta.name(string) = Socket}
+	{<= meta.state(string) = Started}
+}
+
+08 April 2026 13:27:40.929>Event: [start:12] from /Service/Connector/Socket
+08 April 2026 13:27:40.933>Event: [state:14] from /Service/Connector/Socket (Started manager for Socket_LinksManager)
+08 April 2026 13:27:54.078>Command: [get:17] for /Service/Connector/Socket. via link [Console_1] To wait for response? true
+parameter(s)
+{
+	{=> target(string) = meta}
+}
+>done:false
+>success:false
+
+08 April 2026 13:27:54.178> Response to command: [get:17] executed in /Service/Connector/Socket. via link [Console_1] Is executed well? true
+result(s)
+{
+	{<= meta.class(string) = org.visualcti.server.connector.control.SocketLinkFactory}
+	{<= meta.path(string) = /Service/Connector/Socket}
+	{<= meta.type(string) = [service] socket links factory}
+	{<= meta.name(string) = Socket}
+	{<= meta.state(string) = Started}
+}
+

@@ -1,0 +1,40 @@
+08 April 2026 13:25:51.506>Event: [start:31] from /Scheduler/VisualCTI/stub_2
+08 April 2026 13:25:51.507>Event: [stop:35] from /Scheduler/VisualCTI/stub_2
+08 April 2026 13:26:06.517>Command: [get:10] for /Scheduler/VisualCTI/stub_2. via link [Console_1] To wait for response? true
+parameter(s)
+{
+	{=> target(string) = meta}
+}
+>done:false
+>success:false
+
+08 April 2026 13:26:06.616> Response to command: [get:10] executed in /Scheduler/VisualCTI/stub_2. via link [Console_1] Is executed well? true
+result(s)
+{
+	{<= meta.class(string) = org.visualcti.server.Scheduler}
+	{<= meta.path(string) = /Scheduler/VisualCTI/stub_2}
+	{<= meta.type(string) = [scheduler]}
+	{<= meta.name(string) = stub_2}
+	{<= meta.state(string) = out service}
+}
+
+08 April 2026 13:27:40.945>Event: [start:32] from /Scheduler/VisualCTI/stub_2
+08 April 2026 13:27:40.946>Event: [stop:35] from /Scheduler/VisualCTI/stub_2
+08 April 2026 13:27:53.373>Command: [get:10] for /Scheduler/VisualCTI/stub_2. via link [Console_1] To wait for response? true
+parameter(s)
+{
+	{=> target(string) = meta}
+}
+>done:false
+>success:false
+
+08 April 2026 13:27:53.475> Response to command: [get:10] executed in /Scheduler/VisualCTI/stub_2. via link [Console_1] Is executed well? true
+result(s)
+{
+	{<= meta.class(string) = org.visualcti.server.Scheduler}
+	{<= meta.path(string) = /Scheduler/VisualCTI/stub_2}
+	{<= meta.type(string) = [scheduler]}
+	{<= meta.name(string) = stub_2}
+	{<= meta.state(string) = out service}
+}
+

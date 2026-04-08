@@ -1,0 +1,36 @@
+08 April 2026 13:26:06.817>Command: [get:13] for /Scheduler/all. via link [Console_1] To wait for response? true
+parameter(s)
+{
+	{=> target(string) = meta}
+}
+>done:false
+>success:false
+
+08 April 2026 13:26:06.918> Response to command: [get:13] executed in /Scheduler/all. via link [Console_1] Is executed well? true
+result(s)
+{
+	{<= meta.class(string) = org.visualcti.server.SchedulerGroup}
+	{<= meta.path(string) = /Scheduler/all}
+	{<= meta.type(string) = [schedulers tree]}
+	{<= meta.name(string) = All schedulers}
+	{<= meta.state(string) = out service}
+}
+
+08 April 2026 13:27:53.676>Command: [get:13] for /Scheduler/all. via link [Console_1] To wait for response? true
+parameter(s)
+{
+	{=> target(string) = meta}
+}
+>done:false
+>success:false
+
+08 April 2026 13:27:53.783> Response to command: [get:13] executed in /Scheduler/all. via link [Console_1] Is executed well? true
+result(s)
+{
+	{<= meta.class(string) = org.visualcti.server.SchedulerGroup}
+	{<= meta.path(string) = /Scheduler/all}
+	{<= meta.type(string) = [schedulers tree]}
+	{<= meta.name(string) = All schedulers}
+	{<= meta.state(string) = out service}
+}
+

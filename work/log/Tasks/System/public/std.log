@@ -1,0 +1,38 @@
+08 April 2026 13:25:51.501>Event: [start:27] from /Tasks/System/public
+08 April 2026 13:26:07.924>Command: [get:24] for /Tasks/System/public. via link [Console_1] To wait for response? true
+parameter(s)
+{
+	{=> target(string) = meta}
+}
+>done:false
+>success:false
+
+08 April 2026 13:26:08.025> Response to command: [get:24] executed in /Tasks/System/public. via link [Console_1] Is executed well? true
+result(s)
+{
+	{<= meta.class(string) = org.visualcti.server.task.TaskPool}
+	{<= meta.path(string) = /Tasks/System/public}
+	{<= meta.type(string) = [tasks pool]}
+	{<= meta.name(string) = System/public}
+	{<= meta.state(string) = active}
+}
+
+08 April 2026 13:27:40.943>Event: [start:27] from /Tasks/System/public
+08 April 2026 13:27:54.785>Command: [get:24] for /Tasks/System/public. via link [Console_1] To wait for response? true
+parameter(s)
+{
+	{=> target(string) = meta}
+}
+>done:false
+>success:false
+
+08 April 2026 13:27:54.885> Response to command: [get:24] executed in /Tasks/System/public. via link [Console_1] Is executed well? true
+result(s)
+{
+	{<= meta.class(string) = org.visualcti.server.task.TaskPool}
+	{<= meta.path(string) = /Tasks/System/public}
+	{<= meta.type(string) = [tasks pool]}
+	{<= meta.name(string) = System/public}
+	{<= meta.state(string) = active}
+}
+

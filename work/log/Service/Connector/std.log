@@ -1,0 +1,38 @@
+08 April 2026 13:25:51.476>Event: [start:13] from /Service/Connector
+08 April 2026 13:26:07.017>Command: [get:15] for /Service/Connector. via link [Console_1] To wait for response? true
+parameter(s)
+{
+	{=> target(string) = meta}
+}
+>done:false
+>success:false
+
+08 April 2026 13:26:07.119> Response to command: [get:15] executed in /Service/Connector. via link [Console_1] Is executed well? true
+result(s)
+{
+	{<= meta.class(string) = org.visualcti.server.connector.Manager}
+	{<= meta.path(string) = /Service/Connector}
+	{<= meta.type(string) = [services tree] connectors manager}
+	{<= meta.name(string) = Connector}
+	{<= meta.state(string) = Started}
+}
+
+08 April 2026 13:27:40.930>Event: [start:13] from /Service/Connector
+08 April 2026 13:27:53.879>Command: [get:15] for /Service/Connector. via link [Console_1] To wait for response? true
+parameter(s)
+{
+	{=> target(string) = meta}
+}
+>done:false
+>success:false
+
+08 April 2026 13:27:53.978> Response to command: [get:15] executed in /Service/Connector. via link [Console_1] Is executed well? true
+result(s)
+{
+	{<= meta.class(string) = org.visualcti.server.connector.Manager}
+	{<= meta.path(string) = /Service/Connector}
+	{<= meta.type(string) = [services tree] connectors manager}
+	{<= meta.name(string) = Connector}
+	{<= meta.state(string) = Started}
+}
+

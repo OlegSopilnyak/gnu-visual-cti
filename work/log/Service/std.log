@@ -1,0 +1,38 @@
+08 April 2026 13:25:51.493>Event: [start:20] from /Service
+08 April 2026 13:26:06.919>Command: [get:14] for /Service. via link [Console_1] To wait for response? true
+parameter(s)
+{
+	{=> target(string) = meta}
+}
+>done:false
+>success:false
+
+08 April 2026 13:26:07.017> Response to command: [get:14] executed in /Service. via link [Console_1] Is executed well? true
+result(s)
+{
+	{<= meta.class(string) = org.visualcti.server.service.ServiceManager}
+	{<= meta.path(string) = /Service}
+	{<= meta.type(string) = [manager]}
+	{<= meta.name(string) = Service Manager}
+	{<= meta.state(string) = Started}
+}
+
+08 April 2026 13:27:40.940>Event: [start:20] from /Service
+08 April 2026 13:27:53.783>Command: [get:14] for /Service. via link [Console_1] To wait for response? true
+parameter(s)
+{
+	{=> target(string) = meta}
+}
+>done:false
+>success:false
+
+08 April 2026 13:27:53.878> Response to command: [get:14] executed in /Service. via link [Console_1] Is executed well? true
+result(s)
+{
+	{<= meta.class(string) = org.visualcti.server.service.ServiceManager}
+	{<= meta.path(string) = /Service}
+	{<= meta.type(string) = [manager]}
+	{<= meta.name(string) = Service Manager}
+	{<= meta.state(string) = Started}
+}
+

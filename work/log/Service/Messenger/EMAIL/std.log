@@ -1,0 +1,40 @@
+08 April 2026 13:25:51.483>Event: [start:15] from /Service/Messenger/EMAIL
+08 April 2026 13:25:51.484>Event: [state:16] from /Service/Messenger/EMAIL (Start Deliver for >EMAIL)
+08 April 2026 13:26:07.620>Command: [get:21] for /Service/Messenger/EMAIL. via link [Console_1] To wait for response? true
+parameter(s)
+{
+	{=> target(string) = meta}
+}
+>done:false
+>success:false
+
+08 April 2026 13:26:07.722> Response to command: [get:21] executed in /Service/Messenger/EMAIL. via link [Console_1] Is executed well? true
+result(s)
+{
+	{<= meta.class(string) = org.visualcti.server.message.email.Factory}
+	{<= meta.path(string) = /Service/Messenger/EMAIL}
+	{<= meta.type(string) = [service] e-mail messages factory}
+	{<= meta.name(string) = EMAIL}
+	{<= meta.state(string) = Started}
+}
+
+08 April 2026 13:27:40.931>Event: [state:15] from /Service/Messenger/EMAIL (Start Deliver for >EMAIL)
+08 April 2026 13:27:40.932>Event: [start:16] from /Service/Messenger/EMAIL
+08 April 2026 13:27:54.482>Command: [get:21] for /Service/Messenger/EMAIL. via link [Console_1] To wait for response? true
+parameter(s)
+{
+	{=> target(string) = meta}
+}
+>done:false
+>success:false
+
+08 April 2026 13:27:54.583> Response to command: [get:21] executed in /Service/Messenger/EMAIL. via link [Console_1] Is executed well? true
+result(s)
+{
+	{<= meta.class(string) = org.visualcti.server.message.email.Factory}
+	{<= meta.path(string) = /Service/Messenger/EMAIL}
+	{<= meta.type(string) = [service] e-mail messages factory}
+	{<= meta.name(string) = EMAIL}
+	{<= meta.state(string) = Started}
+}
+

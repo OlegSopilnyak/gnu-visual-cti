@@ -1,0 +1,38 @@
+08 April 2026 13:25:51.485>Event: [start:17] from /Service/Messenger
+08 April 2026 13:26:07.520>Command: [get:20] for /Service/Messenger. via link [Console_1] To wait for response? true
+parameter(s)
+{
+	{=> target(string) = meta}
+}
+>done:false
+>success:false
+
+08 April 2026 13:26:07.620> Response to command: [get:20] executed in /Service/Messenger. via link [Console_1] Is executed well? true
+result(s)
+{
+	{<= meta.class(string) = org.visualcti.server.message.impl.MessengerImpl}
+	{<= meta.path(string) = /Service/Messenger}
+	{<= meta.type(string) = [services tree] manager of messages factories}
+	{<= meta.name(string) = Messenger}
+	{<= meta.state(string) = Started}
+}
+
+08 April 2026 13:27:40.933>Event: [start:17] from /Service/Messenger
+08 April 2026 13:27:54.382>Command: [get:20] for /Service/Messenger. via link [Console_1] To wait for response? true
+parameter(s)
+{
+	{=> target(string) = meta}
+}
+>done:false
+>success:false
+
+08 April 2026 13:27:54.482> Response to command: [get:20] executed in /Service/Messenger. via link [Console_1] Is executed well? true
+result(s)
+{
+	{<= meta.class(string) = org.visualcti.server.message.impl.MessengerImpl}
+	{<= meta.path(string) = /Service/Messenger}
+	{<= meta.type(string) = [services tree] manager of messages factories}
+	{<= meta.name(string) = Messenger}
+	{<= meta.state(string) = Started}
+}
+

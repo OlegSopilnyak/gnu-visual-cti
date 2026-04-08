@@ -1,0 +1,240 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+##############################################################################
+##
+##  DO NOT REMOVE THIS LICENSE AND COPYRIGHT NOTICE FOR ANY REASON
+##
+##############################################################################
+
+GNU VisualCTI - A Java multi-platform Computer Telephony Application Server
+Copyright (C) 2002 by Oleg Sopilnyak.
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+
+Contact oleg@visualcti.org or gennady@visualcti.org for more information.
+
+Ukraine point of contact: Oleg Sopilnyak - oleg@visualcti.org
+Home Phone:	380-62-3851086 (russian)
+
+USA point of contact: Justin Kuntz - jkuntz@prominic.com
+Prominic Technologies, Inc.
+PO Box 3233
+Champaign, IL 61826-3233
+Fax number: 217-356-3356
+##############################################################################
+
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>org.visualcti</groupId>
+    <artifactId>GNU_VisualCTI</artifactId>
+    <version>3.0.1</version>
+    <name>GNU.VisualCTI</name>
+    <description>
+        GNU_Visual_CTI is a Java multi-platform Computer Telephony Application Server.
+        Plus Integrated Development Environment (IDE) to develop (visually) and deploy applications
+        for the Computer Telephony Application Server
+    </description>
+    <url>https://sourceforge.net/projects/visualtelephony/</url>
+    <licenses>
+        <license>
+            <name>GNU LIBRARY GENERAL PUBLIC LICENSE, Version 2</name>
+            <url>https://www.gnu.org/licenses/lgpl-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+    <developers>
+        <developer>
+            <id>oleg</id>
+            <name>Oleg Sopilnyak</name>
+            <email>oleg.sopilnyak@gmail.com</email>
+            <url>https://www.linkedin.com/in/oleg-sopilnyak-87180b29</url>
+            <roles>
+                <role>architect</role>
+                <role>developer</role>
+            </roles>
+        </developer>
+        <developer>
+            <id>gennady</id>
+            <name>Genadij Berezhnyy</name>
+            <email>berezhnyy@googlemail.com</email>
+            <url>https://www.linkedin.com/in/genadij-berezhnyy-783a731</url>
+            <roles>
+                <role>architect</role>
+                <role>developer</role>
+            </roles>
+        </developer>
+    </developers>
+    <scm>
+        <connection/>
+        <developerConnection/>
+        <tag/>
+        <url/>
+    </scm>
+    <properties>
+        <jdom.version>0.7</jdom.version>
+        <xerces.version>2.12.2</xerces.version>
+        <javax.media.jmf.version>2.1.1e</javax.media.jmf.version>
+        <javax.jms.version>2.0.1</javax.jms.version>
+        <javax.mail.version>1.6.2</javax.mail.version>
+        <soap.version>2.3.1</soap.version>
+        <maven-install-plugin-version>2.5.2</maven-install-plugin-version>
+        <maven-shade-plugin-version>3.2.4</maven-shade-plugin-version>
+    </properties>
+    <dependencies>
+        <!-- Source: https://mvnrepository.com/artifact/jdom/jdom -->
+        <dependency>
+            <groupId>jdom</groupId>
+            <artifactId>jdom</artifactId>
+            <version>${jdom.version}</version>
+        </dependency>
+        <!-- Source: https://mvnrepository.com/artifact/xerces/xercesImpl -->
+        <dependency>
+            <groupId>xerces</groupId>
+            <artifactId>xercesImpl</artifactId>
+            <version>${xerces.version}</version>
+        </dependency>
+        <!-- Source: https://mvnrepository.com/artifact/javax.media/jmf -->
+        <dependency>
+            <groupId>javax.media</groupId>
+            <artifactId>jmf</artifactId>
+            <version>${javax.media.jmf.version}</version>
+        </dependency>
+        <!-- Source: https://mvnrepository.com/artifact/javax.jms/javax.jms-api -->
+        <dependency>
+            <groupId>javax.jms</groupId>
+            <artifactId>javax.jms-api</artifactId>
+            <version>${javax.jms.version}</version>
+        </dependency>
+        <!-- Source: https://mvnrepository.com/artifact/javax.mail/javax.mail-api -->
+        <dependency>
+            <groupId>javax.mail</groupId>
+            <artifactId>javax.mail-api</artifactId>
+            <version>${javax.mail.version}</version>
+        </dependency>
+        <!-- Source: https://mvnrepository.com/artifact/soap/soap -->
+        <dependency>
+            <groupId>soap</groupId>
+            <artifactId>soap</artifactId>
+            <version>${soap.version}</version>
+        </dependency>
+    </dependencies>
+
+    <profiles>
+        <profile>
+            <id>integration-development-environment</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-install-plugin</artifactId>
+                        <version>${maven-install-plugin-version}</version>
+                    </plugin>
+                    <!-- Making fat-jar (with dependencies) artifact -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-shade-plugin</artifactId>
+                        <version>${maven-shade-plugin-version}</version>
+                        <executions>
+                            <!-- Run shade goal on package phase -->
+                            <execution>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>shade</goal>
+                                </goals>
+                                <configuration>
+                                    <finalName>../VisualCTI_IDE</finalName>
+                                    <transformers>
+                                        <!-- add Main-Class to manifest file -->
+                                        <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                            <mainClass>org.visualcti.launch.IDE</mainClass>
+                                        </transformer>
+                                    </transformers>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>telepony-application-server</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-install-plugin</artifactId>
+                        <version>${maven-install-plugin-version}</version>
+                    </plugin>
+                    <!-- Making fat-jar (with dependencies) artifact -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-shade-plugin</artifactId>
+                        <version>${maven-shade-plugin-version}</version>
+                        <executions>
+                            <!-- Run shade goal on package phase -->
+                            <execution>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>shade</goal>
+                                </goals>
+                                <configuration>
+                                    <finalName>VisualCTI_Server</finalName>
+                                    <transformers>
+                                        <!-- add Main-Class to manifest file -->
+                                        <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                            <mainClass>org.visualcti.launch.Server</mainClass>
+                                        </transformer>
+                                    </transformers>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+
+    <pluginRepositories>
+        <pluginRepository>
+            <id>central</id>
+            <name>Central Repository</name>
+            <url>https://repo.maven.apache.org/maven2</url>
+            <layout>default</layout>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+            <releases>
+                <updatePolicy>never</updatePolicy>
+            </releases>
+        </pluginRepository>
+    </pluginRepositories>
+    <repositories>
+        <repository>
+            <id>central</id>
+            <name>Central Repository</name>
+            <url>https://repo.maven.apache.org/maven2</url>
+            <layout>default</layout>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
+</project>

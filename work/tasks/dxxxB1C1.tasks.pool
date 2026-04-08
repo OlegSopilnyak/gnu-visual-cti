@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+##############################################################################
+##
+##  DO NOT REMOVE THIS LICENSE AND COPYRIGHT NOTICE FOR ANY REASON
+##
+##############################################################################
+
+GNU VisualCTI - A Java multi-platform Computer Telephony Application Server
+Copyright (C) 2002 by Oleg Sopilnyak.
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+
+Contact oleg@visualcti.org or gennady@visualcti.org for more information.
+
+Ukraine point of contact: Oleg Sopilnyak - oleg@visualcti.org
+Home Phone:	380-62-3851086 (russian)
+
+USA point of contact: Justin Kuntz - jkuntz@prominic.com
+Prominic Technologies, Inc.
+PO Box 3233
+Champaign, IL 61826-3233
+Fax number: 217-356-3356
+##############################################################################
+
+-->
+<TasksPool type="local">
+  <!--The tasks pool for [dxxxB1C1]-->
+  <task class="org.visualcti.briquette.Program">
+    <format date="MM/dd/yyyy" time="HH.mm" />
+    <chain>
+      <property name="name" type="string">To play the file</property>
+      <property name="ID" type="string">Main-chain</property>
+      <property name="main" type="string">Main-chain:Semaphore.0</property>
+      <database>
+        <!--Request to database connection-->
+        <property name="class" type="string">sun.jdbc.odbc.JdbcOdbcDriver</property>
+        <property name="url" type="string">jdbc:odbc:DSN</property>
+        <property name="schema" type="string">Admin</property>
+        <property name="login" type="string">Admin</property>
+        <property name="password" type="string">admin</property>
+        <property name="autoCommit" type="boolean">true</property>
+      </database>
+      <parameters>
+        <!--Formal parameters of the Chain of Operations-->
+        <input />
+        <output />
+      </parameters>
+      <sequence>
+        <briquette class="org.visualcti.briquette.control.TrafficLight">
+          <!--base properties of the briquette-->
+          <base>
+            <property name="ID" type="string">Main-chain:Semaphore.0</property>
+            <property name="master" type="boolean">true</property>
+            <property name="about" type="string">Traffic Light for subchain</property>
+            <property name="coordinates" type="point">
+              <coord X="50.0" Y="0.0" />
+            </property>
+          </base>
+          <!--runtime properties of the briquette-->
+          <runtime>
+            <greenLight>
+              <enable_for day="Sun">0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23</enable_for>
+              <enable_for day="Mon">0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23</enable_for>
+              <enable_for day="Tue">0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23</enable_for>
+              <enable_for day="Wed">0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23</enable_for>
+              <enable_for day="Thu">0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23</enable_for>
+              <enable_for day="Fri">0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23</enable_for>
+              <enable_for day="Sat">0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23</enable_for>
+            </greenLight>
+          </runtime>
+          <link default="Main-chain:Wait.0" />
+        </briquette>
+        <briquette class="org.visualcti.briquette.control.Return">
+          <!--base properties of the briquette-->
+          <base>
+            <property name="ID" type="string">Main-chain:Exit.0</property>
+            <property name="master" type="boolean">false</property>
+            <property name="about" type="string">To exit a subroutine</property>
+            <property name="coordinates" type="point">
+              <coord X="30.0" Y="130.0" />
+            </property>
+          </base>
+          <!--runtime properties of the briquette-->
+          <runtime>
+            <property name="dropCall" type="boolean">false</property>
+          </runtime>
+          <link />
+        </briquette>
+        <briquette class="org.visualcti.briquette.telephony.Wait">
+          <!--base properties of the briquette-->
+          <base>
+            <property name="ID" type="string">Main-chain:Wait.0</property>
+            <property name="master" type="boolean">false</property>
+            <property name="about" type="string">To wait an event</property>
+            <property name="coordinates" type="point">
+              <coord X="130.0" Y="40.0" />
+            </property>
+          </base>
+          <!--runtime properties of the briquette-->
+          <runtime>
+            <property name="rings" type="symbol">local:1(number) const true</property>
+            <property name="timeout" type="symbol">local:60(number) const true</property>
+            <property name="answer" type="boolean">true</property>
+          </runtime>
+          <link default="Main-chain:Play.0" />
+        </briquette>
+        <briquette class="org.visualcti.briquette.telephony.Play">
+          <!--base properties of the briquette-->
+          <base>
+            <property name="ID" type="string">Main-chain:Play.0</property>
+            <property name="master" type="boolean">false</property>
+            <property name="about" type="string">To play sounds chain</property>
+            <property name="coordinates" type="point">
+              <coord X="170.0" Y="150.0" />
+            </property>
+          </base>
+          <!--runtime properties of the briquette-->
+          <runtime>
+            <property name="beep" type="boolean">false</property>
+            <property name="timeout" type="symbol">local:-1(number) const true</property>
+            <set type="DTMF" value="#, *, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9" />
+            <sources_chain>
+              <media group="VOX" direction="input">
+                <property name="type" type="string">FILE</property>
+                <property name="content" type="symbol">local:welcome.wav(string) const true</property>
+              </media>
+            </sources_chain>
+          </runtime>
+          <link default="Main-chain:Exit.0" />
+        </briquette>
+      </sequence>
+      <library />
+    </chain>
+  </task>
+</TasksPool>
+

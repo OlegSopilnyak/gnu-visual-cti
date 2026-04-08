@@ -1,0 +1,36 @@
+08 April 2026 13:26:08.327>Command: [get:28] for /Tasks/VisualCTI/stub_4. via link [Console_1] To wait for response? true
+parameter(s)
+{
+	{=> target(string) = meta}
+}
+>done:false
+>success:false
+
+08 April 2026 13:26:08.425> Response to command: [get:28] executed in /Tasks/VisualCTI/stub_4. via link [Console_1] Is executed well? true
+result(s)
+{
+	{<= meta.class(string) = org.visualcti.server.task.TaskPool}
+	{<= meta.path(string) = /Tasks/VisualCTI/stub_4}
+	{<= meta.type(string) = [tasks pool]}
+	{<= meta.name(string) = VisualCTI/stub_4}
+	{<= meta.state(string) = passive}
+}
+
+08 April 2026 13:27:55.185>Command: [get:28] for /Tasks/VisualCTI/stub_4. via link [Console_1] To wait for response? true
+parameter(s)
+{
+	{=> target(string) = meta}
+}
+>done:false
+>success:false
+
+08 April 2026 13:27:55.285> Response to command: [get:28] executed in /Tasks/VisualCTI/stub_4. via link [Console_1] Is executed well? true
+result(s)
+{
+	{<= meta.class(string) = org.visualcti.server.task.TaskPool}
+	{<= meta.path(string) = /Tasks/VisualCTI/stub_4}
+	{<= meta.type(string) = [tasks pool]}
+	{<= meta.name(string) = VisualCTI/stub_4}
+	{<= meta.state(string) = passive}
+}
+

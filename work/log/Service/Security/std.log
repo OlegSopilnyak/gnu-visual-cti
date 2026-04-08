@@ -1,0 +1,38 @@
+08 April 2026 13:25:51.486>Event: [start:18] from /Service/Security
+08 April 2026 13:26:07.722>Command: [get:22] for /Service/Security. via link [Console_1] To wait for response? true
+parameter(s)
+{
+	{=> target(string) = meta}
+}
+>done:false
+>success:false
+
+08 April 2026 13:26:07.822> Response to command: [get:22] executed in /Service/Security. via link [Console_1] Is executed well? true
+result(s)
+{
+	{<= meta.class(string) = org.visualcti.server.security.impl.ServerSecurityManager}
+	{<= meta.path(string) = /Service/Security}
+	{<= meta.type(string) = [service] security}
+	{<= meta.name(string) = Security}
+	{<= meta.state(string) = Started}
+}
+
+08 April 2026 13:27:40.938>Event: [start:18] from /Service/Security
+08 April 2026 13:27:54.584>Command: [get:22] for /Service/Security. via link [Console_1] To wait for response? true
+parameter(s)
+{
+	{=> target(string) = meta}
+}
+>done:false
+>success:false
+
+08 April 2026 13:27:54.690> Response to command: [get:22] executed in /Service/Security. via link [Console_1] Is executed well? true
+result(s)
+{
+	{<= meta.class(string) = org.visualcti.server.security.impl.ServerSecurityManager}
+	{<= meta.path(string) = /Service/Security}
+	{<= meta.type(string) = [service] security}
+	{<= meta.name(string) = Security}
+	{<= meta.state(string) = Started}
+}
+

@@ -1,0 +1,38 @@
+08 April 2026 13:25:51.501>Event: [start:26] from /Hardware
+08 April 2026 13:26:05.844>Command: [get:3] for /Hardware. via link [Console_1] To wait for response? true
+parameter(s)
+{
+	{=> target(string) = meta}
+}
+>done:false
+>success:false
+
+08 April 2026 13:26:05.916> Response to command: [get:3] executed in /Hardware. via link [Console_1] Is executed well? true
+result(s)
+{
+	{<= meta.class(string) = org.visualcti.server.hardware.HardwareManager}
+	{<= meta.path(string) = /Hardware}
+	{<= meta.type(string) = [manager]}
+	{<= meta.name(string) = Hardware Manager}
+	{<= meta.state(string) = in service}
+}
+
+08 April 2026 13:27:40.943>Event: [start:26] from /Hardware
+08 April 2026 13:27:52.666>Command: [get:3] for /Hardware. via link [Console_1] To wait for response? true
+parameter(s)
+{
+	{=> target(string) = meta}
+}
+>done:false
+>success:false
+
+08 April 2026 13:27:52.773> Response to command: [get:3] executed in /Hardware. via link [Console_1] Is executed well? true
+result(s)
+{
+	{<= meta.class(string) = org.visualcti.server.hardware.HardwareManager}
+	{<= meta.path(string) = /Hardware}
+	{<= meta.type(string) = [manager]}
+	{<= meta.name(string) = Hardware Manager}
+	{<= meta.state(string) = in service}
+}
+

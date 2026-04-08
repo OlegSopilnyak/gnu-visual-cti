@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+##############################################################################
+##
+##  DO NOT REMOVE THIS LICENSE AND COPYRIGHT NOTICE FOR ANY REASON
+##
+##############################################################################
+
+GNU VisualCTI - A Java multi-platform Computer Telephony Application Server
+Copyright (C) 2002 by Oleg Sopilnyak.
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+
+Contact oleg@visualcti.org or gennady@visualcti.org for more information.
+
+Ukraine point of contact: Oleg Sopilnyak - oleg@visualcti.org
+Home Phone:	380-62-3851086 (russian)
+
+USA point of contact: Justin Kuntz - jkuntz@prominic.com
+Prominic Technologies, Inc.
+PO Box 3233
+Champaign, IL 61826-3233
+Fax number: 217-356-3356
+##############################################################################
+
+-->
+<VisualCTI>
+  <Server date="dd MMMM yyyy HH:mm:ss.SSS">
+    <!--Base interface of any Server's parts-->
+    <base package="org.visualcti.server">serverUnit</base>
+    <!--Properties of main RMI registry-->
+    <rmi port="2888" start="true">local RMI Registry properties</rmi>
+    <!--Services system of VisualCTI server-->
+    <system>
+      <Services>
+        <!--Base components of any service-->
+        <base>
+          <!--This is main interface of any service with children-->
+          <MasterService package="org.visualcti.server.service" class="MasterService" extends="Service" />
+          <!--This is main interface of any service-->
+          <Service package="org.visualcti.server.service" class="Service" extends="org.visualcti.server.serverUnit" />
+        </base>
+        <!--This is the manager of all Services system-->
+        <service>
+          <Manager package="org.visualcti.server.service" class="Manager" extends="MasterService" Prominic="signed">
+            <parent package="org.visualcti.server.service" class="ServiceManager" method="getManager">The parent of manager, he will create the Manager</parent>
+          </Manager>
+        </service>
+        <!--This is the security manager -->
+        <service>
+          <SecurityManager package="org.visualcti.server.security" class="Manager" extends="org.visualcti.server.service.Service">
+            <parent package="org.visualcti.server.security.impl" class="ServerSecurityManager" method="getManager">Security manager of Server, he will create the Manager</parent>
+            <security>conf/ServerSecurity.xml</security>
+          </SecurityManager>
+        </service>
+        <!--This is the connectors manager -->
+        <service>
+          <Connector package="org.visualcti.server.connector" class="Manager" extends="org.visualcti.server.service.MasterService">
+            <parent package="org.visualcti.server.connector" class="Manager">Connectors manager of Server, it will create the Manager's instance</parent>
+            <!--Factory for control the server via system's console-->
+            <factory name="Console" package="org.visualcti.server.connector.streams" class="ConsoleFactory" extends="org.visualcti.server.connector.LinkFactory">System console connector</factory>
+            <factory port="1888" name="Socket" package="org.visualcti.server.connector.control" class="SocketLinkFactory" extends="org.visualcti.server.connector.LinkFactory">Network Sockets connector</factory>
+          </Connector>
+        </service>
+        <!--This is the Server Log system-->
+        <service>
+          <Logger home="work/log" package="org.visualcti.server.log" class="Log" extends="org.visualcti.server.service.Service">
+            <parent package="org.visualcti.server.log.impl" class="LogImpl">This is Logger implementation</parent>
+            <filter default="allowed">
+              <!--Filter for Log System-->
+              <rule path="{Server}" type="denied" error="true" event="stop|start|state" command="stop|start|get|set" response="true">
+                <!--Not permissible definition of a rule of a filter-->
+              </rule>
+            </filter>
+          </Logger>
+        </service>
+        <!--The service operates access to the messages-->
+        <service>
+          <Messenger package="org.visualcti.server.message" class="Messenger" extends="org.visualcti.server.service.MasterService" persistent="work/persistent.messages" Prominic="signed">
+            <parent package="org.visualcti.server.message.impl" class="MessengerImpl">The child of messenger, he will create the Messenger</parent>
+            <!--To sharing messener's handle for remote servers-->
+            <rmi handleName="Messenger/Handle" class="org.visualcti.server.message.Messenger$Handle" extends="org.visualcti.server.message.MessengerHandle">Handle for other severs</rmi>
+            <!--Try to connect to other server for support remote messaging-->
+            <remote class="org.visualcti.server.message.MessengerHandle" host="localhost" port="2888" name="Messenger/Handle" check="false">remote messenger's handle properties</remote>
+            <!--Try to connect to other server for support remote messaging-->
+            <remote class="org.visualcti.server.message.MessengerHandle" host="sun.com" port="2887" name="Messenger/Handle2" check="false">remote messenger's handle properties</remote>
+            <message>
+              <!--factory of messages, features: create, send, receive-->
+              <MessageFactory package="org.visualcti.server.message" class="MessageFactory" extends="org.visualcti.server.service.Service" />
+              <!--Abstract unified message-->
+              <Message package="org.visualcti.server.message" class="Message" extends="MessageHeader" />
+              <!--The abstract unified message header-->
+              <MessageHeader package="org.visualcti.server.message" extends="javax.jms.Message">MessageHeader</MessageHeader>
+            </message>
+            <!--Factory for make, send, receive e-mail messages-->
+            <factory name="EMAIL" package="org.visualcti.server.message.email" class="Factory" extends="org.visualcti.server.message.MessageFactory" persistent="work/persistent.messages">E-Mail
+              <!-- Define protocols for factory -->
+              <protocol in="POP3,IMAP" out="SMTP" />
+            </factory>
+          </Messenger>
+        </service>
+        <service>
+          <Database package="org.visualcti.server.database" class="Database" extends="org.visualcti.server.service.Service">
+            <parent package="org.visualcti.server.database" class="DataManager">The parent of manager, he will create the Manager</parent>
+          </Database>
+        </service>
+      </Services>
+    </system>
+    <system>
+      <Hardware>
+        <Manager package="org.visualcti.server.hardware" class="Manager" extends="org.visualcti.server.Engine">
+          <parent package="org.visualcti.server.hardware" class="HardwareManager" method="getManager">The realization of hardware manager's features</parent>
+        </Manager>
+        <factory package="org.visualcti.server.hardware.provider" class="stubDeviceFactory" extends="org.visualcti.server.hardware.deviceFactory">
+          <parameter name="device count" type="number" value="4" />
+          <parameter name="device prefix" type="string" value="stub_" />
+        </factory>
+<!--        <factory package="org.visualcti.server.hardware.provider.dialogic" class="Factory" extends="org.visualcti.server.hardware.deviceFactory">-->
+<!--          <parameter name="vendor" type="string" value="Dialogic" />-->
+<!--          <parameter name="url" type="string" value="file:./dialogic.configuration.xml" />-->
+<!--        </factory>-->
+      </Hardware>
+    </system>
+    <system>
+      <Tasks>
+        <!-- Server tasks control system -->
+        <!-- The manage of tasks pools -->
+        <Manager package="org.visualcti.server.task" class="Manager" extends="org.visualcti.server.Engine">
+          <parent package="org.visualcti.server.task" class="TaskManager" method="getManager">The realization of tasks controls manager</parent>
+          <parameter name="directory" type="string" value="work/tasks" />
+        </Manager>
+        <!-- Pool of public tasks -->
+        <pool type="public" name="public" file="public.tasks.pool" />
+        <!-- Pool of concrete device's tasks -->
+        <pool type="local" name="stub_5" file="stub_5.tasks.pool" />
+        <pool type="local" name="stub_10" file="stub_10.tasks.pool" />
+        <pool type="local" name="stub_11" file="stub_11.tasks.pool" />
+        <pool type="local" name="stub_12" file="stub_12.tasks.pool" />
+        <pool type="local" name="stub_13" file="stub_13.tasks.pool" />
+        <pool type="local" name="stub_14" file="stub_14.tasks.pool" />
+        <pool type="local" name="stub_15" file="stub_15.tasks.pool" />
+        <pool type="local" name="stub_6" file="stub_6.tasks.pool" />
+        <pool type="local" name="stub_7" file="stub_7.tasks.pool" />
+        <pool type="local" name="stub_8" file="stub_8.tasks.pool" />
+        <pool type="local" name="stub_9" file="stub_9.tasks.pool" />
+        <pool type="local" name="VisualCTI/stub_1" file="stub_1.tasks.pool" />
+        <pool type="local" name="VisualCTI/stub_2" file="stub_2.tasks.pool" />
+        <pool type="local" name="VisualCTI/stub_3" file="stub_3.tasks.pool" />
+        <pool type="local" name="VisualCTI/stub_4" file="stub_4.tasks.pool" />
+        <pool type="local" name="Dialogic/dxxxB1C1" file="dxxxB1C1.tasks.pool" />
+        <pool type="local" name="Dialogic/dxxxB1C2" file="dxxxB1C2.tasks.pool" />
+        <pool type="local" name="Dialogic/dxxxB1C3" file="dxxxB1C3.tasks.pool" />
+        <pool type="local" name="Dialogic/dxxxB1C4" file="dxxxB1C4.tasks.pool" />
+      </Tasks>
+    </system>
+  </Server>
+</VisualCTI>
+

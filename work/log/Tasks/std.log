@@ -1,0 +1,38 @@
+08 April 2026 13:25:51.503>Event: [start:28] from /Tasks
+08 April 2026 13:26:07.823>Command: [get:23] for /Tasks. via link [Console_1] To wait for response? true
+parameter(s)
+{
+	{=> target(string) = meta}
+}
+>done:false
+>success:false
+
+08 April 2026 13:26:07.924> Response to command: [get:23] executed in /Tasks. via link [Console_1] Is executed well? true
+result(s)
+{
+	{<= meta.class(string) = org.visualcti.server.task.TaskManager}
+	{<= meta.path(string) = /Tasks}
+	{<= meta.type(string) = [manager]}
+	{<= meta.name(string) = Tasks Manager}
+	{<= meta.state(string) = in service}
+}
+
+08 April 2026 13:27:40.944>Event: [start:28] from /Tasks
+08 April 2026 13:27:54.690>Command: [get:23] for /Tasks. via link [Console_1] To wait for response? true
+parameter(s)
+{
+	{=> target(string) = meta}
+}
+>done:false
+>success:false
+
+08 April 2026 13:27:54.784> Response to command: [get:23] executed in /Tasks. via link [Console_1] Is executed well? true
+result(s)
+{
+	{<= meta.class(string) = org.visualcti.server.task.TaskManager}
+	{<= meta.path(string) = /Tasks}
+	{<= meta.type(string) = [manager]}
+	{<= meta.name(string) = Tasks Manager}
+	{<= meta.state(string) = in service}
+}
+

@@ -1,0 +1,38 @@
+08 April 2026 13:25:51.469>Event: [start:9] from /Service/Database
+08 April 2026 13:26:07.319>Command: [get:18] for /Service/Database. via link [Console_1] To wait for response? true
+parameter(s)
+{
+	{=> target(string) = meta}
+}
+>done:false
+>success:false
+
+08 April 2026 13:26:07.420> Response to command: [get:18] executed in /Service/Database. via link [Console_1] Is executed well? true
+result(s)
+{
+	{<= meta.class(string) = org.visualcti.server.database.DataManager}
+	{<= meta.path(string) = /Service/Database}
+	{<= meta.type(string) = [service] database}
+	{<= meta.name(string) = Database}
+	{<= meta.state(string) = Started}
+}
+
+08 April 2026 13:27:40.925>Event: [start:9] from /Service/Database
+08 April 2026 13:27:54.179>Command: [get:18] for /Service/Database. via link [Console_1] To wait for response? true
+parameter(s)
+{
+	{=> target(string) = meta}
+}
+>done:false
+>success:false
+
+08 April 2026 13:27:54.280> Response to command: [get:18] executed in /Service/Database. via link [Console_1] Is executed well? true
+result(s)
+{
+	{<= meta.class(string) = org.visualcti.server.database.DataManager}
+	{<= meta.path(string) = /Service/Database}
+	{<= meta.type(string) = [service] database}
+	{<= meta.name(string) = Database}
+	{<= meta.state(string) = Started}
+}
+

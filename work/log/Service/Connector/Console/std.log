@@ -1,0 +1,42 @@
+08 April 2026 13:25:51.473>Event: [start:10] from /Service/Connector/Console
+08 April 2026 13:25:51.473>Event: [state:11] from /Service/Connector/Console (Started manager for Console_LinksManager)
+08 April 2026 13:26:02.445>Event: [state:41] from /Service/Connector/Console (Created Link Console_1)
+08 April 2026 13:26:07.119>Command: [get:16] for /Service/Connector/Console. via link [Console_1] To wait for response? true
+parameter(s)
+{
+	{=> target(string) = meta}
+}
+>done:false
+>success:false
+
+08 April 2026 13:26:07.218> Response to command: [get:16] executed in /Service/Connector/Console. via link [Console_1] Is executed well? true
+result(s)
+{
+	{<= meta.class(string) = org.visualcti.server.connector.streams.ConsoleFactory}
+	{<= meta.path(string) = /Service/Connector/Console}
+	{<= meta.type(string) = [service] console links factory}
+	{<= meta.name(string) = Console}
+	{<= meta.state(string) = Started}
+}
+
+08 April 2026 13:27:40.928>Event: [start:10] from /Service/Connector/Console
+08 April 2026 13:27:40.928>Event: [state:11] from /Service/Connector/Console (Started manager for Console_LinksManager)
+08 April 2026 13:27:48.100>Event: [state:41] from /Service/Connector/Console (Created Link Console_1)
+08 April 2026 13:27:53.980>Command: [get:16] for /Service/Connector/Console. via link [Console_1] To wait for response? true
+parameter(s)
+{
+	{=> target(string) = meta}
+}
+>done:false
+>success:false
+
+08 April 2026 13:27:54.078> Response to command: [get:16] executed in /Service/Connector/Console. via link [Console_1] Is executed well? true
+result(s)
+{
+	{<= meta.class(string) = org.visualcti.server.connector.streams.ConsoleFactory}
+	{<= meta.path(string) = /Service/Connector/Console}
+	{<= meta.type(string) = [service] console links factory}
+	{<= meta.name(string) = Console}
+	{<= meta.state(string) = Started}
+}
+

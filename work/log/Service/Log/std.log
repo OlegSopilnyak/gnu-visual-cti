@@ -1,0 +1,40 @@
+08 April 2026 13:25:51.486>Event: [start:19] from /Service/Log
+08 April 2026 13:25:51.129>Event: [start:1] from /Service/Log
+08 April 2026 13:26:07.420>Command: [get:19] for /Service/Log. via link [Console_1] To wait for response? true
+parameter(s)
+{
+	{=> target(string) = meta}
+}
+>done:false
+>success:false
+
+08 April 2026 13:26:07.520> Response to command: [get:19] executed in /Service/Log. via link [Console_1] Is executed well? true
+result(s)
+{
+	{<= meta.class(string) = org.visualcti.server.log.impl.LogImpl}
+	{<= meta.path(string) = /Service/Log}
+	{<= meta.type(string) = [service] logger}
+	{<= meta.name(string) = Log}
+	{<= meta.state(string) = Started}
+}
+
+08 April 2026 13:27:40.939>Event: [start:19] from /Service/Log
+08 April 2026 13:27:40.587>Event: [start:1] from /Service/Log
+08 April 2026 13:27:54.281>Command: [get:19] for /Service/Log. via link [Console_1] To wait for response? true
+parameter(s)
+{
+	{=> target(string) = meta}
+}
+>done:false
+>success:false
+
+08 April 2026 13:27:54.381> Response to command: [get:19] executed in /Service/Log. via link [Console_1] Is executed well? true
+result(s)
+{
+	{<= meta.class(string) = org.visualcti.server.log.impl.LogImpl}
+	{<= meta.path(string) = /Service/Log}
+	{<= meta.type(string) = [service] logger}
+	{<= meta.name(string) = Log}
+	{<= meta.state(string) = Started}
+}
+

@@ -1,0 +1,38 @@
+08 April 2026 13:25:51.500>Event: [start:25] from /Hardware/provider/VisualCTI
+08 April 2026 13:26:05.917>Command: [get:4] for /Hardware/provider/VisualCTI. via link [Console_1] To wait for response? true
+parameter(s)
+{
+	{=> target(string) = meta}
+}
+>done:false
+>success:false
+
+08 April 2026 13:26:06.012> Response to command: [get:4] executed in /Hardware/provider/VisualCTI. via link [Console_1] Is executed well? true
+result(s)
+{
+	{<= meta.class(string) = org.visualcti.server.hardware.provider.stubDeviceFactory}
+	{<= meta.path(string) = /Hardware/provider/VisualCTI}
+	{<= meta.type(string) = CT-board}
+	{<= meta.name(string) = provider/VisualCTI}
+	{<= meta.state(string) = in service}
+}
+
+08 April 2026 13:27:40.942>Event: [start:25] from /Hardware/provider/VisualCTI
+08 April 2026 13:27:52.774>Command: [get:4] for /Hardware/provider/VisualCTI. via link [Console_1] To wait for response? true
+parameter(s)
+{
+	{=> target(string) = meta}
+}
+>done:false
+>success:false
+
+08 April 2026 13:27:52.870> Response to command: [get:4] executed in /Hardware/provider/VisualCTI. via link [Console_1] Is executed well? true
+result(s)
+{
+	{<= meta.class(string) = org.visualcti.server.hardware.provider.stubDeviceFactory}
+	{<= meta.path(string) = /Hardware/provider/VisualCTI}
+	{<= meta.type(string) = CT-board}
+	{<= meta.name(string) = provider/VisualCTI}
+	{<= meta.state(string) = in service}
+}
+

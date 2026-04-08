@@ -1,0 +1,40 @@
+08 April 2026 13:25:51.494>Event: [state:21] from /Hardware/provider/VisualCTI/stub_1 (IDLE)
+08 April 2026 13:25:51.504>Event: [state:30] from /Hardware/provider/VisualCTI/stub_1 (CLOSED)
+08 April 2026 13:26:06.012>Command: [get:5] for /Hardware/provider/VisualCTI/stub_1. via link [Console_1] To wait for response? true
+parameter(s)
+{
+	{=> target(string) = meta}
+}
+>done:false
+>success:false
+
+08 April 2026 13:26:06.112> Response to command: [get:5] executed in /Hardware/provider/VisualCTI/stub_1. via link [Console_1] Is executed well? true
+result(s)
+{
+	{<= meta.class(string) = org.visualcti.server.hardware.provider.stubDevice}
+	{<= meta.path(string) = /Hardware/provider/VisualCTI/stub_1}
+	{<= meta.type(string) = CT-device}
+	{<= meta.name(string) = stub_1}
+	{<= meta.state(string) = CLOSED}
+}
+
+08 April 2026 13:27:40.940>Event: [state:21] from /Hardware/provider/VisualCTI/stub_1 (IDLE)
+08 April 2026 13:27:40.944>Event: [state:30] from /Hardware/provider/VisualCTI/stub_1 (CLOSED)
+08 April 2026 13:27:52.870>Command: [get:5] for /Hardware/provider/VisualCTI/stub_1. via link [Console_1] To wait for response? true
+parameter(s)
+{
+	{=> target(string) = meta}
+}
+>done:false
+>success:false
+
+08 April 2026 13:27:52.973> Response to command: [get:5] executed in /Hardware/provider/VisualCTI/stub_1. via link [Console_1] Is executed well? true
+result(s)
+{
+	{<= meta.class(string) = org.visualcti.server.hardware.provider.stubDevice}
+	{<= meta.path(string) = /Hardware/provider/VisualCTI/stub_1}
+	{<= meta.type(string) = CT-device}
+	{<= meta.name(string) = stub_1}
+	{<= meta.state(string) = CLOSED}
+}
+
