@@ -1,18 +1,22 @@
-# Getting Started
+# Was there the Java Life before Spring and without Java EE? YES!
 
-### Reference Documentation
+## Visual CTI is the Answer.
+### Hand-made computer-telephony-integration (CTI) applications server.
+Application server working with telephony hardware executing prepared and deployed to particular telephony-channel algorithms.<br/>Service is observed and managed through Java RMI from the Control Panel.
 
-For further reference, please consider the following sections:
+![Control Panel](documentation/control-panel.png)
 
-* [Official Apache Maven documentation](https://maven.apache.org/guides/index.html)
-* [Spring Boot Maven Plugin Reference Guide](https://docs.spring.io/spring-boot/4.0.5/maven-plugin)
-* [Create an OCI image](https://docs.spring.io/spring-boot/4.0.5/maven-plugin/build-image.html)
+With advanced Access Control System
+![Access Control System](documentation/access-control-system.png)
+### Hand-made integrated-developers-environment (IDE).
+Tool which allows engineers to focus on business algorithms not a programming language or libraries features.
+![Main Screen](documentation/ide-main-screen.png)
 
-### Maven Parent overrides
+Using Called Sub-Routines as well
+![Main Screen](documentation/ide-main-screen-subroutine.png)
 
-Due to Maven's design, elements are inherited from the parent POM to the project POM.
-While most of the inheritance is fine, it also inherits unwanted elements like `<license>` and `<developers>` from the
-parent.
-To prevent this, the project POM contains empty overrides for these elements.
-If you manually switch to a different parent and actually want the inheritance, you need to remove those overrides.
+Tool allows to design develop and debug te application.<br/>
+Developed application can be deployed to the application server directly.<br/>
+Tool can connect to server's telephony channel in order to test algorithm on the real hardware.
 
+### Just try it!
