@@ -22,10 +22,10 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-Contact oleg@visualcti.org or gennady@visualcti.org for more information.
+Contact oleg.sopilnyak@gmail.com or gennady@visualcti.org for more information.
 
-Ukraine point of contact: Oleg Sopilnyak - oleg@visualcti.org
-Home Phone:	380-62-3851086 (russian)
+Ukraine point of contact: Oleg Sopilnyak - oleg.sopilnyak@gmail.com
+Home Phone:	+380-63-8420220 (russian)
 
 USA point of contact: Justin Kuntz - jkuntz@prominic.com
 Prominic Technologies, Inc.
@@ -37,18 +37,21 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.message.email;
 
-import java.io.*;
-import java.net.*;
-import java.util.*;
-import javax.activation.*;
-import javax.mail.*;
-import javax.mail.internet.*;
-import java.text.*;
-import org.visualcti.server.*;
-import org.visualcti.server.message.*;
+import javax.mail.Session;
+import javax.mail.Transport;
+import javax.mail.internet.MimeMessage;
+
+import java.net.InetAddress;
+import java.net.Socket;
+import java.util.Properties;
+import org.visualcti.server.message.Message;
+import org.visualcti.server.message.MessageException;
+import org.visualcti.server.message.SendMessageException;
+import org.visualcti.server.unitError;
+import org.visualcti.server.unitEvent;
 
 /**
-to send org.visualcti.server.message.Message via smpt-protocol
+to send org.visualcti.server.message.Message via smtp-protocol
 */
 class Mailer {
     /**
@@ -60,10 +63,10 @@ class Mailer {
                     org.visualcti.server.message.Message message,
                     String smtpServer
                     )
-                    throws MessageException, javax.jms.JMSException
+                    throws javax.jms.JMSException
     {
 		Properties props = (Properties)System.getProperties().clone();
-		// to setup delivery via smtpServer property
+		// to set up delivery via smtpServer property
 		props.put("mail.smtp.host", smtpServer);
 		// to check server's accessibility
         try {Mailer.checkSMTP(props);
@@ -76,22 +79,22 @@ class Mailer {
 		//session.setDebug(true);
 		// to make MIME message
 		MimeMessage oMessage = new MimeMessage(session);
-		// to copy contens from Message to MIME message
+		// to copy contents from Message to MIME message
 		Util.message2mime(message, oMessage);
         factory.dispatchEvent( new unitEvent(factory,"Start SMTP transport...") );
 		try {
-			// try to delivery MIME message
+			// try to deliver MIME message
 			Transport.send(oMessage);
-			message.setStringProperty(message.RESULT, message.RESULT_OK);
-			message.setStringProperty(message.MESSAGE, "Success.");
+			message.setStringProperty(Message.RESULT, Message.RESULT_OK);
+			message.setStringProperty(Message.MESSAGE, "Success.");
 			// to notify thread suspended on this semaphore
 			synchronized(message){message.notify();}
             factory.dispatchEvent( new unitEvent(factory,"SMTP transport have finished...") );
 		}catch (javax.mail.MessagingException e){
 		    factory.dispatchEvent(new unitError(factory,e));
 			// exception occured :-\
-			message.setStringProperty(message.RESULT, message.RESULT_ERROR);
-			message.setStringProperty(message.MESSAGE, e.getMessage());
+			message.setStringProperty(Message.RESULT, Message.RESULT_ERROR);
+			message.setStringProperty(Message.MESSAGE, e.getMessage());
 			if (e instanceof javax.mail.SendFailedException)
 			    throw new SendMessageException( e.getMessage() );
 			else

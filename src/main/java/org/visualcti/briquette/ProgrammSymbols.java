@@ -22,10 +22,10 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-Contact oleg@visualcti.org or gennady@visualcti.org for more information.
+Contact oleg.sopilnyak@gmail.com or gennady@visualcti.org for more information.
 
-Ukraine point of contact: Oleg Sopilnyak - oleg@visualcti.org
-Home Phone:	380-62-3851086 (russian)
+Ukraine point of contact: Oleg Sopilnyak - oleg.sopilnyak@gmail.com
+Home Phone:	+380-63-8420220 (russian)
 
 USA point of contact: Justin Kuntz - jkuntz@prominic.com
 Prominic Technologies, Inc.
@@ -59,10 +59,10 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-Contact oleg@visualcti.org or gennady@visualcti.org for more information.
+Contact oleg.sopilnyak@gmail.com or gennady@visualcti.org for more information.
 
-Ukraine point of contact: Oleg Sopilnyak - oleg@visualcti.org
-Home Phone:	380-62-3851086 (russian)
+Ukraine point of contact: Oleg Sopilnyak - oleg.sopilnyak@gmail.com
+Home Phone:	+380-63-8420220 (russian)
 
 USA point of contact: Justin Kuntz - jkuntz@prominic.com
 Prominic Technologies, Inc.
