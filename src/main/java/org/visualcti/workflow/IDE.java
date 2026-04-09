@@ -168,7 +168,7 @@ MessageFormat titleFormat = new MessageFormat("VisualCTI WorkFlow: {0} [{1}]");
     public static void main(String[] args)
     {
         IDE WorkFlow = new IDE( args );
-        WorkFlow.setProgramm( Program.newProrgamm() );
+        WorkFlow.setProgramm( Program.newProgram() );
         Tools.print("Show the main frame...");
         WorkFlow.setVisible( true );
     }

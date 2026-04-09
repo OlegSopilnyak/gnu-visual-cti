@@ -47,7 +47,7 @@ import org.visualcti.util.Tools;
 
 /**
 <pool>
-The pool of tasks assosiated with some name (device, or public)
+The pool of tasks associated with some name (device, or public)
 */
 public final class TaskPool
                     extends

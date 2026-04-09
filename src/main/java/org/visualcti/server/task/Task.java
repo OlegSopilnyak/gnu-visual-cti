@@ -37,94 +37,111 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.task;
 
-import org.jdom.*;
+import org.jdom.Element;
 
 /**
  * <task>
- * The interface of the industrial CTI-application
+ * The interface of the executable task of the industrial CTI-application
  *
  * @author Oleg Sopilnyak
  * @version 3.0.1
  */
-public interface Task extends java.lang.Cloneable
-{
-/**
- * <const>
- * The name of XML element
- */
-String ELEMENT = "task";
-/// Block of calls of the information about the cti-application and ////
-//// adjustment of the concrete cti-application ///
-/**
- * <producer>
- * To make a copy of the cti-application,
- * copy will placed to sandbox
- *
- * @return the clone(copy) of this task
- */
-Object clone();
-/**
- * <accessor>
- * Get access to XML presentation of Task
- * XML may contains the Task's parameters
- *
- * @return XML Element <task></task>
- */
-Element getXML();
-/**
- * <mutator>
- * Setting up new XML representation
- * of contents for Task
- * XML may contains Task's parameters
- *
- * @param xml The XML Element <task></task>
- * @throws Exception throw if can's restore the task
- */
-void setXML(Element xml) throws Exception;
-/**
- * <accessor>
- * To receive a name of the cti-application
- * the method carries information character and
- * is used at the moment of adjustment of the cti-application on
- * CT device
- *
- * @return The name of task
- */
-String getName();
-/**
- * To receive the extended information on the cti-application
- * the method carries information character and
- * is used at the moment of adjustment of the cti-application on
- * CTI device
- *
- * @return The task's description
- */
-String getAbout();
+public interface Task extends Cloneable {
+    /**
+     * <const>
+     * The name of root XML element of the Task
+     */
+    String ROOT_ELEMENT = "task";
 
- /////// Block of calls used for adjustment and start of the cti-application /////////
-/**
- * <action>
- * Method of start of execution of the cti-application,
- * is called by the scheduler of CT-device
- */
-void execute();
-/**
- * <action>
- * Method of stop of execution of the cti-application,
- * is called by the scheduler of CT-device.
- * The task's TimerTask, will be canceled.
- */
-void stopExecute();
-/**
-* <mutator>
-* to attach environment to task
-* @param env the environment of the task
-*/
-void setEnv(Environment env);
-/**
- <action>
- *   Is called at end of the cti-application
- * @throws Throwable throw if can't free the task's resources
- */
-void finalize() throws Throwable;
+    /**
+     * <producer>
+     * To make the clone(copy) of the task instance,
+     * cloned instance will be placed to the sandbox
+     *
+     * @return the clone(copy) of this task
+     */
+    Task clone();
+
+/// Block of calls of the information about the task and ////
+//// adjustment of the concrete task ///
+    /**
+     * <accessor>
+     * To get the XML representation of the Task
+     * XML should contain all the parameters of the Task
+     *
+     * @return XML Element <task></task>
+     * @see Task#ROOT_ELEMENT
+     * @see Element
+     */
+    Element getXML();
+
+    /**
+     * <mutator>
+     * Setting up the XML representation of the Task
+     * XML should contain all the parameters of the Task
+     *
+     * @param xml The XML Element <task></task>
+     * @see Task#ROOT_ELEMENT
+     * @see Element
+     * @throws Exception throw if it can't restore the task from input parameter
+     */
+    void setXML(Element xml) throws Exception;
+
+    /**
+     * <accessor>
+     * To get the name of the task which is used during
+     * deployment the task to the particular CT-device channel
+     *
+     * @return The name of the task
+     * @see TaskPool#add(Task, boolean)
+     */
+    String getName();
+
+    /**
+     * <accessor>
+     * To get the expanded information (description) of the task which is used during
+     * deployment the task to the particular CT-device channel
+     *
+     * @return The expanded information (description) of the task
+     */
+    String getAbout();
+
+    /////// Block of calls used for adjustment and start of the CTI-application task /////////
+    /**
+     * <action>
+     * Method to start execution of the task ,
+     * is called by the scheduler of the particular CT-device
+     */
+    void execute();
+
+    /**
+     * <action>
+     * Method to stop execution of the started task,
+     * is called by the scheduler of the particular CT-device
+     * The task's TimerTask, will be canceled.
+     *
+     * @see java.util.TimerTask
+     * @see TaskPool#Stop()
+     * @see Task#execute()
+     */
+    void stopExecute();
+
+    /**
+     * <mutator>
+     * To attach the environment to the task for execution
+     *
+     * @param env the environment of the task
+     * @see Environment
+     * @see org.visualcti.server.Scheduler
+     */
+    void setEnv(Environment env);
+
+    /**
+     * <action>
+     * Calls after the task's stop execution called
+     *
+     * @throws Throwable throw if the task can't free the allocated before resources
+     * @see Task#stopExecute()
+     */
+    void finalize() throws Throwable;
 }

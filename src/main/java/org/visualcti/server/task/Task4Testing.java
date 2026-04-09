@@ -36,15 +36,23 @@ Fax number: 217-356-3356
 
 */
 package org.visualcti.server.task;
+
 /**
-Testing task
-*/
-public class testTask extends stubTask
-{
-    public final void execute(){
-        //System.out.println("Excecuted test task for "+this.ct_driver.getDeviceName());
+ * Testing task
+ */
+public class Task4Testing extends TaskAdapter {
+    @Override
+    public final void execute() {
+        debug("Starting test task " + getName());
     }
-    public final void stopExecute(){
-        //System.out.println("Request to stop on "+this.ct_driver.getDeviceName());
+
+    @Override
+    public final void stopExecute() {
+        debug("Stopping test task " + getName());
+    }
+
+    @Override
+    protected void clockEvent() {
+        debug("Clock event triggered for test task " + getName());
     }
 }

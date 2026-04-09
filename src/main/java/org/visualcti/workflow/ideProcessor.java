@@ -130,7 +130,7 @@ private volatile String programmFile = null;
    * */
   private final void executeNew(){
     this.programmFile = null;
-    this.ide.setProgramm( Program.newProrgamm() );
+    this.ide.setProgramm( Program.newProgram() );
   }
 /**
  * <member>
@@ -177,7 +177,7 @@ private java.io.File workDirectory = new java.io.File("./");
     if(result == JFileChooser.APPROVE_OPTION) {
       file = fileChooser.getSelectedFile();
       this.workDirectory = fileChooser.getCurrentDirectory();
-      Program content = Program.newProrgamm();
+      Program content = Program.newProgram();
       content.setFileName( file.getAbsolutePath() );
       try {
         Element contentXML = Tools.xmlLoad(file);

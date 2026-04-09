@@ -48,7 +48,7 @@ import org.visualcti.server.task.TaskPool;
 /**
 class Scheduler of tasks for device
 */
-final class Scheduler
+public final class Scheduler
                     extends
                         serverUnitAdapter
                     implements

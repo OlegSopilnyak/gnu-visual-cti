@@ -39,12 +39,12 @@ package org.visualcti.briquette;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.file.Files;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -53,7 +53,7 @@ import java.util.List;
 import org.jdom.Attribute;
 import org.jdom.Element;
 import org.visualcti.server.task.Environment;
-import org.visualcti.server.task.stubTask;
+import org.visualcti.server.task.TaskAdapter;
 
 /**
 $Header: /VisualCTI_project/src/org/visualcti/briquette/Program.java 20    23.02.03 18:59 Olegs $
@@ -66,7 +66,7 @@ $Header: /VisualCTI_project/src/org/visualcti/briquette/Program.java 20    23.02
  * @author Sopilnyak Oleg
  * @version 3.0
  */
-final public class Program extends stubTask
+final public class Program extends TaskAdapter
                     //implements ProgrammSymbols
 {
 /**
@@ -89,26 +89,26 @@ the system's time in number format
 public final static Symbol system_Seconds = Symbol.newSystem("System.Seconds", Symbol.NUMBER);
 /**
  * <attribute>
- * The filename of the programm to save to disk
+ * The filename of the program to save to disk
  */
 private String fileName = "<noname>";
 /**
  * <accessor>
- * To get access to programm's filename
+ * To get access to program's filename
  * @return the filename
  */
 public final String getFileName() {return fileName;}
 /**
  * <mutator>
  * To change the filename
- * @param fileName new filename of the programm
+ * @param fileName new filename of the program
  */
 public final void setFileName(String fileName) {this.fileName = fileName;}
 /**
  * <producer>
- * To make and configure simple programm
- * */
-public static final Program newProrgamm()
+ * To make and configure simple program
+ */
+public static Program newProgram()
 {
   Program prog = new Program();
   prog.chain = new Chain( null, new Source(prog), true );
@@ -122,17 +122,17 @@ public static final Program newProrgamm()
 public final static class Source implements Chain.Source{
   private final Program prog;
   public Source(Program prog){this.prog=prog;}
-  private final File file(){return new File(prog.fileName);}
-  public final URL getPath(){
+  private File file(){return new File(prog.fileName);}
+  public URL getPath(){
     try {return this.file().toURL();
     }catch( MalformedURLException e){}
     return null;
   }
-  public final InputStream getInputStream() throws IOException {
+  public InputStream getInputStream() throws IOException {
     return new FileInputStream( this.file() );
   }
   public final OutputStream getOutputStream() throws IOException {
-    return new FileOutputStream( this.file() );
+    return Files.newOutputStream(this.file().toPath());
   }
 }
 /**
@@ -175,7 +175,8 @@ final private Object SEMAPHORE = new Object();
  * Method of start of execution of the cti-application,
  * is called by the scheduler of CT-device
  */
-final public void execute()
+@Override
+public void execute()
 {
     if (this.chain == null) return;
     // to make and prepare the main subroutine
@@ -190,6 +191,7 @@ final public void execute()
  * <action>
  * Method of stop of execution of the cti-application,
  */
+@Override
 final public void stopExecute()
 {
     synchronized(SEMAPHORE)

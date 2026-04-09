@@ -237,7 +237,7 @@ private final Map groups = new HashMap();
       if ( progClass.equals(xml.getAttributeValue("class")) )
       {
         File file = new File("programm.from.the.server.briquettes.task.xml");
-        Program content = Program.newProrgamm();
+        Program content = Program.newProgram();
         content.setFileName( file.getAbsolutePath() );
         try{content.setXML( xml );
         }catch(Exception e){
