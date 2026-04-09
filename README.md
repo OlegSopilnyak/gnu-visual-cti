@@ -1,4 +1,10 @@
 <!-- 
+##############################################################################
+##
+##  DO NOT REMOVE THIS LICENSE AND COPYRIGHT NOTICE FOR ANY REASON
+##
+##############################################################################
+
 GNU VisualCTI - A Java multi-platform Computer Telephony Application Server
 Copyright (C) 2002 by Oleg Sopilnyak.
 
