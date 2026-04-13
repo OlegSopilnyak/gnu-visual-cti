@@ -203,7 +203,7 @@ private static int sequenceCounter = 1;
     }
 
     /**
-    Overrided Object.toString()
+    Override Object.toString()
     */
     public String toString()
     {

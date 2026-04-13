@@ -35,50 +35,63 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.server.hardware;
+package org.visualcti.server.core;
 
-import org.visualcti.server.*;
-import org.visualcti.server.core.Engine;
+import java.io.IOException;
 
 /**
  * <p>Title: Visual CTI Java Telephony Server</p>
- * <p>Description: VisualCTI Applications Server,
- * Interface - factory of telephony devices </p>
+ * <p>Description: VisualCTI Applications Server,<br>
+ * Engine, high level subsystem interface</p>
  * <p>Copyright: Copyright (c) 2002 Prominic Technologies, Inc. & Prominic Ukraine Co.</p>
  * <p>Company: Prominic Ukraine Co.</p>
+ *
  * @author Sopilnyak Oleg
  * @version 3.01
  */
-public interface deviceFactory extends groupUnit, Engine
-{
-/**
- * <const>
- * The name of root XML's Element
- */
-String ELEMENT = "factory";
-/**
- * <accessor>
- * get access to factory's vendor name
- * @return vendor's name
- */
-String getVendor();
-/**
- * <accessor>
- * get access to factory's version
- * @return the version
- */
-String getVersion();
-/**
- * <producer>
- * To make the array of devices.
- * @return the array of devices
- */
-generalDeviceProxy[] devices();
-/**
- * <aceessor>
- * get device by device name
- * @param name the name of device in factory
- * @return the device or null, if name is invalid
- */
-generalDeviceProxy getDevice(String name);
+public interface Engine {
+    /**
+     * <enum>
+     * engine states
+     */
+    enum State {
+        // started engine state
+        IN_SERVICE,
+        // stopped engine state
+        OUT_OF_SERVICE
+    }
+
+    /**
+     * <action>
+     * to Start the engine
+     *
+     * @throws IOException if engine can't start
+     */
+    void Start() throws IOException;
+
+    /**
+     * <action>
+     * to Stop the engine
+     *
+     * @throws IOException if engine can't stop
+     */
+    void Stop() throws IOException;
+
+    /**
+     * <accessor>
+     * To check is Engine is working (in service)
+     *
+     * @return true if Engine is in service
+     * @see State#IN_SERVICE
+     */
+    boolean isStarted();
+
+    /**
+     * <accessor>
+     * To check is Engine is stopped (out of service)
+     *
+     * @return true if Engine is out of service
+     * @see State#OUT_OF_SERVICE
+     */
+    boolean isStopped();
 }

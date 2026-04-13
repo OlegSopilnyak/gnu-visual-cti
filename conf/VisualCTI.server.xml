@@ -120,7 +120,7 @@ Fax number: 217-356-3356
     </system>
     <system>
       <Hardware>
-        <Manager package="org.visualcti.server.hardware" class="Manager" extends="org.visualcti.server.Engine">
+        <Manager package="org.visualcti.server.hardware" class="Manager" extends="org.visualcti.server.core.Engine">
           <parent package="org.visualcti.server.hardware" class="HardwareManager" method="getManager">The realization of hardware manager's features</parent>
         </Manager>
         <factory package="org.visualcti.server.hardware.provider" class="stubDeviceFactory" extends="org.visualcti.server.hardware.deviceFactory">
@@ -137,7 +137,7 @@ Fax number: 217-356-3356
       <Tasks>
         <!-- Server tasks control system -->
         <!-- The manage of tasks pools -->
-        <Manager package="org.visualcti.server.task" class="Manager" extends="org.visualcti.server.Engine">
+        <Manager package="org.visualcti.server.task" class="Manager" extends="org.visualcti.server.core.Engine">
           <parent package="org.visualcti.server.task" class="TaskManager" method="getManager">The realization of tasks controls manager</parent>
           <parameter name="directory" type="string" value="work/tasks" />
         </Manager>

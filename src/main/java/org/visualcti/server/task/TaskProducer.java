@@ -37,6 +37,8 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.task;
 
+import org.visualcti.server.core.Task;
+
 /**
 <producer>
 Interface describe, how to create the task

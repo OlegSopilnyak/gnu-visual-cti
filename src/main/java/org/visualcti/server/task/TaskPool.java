@@ -43,6 +43,8 @@ import java.util.*;
 import org.jdom.*;
 
 import org.visualcti.server.*;
+import org.visualcti.server.core.Engine;
+import org.visualcti.server.core.Task;
 import org.visualcti.util.Tools;
 
 /**
@@ -53,13 +55,13 @@ public final class TaskPool
                     extends
                         serverUnitAdapter
                     implements
-                        Engine
+        Engine
 {
 /**
 <attribute>
 state of engine
 */
-private short state = Engine.State.OUT_SERVICE;
+private Engine.State state = Engine.State.OUT_OF_SERVICE;
    /**
 <action>
 to Start engine
@@ -93,7 +95,7 @@ if engine can't stop, throws IOException
         try{ this.current().stopExecute();
         }catch(NullPointerException e){}
         // update the state
-        this.state = Engine.State.OUT_SERVICE;
+        this.state = Engine.State.OUT_OF_SERVICE;
         // clear the tasks ring
         synchronized(this.theRing){this.theRing.clear();this.current=null;}
         // dispatch success stop event
@@ -103,13 +105,13 @@ if engine can't stop, throws IOException
 <accessor>
 is Engine have State.OUT_SERVICE state
    */
-   public final boolean isStopped(){return this.state == Engine.State.OUT_SERVICE;}
+   public final boolean isStopped(){return this.state == Engine.State.OUT_OF_SERVICE;}
 
    /**
 <accessor>
 current engine state
    */
-   public final short getState(){return this.state;}
+   public Engine.State getState(){return this.state;}
    /**
 <accessor>
 To get Current state of unit

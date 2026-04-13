@@ -35,50 +35,64 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.server.hardware;
-
-import org.visualcti.server.*;
-import org.visualcti.server.core.Engine;
+package org.visualcti.server.core.unit.model;
 
 /**
  * <p>Title: Visual CTI Java Telephony Server</p>
- * <p>Description: VisualCTI Applications Server,
- * Interface - factory of telephony devices </p>
+ * <p>Description: VisualCTI Applications Server,<br>
+ * The Server Unit Action Message Type</p>
  * <p>Copyright: Copyright (c) 2002 Prominic Technologies, Inc. & Prominic Ukraine Co.</p>
  * <p>Company: Prominic Ukraine Co.</p>
+ *
  * @author Sopilnyak Oleg
  * @version 3.01
  */
-public interface deviceFactory extends groupUnit, Engine
-{
-/**
- * <const>
- * The name of root XML's Element
- */
-String ELEMENT = "factory";
-/**
- * <accessor>
- * get access to factory's vendor name
- * @return vendor's name
- */
-String getVendor();
-/**
- * <accessor>
- * get access to factory's version
- * @return the version
- */
-String getVersion();
-/**
- * <producer>
- * To make the array of devices.
- * @return the array of devices
- */
-generalDeviceProxy[] devices();
-/**
- * <aceessor>
- * get device by device name
- * @param name the name of device in factory
- * @return the device or null, if name is invalid
- */
-generalDeviceProxy getDevice(String name);
+public enum MessageType {
+    COMMAND("command"),
+    ERROR("error"),
+    EVENT("event"),
+    RESPONSE("response");
+    // the type of the message as string
+    private final String type;
+
+    MessageType(String type) {
+        this.type = type;
+    }
+
+    @Override
+    public String toString() {
+        return type;
+    }
+
+    /**
+     * <builder>
+     * To build message type by input as string value
+     *
+     * @param input type of the message as string
+     * @return exists type instance or null if not found
+     */
+    public static MessageType of(final String input) {
+        for (final MessageType messageType : MessageType.values()) {
+            if (messageType.type.equalsIgnoreCase(input)) {
+                return messageType;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * <builder>
+     * To build message type by input as string value
+     *
+     * @param input the name of the message type as string
+     * @return exists type instance or null if not found
+     */
+    public static MessageType byName(final String input) {
+        for (final MessageType messageType : MessageType.values()) {
+            if (messageType.name().equalsIgnoreCase(input)) {
+                return messageType;
+            }
+        }
+        return null;
+    }
 }

@@ -39,6 +39,7 @@ package org.visualcti.server;
 
 import java.util.*;
 
+import org.visualcti.server.core.Engine;
 import org.visualcti.server.database.Database;
 import org.visualcti.server.message.Messenger;
 /**
@@ -76,7 +77,7 @@ private static final Timer timer = new Timer( true );
 <attribute>
 state of engine
 */
-private volatile short state = Engine.State.OUT_SERVICE;
+private volatile Engine.State state = Engine.State.OUT_OF_SERVICE;
    /**
 <action>
 to Start engine
@@ -114,13 +115,13 @@ if engine can't stop, throws IOException
 <accessor>
 is Engine have State.OUT_SERVICE state
    */
-   public final boolean isStopped(){return this.state == Engine.State.OUT_SERVICE;}
+   public final boolean isStopped(){return this.state == Engine.State.OUT_OF_SERVICE;}
    
    /**
 <accessor>
 current engine state
    */
-   public final short getState(){return this.state;}
+   public final Engine.State getState(){return this.state;}
    /**
 <accessor>
 To get Name of unit (abstract)
@@ -208,7 +209,7 @@ private int started = 0;
                     case unitEvent.STOP_ID:
                                 this.started--;
                                 this.state = this.started > 0 ? 
-                                        Engine.State.IN_SERVICE:Engine.State.OUT_SERVICE;
+                                        Engine.State.IN_SERVICE:Engine.State.OUT_OF_SERVICE;
                                 break;
                 }
             }

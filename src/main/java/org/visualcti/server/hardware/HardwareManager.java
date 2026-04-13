@@ -40,6 +40,8 @@ package org.visualcti.server.hardware;
 import java.util.*;
 
 import org.visualcti.server.*;
+import org.visualcti.server.core.Engine;
+
 /**
 <manager>
 Manager of all hardware factories
@@ -102,7 +104,7 @@ private static Manager instance = null;
 <attribute>
 state of engine
 */
-private short state = Engine.State.OUT_SERVICE;
+private Engine.State state = Engine.State.OUT_OF_SERVICE;
    /**
 <action>
 to Start engine
@@ -135,7 +137,7 @@ if engine can't stop, throws IOException
    public final void Stop() throws java.io.IOException
    {
         if ( this.isStopped() ) return;
-        this.state = Engine.State.OUT_SERVICE;
+        this.state = Engine.State.OUT_OF_SERVICE;
         // to stop all factories
         for(Iterator i=this.factories().iterator();i.hasNext();)
         {
@@ -149,13 +151,13 @@ if engine can't stop, throws IOException
 <accessor>
 is Engine have State.OUT_SERVICE state
    */
-   public final boolean isStopped(){return this.state == Engine.State.OUT_SERVICE;}
+   public final boolean isStopped(){return this.state == Engine.State.OUT_OF_SERVICE;}
 
    /**
 <accessor>
 current engine state
    */
-   public final short getState(){return this.state;}
+   public final Engine.State getState(){return this.state;}
 /**
 Pool of available devices
 */

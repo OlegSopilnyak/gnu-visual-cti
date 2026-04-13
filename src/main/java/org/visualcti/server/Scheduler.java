@@ -37,29 +37,35 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server;
 
-import java.io.*;
-
+import org.visualcti.server.core.Engine;
 import org.visualcti.server.hardware.HardwareError;
 import org.visualcti.server.hardware.generalDeviceProxy;
 import org.visualcti.server.hardware.proxy.deviceProxy;
 import org.visualcti.server.task.Environment;
-import org.visualcti.server.task.Task;
+import org.visualcti.server.core.Task;
 import org.visualcti.server.task.TaskPool;
 /**
-class Scheduler of tasks for device
+ * <p>Title: Visual CTI Java Telephony Server</p>
+ * <p>Description: VisualCTI Applications Server,<br>
+ * The Scheduler of the tasks for device channel</p>
+ * <p>Copyright: Copyright (c) 2002 Prominic Technologies, Inc. & Prominic Ukraine Co.</p>
+ * <p>Company: Prominic Ukraine Co.</p>
+ *
+ * @author Sopilnyak Oleg
+ * @version 3.01
 */
 public final class Scheduler
                     extends
                         serverUnitAdapter
                     implements
                         Runnable,
-                        Engine
+        Engine
 {
 /**
 <attribute>
 state of engine
 */
-private short state = Engine.State.OUT_SERVICE;
+private Engine.State state = Engine.State.OUT_OF_SERVICE;
    /**
 <action>
 to Start engine
@@ -101,7 +107,7 @@ if engine can't stop, throws IOException
    {
         if ( this.isStopped() ) return;
         // to update the state
-        this.state = Engine.State.OUT_SERVICE;
+        this.state = Engine.State.OUT_OF_SERVICE;
         // to stop the tasks pool
         this.tasksRing.Stop();
         // to close the telephony's device
@@ -119,13 +125,13 @@ if engine can't stop, throws IOException
 <accessor>
 is Engine have State.OUT_SERVICE state
    */
-   public final boolean isStopped(){return this.state == Engine.State.OUT_SERVICE;}
+   public final boolean isStopped(){return this.state == Engine.State.OUT_OF_SERVICE;}
 
    /**
 <accessor>
 current engine state
    */
-   public final short getState(){return this.state;}
+   public final Engine.State getState(){return this.state;}
 /**
 <attribute>
 The name of Scheduler

@@ -35,50 +35,19 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.server.hardware;
+package org.visualcti.server.core;
 
-import org.visualcti.server.*;
-import org.visualcti.server.core.Engine;
+import org.visualcti.server.core.unit.BasicServerUnit;
 
 /**
  * <p>Title: Visual CTI Java Telephony Server</p>
- * <p>Description: VisualCTI Applications Server,
- * Interface - factory of telephony devices </p>
+ * <p>Description: VisualCTI Applications Server,<br>
+ * The parent of the tasks' pool (CTI-applications)</p>
  * <p>Copyright: Copyright (c) 2002 Prominic Technologies, Inc. & Prominic Ukraine Co.</p>
  * <p>Company: Prominic Ukraine Co.</p>
+ *
  * @author Sopilnyak Oleg
  * @version 3.01
  */
-public interface deviceFactory extends groupUnit, Engine
-{
-/**
- * <const>
- * The name of root XML's Element
- */
-String ELEMENT = "factory";
-/**
- * <accessor>
- * get access to factory's vendor name
- * @return vendor's name
- */
-String getVendor();
-/**
- * <accessor>
- * get access to factory's version
- * @return the version
- */
-String getVersion();
-/**
- * <producer>
- * To make the array of devices.
- * @return the array of devices
- */
-generalDeviceProxy[] devices();
-/**
- * <aceessor>
- * get device by device name
- * @param name the name of device in factory
- * @return the device or null, if name is invalid
- */
-generalDeviceProxy getDevice(String name);
+public interface BasicTaskPool extends Engine, BasicServerUnit {
 }

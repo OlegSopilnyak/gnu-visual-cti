@@ -35,9 +35,11 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.server.task;
+package org.visualcti.server.core;
 
 import org.jdom.Element;
+import org.visualcti.server.task.Environment;
+import org.visualcti.server.task.TaskPool;
 
 /**
  * <task>

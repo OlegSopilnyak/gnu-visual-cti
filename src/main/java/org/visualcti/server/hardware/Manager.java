@@ -37,12 +37,14 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.hardware;
 
+import org.visualcti.server.core.Engine;
+
 /**
 Interface for hardware manager, registered in server kernel
 */
 public interface Manager 
                     extends
-                    org.visualcti.server.Engine,
+        Engine,
                     org.visualcti.server.groupUnit
 {
     /**

@@ -35,66 +35,66 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.server;
+package org.visualcti.server.core.unit.model;
 
 /**
  * <p>Title: Visual CTI Java Telephony Server</p>
  * <p>Description: VisualCTI Applications Server,<br>
- * Engine, high level subsystem interface</p>
+ * The Server Unit Action Messages Family Type</p>
  * <p>Copyright: Copyright (c) 2002 Prominic Technologies, Inc. & Prominic Ukraine Co.</p>
  * <p>Company: Prominic Ukraine Co.</p>
+ *
  * @author Sopilnyak Oleg
  * @version 3.01
  */
-public interface Engine
-{
-   /**
-    * <enum>
-    * class for sevice state constants
-   */
-   public static final class State
-   {
-      /**
-      const for started engine state
-      */
-      public static final short IN_SERVICE = 1;
+public enum MessageFamilyType {
+    ERROR(-1, "The error detected in the Unit"),
+    STOP(0, "Stopping Unit Action Event and Command"),
+    START(1, "Starting Unit Action Event and Command"),
+    STATE(2, "Unit's State Updated Action Event"),
+    GET(3, "Get Data from the Unit Command Type"),
+    SET(4, "Set Data to the Unit Command Type");
+    // the ID of event type
+    public final int ID;
+    // the description of event type
+    private final String description;
 
-      /**
-      const for stopped engine state
-      */
-      public static final short OUT_SERVICE = 0;
-   }
+    MessageFamilyType(int ID, String description) {
+        this.ID = ID;
+        this.description = description;
+    }
 
-   /**
-    * <action>
-    * to Start the engine
-    * @throws IOException if engine can't start
-    */
-   void Start() throws java.io.IOException;
-   /**
-    * <accessor>
-    * To get access to flag, is Engine have State.IN_SERVICE state
-    * @return the flag
-    */
-   boolean isStarted();
 
-   /**
-    * <action>
-    * to Stop the engine
-    * @throws IOException if engine can't stop
-    */
-   void Stop() throws java.io.IOException;
-   /**
-    * <accessor>
-    * To get access to flag, is Engine have State.OUT_SERVICE state
-    * @return the flag
-    */
-   boolean isStopped();
-   /**
-    * <accessor>
-    * to get access to current engine's state ID
-    * @return the state ID
-    */
-   short getState();
+    /**
+     * <builder>
+     * To build message family type by input as integer value
+     *
+     * @param input ID of the message family ID as integer
+     * @return exists type instance or null if not found
+     */
+    public static MessageFamilyType of(int input) {
+        for (final MessageFamilyType familyType : MessageFamilyType.values()) {
+            if (familyType.ID == input) {
+                return familyType;
+            }
+        }
+        return null;
+    }
 
+
+    /**
+     * <builder>
+     * To build message family type by input as string value
+     *
+     * @param input the name of the message family type as string
+     * @return exists type instance or null if not found
+     */
+    public static MessageFamilyType byName(String input) {
+        for (final MessageFamilyType messageType : MessageFamilyType.values()) {
+            if (messageType.name().equalsIgnoreCase(input)) {
+                return messageType;
+            }
+        }
+        return null;
+    }
 }

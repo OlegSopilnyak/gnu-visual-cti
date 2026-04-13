@@ -274,6 +274,13 @@ private transient Object value;
         this.name=name; this.value=value;this.type=STRING;
     }
     /**
+     <builder>
+     To make the parameter from parameter name and value (String value)
+     */
+    public static Parameter of(final String name, final String value) {
+        return new Parameter(name, value);
+    }
+    /**
     <constructor>
     name and value (Number value)
     */

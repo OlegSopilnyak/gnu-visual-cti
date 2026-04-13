@@ -145,7 +145,7 @@ private transient String unitPath="";
     /**
     <accesor>
     to get access to Path to serverUnit in UnitRegistry
-    when action will constucted, in constructor will
+    when action will be constructed, in constructor will be
     transferred serverObject reference
     */
     public final String getUnitPath(){return this.unitPath;}
@@ -156,7 +156,7 @@ private transient String unitPath="";
     public final void setUnitPath(String path){this.unitPath=path;}
 
 /**
-Mapping strin action to int
+Mapping string action to int
 */
 private static final HashMap actionID = new HashMap();
 // actionID initialization
@@ -180,7 +180,7 @@ static
         }
         /**
         <mutator>
-        to setting up ne action's ID from
+        to setting up next action's ID from
         XML action attribute
         */
         protected final void setID(String action)
@@ -203,7 +203,7 @@ abstract protected String getType();
 <parameter_name>
 The name of description's attribute in serialization parameters
 */
-private final static String DECRIPTION = "@description";
+private final static String DESCRIPTION = "@description";
 /**
  * <const>
  * The name of root's Element in xml
@@ -220,7 +220,7 @@ public static final String ELEMENT = "unitAction";
       xml.addContent( this.baseXML() );
       if ( !"".equals(this.description) )
       {
-        Parameter descr = new Parameter(DECRIPTION,this.description);
+        Parameter descr = new Parameter(DESCRIPTION,this.description);
         xml.addContent( descr.input().getXML() );
       }
       return xml;
@@ -274,7 +274,7 @@ public static final String ELEMENT = "unitAction";
       {
         try {par = Parameter.restore((Element)i.next());
         }catch(Exception e){}
-        if ( par != null && DECRIPTION.equals(par.getName()) )
+        if ( par != null && DESCRIPTION.equals(par.getName()) )
         { // to get the description,
           // if some wrong description will be "Invalid action's description!"
           this.description = par.getValue("Invalid action's description!");

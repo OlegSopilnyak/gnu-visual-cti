@@ -105,21 +105,8 @@ private static int sequenceCounter = 1;
                 short ID,
                 String description
                 )
-    {
-        this(unit.getPath(),ID,description);
-    }
-   /**
-   <constructor>
-   make event from serverUnit path, with actionID and description
-   */
-   public unitEvent
-                (
-                String unitPath,
-                short ID,
-                String description
-                )
     {   this();
-        this.setUnitPath(unitPath);
+        this.setUnitPath(unit.getPath());
         this.setDescription(description);
         this.setID(ID);
     }

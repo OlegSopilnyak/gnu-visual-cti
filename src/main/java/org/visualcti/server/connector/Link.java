@@ -45,7 +45,7 @@ import org.visualcti.server.security.*;
 import org.visualcti.util.*;
 
 /**
-   Link to external coonection to server
+   Link to external connection to server
  */
 public final class Link
 {

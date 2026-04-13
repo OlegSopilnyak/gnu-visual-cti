@@ -73,7 +73,7 @@ private static int sequenceCounter = 1;
         return nextID;
     }
     /**
-    Overrided Object.toString()
+    Override Object.toString()
     */
     final public String toString()
     {

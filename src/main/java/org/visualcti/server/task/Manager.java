@@ -38,11 +38,13 @@ Fax number: 217-356-3356
 package org.visualcti.server.task;
 
 import org.visualcti.server.*;
+import org.visualcti.server.core.Engine;
+
 /**
 <manager>
 The manager of tasks
 */
-public interface Manager extends groupUnit,Engine
+public interface Manager extends groupUnit, Engine
 {
 
 /**

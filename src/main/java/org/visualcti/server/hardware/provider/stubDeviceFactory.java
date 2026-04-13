@@ -37,10 +37,12 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.hardware.provider;
 
+import java.io.IOException;
 import java.util.*;
 
 import org.jdom.*;
 import org.visualcti.server.*;
+import org.visualcti.server.core.Engine;
 import org.visualcti.server.hardware.*;
 /**
  * <p>Title: Visual CTI Java Telephony Server</p>
@@ -57,7 +59,7 @@ public class stubDeviceFactory extends groupUnitAdapter implements deviceFactory
  * <state>
  * The state of Engine
  */
-private short state = Engine.State.OUT_SERVICE;
+private Engine.State state = Engine.State.OUT_OF_SERVICE;
    /**
     * <control>
     * To start the factory
@@ -103,7 +105,7 @@ private short state = Engine.State.OUT_SERVICE;
       // to close all devices
       this.closeAll();
       // to change Engine's state
-      this.state = Engine.State.OUT_SERVICE;
+      this.state = Engine.State.OUT_OF_SERVICE;
       // dispatch success stop event
       this.dispatch( new unitEvent(this,unitAction.STOP_ID) );
   }
@@ -125,13 +127,13 @@ private short state = Engine.State.OUT_SERVICE;
    * To check is factory is stopped
    * @return true if has stopped
    */
-  public boolean isStopped(){return this.state == Engine.State.OUT_SERVICE;}
+  public boolean isStopped(){return this.state == Engine.State.OUT_OF_SERVICE;}
   /**
    * <accessor>
    * To get access to state ID
    * @return the state's ID
    */
-  public short getState(){return this.state;}
+  public Engine.State getState(){return this.state;}
 
   /**
    * <restore>
