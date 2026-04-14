@@ -59,33 +59,10 @@ public interface UnitActionError extends UnitActionMessage {
 
     /**
      * <accessor>
-     * To get the type of action
-     *
-     * @return the action's type
-     * @see MessageType
-     */
-    @Override
-    default MessageType getMessageType() {
-        return MessageType.ERROR;
-    }
-
-    /**
-     * <accessor>
-     * To get the messages family type of the message
-     *
-     * @return type of the unit's action message
-     * @see MessageFamilyType
-     */
-    @Override
-    default MessageFamilyType getFamilyType() {
-        return MessageFamilyType.ERROR;
-    }
-
-    /**
-     * <accessor>
      * The get access to the nested error's exception (can be null)
      *
      * @see UnitActionError#EXCEPTION_PARAMETER_NAME
+     * @see ErrorNestedException
      */
     Exception getNestedException();
 
@@ -135,12 +112,12 @@ public interface UnitActionError extends UnitActionMessage {
     }
 
     /**
-     * class for represent an exception used in the nested exception of the error-message
+     * class for represent an exception used in the nested-exception of the error-message
      *
      * @see UnitActionError#getNestedException()
      */
     final class ErrorNestedException extends Exception {
-        private transient String stack = "";
+        private transient final String stack;
         private transient String message = "";
 
         private void processStack() {
@@ -184,13 +161,13 @@ public interface UnitActionError extends UnitActionMessage {
             this.printStackTrace(System.err);
         }
 
-        public void printStackTrace(java.io.PrintStream s) {
+        public void printStackTrace(final java.io.PrintStream s) {
             synchronized (s) {
                 s.println(this.stack);
             }
         }
 
-        public void printStackTrace(java.io.PrintWriter s) {
+        public void printStackTrace(final java.io.PrintWriter s) {
             synchronized (s) {
                 s.println(this.stack);
             }

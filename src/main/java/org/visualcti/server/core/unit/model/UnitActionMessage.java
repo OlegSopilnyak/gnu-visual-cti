@@ -211,6 +211,7 @@ public interface UnitActionMessage extends XmlAware, Cloneable {
                     // if something went wrong, assign to description "Invalid action's description!"
                     setDescription(parameter.getValue("Invalid action's description!"));
                 } else {
+                    // updating not description executable property parameter
                     updateMessagePropertyBy(parameter);
                 }
             } catch (Exception e) {
@@ -221,7 +222,7 @@ public interface UnitActionMessage extends XmlAware, Cloneable {
     }
 
     /**
-     * To update the message property by restored from XML parameter
+     * To update the message property by restored from XML Parameter instance
      *
      * @param parameter the value
      * @see UnitActionMessage#setXML(Element)
@@ -252,16 +253,10 @@ public interface UnitActionMessage extends XmlAware, Cloneable {
      */
     default Element baseMessageXML() {
         final Element xml = new Element(BASE_ELEMENT_NAME);
-//        setMessageAttribute(xml, BASE_MESSAGE_FAMILY_TYPE_ATTRIBUTE, getFamilyType());
-//        xml.setAttribute(new Attribute(BASE_MESSAGE_FAMILY_TYPE_ATTRIBUTE, getFamilyType().name()));
         xml.setAttribute(messageAttribute(BASE_MESSAGE_FAMILY_TYPE_ATTRIBUTE, getFamilyType()));
-//        setMessageAttribute(xml, BASE_MESSAGE_TYPE_ATTRIBUTE, getMessageType());
         xml.setAttribute(messageAttribute(BASE_MESSAGE_TYPE_ATTRIBUTE, getMessageType()));
-//        xml.setAttribute(new Attribute(BASE_MESSAGE_WHEN_ATTRIBUTE, String.valueOf(getDate().getTime())));
         xml.setAttribute(messageAttribute(BASE_MESSAGE_WHEN_ATTRIBUTE, getDate()));
-//        xml.setAttribute(new Attribute(BASE_MESSAGE_CORRELATION_ID_ATTRIBUTE, "_"));
         xml.setAttribute(messageAttribute(BASE_MESSAGE_CORRELATION_ID_ATTRIBUTE, "_"));
-//        xml.setAttribute(new Attribute(BASE_MESSAGE_UNIT_PATH_ATTRIBUTE, getUnitPath()));
         xml.setAttribute(messageAttribute(BASE_MESSAGE_UNIT_PATH_ATTRIBUTE, getUnitPath()));
         return xml;
     }
@@ -284,18 +279,6 @@ public interface UnitActionMessage extends XmlAware, Cloneable {
     default Attribute messageAttribute(String attributeName, String value) {
         final String attributeValue = value == null ? "" : value;
         return new Attribute(attributeName, attributeValue);
-    }
-
-    default void setMessageAttribute(Element xml, String attributeName, MessageFamilyType type) {
-        if (type != null) {
-            xml.setAttribute(new Attribute(attributeName, type.name()));
-        }
-    }
-
-    default void setMessageAttribute(Element xml, String attributeName, MessageType type) {
-        if (type != null) {
-            xml.setAttribute(new Attribute(attributeName, type.name()));
-        }
     }
 
     /**
@@ -358,7 +341,7 @@ public interface UnitActionMessage extends XmlAware, Cloneable {
         }
     }
 
-    default void checkAndUpdateMessageWhen(final Element xml) throws IOException {
+    default void checkAndUpdateMessageWhen(final Element xml) {
         final String whenTime = xml.getAttributeValue(BASE_MESSAGE_WHEN_ATTRIBUTE);
         setDate(whenTime == null || whenTime.trim().isEmpty() ? -1L : Long.parseLong(whenTime));
     }

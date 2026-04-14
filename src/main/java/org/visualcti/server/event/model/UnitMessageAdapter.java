@@ -46,7 +46,6 @@ import java.io.Serializable;
 import java.util.Date;
 import java.util.Objects;
 import org.visualcti.server.core.unit.model.MessageFamilyType;
-import org.visualcti.server.core.unit.model.MessageType;
 import org.visualcti.server.core.unit.model.UnitActionMessage;
 
 /**
@@ -54,17 +53,15 @@ import org.visualcti.server.core.unit.model.UnitActionMessage;
  *
  * @see UnitActionMessage
  */
-public class UnitMessageAdapter implements UnitActionMessage {
-    // type of the message
-    private MessageType type;
+abstract class UnitMessageAdapter implements UnitActionMessage {
     // messages family type of the message
-    private MessageFamilyType familyType;
+    private transient MessageFamilyType familyType;
     // description of the message
-    private String description = "";
+    private transient String description = "";
     // date-time, when action has happened
-    private Date date;
+    private transient Date date;
     // Path of ServerUnit in UnitRegistry
-    private String unitPath = "Unknown";
+    private transient String unitPath = "Unknown";
 
     /**
      * <accessor>
@@ -88,31 +85,6 @@ public class UnitMessageAdapter implements UnitActionMessage {
     @Override
     public UnitActionMessage setFamilyType(MessageFamilyType messageFamilyType) {
         this.familyType = messageFamilyType;
-        return this;
-    }
-
-    /**
-     * <accessor>
-     * To get the type of the message
-     *
-     * @return the message's type
-     * @see MessageType
-     */
-    @Override
-    public MessageType getMessageType() {
-        return type;
-    }
-
-    /**
-     * <mutator>
-     * To set up the type of the message
-     *
-     * @param messageType new value of message's type
-     * @return reference to the message
-     */
-    @Override
-    public UnitActionMessage setMessageType(MessageType messageType) {
-        this.type = messageType;
         return this;
     }
 
@@ -188,11 +160,31 @@ public class UnitMessageAdapter implements UnitActionMessage {
         return this;
     }
 
+    /**
+     * Compares the argument to the receiver, and answers true
+     * if they represent the <em>same</em> object using a class
+     * specific comparison. The implementation in Object answers
+     * true only if the argument is the exact same object as the
+     * receiver (==).
+     *
+     * @param		o Object
+     *					the object to compare with this object.
+     * @return		boolean
+     *					<code>true</code>
+     *						if the object is the same as this object
+     *					<code>false</code>
+     *						if it is different from this object.
+     * @see			#hashCode
+     */
     @Override
     public boolean equals(Object o) {
         if (!(o instanceof UnitMessageAdapter)) return false;
         UnitMessageAdapter that = (UnitMessageAdapter) o;
-        return type == that.type && familyType == that.familyType && Objects.equals(description, that.description) && Objects.equals(date, that.date) && Objects.equals(unitPath, that.unitPath);
+        return
+                familyType == that.familyType &&
+                Objects.equals(description, that.description) &&
+                Objects.equals(date, that.date) &&
+                Objects.equals(unitPath, that.unitPath);
     }
 
     /**

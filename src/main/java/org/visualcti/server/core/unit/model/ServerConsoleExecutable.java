@@ -80,6 +80,13 @@ public interface ServerConsoleExecutable extends UnitActionMessage {
     ServerConsoleExecutable setCorrelationID(String correlationId);
 
     /**
+     * To prepare parameters container for updates
+     *
+     * @see #setParameter(Parameter)
+     */
+    void initializeParameters();
+
+    /**
      * <accessor>
      * To get the stream to executable parameters
      *
@@ -127,6 +134,24 @@ public interface ServerConsoleExecutable extends UnitActionMessage {
     ServerConsoleExecutable setLinkName(String linkName);
 
     /**
+     * <builder>
+     * To make the base part of the Server Console Executable XML
+     *
+     * @return base part of the message XML
+     * @see Element
+     * @see Attribute
+     * @see UnitActionMessage#baseMessageXML()
+     * @see ServerConsoleExecutable#getCorrelationID()
+     * @see UnitActionMessage#BASE_MESSAGE_CORRELATION_ID_ATTRIBUTE
+     */
+    @Override
+    default Element baseMessageXML() {
+        final Element baseMessageXML = UnitActionMessage.super.baseMessageXML();
+        baseMessageXML.setAttribute(new Attribute(BASE_MESSAGE_CORRELATION_ID_ATTRIBUTE, getCorrelationID()));
+        return baseMessageXML;
+    }
+
+    /**
      * <converter>
      * To represent entity as an XML element
      *
@@ -135,13 +160,11 @@ public interface ServerConsoleExecutable extends UnitActionMessage {
      * @see Parameter
      * @see ServerConsoleExecutable#LINK_NAME_PARAMETER_NAME
      * @see UnitActionMessage#ROOT_ELEMENT_NAME
-     * @see UnitActionMessage#DESCRIPTION_PARAMETER_NAME
      * @see XmlAware#store(OutputStream)
      */
     @Override
     default Element getXML() {
         final Element xml = UnitActionMessage.super.getXML();
-        xml.setAttribute(new Attribute(BASE_MESSAGE_CORRELATION_ID_ATTRIBUTE, getCorrelationID()));
         xml.addContent(new Parameter(LINK_NAME_PARAMETER_NAME, getLinkName()).getXML());
         getParameters().filter(Objects::nonNull).filter(parameter -> !parameter.getName().startsWith("@"))
                 .forEach(parameter -> xml.addContent(parameter.getXML()));
@@ -156,8 +179,8 @@ public interface ServerConsoleExecutable extends UnitActionMessage {
      * @see Element
      * @see Attribute
      * @see UnitActionMessage#baseMessageXML(Element)
-     * @see UnitActionMessage#BASE_MESSAGE_CORRELATION_ID_ATTRIBUTE
      * @see ServerConsoleExecutable#setCorrelationID(String)
+     * @see UnitActionMessage#BASE_MESSAGE_CORRELATION_ID_ATTRIBUTE
      */
     @Override
     default void baseMessageXML(final Element xml) throws IOException, DataConversionException, NumberFormatException, NullPointerException {
@@ -166,16 +189,39 @@ public interface ServerConsoleExecutable extends UnitActionMessage {
     }
 
     /**
-     * To update the message property by restored from XML parameter
+     * <converter>
+     * To update the entity's fields from XML
+     *
+     * @param xml possible XML of te entity
+     * @throws IOException             if something went wrong
+     * @throws DataConversionException if something went wrong
+     * @throws NumberFormatException   if something went wrong
+     * @throws NullPointerException    if something went wrong
+     * @see Element
+     * @see UnitActionMessage#setXML(Element)
+     */
+    @Override
+    default void setXML(final Element xml) throws IOException, DataConversionException, NumberFormatException, NullPointerException {
+        initializeParameters();
+        UnitActionMessage.super.setXML(xml);
+    }
+
+    /**
+     * To update the message property by restored from XML Parameter instance
      *
      * @param parameter the value
      * @see UnitActionMessage#updateMessagePropertyBy(Parameter)
+     * @see ServerConsoleExecutable#setLinkName(String)
      * @see ServerConsoleExecutable#LINK_NAME_PARAMETER_NAME
+     * @see ServerConsoleExecutable#setParameter(Parameter)
      */
     @Override
     default void updateMessagePropertyBy(final Parameter parameter) {
-        if (LINK_NAME_PARAMETER_NAME.equals(parameter.getName())) {
+        final String parameterName = parameter.getName();
+        if (LINK_NAME_PARAMETER_NAME.equals(parameterName)) {
             setLinkName(parameter.getValue("Invalid LinkName!"));
+        } else if (!parameterName.startsWith("@")) {
+            setParameter(parameter);
         }
     }
 }

@@ -50,21 +50,23 @@ import org.jdom.Element;
 import org.junit.Test;
 import org.visualcti.server.core.unit.model.MessageFamilyType;
 import org.visualcti.server.core.unit.model.MessageType;
-import org.visualcti.server.core.unit.model.UnitActionMessage;
 
-public class UnitMessageAdapterTest {
+public class UnitErrorTest {
     @Test
-    public void shouldSerializeMessage() throws IOException {
+    public void shouldSerializeError() throws IOException {
         // preparing test data
-        UnitMessageAdapter adapter = new AdapterImpl();
-        adapter.setMessageType(MessageType.EVENT).setFamilyType(MessageFamilyType.ERROR)
+        UnitError error = new UnitError();
+        error.setNestedException(new Exception())
+                .setMessageType(MessageType.EVENT).setFamilyType(MessageFamilyType.ERROR)
                 .setDescription("description").setDate(new Date().getTime()).setUnitPath("unit-path")
         ;
+        assertThat(error.getFamilyType()).isEqualTo(MessageFamilyType.ERROR);
+        assertThat(error.getMessageType()).isEqualTo(MessageType.ERROR);
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
         ObjectOutputStream out = new ObjectOutputStream(stream);
 
         // acting
-        out.writeObject(adapter);
+        out.writeObject(error);
         out.flush();
         out.close();
 
@@ -75,92 +77,96 @@ public class UnitMessageAdapterTest {
     }
 
     @Test
-    public void shouldDeserializeMessage() throws IOException, ClassNotFoundException {
+    public void shouldDeserializeError() throws IOException, ClassNotFoundException {
         // preparing test data
-        UnitMessageAdapter adapter = new AdapterImpl();
-        adapter.setMessageType(MessageType.ERROR)
-                .setDescription("description-2").setDate(new Date().getTime()).setUnitPath("unit-path-2")
+        UnitError error = new UnitError();
+        error.setNestedException(new Exception())
+                .setMessageType(MessageType.EVENT).setFamilyType(MessageFamilyType.ERROR)
+                .setDescription("description").setDate(new Date().getTime()).setUnitPath("unit-path")
         ;
+        assertThat(error.getFamilyType()).isEqualTo(MessageFamilyType.ERROR);
+        assertThat(error.getMessageType()).isEqualTo(MessageType.ERROR);
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
         ObjectOutputStream out = new ObjectOutputStream(stream);
-        out.writeObject(adapter);
+        out.writeObject(error);
         out.flush();
         out.close();
 
         // acting
         ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(stream.toByteArray()));
-        UnitMessageAdapter deserialized = (UnitMessageAdapter) in.readObject();
+        UnitError deserialized = (UnitError) in.readObject();
 
         // check results
-        assertThat(deserialized).isEqualTo(adapter);
+        assertThat(deserialized).isEqualTo(error);
+        assertThat(deserialized.getFamilyType()).isEqualTo(MessageFamilyType.ERROR);
+        assertThat(deserialized.getMessageType()).isEqualTo(MessageType.ERROR);
         // check behavior
     }
 
     @Test
-    public void shouldDeserializeEmptyMessage() throws IOException, ClassNotFoundException {
+    public void shouldDeserializeEmptyError() throws IOException, ClassNotFoundException {
         // preparing test data
-        UnitMessageAdapter adapter = new AdapterImpl();
+        UnitError error = new UnitError();
+        assertThat(error.getFamilyType()).isEqualTo(MessageFamilyType.ERROR);
+        assertThat(error.getMessageType()).isEqualTo(MessageType.ERROR);
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
         ObjectOutputStream out = new ObjectOutputStream(stream);
-        out.writeObject(adapter);
+        out.writeObject(error);
         out.flush();
         out.close();
 
         // acting
         ByteArrayInputStream rawStream = new ByteArrayInputStream(stream.toByteArray());
         ObjectInputStream in = new ObjectInputStream(rawStream);
-        UnitMessageAdapter deserialized = (UnitMessageAdapter) in.readObject();
+        UnitError deserialized = (UnitError) in.readObject();
 
         // check results
-        assertThat(deserialized).isEqualTo(adapter);
+        assertThat(deserialized).isEqualTo(error);
+        assertThat(deserialized.getFamilyType()).isEqualTo(MessageFamilyType.ERROR);
+        assertThat(deserialized.getMessageType()).isEqualTo(MessageType.ERROR);
         // check behavior
     }
 
     @Test
     public void shouldGetXML() {
         // preparing test data
-        UnitMessageAdapter adapter = new AdapterImpl();
-        adapter.setMessageType(MessageType.EVENT).setFamilyType(MessageFamilyType.ERROR)
+        UnitError error = new UnitError();
+        error.setNestedException(new Exception())
+                .setMessageType(MessageType.EVENT).setFamilyType(MessageFamilyType.START)
                 .setDescription("description").setDate(new Date().getTime()).setUnitPath("unit-path")
         ;
+        assertThat(error.getFamilyType()).isEqualTo(MessageFamilyType.ERROR);
+        assertThat(error.getMessageType()).isEqualTo(MessageType.ERROR);
 
         // acting
-        Element xml = adapter.getXML();
+        Element xml = error.getXML();
 
         // check results
-        String adapterName = xml.getName();
-        assertThat(adapterName).isEqualTo("unit-action-message");
+        String errorName = xml.getName();
+        assertThat(errorName).isEqualTo("unit-action-message");
         // check behavior
     }
 
     @Test
     public void shouldSetXML() throws IOException, DataConversionException {
         // preparing test data
-        UnitMessageAdapter adapter = new AdapterImpl();
-        adapter.setMessageType(MessageType.EVENT).setFamilyType(MessageFamilyType.ERROR)
+        UnitError error = new UnitError();
+        error.setNestedException(new Exception())
+                .setMessageType(MessageType.EVENT).setFamilyType(MessageFamilyType.ERROR)
                 .setDescription("description").setDate(new Date().getTime()).setUnitPath("unit-path")
         ;
-        Element xml = adapter.getXML();
+        assertThat(error.getFamilyType()).isEqualTo(MessageFamilyType.ERROR);
+        assertThat(error.getMessageType()).isEqualTo(MessageType.ERROR);
+        Element xml = error.getXML();
 
         // acting
-        UnitMessageAdapter adapter2 = new AdapterImpl();
-        adapter2.setXML(xml);
+        UnitMessageAdapter error2 = new UnitError();
+        error2.setXML(xml);
 
         // check results
-        assertThat(adapter2).isEqualTo(adapter);
+        assertThat(error2).isEqualTo(error);
+        assertThat(error2.getFamilyType()).isEqualTo(MessageFamilyType.ERROR);
+        assertThat(error2.getMessageType()).isEqualTo(MessageType.ERROR);
         // check behavior
-    }
-
-    // private classes
-    private static class AdapterImpl extends UnitMessageAdapter {
-        @Override
-        public MessageType getMessageType() {
-            return MessageType.UNKNOWN;
-        }
-
-        @Override
-        public UnitActionMessage setMessageType(MessageType messageType) {
-            return this;
-        }
     }
 }

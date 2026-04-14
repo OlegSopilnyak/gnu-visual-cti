@@ -51,7 +51,8 @@ public enum MessageType {
     COMMAND("command"),
     ERROR("error"),
     EVENT("event"),
-    RESPONSE("response");
+    RESPONSE("response"),
+    UNKNOWN("unknown");
     // the type of the message as string
     private final String type;
 

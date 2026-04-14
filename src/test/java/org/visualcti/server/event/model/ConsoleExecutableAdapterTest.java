@@ -48,16 +48,19 @@ import java.util.Date;
 import org.jdom.DataConversionException;
 import org.jdom.Element;
 import org.junit.Test;
+import org.visualcti.server.Parameter;
 import org.visualcti.server.core.unit.model.MessageFamilyType;
 import org.visualcti.server.core.unit.model.MessageType;
 import org.visualcti.server.core.unit.model.UnitActionMessage;
 
-public class UnitMessageAdapterTest {
+public class ConsoleExecutableAdapterTest {
     @Test
-    public void shouldSerializeMessage() throws IOException {
+    public void shouldSerializeExecutable() throws IOException {
         // preparing test data
-        UnitMessageAdapter adapter = new AdapterImpl();
-        adapter.setMessageType(MessageType.EVENT).setFamilyType(MessageFamilyType.ERROR)
+        ConsoleExecutableAdapter adapter = new AdapterImpl();
+        adapter
+                .setCorrelationID("correlationID").setLinkName("link-name").setParameter(new Parameter("par1", "par1"))
+                .setMessageType(MessageType.EVENT).setFamilyType(MessageFamilyType.ERROR)
                 .setDescription("description").setDate(new Date().getTime()).setUnitPath("unit-path")
         ;
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
@@ -74,12 +77,15 @@ public class UnitMessageAdapterTest {
         // check behavior
     }
 
+
     @Test
-    public void shouldDeserializeMessage() throws IOException, ClassNotFoundException {
+    public void shouldDeserializeExecutable() throws IOException, ClassNotFoundException {
         // preparing test data
-        UnitMessageAdapter adapter = new AdapterImpl();
-        adapter.setMessageType(MessageType.ERROR)
-                .setDescription("description-2").setDate(new Date().getTime()).setUnitPath("unit-path-2")
+        ConsoleExecutableAdapter adapter = new AdapterImpl();
+        adapter
+                .setCorrelationID("correlationID").setLinkName("link-name").setParameter(new Parameter("par1", "par1"))
+                .setMessageType(MessageType.EVENT).setFamilyType(MessageFamilyType.ERROR)
+                .setDescription("description").setDate(new Date().getTime()).setUnitPath("unit-path")
         ;
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
         ObjectOutputStream out = new ObjectOutputStream(stream);
@@ -89,7 +95,7 @@ public class UnitMessageAdapterTest {
 
         // acting
         ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(stream.toByteArray()));
-        UnitMessageAdapter deserialized = (UnitMessageAdapter) in.readObject();
+        ConsoleExecutableAdapter deserialized = (ConsoleExecutableAdapter) in.readObject();
 
         // check results
         assertThat(deserialized).isEqualTo(adapter);
@@ -97,9 +103,9 @@ public class UnitMessageAdapterTest {
     }
 
     @Test
-    public void shouldDeserializeEmptyMessage() throws IOException, ClassNotFoundException {
+    public void shouldDeserializeEmptyExecutable() throws IOException, ClassNotFoundException {
         // preparing test data
-        UnitMessageAdapter adapter = new AdapterImpl();
+        ConsoleExecutableAdapter adapter = new AdapterImpl();
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
         ObjectOutputStream out = new ObjectOutputStream(stream);
         out.writeObject(adapter);
@@ -107,9 +113,8 @@ public class UnitMessageAdapterTest {
         out.close();
 
         // acting
-        ByteArrayInputStream rawStream = new ByteArrayInputStream(stream.toByteArray());
-        ObjectInputStream in = new ObjectInputStream(rawStream);
-        UnitMessageAdapter deserialized = (UnitMessageAdapter) in.readObject();
+        ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(stream.toByteArray()));
+        ConsoleExecutableAdapter deserialized = (ConsoleExecutableAdapter) in.readObject();
 
         // check results
         assertThat(deserialized).isEqualTo(adapter);
@@ -119,8 +124,10 @@ public class UnitMessageAdapterTest {
     @Test
     public void shouldGetXML() {
         // preparing test data
-        UnitMessageAdapter adapter = new AdapterImpl();
-        adapter.setMessageType(MessageType.EVENT).setFamilyType(MessageFamilyType.ERROR)
+        ConsoleExecutableAdapter adapter = new AdapterImpl();
+        adapter
+                .setCorrelationID("correlationID").setLinkName("link-name").setParameter(new Parameter("par1", "par1"))
+                .setMessageType(MessageType.EVENT).setFamilyType(MessageFamilyType.ERROR)
                 .setDescription("description").setDate(new Date().getTime()).setUnitPath("unit-path")
         ;
 
@@ -136,14 +143,16 @@ public class UnitMessageAdapterTest {
     @Test
     public void shouldSetXML() throws IOException, DataConversionException {
         // preparing test data
-        UnitMessageAdapter adapter = new AdapterImpl();
-        adapter.setMessageType(MessageType.EVENT).setFamilyType(MessageFamilyType.ERROR)
+        ConsoleExecutableAdapter adapter = new AdapterImpl();
+        adapter
+                .setCorrelationID("correlationID").setLinkName("link-name").setParameter(new Parameter("par1", "par1"))
+                .setMessageType(MessageType.EVENT).setFamilyType(MessageFamilyType.ERROR)
                 .setDescription("description").setDate(new Date().getTime()).setUnitPath("unit-path")
         ;
         Element xml = adapter.getXML();
 
         // acting
-        UnitMessageAdapter adapter2 = new AdapterImpl();
+        ConsoleExecutableAdapter adapter2 = new AdapterImpl();
         adapter2.setXML(xml);
 
         // check results
@@ -152,7 +161,7 @@ public class UnitMessageAdapterTest {
     }
 
     // private classes
-    private static class AdapterImpl extends UnitMessageAdapter {
+    private static class AdapterImpl extends ConsoleExecutableAdapter {
         @Override
         public MessageType getMessageType() {
             return MessageType.UNKNOWN;

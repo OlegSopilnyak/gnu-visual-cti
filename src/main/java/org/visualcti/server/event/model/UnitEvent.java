@@ -35,25 +35,41 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.server.core.unit.model;
+package org.visualcti.server.event.model;
+
+import org.visualcti.server.core.unit.model.MessageType;
+import org.visualcti.server.core.unit.model.UnitActionError;
+import org.visualcti.server.core.unit.model.UnitActionEvent;
+import org.visualcti.server.core.unit.model.UnitActionMessage;
 
 /**
- * <p>Title: Visual CTI Java Telephony Server</p>
- * <p>Description: VisualCTI Applications Server,<br>
- * The Server's Unit Event</p>
- * <p>Copyright: Copyright (c) 2002 Prominic Technologies, Inc. & Prominic Ukraine Co.</p>
- * <p>Company: Prominic Ukraine Co.</p>
+ * Implementation: The Server Unit Activity Event Message
  *
- * @author Sopilnyak Oleg
- * @version 3.01
+ * @see UnitActionError
  */
-public interface UnitActionEvent extends UnitActionMessage {
+class UnitEvent extends  UnitMessageAdapter implements UnitActionEvent {
     /**
      * <accessor>
-     * To get the description of the event
+     * To get the type of the message
      *
-     * @return description of the unit's action message
+     * @return the message's type
+     * @see MessageType
      */
     @Override
-    String getDescription();
+    public MessageType getMessageType() {
+        return MessageType.EVENT;
+    }
+
+    /**
+     * <mutator>
+     * To set up the type of the message
+     *
+     * @param messageType new value of message's type
+     * @return reference to the message
+     */
+    @Override
+    public UnitActionMessage setMessageType(MessageType messageType) {
+        // do nothing
+        return this;
+    }
 }

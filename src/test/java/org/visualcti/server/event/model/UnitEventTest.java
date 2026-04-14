@@ -50,21 +50,22 @@ import org.jdom.Element;
 import org.junit.Test;
 import org.visualcti.server.core.unit.model.MessageFamilyType;
 import org.visualcti.server.core.unit.model.MessageType;
-import org.visualcti.server.core.unit.model.UnitActionMessage;
 
-public class UnitMessageAdapterTest {
+public class UnitEventTest {
     @Test
-    public void shouldSerializeMessage() throws IOException {
+    public void shouldSerializeEvent() throws IOException {
         // preparing test data
-        UnitMessageAdapter adapter = new AdapterImpl();
-        adapter.setMessageType(MessageType.EVENT).setFamilyType(MessageFamilyType.ERROR)
+        UnitEvent event = new UnitEvent();
+        event
+                .setMessageType(MessageType.UNKNOWN).setFamilyType(MessageFamilyType.ERROR)
                 .setDescription("description").setDate(new Date().getTime()).setUnitPath("unit-path")
         ;
+        assertThat(event.getMessageType()).isEqualTo(MessageType.EVENT);
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
         ObjectOutputStream out = new ObjectOutputStream(stream);
 
         // acting
-        out.writeObject(adapter);
+        out.writeObject(event);
         out.flush();
         out.close();
 
@@ -75,92 +76,90 @@ public class UnitMessageAdapterTest {
     }
 
     @Test
-    public void shouldDeserializeMessage() throws IOException, ClassNotFoundException {
+    public void shouldDeserializeEvent() throws IOException, ClassNotFoundException {
         // preparing test data
-        UnitMessageAdapter adapter = new AdapterImpl();
-        adapter.setMessageType(MessageType.ERROR)
-                .setDescription("description-2").setDate(new Date().getTime()).setUnitPath("unit-path-2")
+        UnitEvent event = new UnitEvent();
+        event
+                .setMessageType(MessageType.UNKNOWN).setFamilyType(MessageFamilyType.ERROR)
+                .setDescription("description").setDate(new Date().getTime()).setUnitPath("unit-path")
         ;
+        assertThat(event.getMessageType()).isEqualTo(MessageType.EVENT);
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
         ObjectOutputStream out = new ObjectOutputStream(stream);
-        out.writeObject(adapter);
+        out.writeObject(event);
         out.flush();
         out.close();
 
         // acting
         ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(stream.toByteArray()));
-        UnitMessageAdapter deserialized = (UnitMessageAdapter) in.readObject();
+        UnitEvent deserialized = (UnitEvent) in.readObject();
 
         // check results
-        assertThat(deserialized).isEqualTo(adapter);
+        assertThat(deserialized).isEqualTo(event);
+        assertThat(deserialized.getMessageType()).isEqualTo(MessageType.EVENT);
         // check behavior
     }
 
     @Test
-    public void shouldDeserializeEmptyMessage() throws IOException, ClassNotFoundException {
+    public void shouldDeserializeEmptyEvent() throws IOException, ClassNotFoundException {
         // preparing test data
-        UnitMessageAdapter adapter = new AdapterImpl();
+        UnitEvent event = new UnitEvent();
+        assertThat(event.getMessageType()).isEqualTo(MessageType.EVENT);
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
         ObjectOutputStream out = new ObjectOutputStream(stream);
-        out.writeObject(adapter);
+        out.writeObject(event);
         out.flush();
         out.close();
 
         // acting
         ByteArrayInputStream rawStream = new ByteArrayInputStream(stream.toByteArray());
         ObjectInputStream in = new ObjectInputStream(rawStream);
-        UnitMessageAdapter deserialized = (UnitMessageAdapter) in.readObject();
+        UnitEvent deserialized = (UnitEvent) in.readObject();
 
         // check results
-        assertThat(deserialized).isEqualTo(adapter);
+        assertThat(deserialized).isEqualTo(event);
+        assertThat(deserialized.getMessageType()).isEqualTo(MessageType.EVENT);
         // check behavior
     }
 
     @Test
     public void shouldGetXML() {
         // preparing test data
-        UnitMessageAdapter adapter = new AdapterImpl();
-        adapter.setMessageType(MessageType.EVENT).setFamilyType(MessageFamilyType.ERROR)
+        UnitEvent event = new UnitEvent();
+        event
+                .setMessageType(MessageType.UNKNOWN).setFamilyType(MessageFamilyType.ERROR)
                 .setDescription("description").setDate(new Date().getTime()).setUnitPath("unit-path")
         ;
+        assertThat(event.getMessageType()).isEqualTo(MessageType.EVENT);
 
         // acting
-        Element xml = adapter.getXML();
+        Element xml = event.getXML();
 
         // check results
-        String adapterName = xml.getName();
-        assertThat(adapterName).isEqualTo("unit-action-message");
+        String eventName = xml.getName();
+        assertThat(eventName).isEqualTo("unit-action-message");
         // check behavior
     }
 
     @Test
     public void shouldSetXML() throws IOException, DataConversionException {
         // preparing test data
-        UnitMessageAdapter adapter = new AdapterImpl();
-        adapter.setMessageType(MessageType.EVENT).setFamilyType(MessageFamilyType.ERROR)
+        UnitEvent event = new UnitEvent();
+        event
+                .setMessageType(MessageType.UNKNOWN).setFamilyType(MessageFamilyType.ERROR)
                 .setDescription("description").setDate(new Date().getTime()).setUnitPath("unit-path")
         ;
-        Element xml = adapter.getXML();
+        assertThat(event.getMessageType()).isEqualTo(MessageType.EVENT);
+        Element xml = event.getXML();
 
         // acting
-        UnitMessageAdapter adapter2 = new AdapterImpl();
-        adapter2.setXML(xml);
+        UnitMessageAdapter event2 = new UnitEvent();
+        event2.setXML(xml);
 
         // check results
-        assertThat(adapter2).isEqualTo(adapter);
+        assertThat(event2).isEqualTo(event);
+        assertThat(event2.getMessageType()).isEqualTo(MessageType.EVENT);
         // check behavior
     }
 
-    // private classes
-    private static class AdapterImpl extends UnitMessageAdapter {
-        @Override
-        public MessageType getMessageType() {
-            return MessageType.UNKNOWN;
-        }
-
-        @Override
-        public UnitActionMessage setMessageType(MessageType messageType) {
-            return this;
-        }
-    }
 }

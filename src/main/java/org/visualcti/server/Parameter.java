@@ -38,6 +38,7 @@ Fax number: 217-356-3356
 package org.visualcti.server;
 
 import java.util.Date;
+import java.util.Objects;
 import org.apache.soap.encoding.soapenc.Base64;
 import org.jdom.Attribute;
 import org.jdom.Element;
@@ -458,4 +459,31 @@ private transient Object value;
               .append(" = ").append(this.value)
               .append("}").toString();
     }
+
+    /**
+     * Compares the argument to the receiver, and answers true
+     * if they represent the <em>same</em> object using a class
+     * specific comparison. The implementation in Object answers
+     * true only if the argument is the exact same object as the
+     * receiver (==).
+     *
+     * @param		o Object
+     *					the object to compare with this object.
+     * @return		boolean
+     *					<code>true</code>
+     *						if the object is the same as this object
+     *					<code>false</code>
+     *						if it is different from this object.
+     * @see			#hashCode
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof Parameter)) return false;
+        Parameter parameter = (Parameter) o;
+        return Objects.equals(name, parameter.name) &&
+                Objects.equals(type, parameter.type) &&
+                Objects.equals(direction, parameter.direction) &&
+                Objects.equals(value, parameter.value);
+    }
+
 }
