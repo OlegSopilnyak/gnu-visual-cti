@@ -35,38 +35,20 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.server.core.unit.model;
+package org.visualcti.server.core.unit.executable;
 
-import java.io.IOException;
+import org.visualcti.server.core.Engine;
+import org.visualcti.server.core.unit.BasicServerUnit;
 
 /**
- * Builder: Unit Action Message Builder (the messages factory)
+ * <p>Title: Visual CTI Java Telephony Server</p>
+ * <p>Description: VisualCTI Applications Server,<br>
+ * The parent of the tasks' pool (CTI-applications)</p>
+ * <p>Copyright: Copyright (c) 2002 Prominic Technologies, Inc. & Prominic Ukraine Co.</p>
+ * <p>Company: Prominic Ukraine Co.</p>
+ *
+ * @author Sopilnyak Oleg
+ * @version 3.01
  */
-public interface UnitActionMessageBuilder {
-    /**
-     * <builder>
-     * To guild or get the instance of action message
-     *
-     * @param type the type of the message
-     * @param messageClass type(class) of the message
-     * @return built or got instance of the unit action message
-     * @param <T> concrete type of built message
-     * @throws IOException throws if cannot build the message
-     * @see UnitActionMessage
-     * @see MessageType
-     */
-    <T extends UnitActionMessage> T build(MessageType type, Class<T> messageClass) throws IOException;
-
-    /**
-     * <builder>
-     * To guild or get the instance of action message
-     *
-     * @param type the type of the message
-     * @return built or got instance of the unit action message
-     * @param <T> concrete type of built message
-     * @throws IOException throws if cannot build the message
-     * @see UnitActionMessage
-     * @see MessageType
-     */
-    <T extends UnitActionMessage> T build(MessageType type) throws IOException;
+public interface BasicTaskPool extends Engine, BasicServerUnit {
 }

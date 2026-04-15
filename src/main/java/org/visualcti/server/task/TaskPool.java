@@ -44,7 +44,7 @@ import org.jdom.*;
 
 import org.visualcti.server.*;
 import org.visualcti.server.core.Engine;
-import org.visualcti.server.core.Task;
+import org.visualcti.server.core.unit.executable.Task;
 import org.visualcti.util.Tools;
 
 /**
