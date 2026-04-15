@@ -42,6 +42,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 import org.visualcti.server.Parameter;
 import org.visualcti.server.core.unit.model.ServerConsoleExecutable;
@@ -107,21 +108,40 @@ abstract class ConsoleExecutableAdapter extends UnitMessageAdapter implements Se
      */
     @Override
     public Stream<Parameter> getParameters() {
-        return parameters.values().stream();
+        return parameters == null ? Stream.empty() : parameters.values().stream();
+    }
+
+    /**
+     * <accessor>
+     * To get the stream to executable parameters by the direction
+     *
+     * @param direction the direction of the parameter (input/output)
+     * @return stream of available parameters
+     * @see Parameter
+     */
+    @Override
+    public Stream<Parameter> getParameters(String direction) {
+        final Predicate<String> in = Parameter.INPUT_DIRECTION::equals;
+        final Predicate<String> out = Parameter.OUTPUT_DIRECTION::equals;
+        return in.test(direction) || out.test(direction)
+                ? parameters.values().stream().filter(p -> in.test(direction) ? p.isInput() : p.isOutput())
+                : parameters.values().stream();
     }
 
     /**
      * <accessor>
      * To get the parameter by name
      *
-     * @param name the name of the parameter
+     * @param name      the name of the parameter
+     * @param direction the direction of the parameter (input/output)
      * @return parameter value or empty
      * @see Parameter
      * @see Optional
      */
     @Override
-    public Optional<Parameter> getParameter(String name) {
-        return Optional.ofNullable(parameters.get(name));
+    public Optional<Parameter> getParameter(String name, String direction) {
+        final String key = direction + "::" + name;
+        return Optional.ofNullable(parameters.get(key));
     }
 
     /**
@@ -134,7 +154,9 @@ abstract class ConsoleExecutableAdapter extends UnitMessageAdapter implements Se
      */
     @Override
     public ServerConsoleExecutable setParameter(Parameter parameter) {
-        parameters.put(parameter.getName(), parameter);
+        final String direction = parameter.isInput() ? Parameter.INPUT_DIRECTION : Parameter.OUTPUT_DIRECTION;
+        final String key = direction + "::" + parameter.getName();
+        parameters.put(key, parameter);
         return this;
     }
 

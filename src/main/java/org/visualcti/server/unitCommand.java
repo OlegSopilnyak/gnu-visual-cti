@@ -167,7 +167,8 @@ private transient volatile boolean done = false;
             for(Iterator i=response.results();i.hasNext();) {
                 this.set( ((Parameter)i.next()).output() );
             }
-        } else {// save response's description, as error's description
+        } else {
+            // save response's description, as error's description
             this.pool.clear();
             Parameter err = new Parameter("@error",response.getDescription());
             this.pool.put("@error", err.output());// to store parameter in the pool

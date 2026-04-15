@@ -56,4 +56,16 @@ public interface UnitActionEvent extends UnitActionMessage {
      */
     @Override
     String getDescription();
+
+    /**
+     * <accessor>
+     * To get the type of the message
+     *
+     * @return the message's type
+     * @see MessageType
+     */
+    @Override
+    default MessageType getMessageType() {
+        return MessageType.EVENT;
+    }
 }

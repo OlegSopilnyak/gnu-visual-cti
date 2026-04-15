@@ -59,6 +59,30 @@ public interface UnitActionError extends UnitActionMessage {
 
     /**
      * <accessor>
+     * To get the type of the message
+     *
+     * @return the message's type
+     * @see MessageType
+     */
+    @Override
+    default MessageType getMessageType() {
+        return MessageType.ERROR;
+    }
+
+    /**
+     * <accessor>
+     * To get the messages family type of the message
+     *
+     * @return type of the unit's action message
+     * @see MessageFamilyType
+     */
+    @Override
+    default MessageFamilyType getFamilyType() {
+        return MessageFamilyType.ERROR;
+    }
+
+    /**
+     * <accessor>
      * The get access to the nested error's exception (can be null)
      *
      * @see UnitActionError#EXCEPTION_PARAMETER_NAME

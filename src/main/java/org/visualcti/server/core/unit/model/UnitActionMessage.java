@@ -87,7 +87,10 @@ public interface UnitActionMessage extends XmlAware, Cloneable {
      * @param messageFamilyType new value of message's family type
      * @return reference to the message
      */
-    UnitActionMessage setFamilyType(MessageFamilyType messageFamilyType);
+    default UnitActionMessage setFamilyType(MessageFamilyType messageFamilyType){
+        // do nothing by default
+        return this;
+    }
 
     /**
      * <accessor>
@@ -105,7 +108,10 @@ public interface UnitActionMessage extends XmlAware, Cloneable {
      * @param messageType new value of message's type
      * @return reference to the message
      */
-    UnitActionMessage setMessageType(MessageType messageType);
+    default UnitActionMessage setMessageType(MessageType messageType) {
+        // do nothing by default
+        return this;
+    }
 
     /**
      * <accessor>
@@ -225,8 +231,8 @@ public interface UnitActionMessage extends XmlAware, Cloneable {
      * To update the message property by restored from XML Parameter instance
      *
      * @param parameter the value
-     * @see UnitActionMessage#setXML(Element)
      * @see Parameter
+     * @see #setXML(Element)
      */
     default void updateMessagePropertyBy(final Parameter parameter) {
         // do nothing by default for basic message

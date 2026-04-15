@@ -114,6 +114,8 @@ public interface ServerConsoleResponse extends ServerConsoleExecutable {
     default void updateMessagePropertyBy(final Parameter parameter) {
         if (RESPONSE_SUCCESS_PARAMETER_NAME.equals(parameter.getName())) {
             setCommandSuccess(parameter.getValue(false));
+        } else {
+            ServerConsoleExecutable.super.updateMessagePropertyBy(parameter);
         }
     }
 }

@@ -88,7 +88,7 @@ public interface ServerConsoleExecutable extends UnitActionMessage {
 
     /**
      * <accessor>
-     * To get the stream to executable parameters
+     * To get the stream to all executable parameters
      *
      * @return stream of available parameters
      * @see Parameter
@@ -97,14 +97,25 @@ public interface ServerConsoleExecutable extends UnitActionMessage {
 
     /**
      * <accessor>
+     * To get the stream to executable parameters by the direction
+     *
+     * @param direction the direction of the parameter (input/output)
+     * @return stream of available parameters
+     * @see Parameter
+     */
+    Stream<Parameter> getParameters(String direction);
+
+    /**
+     * <accessor>
      * To get the parameter by name
      *
      * @param name the name of the parameter
+     * @param direction the direction of the parameter (input/output)
      * @return parameter value or empty
      * @see Parameter
      * @see Optional
      */
-    Optional<Parameter> getParameter(String name);
+    Optional<Parameter> getParameter(String name, String direction);
 
     /**
      * <mutator>
@@ -214,6 +225,7 @@ public interface ServerConsoleExecutable extends UnitActionMessage {
      * @see ServerConsoleExecutable#setLinkName(String)
      * @see ServerConsoleExecutable#LINK_NAME_PARAMETER_NAME
      * @see ServerConsoleExecutable#setParameter(Parameter)
+     * @see UnitActionMessage#updateMessagePropertyBy(Parameter)
      */
     @Override
     default void updateMessagePropertyBy(final Parameter parameter) {

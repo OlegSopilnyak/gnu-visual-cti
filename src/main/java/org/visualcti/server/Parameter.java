@@ -63,7 +63,11 @@ public static final String DATE    = "date";
 public static final String BOOLEAN = "boolean";
 /** type of value - byte[] */
 public static final String RAWDATA = "bytes";
-/**
+/** parameter type is input */
+public static final String INPUT_DIRECTION = "input";
+/** parameter type is output */
+public static final String OUTPUT_DIRECTION = "output";
+    /**
 <attribute>
 the parameter name
 */
@@ -87,27 +91,27 @@ private transient String type;
 <attribute>
 direction of parameter
 */
-private transient String direction = "input";
+private transient String direction = INPUT_DIRECTION;
     /**
     <accessor>
     is this is input parameter
     */
-    public final boolean isInput(){return "input".equals(this.direction);}
+    public final boolean isInput(){return INPUT_DIRECTION.equals(this.direction);}
     /**
     <accessor>
     is this is output parameter
     */
-    public final boolean isOutput(){return "output".equals(this.direction);}
+    public final boolean isOutput(){return OUTPUT_DIRECTION.equals(this.direction);}
     /**
     <mutator>
     set parameter as input
     */
-    public final Parameter input(){this.direction="input";return this;}
+    public final Parameter input(){this.direction= INPUT_DIRECTION;return this;}
     /**
     <mutator>
     set parameter as input
     */
-    public final Parameter output(){this.direction="output";return this;}
+    public final Parameter output(){this.direction= OUTPUT_DIRECTION;return this;}
 /**
 <attribute>
 value

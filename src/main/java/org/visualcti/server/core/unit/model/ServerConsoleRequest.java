@@ -37,11 +37,12 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.core.unit.model;
 
-import java.io.OutputStream;
+import java.io.IOException;
 import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+import org.jdom.DataConversionException;
 import org.jdom.Element;
 import org.visualcti.server.Parameter;
-import org.visualcti.server.core.XmlAware;
 
 /**
  * <p>Title: Visual CTI Java Telephony Server</p>
@@ -53,17 +54,17 @@ import org.visualcti.server.core.XmlAware;
  * @author Sopilnyak Oleg
  * @version 3.01
  */
-public interface ServerConsoleCommand extends ServerConsoleExecutable {
-    String COMMAND_SUCCESS_PARAMETER_NAME = "@command-succeed";
+public interface ServerConsoleRequest extends ServerConsoleExecutable {
+    String COMMAND_SUCCESS_PARAMETER_NAME = "@request-succeed";
     String COMMAND_NEED_RESPONSE_PARAMETER_NAME = "@need_response";
     String COMMAND_ERROR_PARAMETER_NAME = "@error";
-    String COMMAND_DONE_PARAMETER_NAME = "@command-is-done";
+    String COMMAND_DONE_PARAMETER_NAME = "@request-is-done";
 
     /**
      * <accessor>
-     * To get the type of action
+     * To get the type of the message
      *
-     * @return the action's type
+     * @return the message's type
      * @see MessageType
      */
     @Override
@@ -73,7 +74,7 @@ public interface ServerConsoleCommand extends ServerConsoleExecutable {
 
     /**
      * <accessor>
-     * To check is command executed well
+     * To check is request executed well
      *
      * @return the value
      */
@@ -81,16 +82,16 @@ public interface ServerConsoleCommand extends ServerConsoleExecutable {
 
     /**
      * <mutator>
-     * To set up the success of the command execution
+     * To set up the success of the request execution
      *
-     * @param commandSuccess the value
-     * @return reference to the command
+     * @param requestSuccess the value
+     * @return reference to the request
      */
-    ServerConsoleCommand setSuccess(boolean commandSuccess);
+    ServerConsoleRequest setSuccess(boolean requestSuccess);
 
     /**
      * <accessor>
-     * To check is command needs response
+     * To check is request needs response
      *
      * @return the value
      */
@@ -98,50 +99,80 @@ public interface ServerConsoleCommand extends ServerConsoleExecutable {
 
     /**
      * <mutator>
-     * To set up is response needed after the command execution
+     * To set up is response needed after the request execution
      *
      * @param needResponse the value
-     * @return reference to the command
+     * @return reference to the request
      */
-    ServerConsoleCommand setNeedResponse(boolean needResponse);
+    ServerConsoleRequest setNeedResponse(boolean needResponse);
 
     /**
      * <accessor>
-     * To get the lock of command to provide synchronous command execution
+     * To get the lock of request to provide synchronous request execution
      *
-     * @return the lock associated with the command
+     * @return the lock associated with the request
      * @see Lock
-     * @see ServerConsoleCommand#isNeedResponse()
+     * @see ServerConsoleRequest#isNeedResponse()
      */
     Lock getLock();
 
     /**
-     * <accessor>
-     * To check is command executed
+     * <mutator>
+     * To set up the lock of request
      *
-     * @return true if command is executed
-     * @see ServerConsoleCommand#assignResponse(ServerConsoleResponse)
+     * @see Lock
+     * @see #setXML(Element)
+     */
+    void setLock(Lock lock);
+
+    /**
+     * <accessor>
+     * To check is request executed
+     *
+     * @return true if request is executed
+     * @see ServerConsoleRequest#assignResponse(ServerConsoleResponse)
      */
     boolean isDone();
 
     /**
      * <mutator>
-     * To set up the value of is command done flag
+     * To set up the value of is request done flag
      *
      * @param done the value
-     * @return reference to the command
+     * @return reference to the request
      */
-    ServerConsoleCommand setDone(boolean done);
+    ServerConsoleRequest setDone(boolean done);
 
     /**
      * <action>
-     * To assign the response to the command
+     * To assign the response to the request
      *
-     * @param response the response to the command
-     * @see ServerConsoleCommand#getLock()
+     * @param response the response to the request
+     * @see ServerConsoleRequest#getLock()
      * @see ServerConsoleResponse
      */
-    void assignResponse(ServerConsoleResponse response);
+    default void assignResponse(ServerConsoleResponse response) {
+        final boolean requestSuccess = response.isCommandSuccess();
+        // analyzing response according request's response need
+        if (!isNeedResponse()) {
+            // no needs to response processing
+            setSuccess(requestSuccess);
+        } else {
+            // processing the response
+            if (requestSuccess) {
+                // copying parameters from response to request as outputs
+                response.getParameters().forEach(parameter -> setParameter(parameter.output()));
+            } else {
+                // prepare the response's error output
+                final Parameter error = new Parameter(COMMAND_ERROR_PARAMETER_NAME, response.getDescription());
+                setParameter(error.output());
+            }
+            // end of response's processing
+            setSuccess(requestSuccess).setDone(true);
+            // To free the request's lock ;)
+            getLock().unlock();
+        }
+    }
 
     /**
      * <converter>
@@ -150,10 +181,10 @@ public interface ServerConsoleCommand extends ServerConsoleExecutable {
      * @return entity's XML
      * @see Element
      * @see Parameter
-     * @see ServerConsoleCommand#COMMAND_SUCCESS_PARAMETER_NAME
+     * @see ServerConsoleRequest#COMMAND_SUCCESS_PARAMETER_NAME
      * @see UnitActionMessage#ROOT_ELEMENT_NAME
      * @see UnitActionMessage#DESCRIPTION_PARAMETER_NAME
-     * @see XmlAware#store(OutputStream)
+     * @see ServerConsoleExecutable#getXML()
      */
     @Override
     default Element getXML() {
@@ -167,11 +198,29 @@ public interface ServerConsoleCommand extends ServerConsoleExecutable {
     }
 
     /**
+     * <converter>
+     * To update the entity's fields from XML
+     *
+     * @param xml possible XML of te entity
+     * @throws IOException             if something went wrong
+     * @throws DataConversionException if something went wrong
+     * @throws NumberFormatException   if something went wrong
+     * @throws NullPointerException    if something went wrong
+     * @see Element
+     * @see ServerConsoleExecutable#setXML(Element)
+     */
+    @Override
+    default void setXML(final Element xml) throws IOException, DataConversionException, NumberFormatException, NullPointerException {
+        setLock(new ReentrantLock());
+        ServerConsoleExecutable.super.setXML(xml);
+    }
+
+    /**
      * To update the message property by restored from XML parameter
      *
      * @param propertyParameter the value
      * @see ServerConsoleExecutable#updateMessagePropertyBy(Parameter)
-     * @see ServerConsoleCommand#COMMAND_SUCCESS_PARAMETER_NAME
+     * @see ServerConsoleRequest#COMMAND_SUCCESS_PARAMETER_NAME
      */
     @Override
     default void updateMessagePropertyBy(final Parameter propertyParameter) {
@@ -181,6 +230,8 @@ public interface ServerConsoleCommand extends ServerConsoleExecutable {
             setNeedResponse(propertyParameter.getValue(false));
         } else if (COMMAND_DONE_PARAMETER_NAME.equals(propertyParameter.getName())) {
             setDone(propertyParameter.getValue(false));
+        } else {
+            ServerConsoleExecutable.super.updateMessagePropertyBy(propertyParameter);
         }
     }
 }

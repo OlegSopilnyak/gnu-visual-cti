@@ -40,7 +40,7 @@ package org.visualcti.server.core.unit;
 import java.rmi.registry.Registry;
 import java.util.Map;
 import org.jdom.Element;
-import org.visualcti.server.core.unit.model.ServerConsoleCommand;
+import org.visualcti.server.core.unit.model.ServerConsoleRequest;
 import org.visualcti.server.core.unit.model.UnitActionEvent;
 
 /**
@@ -82,7 +82,7 @@ public interface BasicServerUnit {
      * @param command command to execute
      * @throws Exception if it cannot execute
      */
-    void execute(ServerConsoleCommand command) throws Exception;
+    void execute(ServerConsoleRequest command) throws Exception;
 //////////////// ACTIONS PART (end) ///////////////////
 
 /////////// INHERITING PART (begin) ////////////////////

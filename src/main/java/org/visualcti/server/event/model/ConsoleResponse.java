@@ -37,13 +37,39 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.event.model;
 
-import org.visualcti.server.core.unit.model.UnitActionError;
-import org.visualcti.server.core.unit.model.UnitActionEvent;
+import org.visualcti.server.core.unit.model.ServerConsoleRequest;
+import org.visualcti.server.core.unit.model.ServerConsoleResponse;
 
 /**
- * Implementation: The Server Unit Activity Event Message
+ * Implementation: The Server Console Request Executable Message
  *
- * @see UnitActionError
+ * @see ServerConsoleRequest
  */
-class UnitEvent extends  UnitMessageAdapter implements UnitActionEvent {
+class ConsoleResponse extends ConsoleExecutableAdapter implements ServerConsoleResponse {
+    // is request executed well
+    private transient boolean requestSuccess;
+
+    /**
+     * <accessor>
+     * To get is command executed well?
+     *
+     * @return the value
+     */
+    @Override
+    public boolean isCommandSuccess() {
+        return requestSuccess;
+    }
+
+    /**
+     * <mutator>
+     * To set up the success of the command execution
+     *
+     * @param commandSuccess the value
+     * @return reference to the response
+     */
+    @Override
+    public ServerConsoleResponse setCommandSuccess(boolean commandSuccess) {
+        requestSuccess = commandSuccess;
+        return this;
+    }
 }

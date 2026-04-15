@@ -38,7 +38,6 @@ Fax number: 217-356-3356
 package org.visualcti.server.event.model;
 
 import org.visualcti.server.core.unit.model.MessageFamilyType;
-import org.visualcti.server.core.unit.model.MessageType;
 import org.visualcti.server.core.unit.model.UnitActionError;
 import org.visualcti.server.core.unit.model.UnitActionMessage;
 
@@ -50,6 +49,33 @@ import org.visualcti.server.core.unit.model.UnitActionMessage;
 class UnitError extends  UnitMessageAdapter implements UnitActionError {
     // nested error's exception (can be null)
     private transient ErrorNestedException nestedException;
+
+    /**
+     * <accessor>
+     * To get the messages family type of the message
+     *
+     * @return type of the unit's action message
+     * @see MessageFamilyType#ERROR
+     */
+    @Override
+    public MessageFamilyType getFamilyType() {
+        return MessageFamilyType.ERROR;
+    }
+
+    /**
+     * <mutator>
+     * To set up the messages family type of the message (ignore setter for this kind of the message)
+     *
+     * @param messageFamilyType new value of message's family type
+     * @return reference to the message
+     * @see UnitMessageAdapter#setFamilyType(MessageFamilyType)
+     */
+    @Override
+    public UnitActionMessage setFamilyType(MessageFamilyType messageFamilyType) {
+        // do nothing
+        return this;
+    }
+
     /**
      * <accessor>
      * The get access to the nested error's exception (can be null)
@@ -74,56 +100,6 @@ class UnitError extends  UnitMessageAdapter implements UnitActionError {
         this.nestedException = nestedException instanceof ErrorNestedException ?
                 (ErrorNestedException) nestedException
                 : new ErrorNestedException(nestedException);
-        return this;
-    }
-
-    /**
-     * <accessor>
-     * To get the messages family type of the message
-     *
-     * @return type of the unit's action message
-     * @see MessageFamilyType#ERROR
-     */
-    @Override
-    public MessageFamilyType getFamilyType() {
-        return MessageFamilyType.ERROR;
-    }
-
-    /**
-     * <mutator>
-     * To set up the messages family type of the message
-     *
-     * @param messageFamilyType new value of message's family type
-     * @return reference to the message
-     */
-    @Override
-    public UnitActionMessage setFamilyType(MessageFamilyType messageFamilyType) {
-        // do nothing
-        return this;
-    }
-
-    /**
-     * <accessor>
-     * To get the type of the message
-     *
-     * @return the message's type
-     * @see MessageType
-     */
-    @Override
-    public MessageType getMessageType() {
-        return MessageType.ERROR;
-    }
-
-    /**
-     * <mutator>
-     * To set up the type of the message
-     *
-     * @param messageType new value of message's type
-     * @return reference to the message
-     */
-    @Override
-    public UnitActionMessage setMessageType(MessageType messageType) {
-        // do nothing
         return this;
     }
 }
