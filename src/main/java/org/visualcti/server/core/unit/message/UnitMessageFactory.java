@@ -35,20 +35,38 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.server.task;
+package org.visualcti.server.core.unit.message;
 
-import org.visualcti.server.core.unit.executable.Task;
+import java.io.IOException;
 
 /**
-<producer>
-Interface describe, how to create the task
-*/
-public interface TaskProducer
-{
-/**
-<producer>
-To create the task.
-If producer can't create the task, null will returned
-*/
-Task create(Class taskClass);
+ * Builder: Unit Action Message Builder (the messages factory)
+ */
+public interface UnitMessageFactory {
+    /**
+     * <builder>
+     * To guild or get the instance of action message
+     *
+     * @param type the type of the message
+     * @param messageClass type(class) of the message
+     * @return built or got instance of the unit action message
+     * @param <T> concrete type of built message
+     * @throws IOException throws if cannot build the message
+     * @see UnitMessage
+     * @see MessageType
+     */
+    <T extends UnitMessage> T build(MessageType type, Class<T> messageClass) throws IOException;
+
+    /**
+     * <builder>
+     * To guild or get the instance of action message
+     *
+     * @param type the type of the message
+     * @return built or got instance of the unit action message
+     * @param <T> concrete type of built message
+     * @throws IOException throws if cannot build the message
+     * @see UnitMessage
+     * @see MessageType
+     */
+    <T extends UnitMessage> T build(MessageType type) throws IOException;
 }

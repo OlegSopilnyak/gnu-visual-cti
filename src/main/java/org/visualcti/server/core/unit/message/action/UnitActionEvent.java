@@ -35,66 +35,40 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.server.core.unit.model;
+package org.visualcti.server.core.unit.message.action;
+
+import org.visualcti.server.core.unit.message.MessageType;
+import org.visualcti.server.core.unit.message.UnitMessage;
 
 /**
  * <p>Title: Visual CTI Java Telephony Server</p>
  * <p>Description: VisualCTI Applications Server,<br>
- * The Server Unit Action Messages Family Type</p>
+ * The Server's Unit Event</p>
  * <p>Copyright: Copyright (c) 2002 Prominic Technologies, Inc. & Prominic Ukraine Co.</p>
  * <p>Company: Prominic Ukraine Co.</p>
  *
  * @author Sopilnyak Oleg
  * @version 3.01
  */
-public enum MessageFamilyType {
-    ERROR(-1, "The error detected in the Unit"),
-    STOP(0, "Stopping Unit Action Event and Command"),
-    START(1, "Starting Unit Action Event and Command"),
-    STATE(2, "Unit's State Updated Action Event"),
-    GET(3, "Get Data from the Unit Command Type"),
-    SET(4, "Set Data to the Unit Command Type");
-    // the ID of event type
-    public final int ID;
-    // the description of event type
-    private final String description;
-
-    MessageFamilyType(int ID, String description) {
-        this.ID = ID;
-        this.description = description;
-    }
-
+public interface UnitActionEvent extends UnitMessage {
+    /**
+     * <accessor>
+     * To get the description of the event
+     *
+     * @return description of the unit's action message
+     */
+    @Override
+    String getDescription();
 
     /**
-     * <builder>
-     * To build message family type by input as integer value
+     * <accessor>
+     * To get the type of the message
      *
-     * @param input ID of the message family ID as integer
-     * @return exists type instance or null if not found
+     * @return the message's type
+     * @see MessageType
      */
-    public static MessageFamilyType of(int input) {
-        for (final MessageFamilyType familyType : MessageFamilyType.values()) {
-            if (familyType.ID == input) {
-                return familyType;
-            }
-        }
-        return null;
-    }
-
-
-    /**
-     * <builder>
-     * To build message family type by input as string value
-     *
-     * @param input the name of the message family type as string
-     * @return exists type instance or null if not found
-     */
-    public static MessageFamilyType byName(String input) {
-        for (final MessageFamilyType messageType : MessageFamilyType.values()) {
-            if (messageType.name().equalsIgnoreCase(input)) {
-                return messageType;
-            }
-        }
-        return null;
+    @Override
+    default MessageType getMessageType() {
+        return MessageType.EVENT;
     }
 }

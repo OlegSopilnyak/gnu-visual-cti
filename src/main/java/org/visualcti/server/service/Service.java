@@ -52,7 +52,7 @@ public interface Service extends
    
    /**
    <enum>
-   class for sevice state constants
+   class for service state constants
    */
    public static final class State
    {
@@ -127,7 +127,7 @@ The one whom this service is subordinate
    
    /**
 <accessor>
-The check, is service depended from master
+The check, is service depends on master service
    */
    boolean isDependsFrom(Service master);
    

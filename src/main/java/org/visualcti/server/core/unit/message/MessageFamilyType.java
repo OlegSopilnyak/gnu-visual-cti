@@ -35,63 +35,66 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.server.core;
-
-import java.io.IOException;
+package org.visualcti.server.core.unit.message;
 
 /**
  * <p>Title: Visual CTI Java Telephony Server</p>
  * <p>Description: VisualCTI Applications Server,<br>
- * Engine, high level subsystem interface</p>
+ * The Server Unit Action Messages Family Type</p>
  * <p>Copyright: Copyright (c) 2002 Prominic Technologies, Inc. & Prominic Ukraine Co.</p>
  * <p>Company: Prominic Ukraine Co.</p>
  *
  * @author Sopilnyak Oleg
  * @version 3.01
  */
-public interface Engine {
-    /**
-     * <enum>
-     * engine states
-     */
-    enum State {
-        // started engine state
-        IN_SERVICE,
-        // stopped engine state
-        OUT_OF_SERVICE
+public enum MessageFamilyType {
+    ERROR(-1, "The error detected in the Unit"),
+    STOP(0, "Stopping Unit Action Event and Command"),
+    START(1, "Starting Unit Action Event and Command"),
+    STATE(2, "Get Current State of the Unit Command Type"),
+    GET(3, "Get Data from the Unit Command Type"),
+    SET(4, "Set Data to the Unit Command Type");
+    // the ID of event type
+    public final int ID;
+    // the description of event type
+    private final String description;
+
+    MessageFamilyType(int ID, String description) {
+        this.ID = ID;
+        this.description = description;
     }
 
-    /**
-     * <action>
-     * to Start the engine
-     *
-     * @throws IOException if engine can't start
-     */
-    void Start() throws IOException;
 
     /**
-     * <action>
-     * to Stop the engine
+     * <builder>
+     * To build message family type by input as integer value
      *
-     * @throws IOException if engine can't stop
+     * @param input ID of the message family ID as integer
+     * @return exists type instance or null if not found
      */
-    void Stop() throws IOException;
+    public static MessageFamilyType of(int input) {
+        for (final MessageFamilyType familyType : MessageFamilyType.values()) {
+            if (familyType.ID == input) {
+                return familyType;
+            }
+        }
+        return null;
+    }
+
 
     /**
-     * <accessor>
-     * To check is Engine is working (in service)
+     * <builder>
+     * To build message family type by input as string value
      *
-     * @return true if Engine is in service
-     * @see State#IN_SERVICE
+     * @param input the name of the message family type as string
+     * @return exists type instance or null if not found
      */
-    boolean isStarted();
-
-    /**
-     * <accessor>
-     * To check is Engine is stopped (out of service)
-     *
-     * @return true if Engine is out of service
-     * @see State#OUT_OF_SERVICE
-     */
-    boolean isStopped();
+    public static MessageFamilyType byName(String input) {
+        for (final MessageFamilyType messageType : MessageFamilyType.values()) {
+            if (messageType.name().equalsIgnoreCase(input)) {
+                return messageType;
+            }
+        }
+        return null;
+    }
 }

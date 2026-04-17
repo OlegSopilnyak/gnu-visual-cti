@@ -39,7 +39,8 @@ package org.visualcti.server;
 
 import java.util.*;
 
-import org.visualcti.server.core.Engine;
+import org.visualcti.server.core.executable.Engine;
+import org.visualcti.server.core.unit.message.command.UnknownCommandException;
 import org.visualcti.server.database.Database;
 import org.visualcti.server.message.Messenger;
 /**

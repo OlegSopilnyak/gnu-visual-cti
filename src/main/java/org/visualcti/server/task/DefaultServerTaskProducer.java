@@ -37,23 +37,24 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.task;
 
-import org.visualcti.server.core.unit.executable.Task;
+import org.visualcti.server.core.unit.executable.task.Task;
+import org.visualcti.server.core.executable.task.TaskProducer;
 import org.visualcti.util.Tools;
+
 /**
-<producer>
-The defualt class producer
-*/
-public final class defaultTaskProducer implements TaskProducer
-{
-/**
-<producer>
-To create the task.
-If producer can't create the task, null will returned
-*/
-    public Task create(Class taskClass)
-    {
-        try {return (Task)taskClass.newInstance();
-        }catch(Exception e){
+ * <producer>
+ * The default class producer
+ */
+public final class DefaultServerTaskProducer implements TaskProducer {
+    /**
+     * <producer>
+     * To create the task.
+     * If producer can't create the task, null will be returned
+     */
+    public Task create(Class<Task> taskClass) {
+        try {
+            return taskClass.newInstance();
+        } catch (Exception e) {
             e.printStackTrace(Tools.err);
         }
         return null;

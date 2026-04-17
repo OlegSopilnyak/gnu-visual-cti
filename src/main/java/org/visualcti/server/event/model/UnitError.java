@@ -37,9 +37,9 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.event.model;
 
-import org.visualcti.server.core.unit.model.MessageFamilyType;
-import org.visualcti.server.core.unit.model.UnitActionError;
-import org.visualcti.server.core.unit.model.UnitActionMessage;
+import org.visualcti.server.core.unit.message.MessageFamilyType;
+import org.visualcti.server.core.unit.message.action.UnitActionError;
+import org.visualcti.server.core.unit.message.UnitMessage;
 
 /**
  * Implementation: The Server Unit Activity Error Message
@@ -71,7 +71,7 @@ class UnitError extends  UnitMessageAdapter implements UnitActionError {
      * @see UnitMessageAdapter#setFamilyType(MessageFamilyType)
      */
     @Override
-    public UnitActionMessage setFamilyType(MessageFamilyType messageFamilyType) {
+    public UnitMessage setFamilyType(MessageFamilyType messageFamilyType) {
         // do nothing
         return this;
     }

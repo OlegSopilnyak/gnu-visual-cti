@@ -49,14 +49,14 @@ import org.jdom.DataConversionException;
 import org.jdom.Element;
 import org.junit.Test;
 import org.visualcti.server.Parameter;
-import org.visualcti.server.core.unit.model.MessageFamilyType;
-import org.visualcti.server.core.unit.model.MessageType;
+import org.visualcti.server.core.unit.message.MessageFamilyType;
+import org.visualcti.server.core.unit.message.MessageType;
 
 public class ConsoleResponseTest {
     @Test
     public void shouldSerializeResponse() throws IOException {
         // preparing test data
-        ConsoleResponse response = new ConsoleResponse();
+        CommandResponse response = new CommandResponse();
         response
                 .setCommandSuccess(false)
                 .setCorrelationID("correlationID").setLinkName("link-name") .setParameter(new Parameter("param1", "value1"))
@@ -81,7 +81,7 @@ public class ConsoleResponseTest {
     @Test
     public void shouldDeserializeResponse() throws IOException, ClassNotFoundException {
         // preparing test data
-        ConsoleResponse response = new ConsoleResponse();
+        CommandResponse response = new CommandResponse();
         response
                 .setCommandSuccess(true)
                 .setCorrelationID("correlationID").setLinkName("link-name") .setParameter(new Parameter("param1", "value1"))
@@ -97,7 +97,7 @@ public class ConsoleResponseTest {
 
         // acting
         ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(stream.toByteArray()));
-        ConsoleResponse deserialized = (ConsoleResponse) in.readObject();
+        CommandResponse deserialized = (CommandResponse) in.readObject();
 
         // check results
         assertThat(deserialized).isEqualTo(response);
@@ -108,7 +108,7 @@ public class ConsoleResponseTest {
     @Test
     public void shouldDeserializeEmptyResponse() throws IOException, ClassNotFoundException {
         // preparing test data
-        ConsoleResponse response = new ConsoleResponse();
+        CommandResponse response = new CommandResponse();
         assertThat(response.getMessageType()).isEqualTo(MessageType.RESPONSE);
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
         ObjectOutputStream out = new ObjectOutputStream(stream);
@@ -119,7 +119,7 @@ public class ConsoleResponseTest {
         // acting
         ByteArrayInputStream rawStream = new ByteArrayInputStream(stream.toByteArray());
         ObjectInputStream in = new ObjectInputStream(rawStream);
-        ConsoleResponse deserialized = (ConsoleResponse) in.readObject();
+        CommandResponse deserialized = (CommandResponse) in.readObject();
 
         // check results
         assertThat(deserialized).isEqualTo(response);
@@ -130,7 +130,7 @@ public class ConsoleResponseTest {
     @Test
     public void shouldGetXML() {
         // preparing test data
-        ConsoleResponse response = new ConsoleResponse();
+        CommandResponse response = new CommandResponse();
         response
                 .setCommandSuccess(true)
                 .setCorrelationID("correlationID").setLinkName("link-name") .setParameter(new Parameter("param1", "value1"))
@@ -151,7 +151,7 @@ public class ConsoleResponseTest {
     @Test
     public void shouldSetXML() throws IOException, DataConversionException {
         // preparing test data
-        ConsoleResponse response = new ConsoleResponse();
+        CommandResponse response = new CommandResponse();
         response
                 .setCommandSuccess(true)
                 .setCorrelationID("correlationID").setLinkName("link-name") .setParameter(new Parameter("param1", "value1"))
@@ -162,7 +162,7 @@ public class ConsoleResponseTest {
         Element xml = response.getXML();
 
         // acting
-        UnitMessageAdapter response2 = new ConsoleResponse();
+        UnitMessageAdapter response2 = new CommandResponse();
         response2.setXML(xml);
 
         // check results

@@ -41,19 +41,14 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.lang.reflect.*;
-import java.rmi.RMISecurityManager;
 import java.rmi.registry.Registry;
 import org.jdom.*;
+import org.visualcti.server.core.unit.message.command.UnknownCommandException;
 import org.visualcti.util.*;
 import org.visualcti.server.system.*;
 
-import org.visualcti.server.service.Manager;
-import org.visualcti.server.service.ServiceMaker;
-import org.visualcti.server.log.Log;
-
 import org.visualcti.server.hardware.generalDeviceProxy;
 import org.visualcti.server.task.TaskPool;
-import org.visualcti.server.message.Messenger;
 
 /**
 Main class of VisualCTI Server

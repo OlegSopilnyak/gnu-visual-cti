@@ -40,9 +40,9 @@ package org.visualcti.server;
 import java.util.*;
 import org.jdom.*;
 import java.rmi.registry.Registry;
-import org.visualcti.server.*;
 //import org.visualcti.util.Config;
-import org.visualcti.server.action.serverAction;
+import org.visualcti.server.core.unit.message.command.UnknownCommandException;
+
 /**
 Parent of any server part
 atomic(indivisible) piece of server

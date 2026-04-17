@@ -45,15 +45,15 @@ import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.Date;
 import java.util.Objects;
-import org.visualcti.server.core.unit.model.MessageFamilyType;
-import org.visualcti.server.core.unit.model.UnitActionMessage;
+import org.visualcti.server.core.unit.message.MessageFamilyType;
+import org.visualcti.server.core.unit.message.UnitMessage;
 
 /**
  * Implementation Adapter: The Server Unit Activity Basic Message
  *
- * @see UnitActionMessage
+ * @see UnitMessage
  */
-abstract class UnitMessageAdapter implements UnitActionMessage {
+abstract class UnitMessageAdapter implements UnitMessage {
     // messages family type of the message
     private transient MessageFamilyType familyType;
     // description of the message
@@ -83,7 +83,7 @@ abstract class UnitMessageAdapter implements UnitActionMessage {
      * @return reference to the message
      */
     @Override
-    public UnitActionMessage setFamilyType(MessageFamilyType messageFamilyType) {
+    public UnitMessage setFamilyType(MessageFamilyType messageFamilyType) {
         this.familyType = messageFamilyType;
         return this;
     }
@@ -107,7 +107,7 @@ abstract class UnitMessageAdapter implements UnitActionMessage {
      * @return reference to the message
      */
     @Override
-    public UnitActionMessage setDescription(String description) {
+    public UnitMessage setDescription(String description) {
         this.description = description;
         return this;
     }
@@ -131,7 +131,7 @@ abstract class UnitMessageAdapter implements UnitActionMessage {
      * @return reference to the message
      */
     @Override
-    public UnitActionMessage setDate(long dateTime) {
+    public UnitMessage setDate(long dateTime) {
         this.date = dateTime < 0 ? null : new Date(dateTime);
         return this;
     }
@@ -155,7 +155,7 @@ abstract class UnitMessageAdapter implements UnitActionMessage {
      * @return reference to the message
      */
     @Override
-    public UnitActionMessage setUnitPath(String unitPath) {
+    public UnitMessage setUnitPath(String unitPath) {
         this.unitPath = unitPath;
         return this;
     }
@@ -194,7 +194,7 @@ abstract class UnitMessageAdapter implements UnitActionMessage {
      * @throws IOException if something went wrong
      * @see Serializable
      * @see ObjectOutputStream
-     * @see UnitActionMessage#store(OutputStream)
+     * @see UnitMessage#store(OutputStream)
      */
     private void writeObject(ObjectOutputStream stream) throws IOException {
         stream.defaultWriteObject();
@@ -210,7 +210,7 @@ abstract class UnitMessageAdapter implements UnitActionMessage {
      * @throws ClassNotFoundException if in serialized bytes exists reference to unknown object type(class)
      * @see Serializable
      * @see ObjectInputStream
-     * @see UnitActionMessage#restore(InputStream)
+     * @see UnitMessage#restore(InputStream)
      */
     private void readObject(ObjectInputStream stream) throws IOException, ClassNotFoundException {
         stream.defaultReadObject();

@@ -41,7 +41,7 @@ import org.jdom.*;
 
 import java.util.*;
 /**
-Class serverunit's Meta Information
+Class server unit's Meta Information
 */
 public final class MetaData
 {
@@ -124,7 +124,7 @@ private final transient HashMap meta = new HashMap();
     public final String getState(){return (String)this.meta.get(MetaData.STATE);}
     /**
     <acessor>
-    Object.toString() overrided
+    Object.toString() override
     */
     public final String toString()
     {

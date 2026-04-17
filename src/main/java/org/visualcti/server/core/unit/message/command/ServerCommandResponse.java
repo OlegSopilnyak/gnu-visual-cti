@@ -35,12 +35,14 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.server.core.unit.model;
+package org.visualcti.server.core.unit.message.command;
 
 import java.io.OutputStream;
 import org.jdom.Element;
 import org.visualcti.server.Parameter;
 import org.visualcti.server.core.XmlAware;
+import org.visualcti.server.core.unit.message.MessageType;
+import org.visualcti.server.core.unit.message.UnitMessage;
 
 /**
  * <p>Title: Visual CTI Java Telephony Server</p>
@@ -52,7 +54,7 @@ import org.visualcti.server.core.XmlAware;
  * @author Sopilnyak Oleg
  * @version 3.01
  */
-public interface ServerConsoleResponse extends ServerConsoleExecutable {
+public interface ServerCommandResponse extends ServerCommandExecutable {
     String RESPONSE_SUCCESS_PARAMETER_NAME = "@execution-result-succeed";
 
     /**
@@ -82,7 +84,7 @@ public interface ServerConsoleResponse extends ServerConsoleExecutable {
      * @param commandSuccess the value
      * @return reference to the response
      */
-    ServerConsoleResponse setCommandSuccess(boolean commandSuccess);
+    ServerCommandResponse setCommandSuccess(boolean commandSuccess);
 
     /**
      * <converter>
@@ -91,15 +93,15 @@ public interface ServerConsoleResponse extends ServerConsoleExecutable {
      * @return entity's XML
      * @see Element
      * @see Parameter
-     * @see ServerConsoleResponse#RESPONSE_SUCCESS_PARAMETER_NAME
-     * @see UnitActionMessage#ROOT_ELEMENT_NAME
-     * @see UnitActionMessage#DESCRIPTION_PARAMETER_NAME
+     * @see ServerCommandResponse#RESPONSE_SUCCESS_PARAMETER_NAME
+     * @see UnitMessage#ROOT_ELEMENT_NAME
+     * @see UnitMessage#DESCRIPTION_PARAMETER_NAME
      * @see XmlAware#store(OutputStream)
      */
     @Override
     default Element getXML() {
         final Parameter isCommandSuccessParameter = new Parameter(RESPONSE_SUCCESS_PARAMETER_NAME, isCommandSuccess());
-        return ServerConsoleExecutable.super.getXML()
+        return ServerCommandExecutable.super.getXML()
                 .addContent(isCommandSuccessParameter.getXML());
     }
 
@@ -107,15 +109,15 @@ public interface ServerConsoleResponse extends ServerConsoleExecutable {
      * To update the message property by restored parameter
      *
      * @param parameter the value
-     * @see ServerConsoleExecutable#updateMessagePropertyBy(Parameter)
-     * @see ServerConsoleResponse#RESPONSE_SUCCESS_PARAMETER_NAME
+     * @see ServerCommandExecutable#updateMessagePropertyBy(Parameter)
+     * @see ServerCommandResponse#RESPONSE_SUCCESS_PARAMETER_NAME
      */
     @Override
     default void updateMessagePropertyBy(final Parameter parameter) {
         if (RESPONSE_SUCCESS_PARAMETER_NAME.equals(parameter.getName())) {
             setCommandSuccess(parameter.getValue(false));
         } else {
-            ServerConsoleExecutable.super.updateMessagePropertyBy(parameter);
+            ServerCommandExecutable.super.updateMessagePropertyBy(parameter);
         }
     }
 }

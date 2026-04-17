@@ -35,7 +35,7 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.server.core.unit.model;
+package org.visualcti.server.core.unit.message.command;
 
 import java.io.IOException;
 import java.util.concurrent.locks.Lock;
@@ -43,18 +43,20 @@ import java.util.concurrent.locks.ReentrantLock;
 import org.jdom.DataConversionException;
 import org.jdom.Element;
 import org.visualcti.server.Parameter;
+import org.visualcti.server.core.unit.message.MessageType;
+import org.visualcti.server.core.unit.message.UnitMessage;
 
 /**
  * <p>Title: Visual CTI Java Telephony Server</p>
  * <p>Description: VisualCTI Applications Server,<br>
- * The Server Console Command</p>
+ * The Server Console or Engine Command</p>
  * <p>Copyright: Copyright (c) 2002 Prominic Technologies, Inc. & Prominic Ukraine Co.</p>
  * <p>Company: Prominic Ukraine Co.</p>
  *
  * @author Sopilnyak Oleg
  * @version 3.01
  */
-public interface ServerConsoleRequest extends ServerConsoleExecutable {
+public interface ServerCommandRequest extends ServerCommandExecutable {
     String COMMAND_SUCCESS_PARAMETER_NAME = "@request-succeed";
     String COMMAND_NEED_RESPONSE_PARAMETER_NAME = "@need_response";
     String COMMAND_ERROR_PARAMETER_NAME = "@error";
@@ -87,7 +89,7 @@ public interface ServerConsoleRequest extends ServerConsoleExecutable {
      * @param requestSuccess the value
      * @return reference to the request
      */
-    ServerConsoleRequest setSuccess(boolean requestSuccess);
+    ServerCommandRequest setSuccess(boolean requestSuccess);
 
     /**
      * <accessor>
@@ -104,7 +106,7 @@ public interface ServerConsoleRequest extends ServerConsoleExecutable {
      * @param needResponse the value
      * @return reference to the request
      */
-    ServerConsoleRequest setNeedResponse(boolean needResponse);
+    ServerCommandRequest setNeedResponse(boolean needResponse);
 
     /**
      * <accessor>
@@ -112,7 +114,7 @@ public interface ServerConsoleRequest extends ServerConsoleExecutable {
      *
      * @return the lock associated with the request
      * @see Lock
-     * @see ServerConsoleRequest#isNeedResponse()
+     * @see ServerCommandRequest#isNeedResponse()
      */
     Lock getLock();
 
@@ -130,7 +132,7 @@ public interface ServerConsoleRequest extends ServerConsoleExecutable {
      * To check is request executed
      *
      * @return true if request is executed
-     * @see ServerConsoleRequest#assignResponse(ServerConsoleResponse)
+     * @see ServerCommandRequest#assignResponse(ServerCommandResponse)
      */
     boolean isDone();
 
@@ -141,17 +143,17 @@ public interface ServerConsoleRequest extends ServerConsoleExecutable {
      * @param done the value
      * @return reference to the request
      */
-    ServerConsoleRequest setDone(boolean done);
+    ServerCommandRequest setDone(boolean done);
 
     /**
      * <action>
      * To assign the response to the request
      *
      * @param response the response to the request
-     * @see ServerConsoleRequest#getLock()
-     * @see ServerConsoleResponse
+     * @see ServerCommandRequest#getLock()
+     * @see ServerCommandResponse
      */
-    default void assignResponse(ServerConsoleResponse response) {
+    default void assignResponse(ServerCommandResponse response) {
         final boolean requestSuccess = response.isCommandSuccess();
         // analyzing response according request's response need
         if (!isNeedResponse()) {
@@ -181,17 +183,17 @@ public interface ServerConsoleRequest extends ServerConsoleExecutable {
      * @return entity's XML
      * @see Element
      * @see Parameter
-     * @see ServerConsoleRequest#COMMAND_SUCCESS_PARAMETER_NAME
-     * @see UnitActionMessage#ROOT_ELEMENT_NAME
-     * @see UnitActionMessage#DESCRIPTION_PARAMETER_NAME
-     * @see ServerConsoleExecutable#getXML()
+     * @see ServerCommandRequest#COMMAND_SUCCESS_PARAMETER_NAME
+     * @see UnitMessage#ROOT_ELEMENT_NAME
+     * @see UnitMessage#DESCRIPTION_PARAMETER_NAME
+     * @see ServerCommandExecutable#getXML()
      */
     @Override
     default Element getXML() {
         final Parameter isSuccessParameter = new Parameter(COMMAND_SUCCESS_PARAMETER_NAME, isSuccess());
         final Parameter isNeedResponseParameter = new Parameter(COMMAND_NEED_RESPONSE_PARAMETER_NAME, isNeedResponse());
         final Parameter isDoneParameter = new Parameter(COMMAND_DONE_PARAMETER_NAME, isDone());
-        return ServerConsoleExecutable.super.getXML()
+        return ServerCommandExecutable.super.getXML()
                 .addContent(isSuccessParameter.getXML())
                 .addContent(isNeedResponseParameter.getXML())
                 .addContent(isDoneParameter.getXML());
@@ -207,20 +209,20 @@ public interface ServerConsoleRequest extends ServerConsoleExecutable {
      * @throws NumberFormatException   if something went wrong
      * @throws NullPointerException    if something went wrong
      * @see Element
-     * @see ServerConsoleExecutable#setXML(Element)
+     * @see ServerCommandExecutable#setXML(Element)
      */
     @Override
     default void setXML(final Element xml) throws IOException, DataConversionException, NumberFormatException, NullPointerException {
         setLock(new ReentrantLock());
-        ServerConsoleExecutable.super.setXML(xml);
+        ServerCommandExecutable.super.setXML(xml);
     }
 
     /**
      * To update the message property by restored from XML parameter
      *
      * @param propertyParameter the value
-     * @see ServerConsoleExecutable#updateMessagePropertyBy(Parameter)
-     * @see ServerConsoleRequest#COMMAND_SUCCESS_PARAMETER_NAME
+     * @see ServerCommandExecutable#updateMessagePropertyBy(Parameter)
+     * @see ServerCommandRequest#COMMAND_SUCCESS_PARAMETER_NAME
      */
     @Override
     default void updateMessagePropertyBy(final Parameter propertyParameter) {
@@ -231,7 +233,7 @@ public interface ServerConsoleRequest extends ServerConsoleExecutable {
         } else if (COMMAND_DONE_PARAMETER_NAME.equals(propertyParameter.getName())) {
             setDone(propertyParameter.getValue(false));
         } else {
-            ServerConsoleExecutable.super.updateMessagePropertyBy(propertyParameter);
+            ServerCommandExecutable.super.updateMessagePropertyBy(propertyParameter);
         }
     }
 }

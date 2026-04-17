@@ -40,15 +40,15 @@ package org.visualcti.server.event.model;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import org.jdom.Element;
-import org.visualcti.server.core.unit.model.ServerConsoleRequest;
-import org.visualcti.server.core.unit.model.ServerConsoleResponse;
+import org.visualcti.server.core.unit.message.command.ServerCommandRequest;
+import org.visualcti.server.core.unit.message.command.ServerCommandResponse;
 
 /**
  * Implementation: The Server Console Request Executable Message
  *
- * @see ServerConsoleRequest
+ * @see ServerCommandRequest
  */
-class ConsoleRequest extends ConsoleExecutableAdapter implements ServerConsoleRequest {
+class CommandRequest extends CommandAdapter implements ServerCommandRequest {
     // is request needs response
     private transient boolean needResponse;
     // is request executed well
@@ -77,7 +77,7 @@ class ConsoleRequest extends ConsoleExecutableAdapter implements ServerConsoleRe
      * @return reference to the request
      */
     @Override
-    public ServerConsoleRequest setSuccess(boolean requestSuccess) {
+    public ServerCommandRequest setSuccess(boolean requestSuccess) {
         this.requestSuccess = requestSuccess;
         return this;
     }
@@ -101,7 +101,7 @@ class ConsoleRequest extends ConsoleExecutableAdapter implements ServerConsoleRe
      * @return reference to the request
      */
     @Override
-    public ServerConsoleRequest setNeedResponse(boolean needResponse) {
+    public ServerCommandRequest setNeedResponse(boolean needResponse) {
         this.needResponse = needResponse;
         return this;
     }
@@ -111,7 +111,7 @@ class ConsoleRequest extends ConsoleExecutableAdapter implements ServerConsoleRe
      * To check has the request finished
      *
      * @return true if request is finished
-     * @see ServerConsoleRequest#assignResponse(ServerConsoleResponse)
+     * @see ServerCommandRequest#assignResponse(ServerCommandResponse)
      */
     @Override
     public boolean isDone() {
@@ -126,7 +126,7 @@ class ConsoleRequest extends ConsoleExecutableAdapter implements ServerConsoleRe
      * @return reference to the request
      */
     @Override
-    public ServerConsoleRequest setDone(boolean done) {
+    public ServerCommandRequest setDone(boolean done) {
         this.done = done;
         return this;
     }
@@ -137,7 +137,7 @@ class ConsoleRequest extends ConsoleExecutableAdapter implements ServerConsoleRe
      *
      * @return the lock associated with the request
      * @see Lock
-     * @see ServerConsoleRequest#isNeedResponse()
+     * @see ServerCommandRequest#isNeedResponse()
      */
     @Override
     public Lock getLock() {
@@ -149,7 +149,7 @@ class ConsoleRequest extends ConsoleExecutableAdapter implements ServerConsoleRe
      * To set up the lock of request
      *
      * @see Lock
-     * @see ServerConsoleRequest#setXML(Element)
+     * @see ServerCommandRequest#setXML(Element)
      */
     @Override
     public void setLock(Lock lock) {
@@ -161,19 +161,19 @@ class ConsoleRequest extends ConsoleExecutableAdapter implements ServerConsoleRe
      * To assign the response to the request
      *
      * @param response the response to the request
-     * @see ServerConsoleRequest#assignResponse(ServerConsoleResponse)
-     * @see ServerConsoleResponse
+     * @see ServerCommandRequest#assignResponse(ServerCommandResponse)
+     * @see ServerCommandResponse
      */
     @Override
-    public void assignResponse(ServerConsoleResponse response) {
-        ServerConsoleRequest.super.assignResponse(response);
+    public void assignResponse(ServerCommandResponse response) {
+        ServerCommandRequest.super.assignResponse(response);
     }
 
     @Override
     public boolean equals(Object o) {
-        if (!(o instanceof ConsoleRequest)) return false;
+        if (!(o instanceof CommandRequest)) return false;
         if (!super.equals(o)) return false;
-        ConsoleRequest that = (ConsoleRequest) o;
+        CommandRequest that = (CommandRequest) o;
         return needResponse == that.needResponse &&
                 requestSuccess == that.requestSuccess &&
                 done == that.done;

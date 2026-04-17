@@ -35,13 +35,16 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.server.core.unit.model;
+package org.visualcti.server.core.unit.message.action;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.StringTokenizer;
 import org.jdom.Element;
 import org.visualcti.server.Parameter;
+import org.visualcti.server.core.unit.message.MessageFamilyType;
+import org.visualcti.server.core.unit.message.MessageType;
+import org.visualcti.server.core.unit.message.UnitMessage;
 
 /**
  * <p>Title: Visual CTI Java Telephony Server</p>
@@ -53,7 +56,7 @@ import org.visualcti.server.Parameter;
  * @author Sopilnyak Oleg
  * @version 3.01
  */
-public interface UnitActionError extends UnitActionMessage {
+public interface UnitActionError extends UnitMessage {
     // the name of exception's attribute in serialization/deserialization parameters
     String EXCEPTION_PARAMETER_NAME = "@exception";
 
@@ -105,14 +108,14 @@ public interface UnitActionError extends UnitActionMessage {
      *
      * @return base part of the message XML
      * @see Element
-     * @see UnitActionMessage#baseMessageXML()
+     * @see UnitMessage#baseMessageXML()
      * @see UnitActionError#EXCEPTION_PARAMETER_NAME
      * @see UnitActionError#getNestedException()
      * @see ErrorNestedException#toString()
      */
     @Override
     default Element baseMessageXML() {
-        final Element baseMessageXML = UnitActionMessage.super.baseMessageXML();
+        final Element baseMessageXML = UnitMessage.super.baseMessageXML();
         final Exception nestedException = getNestedException();
         if (nestedException != null) {
             final Parameter parameter = new Parameter(EXCEPTION_PARAMETER_NAME, nestedException.toString());
@@ -125,7 +128,7 @@ public interface UnitActionError extends UnitActionMessage {
      * To update the message by restored parameter
      *
      * @param parameter the value
-     * @see UnitActionMessage#updateMessagePropertyBy(Parameter)
+     * @see UnitMessage#updateMessagePropertyBy(Parameter)
      */
     @Override
     default void updateMessagePropertyBy(final Parameter parameter) {

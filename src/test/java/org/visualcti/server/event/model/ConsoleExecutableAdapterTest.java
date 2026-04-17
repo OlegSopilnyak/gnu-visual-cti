@@ -49,15 +49,15 @@ import org.jdom.DataConversionException;
 import org.jdom.Element;
 import org.junit.Test;
 import org.visualcti.server.Parameter;
-import org.visualcti.server.core.unit.model.MessageFamilyType;
-import org.visualcti.server.core.unit.model.MessageType;
-import org.visualcti.server.core.unit.model.UnitActionMessage;
+import org.visualcti.server.core.unit.message.MessageFamilyType;
+import org.visualcti.server.core.unit.message.MessageType;
+import org.visualcti.server.core.unit.message.UnitMessage;
 
 public class ConsoleExecutableAdapterTest {
     @Test
     public void shouldSerializeExecutable() throws IOException {
         // preparing test data
-        ConsoleExecutableAdapter adapter = new AdapterImpl();
+        CommandAdapter adapter = new AdapterImpl();
         adapter
                 .setCorrelationID("correlationID").setLinkName("link-name").setParameter(new Parameter("par1", "par1"))
                 .setMessageType(MessageType.EVENT).setFamilyType(MessageFamilyType.ERROR)
@@ -81,7 +81,7 @@ public class ConsoleExecutableAdapterTest {
     @Test
     public void shouldDeserializeExecutable() throws IOException, ClassNotFoundException {
         // preparing test data
-        ConsoleExecutableAdapter adapter = new AdapterImpl();
+        CommandAdapter adapter = new AdapterImpl();
         adapter
                 .setCorrelationID("correlationID").setLinkName("link-name").setParameter(new Parameter("par1", "par1"))
                 .setMessageType(MessageType.EVENT).setFamilyType(MessageFamilyType.ERROR)
@@ -95,7 +95,7 @@ public class ConsoleExecutableAdapterTest {
 
         // acting
         ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(stream.toByteArray()));
-        ConsoleExecutableAdapter deserialized = (ConsoleExecutableAdapter) in.readObject();
+        CommandAdapter deserialized = (CommandAdapter) in.readObject();
 
         // check results
         assertThat(deserialized).isEqualTo(adapter);
@@ -105,7 +105,7 @@ public class ConsoleExecutableAdapterTest {
     @Test
     public void shouldDeserializeEmptyExecutable() throws IOException, ClassNotFoundException {
         // preparing test data
-        ConsoleExecutableAdapter adapter = new AdapterImpl();
+        CommandAdapter adapter = new AdapterImpl();
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
         ObjectOutputStream out = new ObjectOutputStream(stream);
         out.writeObject(adapter);
@@ -114,7 +114,7 @@ public class ConsoleExecutableAdapterTest {
 
         // acting
         ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(stream.toByteArray()));
-        ConsoleExecutableAdapter deserialized = (ConsoleExecutableAdapter) in.readObject();
+        CommandAdapter deserialized = (CommandAdapter) in.readObject();
 
         // check results
         assertThat(deserialized).isEqualTo(adapter);
@@ -124,7 +124,7 @@ public class ConsoleExecutableAdapterTest {
     @Test
     public void shouldGetXML() {
         // preparing test data
-        ConsoleExecutableAdapter adapter = new AdapterImpl();
+        CommandAdapter adapter = new AdapterImpl();
         adapter
                 .setCorrelationID("correlationID").setLinkName("link-name").setParameter(new Parameter("par1", "par1"))
                 .setMessageType(MessageType.EVENT).setFamilyType(MessageFamilyType.ERROR)
@@ -143,7 +143,7 @@ public class ConsoleExecutableAdapterTest {
     @Test
     public void shouldSetXML() throws IOException, DataConversionException {
         // preparing test data
-        ConsoleExecutableAdapter adapter = new AdapterImpl();
+        CommandAdapter adapter = new AdapterImpl();
         adapter
                 .setCorrelationID("correlationID").setLinkName("link-name").setParameter(new Parameter("par1", "par1"))
                 .setMessageType(MessageType.EVENT).setFamilyType(MessageFamilyType.ERROR)
@@ -152,7 +152,7 @@ public class ConsoleExecutableAdapterTest {
         Element xml = adapter.getXML();
 
         // acting
-        ConsoleExecutableAdapter adapter2 = new AdapterImpl();
+        CommandAdapter adapter2 = new AdapterImpl();
         adapter2.setXML(xml);
 
         // check results
@@ -161,14 +161,14 @@ public class ConsoleExecutableAdapterTest {
     }
 
     // private classes
-    private static class AdapterImpl extends ConsoleExecutableAdapter {
+    private static class AdapterImpl extends CommandAdapter {
         @Override
         public MessageType getMessageType() {
             return MessageType.UNKNOWN;
         }
 
         @Override
-        public UnitActionMessage setMessageType(MessageType messageType) {
+        public UnitMessage setMessageType(MessageType messageType) {
             return this;
         }
     }

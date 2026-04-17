@@ -45,15 +45,15 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 import org.visualcti.server.Parameter;
-import org.visualcti.server.core.unit.model.ServerConsoleExecutable;
-import org.visualcti.server.core.unit.model.UnitActionMessage;
+import org.visualcti.server.core.unit.message.command.ServerCommandExecutable;
+import org.visualcti.server.core.unit.message.UnitMessage;
 
 /**
  * Implementation Adapter: The Server Unit Activity Basic Executable
  *
- * @see UnitActionMessage
+ * @see UnitMessage
  */
-abstract class ConsoleExecutableAdapter extends UnitMessageAdapter implements ServerConsoleExecutable {
+abstract class CommandAdapter extends UnitMessageAdapter implements ServerCommandExecutable {
     // the optional parameters associated with executable entity
     private transient Map<String, Parameter> parameters = new ConcurrentHashMap<>();
     // correlation ID of the executable entity message
@@ -81,7 +81,7 @@ abstract class ConsoleExecutableAdapter extends UnitMessageAdapter implements Se
      * @return reference to the message
      */
     @Override
-    public ServerConsoleExecutable setCorrelationID(String correlationId) {
+    public ServerCommandExecutable setCorrelationID(String correlationId) {
         this.correlationId = correlationId;
         return this;
     }
@@ -153,7 +153,7 @@ abstract class ConsoleExecutableAdapter extends UnitMessageAdapter implements Se
      * @see Parameter
      */
     @Override
-    public ServerConsoleExecutable setParameter(Parameter parameter) {
+    public ServerCommandExecutable setParameter(Parameter parameter) {
         final String direction = parameter.isInput() ? Parameter.INPUT_DIRECTION : Parameter.OUTPUT_DIRECTION;
         final String key = direction + "::" + parameter.getName();
         parameters.put(key, parameter);
@@ -179,7 +179,7 @@ abstract class ConsoleExecutableAdapter extends UnitMessageAdapter implements Se
      * @return reference to the executable
      */
     @Override
-    public ServerConsoleExecutable setLinkName(String linkName) {
+    public ServerCommandExecutable setLinkName(String linkName) {
         this.linkName = linkName;
         return this;
     }
@@ -203,9 +203,9 @@ abstract class ConsoleExecutableAdapter extends UnitMessageAdapter implements Se
      */
     @Override
     public boolean equals(Object o) {
-        if (!(o instanceof ConsoleExecutableAdapter)) return false;
+        if (!(o instanceof CommandAdapter)) return false;
         if (!super.equals(o)) return false;
-        ConsoleExecutableAdapter that = (ConsoleExecutableAdapter) o;
+        CommandAdapter that = (CommandAdapter) o;
         return Objects.equals(parameters, that.parameters) &&
                 Objects.equals(correlationId, that.correlationId) &&
                 Objects.equals(linkName, that.linkName);

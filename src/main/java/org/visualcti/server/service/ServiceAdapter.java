@@ -41,7 +41,7 @@ import java.io.*;
 import java.util.*;
 
 import org.visualcti.server.*;
-import org.visualcti.util.Queue;
+import org.visualcti.server.core.unit.message.command.UnknownCommandException;
 import org.visualcti.server.action.*;
 import org.visualcti.server.action.event.*;
 /**

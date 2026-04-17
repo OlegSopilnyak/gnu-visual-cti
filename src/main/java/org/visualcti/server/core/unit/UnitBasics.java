@@ -35,41 +35,39 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.server.event.model;
-
-import org.visualcti.server.core.unit.model.ServerConsoleRequest;
-import org.visualcti.server.core.unit.model.ServerConsoleResponse;
+package org.visualcti.server.core.unit;
 
 /**
- * Implementation: The Server Console Request Executable Message
- *
- * @see ServerConsoleRequest
+ * Type: Basic properties of the server unit
  */
-class ConsoleResponse extends ConsoleExecutableAdapter implements ServerConsoleResponse {
-    // is request executed well
-    private transient boolean requestSuccess;
+public interface UnitBasics {
+    /**
+     * <accessor>
+     * To get body unit's Icon Image (gif | jpeg)
+     */
+    byte[] getIcon();
 
     /**
      * <accessor>
-     * To get is command executed well?
-     *
-     * @return the value
+     * To get Type of unit as string (service, manager, services tree, etc.)
      */
-    @Override
-    public boolean isCommandSuccess() {
-        return requestSuccess;
-    }
+    String getType();
 
     /**
-     * <mutator>
-     * To set up the success of the command execution
-     *
-     * @param commandSuccess the value
-     * @return reference to the response
+     * <accessor>
+     * To get Name of the unit to show in UI
      */
-    @Override
-    public ServerConsoleResponse setCommandSuccess(boolean commandSuccess) {
-        requestSuccess = commandSuccess;
-        return this;
-    }
+    String getName();
+
+    /**
+     * <accessor>
+     * To get Path to unit instance in repository
+     */
+    String getPath();
+
+    /**
+     * <accessor>
+     * To get Current state of unit (active/passive/broken)
+     */
+    String getUnitState();
 }

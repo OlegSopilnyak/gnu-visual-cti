@@ -48,8 +48,8 @@ import java.util.Date;
 import org.jdom.DataConversionException;
 import org.jdom.Element;
 import org.junit.Test;
-import org.visualcti.server.core.unit.model.MessageFamilyType;
-import org.visualcti.server.core.unit.model.MessageType;
+import org.visualcti.server.core.unit.message.MessageFamilyType;
+import org.visualcti.server.core.unit.message.MessageType;
 
 public class UnitErrorTest {
     @Test

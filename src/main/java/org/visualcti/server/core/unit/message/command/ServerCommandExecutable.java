@@ -35,7 +35,7 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.server.core.unit.model;
+package org.visualcti.server.core.unit.message.command;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -47,6 +47,7 @@ import org.jdom.DataConversionException;
 import org.jdom.Element;
 import org.visualcti.server.Parameter;
 import org.visualcti.server.core.XmlAware;
+import org.visualcti.server.core.unit.message.UnitMessage;
 
 /**
  * <p>Title: Visual CTI Java Telephony Server</p>
@@ -58,7 +59,7 @@ import org.visualcti.server.core.XmlAware;
  * @author Sopilnyak Oleg
  * @version 3.01
  */
-public interface ServerConsoleExecutable extends UnitActionMessage {
+public interface ServerCommandExecutable extends UnitMessage {
     String LINK_NAME_PARAMETER_NAME = "@link-name";
 
     /**
@@ -77,7 +78,7 @@ public interface ServerConsoleExecutable extends UnitActionMessage {
      * @param correlationId new value of message's correlation ID
      * @return reference to the message
      */
-    ServerConsoleExecutable setCorrelationID(String correlationId);
+    ServerCommandExecutable setCorrelationID(String correlationId);
 
     /**
      * To prepare parameters container for updates
@@ -125,7 +126,7 @@ public interface ServerConsoleExecutable extends UnitActionMessage {
      * @return reference to the executable
      * @see Parameter
      */
-    ServerConsoleExecutable setParameter(Parameter parameter);
+    ServerCommandExecutable setParameter(Parameter parameter);
 
     /**
      * <accessor>
@@ -142,7 +143,7 @@ public interface ServerConsoleExecutable extends UnitActionMessage {
      * @param linkName the name of the link
      * @return reference to the executable
      */
-    ServerConsoleExecutable setLinkName(String linkName);
+    ServerCommandExecutable setLinkName(String linkName);
 
     /**
      * <builder>
@@ -151,13 +152,13 @@ public interface ServerConsoleExecutable extends UnitActionMessage {
      * @return base part of the message XML
      * @see Element
      * @see Attribute
-     * @see UnitActionMessage#baseMessageXML()
-     * @see ServerConsoleExecutable#getCorrelationID()
-     * @see UnitActionMessage#BASE_MESSAGE_CORRELATION_ID_ATTRIBUTE
+     * @see UnitMessage#baseMessageXML()
+     * @see ServerCommandExecutable#getCorrelationID()
+     * @see UnitMessage#BASE_MESSAGE_CORRELATION_ID_ATTRIBUTE
      */
     @Override
     default Element baseMessageXML() {
-        final Element baseMessageXML = UnitActionMessage.super.baseMessageXML();
+        final Element baseMessageXML = UnitMessage.super.baseMessageXML();
         baseMessageXML.setAttribute(new Attribute(BASE_MESSAGE_CORRELATION_ID_ATTRIBUTE, getCorrelationID()));
         return baseMessageXML;
     }
@@ -169,13 +170,13 @@ public interface ServerConsoleExecutable extends UnitActionMessage {
      * @return entity's XML
      * @see Element
      * @see Parameter
-     * @see ServerConsoleExecutable#LINK_NAME_PARAMETER_NAME
-     * @see UnitActionMessage#ROOT_ELEMENT_NAME
+     * @see ServerCommandExecutable#LINK_NAME_PARAMETER_NAME
+     * @see UnitMessage#ROOT_ELEMENT_NAME
      * @see XmlAware#store(OutputStream)
      */
     @Override
     default Element getXML() {
-        final Element xml = UnitActionMessage.super.getXML();
+        final Element xml = UnitMessage.super.getXML();
         xml.addContent(new Parameter(LINK_NAME_PARAMETER_NAME, getLinkName()).getXML());
         getParameters().filter(Objects::nonNull).filter(parameter -> !parameter.getName().startsWith("@"))
                 .forEach(parameter -> xml.addContent(parameter.getXML()));
@@ -189,13 +190,13 @@ public interface ServerConsoleExecutable extends UnitActionMessage {
      * @param xml restored XML of the message
      * @see Element
      * @see Attribute
-     * @see UnitActionMessage#baseMessageXML(Element)
-     * @see ServerConsoleExecutable#setCorrelationID(String)
-     * @see UnitActionMessage#BASE_MESSAGE_CORRELATION_ID_ATTRIBUTE
+     * @see UnitMessage#baseMessageXML(Element)
+     * @see ServerCommandExecutable#setCorrelationID(String)
+     * @see UnitMessage#BASE_MESSAGE_CORRELATION_ID_ATTRIBUTE
      */
     @Override
     default void baseMessageXML(final Element xml) throws IOException, DataConversionException, NumberFormatException, NullPointerException {
-        UnitActionMessage.super.baseMessageXML(xml);
+        UnitMessage.super.baseMessageXML(xml);
         setCorrelationID(xml.getAttributeValue(BASE_MESSAGE_CORRELATION_ID_ATTRIBUTE));
     }
 
@@ -209,23 +210,23 @@ public interface ServerConsoleExecutable extends UnitActionMessage {
      * @throws NumberFormatException   if something went wrong
      * @throws NullPointerException    if something went wrong
      * @see Element
-     * @see UnitActionMessage#setXML(Element)
+     * @see UnitMessage#setXML(Element)
      */
     @Override
     default void setXML(final Element xml) throws IOException, DataConversionException, NumberFormatException, NullPointerException {
         initializeParameters();
-        UnitActionMessage.super.setXML(xml);
+        UnitMessage.super.setXML(xml);
     }
 
     /**
      * To update the message property by restored from XML Parameter instance
      *
      * @param parameter the value
-     * @see UnitActionMessage#updateMessagePropertyBy(Parameter)
-     * @see ServerConsoleExecutable#setLinkName(String)
-     * @see ServerConsoleExecutable#LINK_NAME_PARAMETER_NAME
-     * @see ServerConsoleExecutable#setParameter(Parameter)
-     * @see UnitActionMessage#updateMessagePropertyBy(Parameter)
+     * @see UnitMessage#updateMessagePropertyBy(Parameter)
+     * @see ServerCommandExecutable#setLinkName(String)
+     * @see ServerCommandExecutable#LINK_NAME_PARAMETER_NAME
+     * @see ServerCommandExecutable#setParameter(Parameter)
+     * @see UnitMessage#updateMessagePropertyBy(Parameter)
      */
     @Override
     default void updateMessagePropertyBy(final Parameter parameter) {

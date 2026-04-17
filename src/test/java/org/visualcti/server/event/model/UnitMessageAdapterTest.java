@@ -48,9 +48,9 @@ import java.util.Date;
 import org.jdom.DataConversionException;
 import org.jdom.Element;
 import org.junit.Test;
-import org.visualcti.server.core.unit.model.MessageFamilyType;
-import org.visualcti.server.core.unit.model.MessageType;
-import org.visualcti.server.core.unit.model.UnitActionMessage;
+import org.visualcti.server.core.unit.message.MessageFamilyType;
+import org.visualcti.server.core.unit.message.MessageType;
+import org.visualcti.server.core.unit.message.UnitMessage;
 
 public class UnitMessageAdapterTest {
     @Test
@@ -159,7 +159,7 @@ public class UnitMessageAdapterTest {
         }
 
         @Override
-        public UnitActionMessage setMessageType(MessageType messageType) {
+        public UnitMessage setMessageType(MessageType messageType) {
             return this;
         }
     }

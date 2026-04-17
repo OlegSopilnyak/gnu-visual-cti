@@ -38,7 +38,7 @@ Fax number: 217-356-3356
 package org.visualcti.server.hardware;
 
 import org.visualcti.server.*;
-import org.visualcti.server.core.Engine;
+import org.visualcti.server.core.executable.Engine;
 
 /**
  * <p>Title: Visual CTI Java Telephony Server</p>

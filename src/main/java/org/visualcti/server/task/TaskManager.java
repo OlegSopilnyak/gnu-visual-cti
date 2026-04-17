@@ -43,7 +43,8 @@ import java.util.*;
 import org.jdom.*;
 
 import org.visualcti.server.*;
-import org.visualcti.server.core.Engine;
+import org.visualcti.server.core.executable.Engine;
+import org.visualcti.server.core.unit.message.command.UnknownCommandException;
 //import org.visualcti.util.Config;
 /**
 <manager>

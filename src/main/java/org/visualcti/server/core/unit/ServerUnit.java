@@ -39,21 +39,29 @@ package org.visualcti.server.core.unit;
 
 import java.rmi.registry.Registry;
 import java.util.Map;
+import java.util.Optional;
 import org.jdom.Element;
-import org.visualcti.server.core.unit.model.ServerConsoleRequest;
-import org.visualcti.server.core.unit.model.UnitActionEvent;
+import org.visualcti.server.Parameter;
+import org.visualcti.server.core.unit.message.MessageFamilyType;
+import org.visualcti.server.core.unit.message.MessageType;
+import org.visualcti.server.core.unit.message.UnitMessage;
+import org.visualcti.server.core.unit.message.UnitMessageFactory;
+import org.visualcti.server.core.unit.message.command.ServerCommandRequest;
+import org.visualcti.server.core.unit.message.command.ServerCommandResponse;
+import org.visualcti.server.core.unit.message.command.UnknownCommandException;
+import org.visualcti.util.Tools;
 
 /**
  * <p>Title: Visual CTI Java Telephony Server</p>
  * <p>Description: VisualCTI Applications Server,<br>
- * Smallest atomic(indivisible) part of the Server(server-unit)</p>
+ * Smallest atomic(indivisible) part of the Application Server(server-unit)</p>
  * <p>Copyright: Copyright (c) 2002 Prominic Technologies, Inc. & Prominic Ukraine Co.</p>
  * <p>Company: Prominic Ukraine Co.</p>
  *
  * @author Sopilnyak Oleg
  * @version 3.01
  */
-public interface BasicServerUnit {
+public interface ServerUnit extends UnitBasics {
     /**
      * <accessor>
      * To get local RMI registry to share access to server objects
@@ -61,75 +69,78 @@ public interface BasicServerUnit {
      * @return RMI registry instance
      * @see Registry
      */
-    Registry localRegistry();
+    default Registry localRegistry() {
+        try {
+            return getOwner().localRegistry();
+        } catch (NullPointerException npe) {
+            return null;
+        }
+    }
 //////////////// ACTIONS PART (begin) ///////////////////
     /**
-     * <dispatcher>
-     * To dispatch event, error, or command response from unit
-     * This method will be called inside the unit.
+     * <accessor>
+     * To get reference to messages factory
      *
-     * @param action action event to dispatch
-     * @see UnitActionEvent
+     * @return not null reference to the factory
      */
-    void dispatch(UnitActionEvent action);
+    UnitMessageFactory getMessageFactory();
+
+    /**
+     * <dispatcher>
+     * To dispatch event, error, or command response from the unit
+     * This method will be called inside the activity of unit.
+     * Should override for root unit
+     *
+     * @param message action message to dispatch
+     * @see UnitMessage
+     */
+    default void dispatch(UnitMessage message) {
+        try {
+            getOwner().dispatch(message);
+        } catch (NullPointerException npe) {
+            Tools.error("Warning! Lost message in " + getPath() + " msg:" + message);
+        }
+    }
 
     /**
      * <executer>
-     * To execute console command for this unit.
+     * To execute command for this unit.
      * The method will call outside the unit.
      * If command is invalid the exception will be thrown.
      *
      * @param command command to execute
      * @throws Exception if it cannot execute
      */
-    void execute(ServerConsoleRequest command) throws Exception;
+    default void execute(ServerCommandRequest command) throws Exception {
+        if (MessageFamilyType.GET == command.getFamilyType()  && command.isNeedResponse()) {
+            // getting parameter with name "target" from the executing command
+            final Optional<Parameter> target = command.getParameter("target", Parameter.INPUT_DIRECTION);
+            if (target.isPresent() && "meta".equals(target.get().getValue())) {
+                // command asks to get the metadata of the unit
+                final ServerCommandResponse response = getMessageFactory().build(MessageType.RESPONSE);
+                UnitMetaData.of(this).transferTo(response);
+                // dispatching the response to the command request
+                dispatch(response.setCommandSuccess(true));
+                return;
+            }
+        }
+        throw new UnknownCommandException(command.getFamilyType() + " isn't supported!");
+    }
 //////////////// ACTIONS PART (end) ///////////////////
 
-/////////// INHERITING PART (begin) ////////////////////
+/////////// SERVER UNIT HIERARCHY PART (begin) ////////////////////
     /**
      * <accessor>
      * To get access to owner of this unit (null for root unit)
      */
-    BasicServerUnit getOwner();
+    ServerUnit getOwner();
 
     /**
      * <mutator>
      * To set new owner of this unit (null for the root unit)
      */
-    void setOwner(BasicServerUnit owner);
-/////////// INHERITING PART (end) ////////////////////
-
-/////////////////// CORE PART (begin) //////////////////
-    /**
-     * <accessor>
-     * To get body unit's Icon (gif | jpeg)
-     */
-    byte[] getIcon();
-
-    /**
-     * <accessor>
-     * To get Type of unit
-     */
-    String getType();
-
-    /**
-     * <accessor>
-     * To get Name of unit
-     */
-    String getName();
-
-    /**
-     * <accessor>
-     * To get Path to unit instance in repository
-     */
-    String getPath();
-
-    /**
-     * <accessor>
-     * To get Current state of unit
-     */
-    String getUnitState();
-/////////////////// CORE PART (end) //////////////////
+    void setOwner(ServerUnit owner);
+/////////// SERVER UNIT HIERARCHY PART (end) ////////////////////
 
 ///////////// PROPERTIES PART (begin) //////////////
     /**

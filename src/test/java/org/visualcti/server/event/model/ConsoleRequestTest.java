@@ -62,15 +62,15 @@ import org.jdom.Element;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.visualcti.server.Parameter;
-import org.visualcti.server.core.unit.model.MessageFamilyType;
-import org.visualcti.server.core.unit.model.MessageType;
-import org.visualcti.server.core.unit.model.ServerConsoleResponse;
+import org.visualcti.server.core.unit.message.MessageFamilyType;
+import org.visualcti.server.core.unit.message.MessageType;
+import org.visualcti.server.core.unit.message.command.ServerCommandResponse;
 
 public class ConsoleRequestTest {
     @Test
     public void shouldSerializeRequest() throws IOException {
         // preparing test data
-        ConsoleRequest request = new ConsoleRequest();
+        CommandRequest request = new CommandRequest();
         request
                 .setDone(false).setSuccess(false).setNeedResponse(false)
                 .setCorrelationID("correlationID").setLinkName("link-name") .setParameter(new Parameter("param1", "value1"))
@@ -95,7 +95,7 @@ public class ConsoleRequestTest {
     @Test
     public void shouldDeserializeRequest() throws IOException, ClassNotFoundException {
         // preparing test data
-        ConsoleRequest request = new ConsoleRequest();
+        CommandRequest request = new CommandRequest();
         request
                 .setDone(false).setSuccess(false).setNeedResponse(false)
                 .setCorrelationID("correlationID").setLinkName("link-name") .setParameter(new Parameter("param1", "value1"))
@@ -111,7 +111,7 @@ public class ConsoleRequestTest {
 
         // acting
         ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(stream.toByteArray()));
-        ConsoleRequest deserialized = (ConsoleRequest) in.readObject();
+        CommandRequest deserialized = (CommandRequest) in.readObject();
 
         // check results
         assertThat(deserialized).isEqualTo(request);
@@ -122,7 +122,7 @@ public class ConsoleRequestTest {
     @Test
     public void shouldDeserializeEmptyRequest() throws IOException, ClassNotFoundException {
         // preparing test data
-        ConsoleRequest request = new ConsoleRequest();
+        CommandRequest request = new CommandRequest();
         assertThat(request.getMessageType()).isEqualTo(MessageType.COMMAND);
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
         ObjectOutputStream out = new ObjectOutputStream(stream);
@@ -133,7 +133,7 @@ public class ConsoleRequestTest {
         // acting
         ByteArrayInputStream rawStream = new ByteArrayInputStream(stream.toByteArray());
         ObjectInputStream in = new ObjectInputStream(rawStream);
-        ConsoleRequest deserialized = (ConsoleRequest) in.readObject();
+        CommandRequest deserialized = (CommandRequest) in.readObject();
 
         // check results
         assertThat(deserialized).isEqualTo(request);
@@ -144,7 +144,7 @@ public class ConsoleRequestTest {
     @Test
     public void shouldGetXML() {
         // preparing test data
-        ConsoleRequest request = new ConsoleRequest();
+        CommandRequest request = new CommandRequest();
         request
                 .setDone(false).setSuccess(false).setNeedResponse(false)
                 .setCorrelationID("correlationID").setLinkName("link-name") .setParameter(new Parameter("param1", "value1"))
@@ -165,7 +165,7 @@ public class ConsoleRequestTest {
     @Test
     public void shouldSetXML() throws IOException, DataConversionException {
         // preparing test data
-        ConsoleRequest request = new ConsoleRequest();
+        CommandRequest request = new CommandRequest();
         request
                 .setDone(false).setSuccess(false).setNeedResponse(false)
                 .setCorrelationID("correlationID").setLinkName("link-name") .setParameter(new Parameter("param1", "value1"))
@@ -176,7 +176,7 @@ public class ConsoleRequestTest {
         Element xml = request.getXML();
 
         // acting
-        UnitMessageAdapter request2 = new ConsoleRequest();
+        UnitMessageAdapter request2 = new CommandRequest();
         request2.setXML(xml);
 
         // check results
@@ -189,10 +189,10 @@ public class ConsoleRequestTest {
     public void shouldAssignTheResponse_Success_NoNeedResponse() {
         // preparing test data
         boolean success = true;
-        ServerConsoleResponse response = mock(ServerConsoleResponse.class);
+        ServerCommandResponse response = mock(ServerCommandResponse.class);
         doReturn(success).when(response).isCommandSuccess();
-        ConsoleRequest request = spy(new ConsoleRequest());
-        doCallRealMethod().when(request).assignResponse(any(ServerConsoleResponse.class));
+        CommandRequest request = spy(new CommandRequest());
+        doCallRealMethod().when(request).assignResponse(any(ServerCommandResponse.class));
 
         // acting
         request.assignResponse(response);
@@ -208,10 +208,10 @@ public class ConsoleRequestTest {
         // preparing test data
         boolean success = true;
         Lock lock = spy(new ReentrantLock());
-        ServerConsoleResponse response = mock(ServerConsoleResponse.class);
+        ServerCommandResponse response = mock(ServerCommandResponse.class);
         doReturn(success).when(response).isCommandSuccess();
         doReturn(Stream.empty()).when(response).getParameters();
-        ConsoleRequest request = spy(new ConsoleRequest());
+        CommandRequest request = spy(new CommandRequest());
         request
                 .setDone(false).setSuccess(false).setNeedResponse(false)
                 .setCorrelationID("correlationID").setLinkName("link-name") .setParameter(new Parameter("param1", "value1"))
@@ -241,10 +241,10 @@ public class ConsoleRequestTest {
     public void shouldAssignTheResponse_NotSuccess_NoNeedResponse() {
         // preparing test data
         boolean success = false;
-        ServerConsoleResponse response = mock(ServerConsoleResponse.class);
+        ServerCommandResponse response = mock(ServerCommandResponse.class);
         doReturn(success).when(response).isCommandSuccess();
-        ConsoleRequest request = spy(new ConsoleRequest());
-        doCallRealMethod().when(request).assignResponse(any(ServerConsoleResponse.class));
+        CommandRequest request = spy(new CommandRequest());
+        doCallRealMethod().when(request).assignResponse(any(ServerCommandResponse.class));
 
         // acting
         request.assignResponse(response);
@@ -260,12 +260,12 @@ public class ConsoleRequestTest {
         // preparing test data
         boolean success = false;
         Lock lock = spy(new ReentrantLock());
-        ServerConsoleResponse response = mock(ServerConsoleResponse.class);
+        ServerCommandResponse response = mock(ServerCommandResponse.class);
         String errorMessage = "<<<error>>> !";
         doReturn(errorMessage).when(response).getDescription();
         doReturn(success).when(response).isCommandSuccess();
         doReturn(Stream.empty()).when(response).getParameters();
-        ConsoleRequest request = spy(new ConsoleRequest());
+        CommandRequest request = spy(new CommandRequest());
         request
                 .setDone(false).setSuccess(false).setNeedResponse(false)
                 .setCorrelationID("correlationID").setLinkName("link-name") .setParameter(new Parameter("param1", "value1"))

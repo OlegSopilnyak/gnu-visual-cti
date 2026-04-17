@@ -35,37 +35,21 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.server.hardware;
-
-import org.visualcti.server.core.executable.Engine;
+package org.visualcti.server.core.executable.task;
 
 /**
-Interface for hardware manager, registered in server kernel
+<producer>
+Builder: Interface describe, how to create(build) the task's instance
 */
-public interface Manager 
-                    extends
-        Engine,
-                    org.visualcti.server.groupUnit
+public interface TaskProducer
 {
     /**
-    <mutator>
-    to remove deviceFactory for management
-    */
-    void removeDeviceFactory( deviceFactory factory );
-    /**
-    <accessor>
-    get access to factories List
-    */
-    java.util.List factories();
-    /**
-    <accessor>
-    get access to devices List
-    */
-    java.util.List devices();
-
-    /**
- *     <mutator>
- *     to add deviceFactory for management
-    */
-    void addDeviceFactory( deviceFactory factory );
+     * <producer>
+     * To build the task's instance.
+     * If producer can't create the task, null will be returned
+     *
+     * @param taskClass class of the task
+     * @return built task or null
+     */
+    Task create(Class<Task> taskClass);
 }

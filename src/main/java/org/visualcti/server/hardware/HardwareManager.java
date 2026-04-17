@@ -40,7 +40,8 @@ package org.visualcti.server.hardware;
 import java.util.*;
 
 import org.visualcti.server.*;
-import org.visualcti.server.core.Engine;
+import org.visualcti.server.core.executable.Engine;
+import org.visualcti.server.core.unit.message.command.UnknownCommandException;
 
 /**
 <manager>

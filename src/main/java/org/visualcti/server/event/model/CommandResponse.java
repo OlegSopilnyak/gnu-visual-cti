@@ -35,38 +35,41 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.server.core.unit.model;
+package org.visualcti.server.event.model;
 
-import java.io.IOException;
+import org.visualcti.server.core.unit.message.command.ServerCommandRequest;
+import org.visualcti.server.core.unit.message.command.ServerCommandResponse;
 
 /**
- * Builder: Unit Action Message Builder (the messages factory)
+ * Implementation: The Server Console Request Executable Message
+ *
+ * @see ServerCommandRequest
  */
-public interface UnitActionMessageFactory {
-    /**
-     * <builder>
-     * To guild or get the instance of action message
-     *
-     * @param type the type of the message
-     * @param messageClass type(class) of the message
-     * @return built or got instance of the unit action message
-     * @param <T> concrete type of built message
-     * @throws IOException throws if it cannot build the message
-     * @see UnitActionMessage
-     * @see MessageType
-     */
-    <T extends UnitActionMessage> T build(MessageType type, Class<T> messageClass) throws IOException;
+class CommandResponse extends CommandAdapter implements ServerCommandResponse {
+    // is request executed well
+    private transient boolean requestSuccess;
 
     /**
-     * <builder>
-     * To guild or get the instance of action message
+     * <accessor>
+     * To get is command executed well?
      *
-     * @param type the type of the message
-     * @return built or got instance of the unit action message
-     * @param <T> concrete type of built message
-     * @throws IOException throws if cannot build the message
-     * @see UnitActionMessage
-     * @see MessageType
+     * @return the value
      */
-    <T extends UnitActionMessage> T build(MessageType type) throws IOException;
+    @Override
+    public boolean isCommandSuccess() {
+        return requestSuccess;
+    }
+
+    /**
+     * <mutator>
+     * To set up the success of the command execution
+     *
+     * @param commandSuccess the value
+     * @return reference to the response
+     */
+    @Override
+    public ServerCommandResponse setCommandSuccess(boolean commandSuccess) {
+        requestSuccess = commandSuccess;
+        return this;
+    }
 }

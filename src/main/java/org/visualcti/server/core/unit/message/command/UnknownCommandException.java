@@ -35,20 +35,14 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.server.core.unit.executable;
-
-import org.visualcti.server.core.Engine;
-import org.visualcti.server.core.unit.BasicServerUnit;
+package org.visualcti.server.core.unit.message.command;
 
 /**
- * <p>Title: Visual CTI Java Telephony Server</p>
- * <p>Description: VisualCTI Applications Server,<br>
- * The parent of the tasks' pool (CTI-applications)</p>
- * <p>Copyright: Copyright (c) 2002 Prominic Technologies, Inc. & Prominic Ukraine Co.</p>
- * <p>Company: Prominic Ukraine Co.</p>
- *
- * @author Sopilnyak Oleg
- * @version 3.01
- */
-public interface BasicTaskPool extends Engine, BasicServerUnit {
+Exception throws when serverUnit can't execute the command,
+because didn't know how
+*/
+public final class UnknownCommandException extends Exception
+{
+    public UnknownCommandException(){super();}
+    public UnknownCommandException(String msg){super(msg);}
 }

@@ -37,7 +37,7 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.service;
 
-import org.visualcti.server.core.Engine;
+import org.visualcti.server.core.executable.Engine;
 
 /**
 Interface for service manager, registered in server kernel

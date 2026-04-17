@@ -35,37 +35,65 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.server.core.unit.model;
+package org.visualcti.server.core.unit.message;
 
 /**
  * <p>Title: Visual CTI Java Telephony Server</p>
  * <p>Description: VisualCTI Applications Server,<br>
- * The Server's Unit Event</p>
+ * The Server Unit Action Message Type</p>
  * <p>Copyright: Copyright (c) 2002 Prominic Technologies, Inc. & Prominic Ukraine Co.</p>
  * <p>Company: Prominic Ukraine Co.</p>
  *
  * @author Sopilnyak Oleg
  * @version 3.01
  */
-public interface UnitActionEvent extends UnitActionMessage {
-    /**
-     * <accessor>
-     * To get the description of the event
-     *
-     * @return description of the unit's action message
-     */
+public enum MessageType {
+    COMMAND("command"),
+    ERROR("error"),
+    EVENT("event"),
+    RESPONSE("response"),
+    UNKNOWN("unknown");
+    // the type of the message as string
+    private final String type;
+
+    MessageType(String type) {
+        this.type = type;
+    }
+
     @Override
-    String getDescription();
+    public String toString() {
+        return type;
+    }
 
     /**
-     * <accessor>
-     * To get the type of the message
+     * <builder>
+     * To build message type by input as string value
      *
-     * @return the message's type
-     * @see MessageType
+     * @param input type of the message as string
+     * @return exists type instance or null if not found
      */
-    @Override
-    default MessageType getMessageType() {
-        return MessageType.EVENT;
+    public static MessageType of(final String input) {
+        for (final MessageType messageType : MessageType.values()) {
+            if (messageType.type.equalsIgnoreCase(input)) {
+                return messageType;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * <builder>
+     * To build message type by input as string value
+     *
+     * @param input the name of the message type as string
+     * @return exists type instance or null if not found
+     */
+    public static MessageType byName(final String input) {
+        for (final MessageType messageType : MessageType.values()) {
+            if (messageType.name().equalsIgnoreCase(input)) {
+                return messageType;
+            }
+        }
+        return null;
     }
 }

@@ -35,7 +35,7 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.server.core.unit.model;
+package org.visualcti.server.core.unit.message;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -58,7 +58,7 @@ import org.visualcti.util.Tools;
  * @author Sopilnyak Oleg
  * @version 3.01
  */
-public interface UnitActionMessage extends XmlAware, Cloneable {
+public interface UnitMessage extends XmlAware, Cloneable {
     // message's root XML element name
     String ROOT_ELEMENT_NAME = "unit-action-message";
     // action's base parameters XML element name (inside root element)
@@ -87,7 +87,7 @@ public interface UnitActionMessage extends XmlAware, Cloneable {
      * @param messageFamilyType new value of message's family type
      * @return reference to the message
      */
-    default UnitActionMessage setFamilyType(MessageFamilyType messageFamilyType){
+    default UnitMessage setFamilyType(MessageFamilyType messageFamilyType){
         // do nothing by default
         return this;
     }
@@ -108,7 +108,7 @@ public interface UnitActionMessage extends XmlAware, Cloneable {
      * @param messageType new value of message's type
      * @return reference to the message
      */
-    default UnitActionMessage setMessageType(MessageType messageType) {
+    default UnitMessage setMessageType(MessageType messageType) {
         // do nothing by default
         return this;
     }
@@ -128,7 +128,7 @@ public interface UnitActionMessage extends XmlAware, Cloneable {
      * @param description new value of the unit's action message
      * @return reference to the message
      */
-    UnitActionMessage setDescription(String description);
+    UnitMessage setDescription(String description);
 
     /**
      * <accessor>
@@ -145,7 +145,7 @@ public interface UnitActionMessage extends XmlAware, Cloneable {
      * @param dateTime new value of message's date-time
      * @return reference to the message
      */
-    UnitActionMessage setDate(long dateTime);
+    UnitMessage setDate(long dateTime);
 
     /**
      * <accesor>
@@ -162,7 +162,7 @@ public interface UnitActionMessage extends XmlAware, Cloneable {
      * @param unitPath new value of message's unit-path
      * @return reference to the message
      */
-    UnitActionMessage setUnitPath(String unitPath);
+    UnitMessage setUnitPath(String unitPath);
 
     /**
      * <converter>
@@ -171,8 +171,8 @@ public interface UnitActionMessage extends XmlAware, Cloneable {
      * @return entity's XML
      * @see Element
      * @see Parameter
-     * @see UnitActionMessage#ROOT_ELEMENT_NAME
-     * @see UnitActionMessage#DESCRIPTION_PARAMETER_NAME
+     * @see UnitMessage#ROOT_ELEMENT_NAME
+     * @see UnitMessage#DESCRIPTION_PARAMETER_NAME
      * @see XmlAware#store(OutputStream)
      */
     @Override
@@ -245,17 +245,17 @@ public interface UnitActionMessage extends XmlAware, Cloneable {
      * @return base part of the message XML
      * @see Element
      * @see Attribute
-     * @see UnitActionMessage#getXML()
-     * @see UnitActionMessage#BASE_ELEMENT_NAME
-     * @see UnitActionMessage#BASE_MESSAGE_FAMILY_TYPE_ATTRIBUTE
-     * @see UnitActionMessage#getFamilyType()
-     * @see UnitActionMessage#BASE_MESSAGE_TYPE_ATTRIBUTE
-     * @see UnitActionMessage#getMessageType()
-     * @see UnitActionMessage#BASE_MESSAGE_WHEN_ATTRIBUTE
-     * @see UnitActionMessage#getDate()
-     * @see UnitActionMessage#BASE_MESSAGE_UNIT_PATH_ATTRIBUTE
-     * @see UnitActionMessage#getUnitPath()
-     * @see UnitActionMessage#BASE_MESSAGE_CORRELATION_ID_ATTRIBUTE
+     * @see UnitMessage#getXML()
+     * @see UnitMessage#BASE_ELEMENT_NAME
+     * @see UnitMessage#BASE_MESSAGE_FAMILY_TYPE_ATTRIBUTE
+     * @see UnitMessage#getFamilyType()
+     * @see UnitMessage#BASE_MESSAGE_TYPE_ATTRIBUTE
+     * @see UnitMessage#getMessageType()
+     * @see UnitMessage#BASE_MESSAGE_WHEN_ATTRIBUTE
+     * @see UnitMessage#getDate()
+     * @see UnitMessage#BASE_MESSAGE_UNIT_PATH_ATTRIBUTE
+     * @see UnitMessage#getUnitPath()
+     * @see UnitMessage#BASE_MESSAGE_CORRELATION_ID_ATTRIBUTE
      */
     default Element baseMessageXML() {
         final Element xml = new Element(BASE_ELEMENT_NAME);
@@ -297,18 +297,18 @@ public interface UnitActionMessage extends XmlAware, Cloneable {
      * @throws NumberFormatException   if something went wrong
      * @throws NullPointerException    if something went wrong
      * @see Element
-     * @see UnitActionMessage#setXML(Element)
-     * @see UnitActionMessage#checkAndUpdateMessageType(Element, MessageType)
-     * @see UnitActionMessage#BASE_MESSAGE_TYPE_ATTRIBUTE
-     * @see UnitActionMessage#setMessageType(MessageType)
-     * @see UnitActionMessage#checkAndUpdateMessageType(Element, MessageFamilyType)
-     * @see UnitActionMessage#BASE_MESSAGE_FAMILY_TYPE_ATTRIBUTE
-     * @see UnitActionMessage#setFamilyType(MessageFamilyType)
-     * @see UnitActionMessage#checkAndUpdateMessageWhen(Element)
-     * @see UnitActionMessage#BASE_MESSAGE_WHEN_ATTRIBUTE
-     * @see UnitActionMessage#setDate(long)
-     * @see UnitActionMessage#BASE_MESSAGE_UNIT_PATH_ATTRIBUTE
-     * @see UnitActionMessage#setUnitPath(String)
+     * @see UnitMessage#setXML(Element)
+     * @see UnitMessage#checkAndUpdateMessageType(Element, MessageType)
+     * @see UnitMessage#BASE_MESSAGE_TYPE_ATTRIBUTE
+     * @see UnitMessage#setMessageType(MessageType)
+     * @see UnitMessage#checkAndUpdateMessageType(Element, MessageFamilyType)
+     * @see UnitMessage#BASE_MESSAGE_FAMILY_TYPE_ATTRIBUTE
+     * @see UnitMessage#setFamilyType(MessageFamilyType)
+     * @see UnitMessage#checkAndUpdateMessageWhen(Element)
+     * @see UnitMessage#BASE_MESSAGE_WHEN_ATTRIBUTE
+     * @see UnitMessage#setDate(long)
+     * @see UnitMessage#BASE_MESSAGE_UNIT_PATH_ATTRIBUTE
+     * @see UnitMessage#setUnitPath(String)
      */
     default void baseMessageXML(final Element xml)
             throws IOException, DataConversionException, NumberFormatException, NullPointerException

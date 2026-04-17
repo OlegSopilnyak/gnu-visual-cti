@@ -42,12 +42,12 @@ import static org.junit.Assert.*;
 
 import java.io.IOException;
 import org.junit.Test;
-import org.visualcti.server.core.unit.model.MessageType;
-import org.visualcti.server.core.unit.model.ServerConsoleRequest;
-import org.visualcti.server.core.unit.model.ServerConsoleResponse;
-import org.visualcti.server.core.unit.model.UnitActionError;
-import org.visualcti.server.core.unit.model.UnitActionEvent;
-import org.visualcti.server.core.unit.model.UnitActionMessage;
+import org.visualcti.server.core.unit.message.MessageType;
+import org.visualcti.server.core.unit.message.command.ServerCommandRequest;
+import org.visualcti.server.core.unit.message.command.ServerCommandResponse;
+import org.visualcti.server.core.unit.message.action.UnitActionError;
+import org.visualcti.server.core.unit.message.action.UnitActionEvent;
+import org.visualcti.server.core.unit.message.UnitMessage;
 
 public class UnitMessageFactoryAdapterTest {
 
@@ -88,10 +88,10 @@ public class UnitMessageFactoryAdapterTest {
         MessageType messageType = MessageType.COMMAND;
 
         // acting
-        ServerConsoleRequest message = factory.build(messageType, ServerConsoleRequest.class);
+        ServerCommandRequest message = factory.build(messageType, ServerCommandRequest.class);
 
         // check results
-        assertThat(message).isNotNull().isInstanceOf(ConsoleRequest.class);
+        assertThat(message).isNotNull().isInstanceOf(CommandRequest.class);
         assertThat(message.getMessageType()).isEqualTo(messageType);
         // check behavior
     }
@@ -102,10 +102,10 @@ public class UnitMessageFactoryAdapterTest {
         MessageType messageType = MessageType.RESPONSE;
 
         // acting
-        ServerConsoleResponse message = factory.build(messageType, ServerConsoleResponse.class);
+        ServerCommandResponse message = factory.build(messageType, ServerCommandResponse.class);
 
         // check results
-        assertThat(message).isNotNull().isInstanceOf(ConsoleResponse.class);
+        assertThat(message).isNotNull().isInstanceOf(CommandResponse.class);
         assertThat(message.getMessageType()).isEqualTo(messageType);
         // check behavior
     }
@@ -115,7 +115,7 @@ public class UnitMessageFactoryAdapterTest {
         // preparing test data
 
         // acting
-        Exception error = assertThrows(IOException.class, () -> factory.build(MessageType.UNKNOWN, UnitActionMessage.class));
+        Exception error = assertThrows(IOException.class, () -> factory.build(MessageType.UNKNOWN, UnitMessage.class));
 
         // check results
         assertThat(error).isNotNull().isInstanceOf(IOException.class);
@@ -128,7 +128,7 @@ public class UnitMessageFactoryAdapterTest {
         // preparing test data
 
         // acting
-        Exception error = assertThrows(IOException.class, () -> factory.build(null, UnitActionMessage.class));
+        Exception error = assertThrows(IOException.class, () -> factory.build(null, UnitMessage.class));
 
         // check results
         assertThat(error).isNotNull().isInstanceOf(IOException.class);
@@ -145,7 +145,7 @@ public class UnitMessageFactoryAdapterTest {
 
         // check results
         assertThat(error).isNotNull().isInstanceOf(IOException.class);
-        assertThat(error.getMessage()).isEqualTo("ConsoleRequest is not an instance of UnitActionEvent");
+        assertThat(error.getMessage()).isEqualTo("CommandRequest is not an instance of UnitActionEvent");
         // check behavior
     }
 
@@ -184,10 +184,10 @@ public class UnitMessageFactoryAdapterTest {
         MessageType messageType = MessageType.COMMAND;
 
         // acting
-        ServerConsoleRequest message = factory.build(messageType);
+        ServerCommandRequest message = factory.build(messageType);
 
         // check results
-        assertThat(message).isNotNull().isInstanceOf(ConsoleRequest.class);
+        assertThat(message).isNotNull().isInstanceOf(CommandRequest.class);
         assertThat(message.getMessageType()).isEqualTo(messageType);
         // check behavior
     }
@@ -198,10 +198,10 @@ public class UnitMessageFactoryAdapterTest {
         MessageType messageType = MessageType.RESPONSE;
 
         // acting
-        ServerConsoleResponse message = factory.build(messageType);
+        ServerCommandResponse message = factory.build(messageType);
 
         // check results
-        assertThat(message).isNotNull().isInstanceOf(ConsoleResponse.class);
+        assertThat(message).isNotNull().isInstanceOf(CommandResponse.class);
         assertThat(message.getMessageType()).isEqualTo(messageType);
         // check behavior
     }

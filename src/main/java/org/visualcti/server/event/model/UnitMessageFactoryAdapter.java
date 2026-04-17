@@ -38,17 +38,17 @@ Fax number: 217-356-3356
 package org.visualcti.server.event.model;
 
 import java.io.IOException;
-import org.visualcti.server.core.unit.model.MessageType;
-import org.visualcti.server.core.unit.model.UnitActionMessage;
-import org.visualcti.server.core.unit.model.UnitActionMessageFactory;
+import org.visualcti.server.core.unit.message.MessageType;
+import org.visualcti.server.core.unit.message.UnitMessage;
+import org.visualcti.server.core.unit.message.UnitMessageFactory;
 
 /**
  * Builder Adapter: Unit Action Message Builder (the messages factory)
  * for multi-inheritance feature
  *
- * @see UnitActionMessageFactory
+ * @see UnitMessageFactory
  */
-public interface UnitMessageFactoryAdapter extends UnitActionMessageFactory {
+public interface UnitMessageFactoryAdapter extends UnitMessageFactory {
     /**
      * <builder>
      * To guild or get the instance of action message
@@ -58,12 +58,12 @@ public interface UnitMessageFactoryAdapter extends UnitActionMessageFactory {
      * @param <T>          concrete type of built message
      * @return built or got instance of the unit action message
      * @throws IOException throws if it cannot build the message
-     * @see UnitActionMessage
+     * @see UnitMessage
      * @see MessageType
      */
     @SuppressWarnings("unchecked")
     @Override
-    default <T extends UnitActionMessage> T build(MessageType type, Class<T> messageClass) throws IOException {
+    default <T extends UnitMessage> T build(MessageType type, Class<T> messageClass) throws IOException {
         if (type != null) {
             switch (type) {
                 case ERROR:
@@ -71,9 +71,9 @@ public interface UnitMessageFactoryAdapter extends UnitActionMessageFactory {
                 case EVENT:
                     return (T) checked(new UnitEvent(), messageClass);
                 case COMMAND:
-                    return (T) checked(new ConsoleRequest(), messageClass);
+                    return (T) checked(new CommandRequest(), messageClass);
                 case RESPONSE:
-                    return (T) checked(new ConsoleResponse(), messageClass);
+                    return (T) checked(new CommandResponse(), messageClass);
                 case UNKNOWN:
                     throw new IOException("Unknown message type");
             }
@@ -89,12 +89,12 @@ public interface UnitMessageFactoryAdapter extends UnitActionMessageFactory {
      * @param <T>  concrete type of built message
      * @return built or got instance of the unit action message
      * @throws IOException throws if it cannot build the message
-     * @see UnitActionMessage
+     * @see UnitMessage
      * @see MessageType
      */
     @SuppressWarnings("unchecked")
     @Override
-    default <T extends UnitActionMessage> T build(MessageType type) throws IOException {
+    default <T extends UnitMessage> T build(MessageType type) throws IOException {
         if (type != null) {
             switch (type) {
                 case ERROR:
@@ -102,9 +102,9 @@ public interface UnitMessageFactoryAdapter extends UnitActionMessageFactory {
                 case EVENT:
                     return (T) new UnitEvent();
                 case COMMAND:
-                    return (T) new ConsoleRequest();
+                    return (T) new CommandRequest();
                 case RESPONSE:
-                    return (T) new ConsoleResponse();
+                    return (T) new CommandResponse();
                 case UNKNOWN:
                     throw new IOException("Unknown message type");
             }
@@ -112,7 +112,7 @@ public interface UnitMessageFactoryAdapter extends UnitActionMessageFactory {
         throw new IOException("Message type is not supported");
     }
 
-    default UnitActionMessage checked(UnitActionMessage message, Class<?> messageClass) throws IOException {
+    default UnitMessage checked(UnitMessage message, Class<?> messageClass) throws IOException {
         if (!messageClass.isInstance(message)) {
             throw new IOException(message.getClass().getSimpleName() + " is not an instance of " + messageClass.getSimpleName());
         } else {

@@ -40,7 +40,8 @@ package org.visualcti.server.task;
 import java.util.*;
 import org.jdom.*;
 
-import org.visualcti.server.core.unit.executable.Task;
+import org.visualcti.server.core.unit.executable.task.Task;
+import org.visualcti.server.core.executable.task.TaskProducer;
 import org.visualcti.util.Tools;
 /**
 <producer>
@@ -52,18 +53,19 @@ public final class TaskMaker
 <const>
 default TaskProducer
 */
-public static final TaskProducer defaultProducer = new defaultTaskProducer();
+private static final TaskProducer defaultProducer = new DefaultServerTaskProducer();
     /**
     <producer>
     To make and adjust the Task
     */
-    public static final Task restore(Element xml)
+    @SuppressWarnings("unchecked")
+    public static Task restore(Element xml)
     {
         if ( !"task".equals(xml.getName()) ) return null;// not task XML
         String taskClass = xml.getAttributeValue("class");
         if (taskClass == null) return null;
         try {
-            Task task = producer(xml).create( Class.forName(taskClass) );
+            Task task = producer(xml).create((Class<Task>) Class.forName(taskClass));
             if ( task != null ) task.setXML(xml);
             return task;
         }catch(Exception e){
@@ -83,7 +85,7 @@ static {
     /**
     <accessor>
     */
-    private final static TaskProducer producer(Element xml)
+    private static TaskProducer producer(Element xml)
     {
         String className = xml.getAttributeValue("producer");
         if (className == null) className = defaultProducer.getClass().getName();

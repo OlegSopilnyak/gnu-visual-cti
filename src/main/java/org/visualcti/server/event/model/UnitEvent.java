@@ -37,8 +37,8 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.event.model;
 
-import org.visualcti.server.core.unit.model.UnitActionError;
-import org.visualcti.server.core.unit.model.UnitActionEvent;
+import org.visualcti.server.core.unit.message.action.UnitActionError;
+import org.visualcti.server.core.unit.message.action.UnitActionEvent;
 
 /**
  * Implementation: The Server Unit Activity Event Message
