@@ -38,12 +38,12 @@ Fax number: 217-356-3356
 package org.visualcti.server;
 
 import org.visualcti.server.core.executable.Engine;
+import org.visualcti.server.core.executable.task.Task;
 import org.visualcti.server.core.unit.message.command.UnknownCommandException;
 import org.visualcti.server.hardware.HardwareError;
 import org.visualcti.server.hardware.generalDeviceProxy;
 import org.visualcti.server.hardware.proxy.deviceProxy;
 import org.visualcti.server.task.Environment;
-import org.visualcti.server.core.unit.executable.task.Task;
 import org.visualcti.server.task.TaskPool;
 /**
  * <p>Title: Visual CTI Java Telephony Server</p>

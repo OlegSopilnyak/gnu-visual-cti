@@ -259,6 +259,17 @@ public class TasksPoolUnitAdapter implements TasksPoolUnit {
     }
 
     /**
+     * <accessor>
+     * To get reference to messages factory
+     *
+     * @return not null reference to the factory
+     */
+    @Override
+    public UnitMessageFactory getMessageFactory() {
+        return actionMessageFactory;
+    }
+
+    /**
      * <executer>
      * To execute console command for this unit.
      * The method will call outside the unit.
