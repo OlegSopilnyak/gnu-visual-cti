@@ -52,6 +52,7 @@ import org.visualcti.server.core.unit.message.command.UnknownCommandException;
 import org.visualcti.util.Tools;
 
 /**
+ * <singleton>
  * <p>Title: Visual CTI Java Telephony Server</p>
  * <p>Description: VisualCTI Applications Server,<br>
  * Smallest atomic(indivisible) part of the Application Server(server-unit)</p>

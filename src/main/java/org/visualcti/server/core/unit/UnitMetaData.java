@@ -48,9 +48,9 @@ import org.visualcti.server.core.unit.message.command.ServerCommandResponse;
 /**
  * Metadata: The Meta Information about server unit
  *
- * @see ServerUnit
+ * @see ServerUnit#execute(ServerCommandRequest)
  */
-public class UnitMetaData implements UnitBasics {
+public final class UnitMetaData implements UnitBasics {
     public enum MetaDataName {
         // Meta Name, content of the image
         ICON("meta.icon"),
@@ -131,7 +131,7 @@ public class UnitMetaData implements UnitBasics {
      *
      * @return the value
      */
-    public final String className() {
+    public String className() {
         return String.valueOf(meta.get(MetaDataName.CLASS));
     }
 
@@ -175,11 +175,11 @@ public class UnitMetaData implements UnitBasics {
      * @return the value
      * @see Object#toString()
      */
-    public final String toString() {
+    public String toString() {
         return "MetaData of " + this.getName() +
                 "\n\tClass:" + this.className() +
                 "\n\tState:" + this.getUnitState() +
-                "\n\tRegitry path:" + this.getPath() + "\n";
+                "\n\tRegistry path:" + this.getPath() + "\n";
     }
 
     /**
@@ -204,6 +204,15 @@ public class UnitMetaData implements UnitBasics {
     }
 
     // private methods
+    private UnitMetaData(ServerUnit unit) {
+        meta.put(MetaDataName.ICON, unit.getIcon());
+        meta.put(MetaDataName.TYPE, unit.getType());
+        meta.put(MetaDataName.CLASS, unit.getClass().getName());
+        meta.put(MetaDataName.NAME, unit.getName());
+        meta.put(MetaDataName.PATH, unit.getPath());
+        meta.put(MetaDataName.STATE, unit.getUnitState());
+    }
+
     private void fullTransferTo(ServerCommandResponse response) {
         if (getIcon() != null) {
             response.setParameter(new Parameter(MetaDataName.ICON.name, getIcon()).output());
@@ -229,14 +238,5 @@ public class UnitMetaData implements UnitBasics {
                 }
             }
         });
-    }
-
-    private UnitMetaData(ServerUnit unit) {
-        meta.put(MetaDataName.ICON, unit.getIcon());
-        meta.put(MetaDataName.TYPE, unit.getType());
-        meta.put(MetaDataName.CLASS, unit.getClass().getName());
-        meta.put(MetaDataName.NAME, unit.getName());
-        meta.put(MetaDataName.PATH, unit.getPath());
-        meta.put(MetaDataName.STATE, unit.getUnitState());
     }
 }

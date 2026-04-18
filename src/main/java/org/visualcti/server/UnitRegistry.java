@@ -45,7 +45,7 @@ Class for manage the serverUnits
 public final class UnitRegistry
 {
 /**
-The store of registered objacts
+The storage of registered server-units
 */
 private static final HashMap units = new HashMap();
     /**

@@ -167,25 +167,27 @@ abstract class UnitMessageAdapter implements UnitMessage {
      * true only if the argument is the exact same object as the
      * receiver (==).
      *
-     * @param		o Object
-     *					the object to compare with this object.
-     * @return		boolean
-     *					<code>true</code>
-     *						if the object is the same as this object
-     *					<code>false</code>
-     *						if it is different from this object.
-     * @see			#hashCode
+     * @return boolean
+     * <code>true</code>
+     * if the object is the same as this object
+     * <code>false</code>
+     * if it is different from this object.
+     * @param        o Object
+     * the object to compare with this object.
+     * @see #hashCode
      */
     @Override
     public boolean equals(Object o) {
         if (!(o instanceof UnitMessageAdapter)) return false;
         UnitMessageAdapter that = (UnitMessageAdapter) o;
         return
-                familyType == that.familyType &&
-                Objects.equals(description, that.description) &&
-                Objects.equals(date, that.date) &&
-                Objects.equals(unitPath, that.unitPath);
+                Objects.equals(familyType, that.familyType) &&
+                        Objects.equals(description, that.description) &&
+                        Objects.equals(date, that.date) &&
+                        Objects.equals(unitPath, that.unitPath);
     }
+
+    // private methods
 
     /**
      * Calling during Java serialization

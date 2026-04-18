@@ -61,24 +61,14 @@ public interface UnitMessageFactoryAdapter extends UnitMessageFactory {
      * @see UnitMessage
      * @see MessageType
      */
-    @SuppressWarnings("unchecked")
     @Override
     default <T extends UnitMessage> T build(MessageType type, Class<T> messageClass) throws IOException {
-        if (type != null) {
-            switch (type) {
-                case ERROR:
-                    return (T) checked(new UnitError(), messageClass);
-                case EVENT:
-                    return (T) checked(new UnitEvent(), messageClass);
-                case COMMAND:
-                    return (T) checked(new CommandRequest(), messageClass);
-                case RESPONSE:
-                    return (T) checked(new CommandResponse(), messageClass);
-                case UNKNOWN:
-                    throw new IOException("Unknown message type");
-            }
+        final T message = build(type);
+        if (!messageClass.isInstance(message)) {
+            throw new IOException(message.getClass().getSimpleName() + " is not an instance of " + messageClass.getSimpleName());
+        } else {
+            return message;
         }
-        throw new IOException("Message type is not supported");
     }
 
     /**
@@ -96,27 +86,26 @@ public interface UnitMessageFactoryAdapter extends UnitMessageFactory {
     @Override
     default <T extends UnitMessage> T build(MessageType type) throws IOException {
         if (type != null) {
+            final UnitMessage message;
             switch (type) {
                 case ERROR:
-                    return (T) new UnitError();
+                    message = new UnitError();
+                    break;
                 case EVENT:
-                    return (T) new UnitEvent();
+                    message =  new UnitEvent();
+                    break;
                 case COMMAND:
-                    return (T) new CommandRequest();
+                    message = new CommandRequest();
+                    break;
                 case RESPONSE:
-                    return (T) new CommandResponse();
+                    message = new CommandResponse();
+                    break;
                 case UNKNOWN:
+                default:
                     throw new IOException("Unknown message type");
             }
+            return (T) message;
         }
         throw new IOException("Message type is not supported");
-    }
-
-    default UnitMessage checked(UnitMessage message, Class<?> messageClass) throws IOException {
-        if (!messageClass.isInstance(message)) {
-            throw new IOException(message.getClass().getSimpleName() + " is not an instance of " + messageClass.getSimpleName());
-        } else {
-            return message;
-        }
     }
 }

@@ -297,7 +297,7 @@ get access to TaskPool for scheduler by CT-device name
         if (pool == null)pool=(TaskPool)this.poolStore.get( key );
         else pool.setGroup(factory);
         if (pool == null)
-        {   // The pool not created, will make it
+        {   // The pool not created, let's make it
           Element xml = new Element("pool");
           xml.setAttribute(new Attribute("type", "local"));
           xml.setAttribute(new Attribute("file", name+".tasks.pool"));

@@ -57,6 +57,7 @@ import org.visualcti.util.Tools;
  *
  * @author Sopilnyak Oleg
  * @version 3.01
+ * <prototype>
  */
 public interface UnitMessage extends XmlAware, Cloneable {
     // message's root XML element name

@@ -64,6 +64,7 @@ import org.visualcti.util.Tools;
  * Implementation Adapter: server tasks pool unit engine
  *
  * @see Task
+ * @see TasksPoolUnit
  */
 public class TasksPoolUnitAdapter implements TasksPoolUnit {
     // The list of tasks in the pool
@@ -75,7 +76,7 @@ public class TasksPoolUnitAdapter implements TasksPoolUnit {
     // Current task from the tasks ring
     private transient volatile Task currentTask = null;
     // the factory of server action messages
-    // TODO implement factory as unit injection
+    // TODO implement factory as injection to the unit
     private UnitMessageFactory actionMessageFactory = new UnitMessageFactoryAdapter() {
     };
     // type of tasks pool
