@@ -41,24 +41,20 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import org.jdom.DataConversionException;
 import org.jdom.Element;
 import org.visualcti.server.core.executable.Engine;
-import org.visualcti.server.core.unit.ServerUnit;
 import org.visualcti.server.core.executable.task.Task;
 import org.visualcti.server.core.executable.task.TasksPoolUnit;
 import org.visualcti.server.core.unit.message.MessageFamilyType;
 import org.visualcti.server.core.unit.message.MessageType;
-import org.visualcti.server.core.unit.message.command.ServerCommandRequest;
-import org.visualcti.server.core.unit.message.action.UnitActionError;
-import org.visualcti.server.core.unit.message.action.UnitActionEvent;
 import org.visualcti.server.core.unit.message.UnitMessage;
 import org.visualcti.server.core.unit.message.UnitMessageFactory;
-import org.visualcti.server.event.model.UnitMessageFactoryAdapter;
-import org.visualcti.util.Tools;
+import org.visualcti.server.core.unit.message.action.UnitActionEvent;
+import org.visualcti.server.core.unit.message.command.ServerCommandRequest;
+import org.visualcti.server.unit.ServerUnitAdapter;
 
 /**
  * Implementation Adapter: server tasks pool unit engine
@@ -66,7 +62,7 @@ import org.visualcti.util.Tools;
  * @see Task
  * @see TasksPoolUnit
  */
-public class TasksPoolUnitAdapter implements TasksPoolUnit {
+public class TasksPoolUnitAdapter extends ServerUnitAdapter implements TasksPoolUnit {
     // The list of tasks in the pool
     private final List<Task> pool = Collections.synchronizedList(new LinkedList<>());
     // working ring of the tasks (used in the in-service engine state)
@@ -75,10 +71,6 @@ public class TasksPoolUnitAdapter implements TasksPoolUnit {
     private final Lock tasksRingLock = new ReentrantLock();
     // Current task from the tasks ring
     private transient volatile Task currentTask = null;
-    // the factory of server action messages
-    // TODO implement factory as injection to the unit
-    private UnitMessageFactory actionMessageFactory = new UnitMessageFactoryAdapter() {
-    };
     // type of tasks pool
     private PoolType poolType;
     // the state of engine (tasks pool)
@@ -281,119 +273,6 @@ public class TasksPoolUnitAdapter implements TasksPoolUnit {
      */
     @Override
     public void execute(ServerCommandRequest command) throws Exception {
-
-    }
-
-    /**
-     * <accessor>
-     * To get access to owner of this unit (null for root unit)
-     */
-    @Override
-    public ServerUnit getOwner() {
-        return null;
-    }
-
-    /**
-     * <mutator>
-     * To set new owner of this unit (null for the root unit)
-     *
-     * @param owner
-     */
-    @Override
-    public void setOwner(ServerUnit owner) {
-
-    }
-
-    /**
-     * <accessor>
-     * To get body unit's Icon (gif | jpeg)
-     */
-    @Override
-    public byte[] getIcon() {
-        return new byte[0];
-    }
-
-    /**
-     * <accessor>
-     * To get Type of unit
-     */
-    @Override
-    public String getType() {
-        return "";
-    }
-
-    /**
-     * <accessor>
-     * To get Name of unit
-     */
-    @Override
-    public String getName() {
-        return "";
-    }
-
-    /**
-     * <accessor>
-     * To get Path to unit instance in repository
-     */
-    @Override
-    public String getPath() {
-        return "";
-    }
-
-    /**
-     * <accessor>
-     * To get current state of unit as string
-     *
-     * @return unit's state value as string
-     */
-    @Override
-    public String getUnitState() {
-        return isStarted() ? "active":"passive";
-    }
-
-    /**
-     * <config>
-     * To configure the unit, using information from XML
-     *
-     * @param configuration XML to configure the unit from
-     * @see ServerUnit#configure(Element)
-     * @see org.visualcti.server.core.XmlAware#setXML(Element)
-     */
-    @Override
-    public void configure(Element configuration) {
-        try {
-            setXML(configuration);
-        } catch (IOException | DataConversionException e) {
-            try {
-                // preparing engine wasn't configured error
-                final UnitActionError error = actionMessageFactory.build(MessageType.ERROR, UnitActionError.class);
-                // dispatching engine wasn't configured error
-                dispatch(error.setNestedException(e).setUnitPath(getPath()));
-            } catch (IOException ex) {
-                ex.printStackTrace(Tools.err);
-            }
-        }
-    }
-
-    /**
-     * <accessor>
-     * get serverUnit properties
-     * may use for visual editing in GUI
-     */
-    @Override
-    public Map getProperties() {
-        return Collections.emptyMap();
-    }
-
-    /**
-     * <mutator>
-     * assign properties set to serverUnit
-     * Properties may be changed in GUI
-     *
-     * @param properties
-     */
-    @Override
-    public void setProperties(Map properties) {
 
     }
 

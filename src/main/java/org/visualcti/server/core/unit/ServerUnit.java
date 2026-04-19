@@ -45,10 +45,12 @@ import org.visualcti.server.Parameter;
 import org.visualcti.server.core.unit.message.MessageFamilyType;
 import org.visualcti.server.core.unit.message.MessageType;
 import org.visualcti.server.core.unit.message.UnitMessage;
-import org.visualcti.server.core.unit.message.UnitMessageFactory;
 import org.visualcti.server.core.unit.message.command.ServerCommandRequest;
 import org.visualcti.server.core.unit.message.command.ServerCommandResponse;
 import org.visualcti.server.core.unit.message.command.UnknownCommandException;
+import org.visualcti.server.core.unit.part.UnitBasics;
+import org.visualcti.server.core.unit.part.UnitMessageExchange;
+import org.visualcti.server.core.unit.part.UnitsComposite;
 import org.visualcti.util.Tools;
 
 /**
@@ -60,9 +62,12 @@ import org.visualcti.util.Tools;
  * <p>Company: Prominic Ukraine Co.</p>
  *
  * @author Sopilnyak Oleg
- * @version 3.01
+ * @version 3.02
+ * @see UnitBasics
+ * @see UnitsComposite
+ * @see UnitMessageExchange
  */
-public interface ServerUnit extends UnitBasics {
+public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBasics {
     /**
      * <accessor>
      * To get local RMI registry to share access to server objects
@@ -77,15 +82,8 @@ public interface ServerUnit extends UnitBasics {
             return null;
         }
     }
-//////////////// ACTIONS PART (begin) ///////////////////
-    /**
-     * <accessor>
-     * To get reference to messages factory
-     *
-     * @return not null reference to the factory
-     */
-    UnitMessageFactory getMessageFactory();
 
+//////////////// ACTIONS PART (begin) ///////////////////
     /**
      * <dispatcher>
      * To dispatch event, error, or command response from the unit
@@ -94,7 +92,9 @@ public interface ServerUnit extends UnitBasics {
      *
      * @param message action message to dispatch
      * @see UnitMessage
+     * @see #getOwner()
      */
+    @Override
     default void dispatch(UnitMessage message) {
         try {
             getOwner().dispatch(message);
@@ -111,9 +111,21 @@ public interface ServerUnit extends UnitBasics {
      *
      * @param command command to execute
      * @throws Exception if it cannot execute
+     * @see ServerCommandRequest
+     * @see MessageFamilyType#GET
+     * @see Parameter
+     * @see Parameter#INPUT_DIRECTION
+     * @see org.visualcti.server.core.unit.message.UnitMessageFactory
+     * @see #getMessageFactory()
+     * @see org.visualcti.server.core.unit.message.UnitMessageFactory#build(MessageType)
+     * @see MessageType#RESPONSE
+     * @see ServerCommandResponse
+     * @see UnitMetaData#transferTo(ServerCommandResponse)
+     * @see #dispatch(UnitMessage)
      */
+    @Override
     default void execute(ServerCommandRequest command) throws Exception {
-        if (MessageFamilyType.GET == command.getFamilyType()  && command.isNeedResponse()) {
+        if (MessageFamilyType.GET == command.getFamilyType() && command.isNeedResponse()) {
             // getting parameter with name "target" from the executing command
             final Optional<Parameter> target = command.getParameter("target", Parameter.INPUT_DIRECTION);
             if (target.isPresent() && "meta".equals(target.get().getValue())) {
@@ -131,37 +143,48 @@ public interface ServerUnit extends UnitBasics {
 
 /////////// SERVER UNIT HIERARCHY PART (begin) ////////////////////
     /**
-     * <accessor>
-     * To get access to owner of this unit (null for root unit)
-     */
-    ServerUnit getOwner();
-
-    /**
      * <mutator>
-     * To set new owner of this unit (null for the root unit)
+     * to add child to the composite units tree
+     *
+     * @param child the unit to add
+     * @see ServerUnit
+     * @see #addBranch(ServerUnit)
      */
-    void setOwner(ServerUnit owner);
+    @Override
+    default void add(ServerUnit child) {
+        if (child.getOwner() != this) {
+            child.setOwner(this);
+            addBranch(child);
+        }
+    }
 /////////// SERVER UNIT HIERARCHY PART (end) ////////////////////
 
 ///////////// PROPERTIES PART (begin) //////////////
     /**
      * <config>
-     * To configure the unit, using information from Element
+     * To configure the unit, using information from XML Element
+     *
+     * @param configuration new configuration of the unit
+     * @see Element
      */
     void configure(Element configuration);
 
     /**
      * <accessor>
-     * get serverUnit properties
+     * To get ServerUnit instance properties
      * may use for visual editing in GUI
+     *
+     * @return server unit properties
      */
-    Map getProperties();
+    Map<String, Object> getProperties();
 
     /**
      * <mutator>
-     * assign properties set to serverUnit
+     * To assign properties to ServerUnit instance
      * Properties may be changed in GUI
+     *
+     * @param properties server unit properties
      */
-    void setProperties(Map properties);
+    void setProperties(Map<String, Object> properties);
 ///////////// PROPERTIES PART (end) //////////////
 }

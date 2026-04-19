@@ -35,38 +35,67 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.server.core.unit.message;
-
-import java.io.IOException;
+package org.visualcti.server.core.unit.part;
 
 /**
- * Builder: Unit Action Message Builder (the messages factory)
+ * Type: Basic properties of the server unit
  */
-public interface UnitMessageFactory {
+public interface UnitBasics {
     /**
-     * <builder>
-     * To guild or get the instance of action message
+     * The lifecycle of unit state
      *
-     * @param type the type of the message
-     * @param messageClass type(class) of the message
-     * @return built or got instance of the unit action message
-     * @param <T> concrete type of built message
-     * @throws IOException throws if cannot build the message
-     * @see UnitMessage
-     * @see MessageType
+     * @see #getUnitState()
      */
-    <T extends UnitMessage> T build(MessageType type, Class<T> messageClass) throws IOException;
+    enum UnitState {
+        PASSIVE("passive"),
+        ACTIVE("active"),
+        BROKEN("broken");
+        private final String state;
+
+        UnitState(String state) {
+            this.state = state;
+        }
+
+        public static UnitState of(String state) {
+            for (UnitState unitState : UnitState.values()) {
+                if (unitState.state.equalsIgnoreCase(state))
+                    return unitState;
+            }
+            return null;
+        }
+
+        @Override
+        public String toString() {
+            return state;
+        }
+    }
+    /**
+     * <accessor>
+     * To get body unit's Icon Image (gif | jpeg)
+     */
+    byte[] getIcon();
 
     /**
-     * <builder>
-     * To guild or get the instance of action message
-     *
-     * @param type the type of the message
-     * @return built or got instance of the unit action message
-     * @param <T> concrete type of built message
-     * @throws IOException if it cannot build the message
-     * @see UnitMessage
-     * @see MessageType
+     * <accessor>
+     * To get Type of unit as string (service, manager, services tree, etc.)
      */
-    <T extends UnitMessage> T build(MessageType type) throws IOException;
+    String getType();
+
+    /**
+     * <accessor>
+     * To get Name of the unit to show in UI
+     */
+    String getName();
+
+    /**
+     * <accessor>
+     * To get Path to unit instance in repository
+     */
+    String getPath();
+
+    /**
+     * <accessor>
+     * To get Current state of unit (active/passive/broken)
+     */
+    UnitState getUnitState();
 }

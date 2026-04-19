@@ -35,39 +35,45 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.server.core.unit;
+package org.visualcti.server.core.unit.part;
+
+import org.visualcti.server.core.unit.message.UnitMessage;
+import org.visualcti.server.core.unit.message.UnitMessageFactory;
+import org.visualcti.server.core.unit.message.command.ServerCommandRequest;
 
 /**
- * Type: Basic properties of the server unit
+ * Unit Part: The part is in charge of server unit messages exchange
+ *
+ * @see org.visualcti.server.core.unit.ServerUnit
  */
-public interface UnitBasics {
+public interface UnitMessageExchange {
     /**
      * <accessor>
-     * To get body unit's Icon Image (gif | jpeg)
+     * To get reference to messages factory
+     *
+     * @return not null reference to the factory
      */
-    byte[] getIcon();
+    UnitMessageFactory getMessageFactory();
 
     /**
-     * <accessor>
-     * To get Type of unit as string (service, manager, services tree, etc.)
+     * <dispatcher>
+     * To dispatch event, error, or command response from the unit
+     * This method will be called inside the activity of unit.
+     * Should override for root unit
+     *
+     * @param message action message to dispatch
+     * @see UnitMessage
      */
-    String getType();
+    void dispatch(UnitMessage message);
 
     /**
-     * <accessor>
-     * To get Name of the unit to show in UI
+     * <executer>
+     * To execute command for this unit.
+     * The method will call outside the unit.
+     * If command is invalid the exception will be thrown.
+     *
+     * @param command command to execute
+     * @throws Exception if it cannot execute
      */
-    String getName();
-
-    /**
-     * <accessor>
-     * To get Path to unit instance in repository
-     */
-    String getPath();
-
-    /**
-     * <accessor>
-     * To get Current state of unit (active/passive/broken)
-     */
-    String getUnitState();
+    void execute(ServerCommandRequest command) throws Exception;
 }

@@ -35,38 +35,54 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.server.core.unit.message;
+package org.visualcti.server.event.model;
 
-import java.io.IOException;
+import org.visualcti.server.core.unit.message.UnitMessageFactory;
 
 /**
- * Builder: Unit Action Message Builder (the messages factory)
+ * Singleton Provider: Gives unit messages factory as singleton
+ *
+ * @see UnitMessageFactory
  */
-public interface UnitMessageFactory {
-    /**
-     * <builder>
-     * To guild or get the instance of action message
-     *
-     * @param type the type of the message
-     * @param messageClass type(class) of the message
-     * @return built or got instance of the unit action message
-     * @param <T> concrete type of built message
-     * @throws IOException throws if cannot build the message
-     * @see UnitMessage
-     * @see MessageType
-     */
-    <T extends UnitMessage> T build(MessageType type, Class<T> messageClass) throws IOException;
+public final class UnitMessages {
+    // the singleton of unit messages factory
+    private static volatile UnitMessageFactory factorySingleton = null;
 
     /**
-     * <builder>
-     * To guild or get the instance of action message
+     * To get messages factory instance
      *
-     * @param type the type of the message
-     * @return built or got instance of the unit action message
-     * @param <T> concrete type of built message
-     * @throws IOException if it cannot build the message
-     * @see UnitMessage
-     * @see MessageType
+     * @return working factory singleton
      */
-    <T extends UnitMessage> T build(MessageType type) throws IOException;
+    public static UnitMessageFactory factorySingleton() {
+        if (factorySingleton != null) {
+            // singleton already built return it
+            return factorySingleton;
+        }
+        synchronized (UnitMessages.class) {
+            if (factorySingleton == null) {
+                factorySingleton = new Singleton();
+            }
+        }
+        return factorySingleton;
+    }
+
+    // private methods
+    private UnitMessages() {
+    }
+
+    // inner classes
+
+    /**
+     * <singleton>
+     * Singleton: The implementation of unit messages factory
+     *
+     * @see UnitMessageFactory
+     * @see UnitMessageFactoryAdapter
+     */
+    private static final class Singleton implements UnitMessageFactoryAdapter {
+        // see implementation in the adapter
+        // private methods
+        private Singleton() {
+        }
+    }
 }

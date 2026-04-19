@@ -40,17 +40,17 @@ package org.visualcti.server.core.executable.task;
 import java.io.File;
 import org.visualcti.server.core.XmlAware;
 import org.visualcti.server.core.executable.Engine;
-import org.visualcti.server.core.unit.ServerUnitComposite;
+import org.visualcti.server.core.unit.part.UnitsComposite;
 
 /**
  * <manager>
  * The manager of task pools
  *
- * @see ServerUnitComposite
+ * @see UnitsComposite
  * @see Engine
  * @see XmlAware
  */
-public interface TaskPoolsManager extends ServerUnitComposite, Engine, XmlAware {
+public interface TaskPoolsManager extends UnitsComposite, Engine, XmlAware {
     /**
      * <accessor>
      * To get access to tasks root directory

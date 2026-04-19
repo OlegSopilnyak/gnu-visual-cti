@@ -35,20 +35,30 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.server.core.unit;
+package org.visualcti.server.core.unit.part;
 
 import java.util.stream.Stream;
-import org.visualcti.server.core.XmlAware;
+import org.visualcti.server.core.unit.ServerUnit;
 
 /**
- * <unit>
- * <singleton>
- * Unit: Composite server unit. The tree of server units
+ * <composite>
+ * Unit: Composite part of server unit. The tree of server units
  *
  * @see ServerUnit
- * @see XmlAware
  */
-public interface ServerUnitComposite extends ServerUnit {
+public interface UnitsComposite {
+    /**
+     * <accessor>
+     * To get access to the owner of this unit (null for root unit)
+     */
+    ServerUnit getOwner();
+
+    /**
+     * <mutator>
+     * To set new owner of this unit (null for the root unit)
+     */
+    void setOwner(ServerUnit owner);
+
     /**
      * <mutator>
      * to add child to the composite units tree
@@ -57,12 +67,7 @@ public interface ServerUnitComposite extends ServerUnit {
      * @see ServerUnit
      * @see #addBranch(ServerUnit)
      */
-    default void add(ServerUnit child) {
-        if (child.getOwner() != this) {
-            child.setOwner(this);
-            addBranch(child);
-        }
-    }
+    void  add(ServerUnit child);
 
     /**
      * <mutator>

@@ -42,6 +42,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.visualcti.server.Parameter;
+import org.visualcti.server.core.unit.part.UnitBasics;
 import org.visualcti.server.core.unit.message.command.ServerCommandRequest;
 import org.visualcti.server.core.unit.message.command.ServerCommandResponse;
 
@@ -164,8 +165,8 @@ public final class UnitMetaData implements UnitBasics {
      * @return the value
      */
     @Override
-    public String getUnitState() {
-        return String.valueOf(meta.get(MetaDataName.STATE));
+    public UnitState getUnitState() {
+        return UnitState.of((String) meta.get(MetaDataName.STATE));
     }
 
     /**
@@ -221,7 +222,7 @@ public final class UnitMetaData implements UnitBasics {
         response.setParameter(new Parameter(MetaDataName.CLASS.name, className()).output());
         response.setParameter(new Parameter(MetaDataName.NAME.name, getName()).output());
         response.setParameter(new Parameter(MetaDataName.PATH.name, getPath()).output());
-        response.setParameter(new Parameter(MetaDataName.STATE.name, getUnitState()).output());
+        response.setParameter(new Parameter(MetaDataName.STATE.name, getUnitState().toString()).output());
     }
 
     private void transferOnly(List<String> metaNames, ServerCommandResponse response) {
