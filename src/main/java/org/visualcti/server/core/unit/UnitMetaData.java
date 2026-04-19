@@ -166,7 +166,7 @@ public final class UnitMetaData implements UnitBasics {
      */
     @Override
     public UnitState getUnitState() {
-        return UnitState.of((String) meta.get(MetaDataName.STATE));
+        return UnitState.of(meta.get(MetaDataName.STATE));
     }
 
     /**

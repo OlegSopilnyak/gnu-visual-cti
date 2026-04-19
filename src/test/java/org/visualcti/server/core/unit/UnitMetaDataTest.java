@@ -52,6 +52,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.visualcti.server.Parameter;
 import org.visualcti.server.core.unit.message.command.ServerCommandResponse;
+import org.visualcti.server.core.unit.part.UnitBasics;
 
 public class UnitMetaDataTest {
     @Mock
@@ -60,7 +61,8 @@ public class UnitMetaDataTest {
     String type = "test-unit-type";
     String name = "unit";
     String path = "unit-path";
-    String state = "unit-state";
+    UnitBasics.UnitState state = UnitBasics.UnitState.PASSIVE;
+//    String state = "passive";
 
     private void prepareUnit() {
         doReturn(icon).when(unit).getIcon();
@@ -123,7 +125,7 @@ public class UnitMetaDataTest {
         assertThat(parameter[4].getStringValue()).isEqualTo(path);
         assertThat(parameter[4].isOutput()).isTrue();
         assertThat(parameter[5].getName()).isEqualTo("meta.state");
-        assertThat(parameter[5].getStringValue()).isEqualTo(state);
+        assertThat(parameter[5].getStringValue()).isEqualTo(state.toString());
         assertThat(parameter[5].isOutput()).isTrue();
     }
 
@@ -152,7 +154,7 @@ public class UnitMetaDataTest {
         assertThat(parameter[0].getStringValue()).isEqualTo(name);
         assertThat(parameter[0].isOutput()).isTrue();
         assertThat(parameter[1].getName()).isEqualTo("meta.state");
-        assertThat(parameter[1].getStringValue()).isEqualTo(state);
+        assertThat(parameter[1].getStringValue()).isEqualTo(state.toString());
         assertThat(parameter[1].isOutput()).isTrue();
         assertThat(parameter[2].getName()).isEqualTo("meta.class");
         assertThat(parameter[2].getStringValue()).isEqualTo(unit.getClass().getName());

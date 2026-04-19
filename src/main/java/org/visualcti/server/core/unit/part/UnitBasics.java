@@ -56,10 +56,14 @@ public interface UnitBasics {
             this.state = state;
         }
 
-        public static UnitState of(String state) {
-            for (UnitState unitState : UnitState.values()) {
-                if (unitState.state.equalsIgnoreCase(state))
-                    return unitState;
+        public static UnitState of(Object state) {
+            if (state instanceof UnitState) {
+                return (UnitState) state;
+            } if (state instanceof String) {
+                for (UnitState unitState : UnitState.values()) {
+                    if (unitState.state.equalsIgnoreCase((String) state))
+                        return unitState;
+                }
             }
             return null;
         }
