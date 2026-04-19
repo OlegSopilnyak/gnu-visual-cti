@@ -37,8 +37,9 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.unit;
 
-
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -70,6 +71,8 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
     public static final String UNIT_TYPE_CLASS = "class";
     public static final String UNIT_PARENT_ELEMENT_NAME = "parent";
     public static final String UNIT_BUILDER_METHOD = "method";
+    public static final String UNIT_PARAMETER_ELEMENT_NAME = "parameter";
+    public static final String UNIT_ICON_ATTRIBUTE = "icon";
     // the body unit's Icon Image (GIF | JPEG)
     protected byte[] iconBody = null;
     // the unit's path to the Icon content
@@ -82,6 +85,9 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
     protected String unitPath = "";
     // The current state of the unit
     protected UnitState unitState = UnitState.PASSIVE;
+    // The to the owner of this unit
+    protected ServerUnit owner;
+    private final Collection<ServerUnit> branches = new ArrayList<>();
     // the factory of server action messages
     protected UnitMessageFactory actionMessageFactory = UnitMessages.factorySingleton();
 
@@ -160,8 +166,8 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
     @Override
     public Element getXML() {
         final Element element = new Element(getRootElementName());
-        adjustRoot(element);
-        element.addContent(baseXML());
+        adjustRoot(element).addContent(baseXML());
+        prepareUnitXML(element);
         return element;
     }
 
@@ -182,7 +188,7 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
      * @see #adjustRoot(Element)
      */
     protected Class<? extends ServerUnit> getParentUnitClass() {
-        return ServerUnitAdapter.class;
+        return ServerUnit.class;
     }
 
     /**
@@ -192,7 +198,7 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
      * @param rootElement of the unit
      * @see #getXML()
      */
-    protected void adjustRoot(Element rootElement) {
+    protected Element adjustRoot(Element rootElement) {
         final Class<? extends ServerUnit> unitClass = getUnitClass();
         final Class<? extends ServerUnit> parentUnitClass = getParentUnitClass();
         final String unitPackage = unitClass.getPackage().getName();
@@ -203,6 +209,7 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
                     unitPackage.equals(parentPackage) ? parentUnitClass.getSimpleName() : parentUnitClass.getName()
             );
         }
+        return rootElement;
     }
 
     /**
@@ -236,7 +243,7 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
         final Element element = new Element(UNIT_PARENT_ELEMENT_NAME);
         final String description = getUnitDescription();
         if (description != null && !description.isEmpty()) {
-           element.addContent(new Text(description));
+            element.addContent(new Text(description));
         }
         final Class<?> builderClass = getUnitBuilderClass();
         element
@@ -247,6 +254,20 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
             element.setAttribute(UNIT_BUILDER_METHOD, builderMethodName);
         }
         return element;
+    }
+
+    /**
+     * <converter>
+     * To represent the parameters of unit as an XML element
+     *
+     * @see Element
+     */
+    protected void prepareUnitXML(Element rootElement) {
+        if (!isEmpty(iconBodyPath)) {
+            rootElement.addContent(
+                    new Element(UNIT_PARAMETER_ELEMENT_NAME).setAttribute(UNIT_ICON_ATTRIBUTE, iconBodyPath)
+            );
+        }
     }
 
     /**
@@ -286,7 +307,7 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
                 final UnitActionError error = getMessageFactory().build(MessageType.ERROR);
                 dispatch(error.setNestedException(e).setDescription("Cannot restore server unit " + getName()));
             } catch (IOException ex) {
-                // doing nothing server unit is broken
+                // doing nothing, server unit is already in broken state
             }
         }
     }
@@ -323,7 +344,7 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
      */
     @Override
     public UnitMessageFactory getMessageFactory() {
-        return null;
+        return actionMessageFactory;
     }
 
     /**
@@ -332,7 +353,7 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
      */
     @Override
     public ServerUnit getOwner() {
-        return null;
+        return owner;
     }
 
     /**
@@ -343,7 +364,7 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
      */
     @Override
     public void setOwner(ServerUnit owner) {
-
+        this.owner = owner;
     }
 
     /**
@@ -356,7 +377,7 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
      */
     @Override
     public void addBranch(ServerUnit branch) {
-
+        branches.add(branch);
     }
 
     /**
@@ -369,7 +390,7 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
      */
     @Override
     public void removeBranch(ServerUnit branch) {
-
+        branches.remove(branch);
     }
 
     /**
@@ -382,6 +403,6 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
      */
     @Override
     public Stream<ServerUnit> children() {
-        return Stream.empty();
+        return branches.stream();
     }
 }

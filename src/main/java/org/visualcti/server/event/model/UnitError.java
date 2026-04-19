@@ -46,7 +46,7 @@ import org.visualcti.server.core.unit.message.UnitMessage;
  *
  * @see UnitActionError
  */
-class UnitError extends  UnitMessageAdapter implements UnitActionError {
+class UnitError extends UnitMessageAdapter implements UnitActionError {
     // nested error's exception (can be null)
     private transient ErrorNestedException nestedException;
 

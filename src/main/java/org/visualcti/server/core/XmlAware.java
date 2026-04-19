@@ -37,12 +37,13 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.core;
 
+import static org.visualcti.util.Tools.CRLF;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.OutputStreamWriter;
 import java.io.Serializable;
-import java.io.Writer;
+import java.util.Collections;
 import org.jdom.DataConversionException;
 import org.jdom.Document;
 import org.jdom.Element;
@@ -62,6 +63,16 @@ import org.visualcti.util.Tools;
  * @version 3.01
  */
 public interface XmlAware extends Serializable {
+    /**
+     * <tester>
+     * To check is string empty
+     *
+     * @param value string to test
+     * @return true if value is empty
+     */
+    default boolean isEmpty(String value) {
+        return value == null || value.trim().isEmpty();
+    }
 
     /**
      * <converter>
@@ -92,20 +103,33 @@ public interface XmlAware extends Serializable {
      *
      * @param out target output stream
      * @throws IOException if it cannot write to output stream
+     * @see #store(OutputStream, boolean)
      * @see OutputStream
-     * @see Document
+     */
+    default void store(final OutputStream out) throws IOException {
+        store(out, true);
+    }
+
+    /**
+     * <transport>
+     * to store entity's content as XML to the OutputStream
+     * will be used for transport objects in serialization flow or for store to file
+     *
+     * @param out target output stream
+     * @param compact flag which output we are expecting
+     * @throws IOException if it cannot write to output stream
      * @see XMLOutputter
      * @see XmlAware#getXML()
      * @see XmlAware#prepareXmlDocument(Element)
      * @see XmlAware#compactXmlOutputter()
+     * @see XmlAware#documentXmlOutputter()
      */
-    default void store(final OutputStream out) throws IOException {
-        // preparing writer using OutputStream for streaming XML content from the document
-        final Writer writer = new OutputStreamWriter(out);
-        // preparing formatter to a stream as XML
+    default void store(final OutputStream out, boolean compact) throws IOException {
+        // preparing outputter for the XML content
+        final XMLOutputter outputter = compact ? compactXmlOutputter() : documentXmlOutputter();
         // preparing the JDOM document from entity's XML
-        compactXmlOutputter().output(prepareXmlDocument(getXML()), writer);
-        writer.flush();
+        outputter.output(prepareXmlDocument(getXML()), out);
+        out.flush();
     }
 
     /**
@@ -117,18 +141,18 @@ public interface XmlAware extends Serializable {
      * @see XmlAware#store(OutputStream)
      */
     default Document prepareXmlDocument(final Element xml) {
-        final Document xmlDocument = new Document(xml);
+        final Document xmlDocument = new Document();
 //        xmlDocument.setDocType(new DocType("serverAction","serverAction.dtd"));
-        return xmlDocument;
+        return xmlDocument.setContent(Collections.singletonList(xml.clone()));
     }
 
     /**
      * <builder>
-     * Preparing compact XML outputter to a stream
+     * Preparing compact XML outputter to an output stream
      *
      * @return prepared XML outputter
      * @see XMLOutputter
-     * @see XmlAware#store(OutputStream)
+     * @see XmlAware#store(OutputStream, boolean)
      */
     default XMLOutputter compactXmlOutputter() {
         final XMLOutputter xmlOutStream = new XMLOutputter();
@@ -137,6 +161,24 @@ public interface XmlAware extends Serializable {
         xmlOutStream.setNewlines(false);
         xmlOutStream.setIndent("");
         xmlOutStream.setIndent(false);
+        return xmlOutStream;
+    }
+
+    /**
+     * <builder>
+     * Preparing human-readable XML outputter to an output stream
+     *
+     * @return prepared XML outputter
+     * @see XMLOutputter
+     * @see XmlAware#store(OutputStream, boolean)
+     */
+    default XMLOutputter documentXmlOutputter() {
+        final XMLOutputter xmlOutStream = new XMLOutputter();
+        xmlOutStream.setTextNormalize( true );
+        xmlOutStream.setLineSeparator( CRLF );
+        xmlOutStream.setNewlines( true );
+        xmlOutStream.setIndent( "\t" );
+        xmlOutStream.setIndent( true );
         return xmlOutStream;
     }
 

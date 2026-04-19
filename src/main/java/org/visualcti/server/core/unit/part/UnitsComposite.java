@@ -117,7 +117,7 @@ public interface UnitsComposite {
 
     /**
      * <accessor>
-     * To get access to the list of group's units as Stream
+     * To get access to the composite units tree as Stream
      *
      * @return the stream to the units list managed by composite
      * @see Stream
@@ -127,13 +127,13 @@ public interface UnitsComposite {
 
     /**
      * <checker>
-     * To check is the unit managing by the group (in units tree), or from parent group
+     * To check is the unit managing by the composite unit (in units tree), or from parent group
      *
      * @param unit unit to test
      * @return true if group contains the unit
      * @see ServerUnit
      */
     default boolean isChild(ServerUnit unit) {
-        return unit.getOwner() == this;
+        return unit.getOwner() == this || unit.getOwner() != null && unit.getOwner().isChild(unit);
     }
 }

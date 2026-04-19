@@ -90,7 +90,7 @@ Fax number: 217-356-3356
         <service>
           <Messenger package="org.visualcti.server.message" class="Messenger" extends="org.visualcti.server.service.MasterService" persistent="work/persistent.messages" Prominic="signed">
             <parent package="org.visualcti.server.message.impl" class="MessengerImpl">The child of messenger, he will create the Messenger</parent>
-            <!--To sharing messener's handle for remote servers-->
+            <!--To sharing messenger's handle for remote servers-->
             <rmi handleName="Messenger/Handle" class="org.visualcti.server.message.Messenger$Handle" extends="org.visualcti.server.message.MessengerHandle">Handle for other severs</rmi>
             <!--Try to connect to other server for support remote messaging-->
             <remote class="org.visualcti.server.message.MessengerHandle" host="localhost" port="2888" name="Messenger/Handle" check="false">remote messenger's handle properties</remote>
