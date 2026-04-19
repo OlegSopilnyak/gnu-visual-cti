@@ -37,11 +37,13 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.core.unit.exception;
 
+import org.visualcti.server.unit.ServerUnitRegistry;
+
 /**
  * Exception: The unit cannot be registered in units registry
  *
  * @see ServerUnitException
- * @see org.visualcti.server.core.unit.ServerUnitRegistry
+ * @see ServerUnitRegistry
  */
 
 public class CannotRegisterUnitException extends ServerUnitException {

@@ -35,7 +35,7 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.server.core.unit;
+package org.visualcti.server.unit;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -43,6 +43,7 @@ import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import org.visualcti.server.core.unit.ServerUnit;
 import org.visualcti.server.core.unit.exception.CannotRegisterUnitException;
 import org.visualcti.server.core.unit.exception.InvalidUnitException;
 import org.visualcti.server.core.unit.exception.ServerUnitException;

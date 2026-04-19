@@ -50,6 +50,7 @@ import org.mockito.Mock;
 import org.visualcti.server.core.unit.exception.CannotRegisterUnitException;
 import org.visualcti.server.core.unit.exception.InvalidUnitException;
 import org.visualcti.server.core.unit.exception.ServerUnitException;
+import org.visualcti.server.unit.ServerUnitRegistry;
 
 public class ServerUnitRegistryTest {
     @Mock
