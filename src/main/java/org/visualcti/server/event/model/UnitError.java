@@ -42,6 +42,7 @@ import org.visualcti.server.core.unit.message.action.UnitActionError;
 import org.visualcti.server.core.unit.message.UnitMessage;
 
 /**
+ * <prototype>
  * Implementation: The Server Unit Activity Error Message
  *
  * @see UnitActionError

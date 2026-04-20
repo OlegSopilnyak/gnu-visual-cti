@@ -45,6 +45,7 @@ import org.visualcti.server.core.unit.message.MessageType;
 import org.visualcti.server.core.unit.message.UnitMessage;
 
 /**
+ * <prototype>
  * <p>Title: Visual CTI Java Telephony Server</p>
  * <p>Description: VisualCTI Applications Server,<br>
  * The Server Console Response to the Command</p>

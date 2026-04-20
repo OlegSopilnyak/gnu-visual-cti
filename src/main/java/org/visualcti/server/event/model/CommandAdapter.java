@@ -49,6 +49,7 @@ import org.visualcti.server.core.unit.message.command.ServerCommandExecutable;
 import org.visualcti.server.core.unit.message.UnitMessage;
 
 /**
+ * <prototype>
  * Implementation Adapter: The Server Unit Activity Basic Executable
  *
  * @see UnitMessage

@@ -44,6 +44,7 @@ import org.visualcti.server.core.unit.message.command.ServerCommandRequest;
 import org.visualcti.server.core.unit.message.command.ServerCommandResponse;
 
 /**
+ * <prototype>
  * Implementation: The Server Console Request Executable Message
  *
  * @see ServerCommandRequest

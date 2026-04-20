@@ -50,6 +50,7 @@ import org.visualcti.server.core.XmlAware;
 import org.visualcti.server.core.unit.message.UnitMessage;
 
 /**
+ * <prototype>
  * <p>Title: Visual CTI Java Telephony Server</p>
  * <p>Description: VisualCTI Applications Server,<br>
  * The Server Console Executable Entities</p>
@@ -58,6 +59,7 @@ import org.visualcti.server.core.unit.message.UnitMessage;
  *
  * @author Sopilnyak Oleg
  * @version 3.01
+ * @see UnitMessage
  */
 public interface ServerCommandExecutable extends UnitMessage {
     String LINK_NAME_PARAMETER_NAME = "@link-name";

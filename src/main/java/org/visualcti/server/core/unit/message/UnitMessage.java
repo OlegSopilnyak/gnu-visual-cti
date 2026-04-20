@@ -49,6 +49,7 @@ import org.visualcti.server.core.XmlAware;
 import org.visualcti.util.Tools;
 
 /**
+ * <prototype>
  * <p>Title: Visual CTI Java Telephony Server</p>
  * <p>Description: VisualCTI Applications Server,<br>
  * The Server's Unit activity basic message</p>
@@ -57,7 +58,6 @@ import org.visualcti.util.Tools;
  *
  * @author Sopilnyak Oleg
  * @version 3.01
- * <prototype>
  */
 public interface UnitMessage extends XmlAware, Cloneable {
     // message's root XML element name

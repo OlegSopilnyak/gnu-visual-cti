@@ -47,6 +47,7 @@ import org.visualcti.server.core.unit.message.MessageType;
 import org.visualcti.server.core.unit.message.UnitMessage;
 
 /**
+ * <prototype>
  * <p>Title: Visual CTI Java Telephony Server</p>
  * <p>Description: VisualCTI Applications Server,<br>
  * The Server's Unit Error Message</p>
@@ -188,16 +189,12 @@ public interface UnitActionError extends UnitMessage {
             this.printStackTrace(System.err);
         }
 
-        public void printStackTrace(final java.io.PrintStream s) {
-            synchronized (s) {
-                s.println(this.stack);
-            }
+        public synchronized void printStackTrace(final java.io.PrintStream s) {
+            s.println(this.stack);
         }
 
-        public void printStackTrace(final java.io.PrintWriter s) {
-            synchronized (s) {
-                s.println(this.stack);
-            }
+        public synchronized void printStackTrace(final java.io.PrintWriter s) {
+            s.println(this.stack);
         }
     }
 }
