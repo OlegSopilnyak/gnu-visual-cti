@@ -13,6 +13,7 @@ import org.jdom.DataConversionException;
 import org.jdom.Element;
 import org.junit.Before;
 import org.junit.Test;
+import org.visualcti.server.Parameter;
 import org.visualcti.server.core.unit.ServerUnit;
 
 public class ServerUnitAdapterTest {
@@ -145,7 +146,7 @@ public class ServerUnitAdapterTest {
         final BufferedReader reader;
         try (ByteArrayOutputStream output = new ByteArrayOutputStream()){
             unit.store(output, false);
-            reader = new BufferedReader(new StringReader(new String(output.toByteArray())));
+            reader = new BufferedReader(new StringReader(output.toString()));
         }
         assertThat(reader).isNotNull();
         List<String> lines = readAllLines(reader);
@@ -165,7 +166,9 @@ public class ServerUnitAdapterTest {
         assertThat(parent.getAttributeValue("method")).isEqualTo("build");
         Element parameter = element.getChild("parameter");
         assertThat(parameter).isNotNull();
-        assertThat(parameter.getAttributeValue("icon")).isEqualTo(iconPath);
+        Parameter icon = Parameter.of("x","").setXML(parameter);
+        assertThat(icon.getName()).isEqualTo("icon");
+        assertThat(icon.getValue()).isEqualTo(iconPath);
     }
 
     @Test
@@ -174,10 +177,7 @@ public class ServerUnitAdapterTest {
         String iconPath = "icon/icon_body.gif";
         ServerUnitAdapter unit = new ServerUnitAdapter();
         assertThat(unit.iconBodyPath).isNull();
-        Element element = unit.getXML();
-        element.addContent(
-          new Element("parameter").setAttribute("icon", iconPath )
-        );
+        Element element = unit.getXML().addContent(Parameter.of("icon", iconPath).getXML());
 
         // acting
         unit.setXML(element);

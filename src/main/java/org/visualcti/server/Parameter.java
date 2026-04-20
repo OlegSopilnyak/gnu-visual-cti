@@ -37,6 +37,7 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server;
 
+import java.io.IOException;
 import java.util.Date;
 import java.util.Objects;
 import org.apache.soap.encoding.soapenc.Base64;
@@ -126,16 +127,16 @@ private transient Object value;
     <accessor>
     get parameter's value as XML
     */
-    public final Element getXmlValue() throws Exception
+    public final Element getXmlValue() throws IOException
     {
-        if ( !XML.equals(this.type) ) throw new Exception("can't convert");
+        if ( !XML.equals(this.type) ) throw new IOException("can't convert");
         return (Element)this.value;
     }
     public final Element getValue(Element value)
     {
       try{
         return this.getXmlValue();
-      }catch(Exception e){
+      }catch(IOException e){
         return value;
       }
     }
@@ -143,16 +144,16 @@ private transient Object value;
     <accessor>
     get parameter's value as String
     */
-    public String getStringValue() throws Exception
+    public String getStringValue() throws IOException
     {
-        if ( !STRING.equals(this.type) ) throw new Exception("can't convert");
+        if ( !STRING.equals(this.type) ) throw new IOException("can't convert");
         return (String)this.value;
     }
     public final String getValue(String value)
     {
       try{
         return this.getStringValue();
-      }catch(Exception e){
+      }catch(IOException e){
         return value;
       }
     }
@@ -160,16 +161,16 @@ private transient Object value;
     <accessor>
     get parameter's value as int
     */
-    public int getIntValue() throws Exception
+    public int getIntValue() throws IOException
     {
-        if ( !NUMBER.equals(this.type) ) throw new Exception("can't convert");
+        if ( !NUMBER.equals(this.type) ) throw new IOException("can't convert");
         return ((Number)this.value).intValue();
     }
     public final int getValue(int value)
     {
       try{
         return this.getIntValue();
-      }catch(Exception e){
+      }catch(IOException e){
         return value;
       }
     }
@@ -177,16 +178,16 @@ private transient Object value;
     <accessor>
     get parameter's value as long
     */
-    public long getLongValue() throws Exception
+    public long getLongValue() throws IOException
     {
-        if ( !NUMBER.equals(this.type) ) throw new Exception("can't convert");
+        if ( !NUMBER.equals(this.type) ) throw new IOException("can't convert");
         return ((Number)this.value).longValue();
     }
     public final long getValue(long value)
     {
       try{
         return this.getLongValue();
-      }catch(Exception e){
+      }catch(IOException e){
         return value;
       }
     }
@@ -194,16 +195,16 @@ private transient Object value;
     <accessor>
     get parameter's value as double
     */
-    public double getDoubleValue() throws Exception
+    public double getDoubleValue() throws IOException
     {
-        if ( !NUMBER.equals(this.type) ) throw new Exception("can't convert");
+        if ( !NUMBER.equals(this.type) ) throw new IOException("can't convert");
         return ((Number)this.value).doubleValue();
     }
     public final double getValue(double value)
     {
       try{
         return this.getDoubleValue();
-      }catch(Exception e){
+      }catch(IOException e){
         return value;
       }
     }
@@ -211,16 +212,16 @@ private transient Object value;
     <accessor>
     get parameter's value as Date
     */
-    public Date getDateValue() throws Exception
+    public Date getDateValue() throws IOException
     {
-        if ( !DATE.equals(this.type) ) throw new Exception("can't convert");
+        if ( !DATE.equals(this.type) ) throw new IOException("can't convert");
         return (Date)this.value;
     }
     public final Date getValue(Date value)
     {
       try{
         return this.getDateValue();
-      }catch(Exception e){
+      }catch(IOException e){
         return value;
       }
     }
@@ -228,16 +229,16 @@ private transient Object value;
     <accessor>
     get parameter's value as boolean
     */
-    public boolean getBooleanValue() throws Exception
+    public boolean getBooleanValue() throws IOException
     {
-        if ( !BOOLEAN.equals(this.type) ) throw new Exception("can't convert");
+        if ( !BOOLEAN.equals(this.type) ) throw new IOException("can't convert");
         return ((Boolean)this.value).booleanValue();
     }
     public final boolean getValue(boolean value)
     {
       try{
         return this.getBooleanValue();
-      }catch(Exception e){
+      }catch(IOException e){
         return value;
       }
     }
@@ -245,16 +246,16 @@ private transient Object value;
     <accessor>
     get parameter's value as byte[]
     */
-    public byte[] getBytesValue() throws Exception
+    public byte[] getBytesValue() throws IOException
     {
-        if ( !RAWDATA.equals(this.type) ) throw new Exception("can't convert");
+        if ( !RAWDATA.equals(this.type) ) throw new IOException("can't convert");
         return (byte[])this.value;
     }
     public final byte[] getValue(byte[] value)
     {
       try{
         return this.getBytesValue();
-      }catch(Exception e){
+      }catch(IOException e){
         return value;
       }
     }
@@ -284,6 +285,13 @@ private transient Object value;
      */
     public static Parameter of(final String name, final String value) {
         return new Parameter(name, value);
+    }
+    /**
+     <builder>
+     To make the parameter from parameter name and value (String value)
+     */
+    public static Parameter empty() {
+        return new Parameter("", "");
     }
     /**
     <constructor>
@@ -352,7 +360,7 @@ private transient Object value;
     /**
     to restore parameter from XML
     */
-    public static Parameter restore(Element xml) throws Exception
+    public static Parameter restore(Element xml) throws IOException
     {
         if ( xml == null || !ELEMENT.equals(xml.getName()) ) return null;
         return new Parameter().setXML( xml );
@@ -396,10 +404,9 @@ private transient Object value;
     <transport>
     to restore parameter from XML
     */
-    public Parameter setXML(Element xml) throws Exception
-    {
+    public Parameter setXML(Element xml) throws IOException {
         if ( xml == null || !ELEMENT.equals(xml.getName()) )
-          throw new Exception("Invalid Parameter's XML!");
+          throw new IOException("Invalid Parameter's XML!");
         // to solve the attributes
         this.name = xml.getAttributeValue("name");
         this.type = xml.getAttributeValue("type");

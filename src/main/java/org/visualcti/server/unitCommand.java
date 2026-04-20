@@ -313,13 +313,9 @@ private final static String DONE = "@done";
                 }else{// command's parameters
                     this.set( par );
                 }
-            }catch(IOException e){
+            }catch(IOException | NumberFormatException e){
                 throw e;
-            }catch(DataConversionException e){
-                throw e;
-            }catch(NumberFormatException e){
-                throw e;
-            }catch(Exception e){}
+            } catch(Exception e){}
         }
     }
 }

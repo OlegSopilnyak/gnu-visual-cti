@@ -48,6 +48,7 @@ import java.util.stream.Stream;
 import org.jdom.DataConversionException;
 import org.jdom.Element;
 import org.jdom.Text;
+import org.visualcti.server.Parameter;
 import org.visualcti.server.core.XmlAware;
 import org.visualcti.server.core.unit.ServerUnit;
 import org.visualcti.server.core.unit.message.MessageType;
@@ -73,7 +74,6 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
     public static final String UNIT_TYPE_CLASS = "class";
     public static final String UNIT_BUILDER_ELEMENT_NAME = "parent";
     public static final String UNIT_BUILDER_METHOD_ATTRIBUTE = "method";
-    public static final String UNIT_PARAMETER_ELEMENT_NAME = "parameter";
     public static final String UNIT_ICON_ATTRIBUTE = "icon";
     // the body unit's Icon Image (GIF | JPEG)
     protected byte[] iconBody = null;
@@ -267,9 +267,7 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
      */
     protected void prepareUnitXML(Element rootElement) {
         if (!isEmpty(iconBodyPath)) {
-            rootElement.addContent(
-                    new Element(UNIT_PARAMETER_ELEMENT_NAME).setAttribute(UNIT_ICON_ATTRIBUTE, iconBodyPath)
-            );
+            rootElement.addContent(Parameter.of(UNIT_ICON_ATTRIBUTE, iconBodyPath).getXML());
         }
     }
 
@@ -315,16 +313,20 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
      * @see #prepareUnitXML(Element)
      */
     @SuppressWarnings("unchecked")
-    protected void prepareMainPart(Element xml) {
-        final List<Element> parameters = xml.getChildren(UNIT_PARAMETER_ELEMENT_NAME);
-        for (Element parameter : parameters) {
-            if(parameter.getAttribute(UNIT_ICON_ATTRIBUTE) != null) {
+    protected void prepareMainPart(Element xml) throws IOException {
+        // the container for parsed from XML parameter
+        final Parameter unitParameter = Parameter.empty();
+        final List<Element> parameters = xml.getChildren(Parameter.ELEMENT);
+        for (Element parameterXML : parameters) {
+            // restore Parameter from XML Element
+            unitParameter.setXML(parameterXML);
+            if (UNIT_ICON_ATTRIBUTE.equals(unitParameter.getName())){
                 // found icon parameter
-                iconBodyPath = parameter.getAttributeValue(UNIT_ICON_ATTRIBUTE);
+                iconBodyPath = unitParameter.getStringValue();
                 loadIconBodyFrom(iconBodyPath);
             } else {
-                // process rest parameters
-                applyUnitParameter(parameter);
+                // process another parameter
+                applyUnitParameter(unitParameter);
             }
         }
     }
@@ -333,11 +335,11 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
      * <converter>
      * To apply parameter of the unit using XML Element
      *
-     * @param parameter the XML Element of the unit parameter
-     * @see Element
+     * @param parameter the unit parameter
+     * @see Parameter
      * @see #prepareMainPart(Element)
      */
-    protected void applyUnitParameter(Element parameter) {
+    protected void applyUnitParameter(Parameter parameter) {
         // doing nothing here we're restoring only icon parameter
     }
 
