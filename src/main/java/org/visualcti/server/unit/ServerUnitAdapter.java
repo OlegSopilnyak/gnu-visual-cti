@@ -38,9 +38,11 @@ Fax number: 217-356-3356
 package org.visualcti.server.unit;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 import org.jdom.DataConversionException;
@@ -69,8 +71,8 @@ import org.visualcti.server.event.model.UnitMessages;
 public class ServerUnitAdapter implements ServerUnit, XmlAware {
     public static final String UNIT_TYPE_PACKAGE = "package";
     public static final String UNIT_TYPE_CLASS = "class";
-    public static final String UNIT_PARENT_ELEMENT_NAME = "parent";
-    public static final String UNIT_BUILDER_METHOD = "method";
+    public static final String UNIT_BUILDER_ELEMENT_NAME = "parent";
+    public static final String UNIT_BUILDER_METHOD_ATTRIBUTE = "method";
     public static final String UNIT_PARAMETER_ELEMENT_NAME = "parameter";
     public static final String UNIT_ICON_ATTRIBUTE = "icon";
     // the body unit's Icon Image (GIF | JPEG)
@@ -240,7 +242,7 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
      * @see Element
      */
     protected Element baseXML() {
-        final Element element = new Element(UNIT_PARENT_ELEMENT_NAME);
+        final Element element = new Element(UNIT_BUILDER_ELEMENT_NAME);
         final String description = getUnitDescription();
         if (description != null && !description.isEmpty()) {
             element.addContent(new Text(description));
@@ -251,7 +253,7 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
                 .setAttribute(UNIT_TYPE_CLASS, builderClass.getSimpleName());
         final String builderMethodName = getUnitBuilderMethodName();
         if (builderMethodName != null && !builderMethodName.trim().isEmpty()) {
-            element.setAttribute(UNIT_BUILDER_METHOD, builderMethodName);
+            element.setAttribute(UNIT_BUILDER_METHOD_ATTRIBUTE, builderMethodName);
         }
         return element;
     }
@@ -260,6 +262,7 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
      * <converter>
      * To represent the parameters of unit as an XML element
      *
+     * @param rootElement  building from unit XML Element
      * @see Element
      */
     protected void prepareUnitXML(Element rootElement) {
@@ -283,7 +286,71 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
      */
     @Override
     public void setXML(Element xml) throws IOException, DataConversionException, NumberFormatException, NullPointerException {
+        // preparing base part of the server unit
+        prepareBasePart(xml);
+        // prepare main part of the server unit
+        prepareMainPart(xml);
+        // prepare properties part of the server unit
+        preparePropertiesPart(xml);
+    }
 
+    /**
+     * <converter>
+     * To prepare base parameters of the unit using XML Element
+     *
+     * @param xml the XML Element of the unit
+     * @see Element
+     * @see #baseXML()
+     */
+    protected void prepareBasePart(Element xml) {
+        // doing nothing because unit already created
+    }
+
+    /**
+     * <converter>
+     * To prepare main parameters of the unit using XML Element
+     *
+     * @param xml the XML Element of the unit
+     * @see Element
+     * @see #prepareUnitXML(Element)
+     */
+    @SuppressWarnings("unchecked")
+    protected void prepareMainPart(Element xml) {
+        final List<Element> parameters = xml.getChildren(UNIT_PARAMETER_ELEMENT_NAME);
+        for (Element parameter : parameters) {
+            if(parameter.getAttribute(UNIT_ICON_ATTRIBUTE) != null) {
+                // found icon parameter
+                iconBodyPath = parameter.getAttributeValue(UNIT_ICON_ATTRIBUTE);
+                loadIconBodyFrom(iconBodyPath);
+            } else {
+                // process rest parameters
+                applyUnitParameter(parameter);
+            }
+        }
+    }
+
+    /**
+     * <converter>
+     * To apply parameter of the unit using XML Element
+     *
+     * @param parameter the XML Element of the unit parameter
+     * @see Element
+     * @see #prepareMainPart(Element)
+     */
+    protected void applyUnitParameter(Element parameter) {
+        // doing nothing here we're restoring only icon parameter
+    }
+
+    /**
+     * <converter>
+     * To prepare properties of the unit using XML Element
+     *
+     * @param xml the XML Element of the unit
+     * @see Element
+     * @see #prepareMainPart(Element)
+     */
+    private void preparePropertiesPart(Element xml) {
+        // doing nothing because unit already created
     }
 
     /**
@@ -405,4 +472,20 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
     public Stream<ServerUnit> children() {
         return branches.stream();
     }
+
+    // private methods
+    // to load icon body from the path in the classloader
+    private void loadIconBodyFrom(String path) {
+        try(InputStream in = getClass().getClassLoader().getResourceAsStream(path)) {
+            if (in != null) {
+                final int bodySize = in.available();
+                iconBody = new byte[bodySize];
+                final int read = in.read(iconBody);
+                assert read == bodySize : "Read data different of excepted";
+            }
+        } catch (IOException e) {
+            // do nothing in case of error
+        }
+    }
+
 }

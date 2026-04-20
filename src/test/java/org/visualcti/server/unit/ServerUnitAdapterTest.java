@@ -2,11 +2,14 @@ package org.visualcti.server.unit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.io.File;
-import java.io.FileOutputStream;
+import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.file.Files;
+import java.io.InputStream;
+import java.io.StringReader;
+import java.util.ArrayList;
 import java.util.List;
+import org.jdom.DataConversionException;
 import org.jdom.Element;
 import org.junit.Before;
 import org.junit.Test;
@@ -126,8 +129,8 @@ public class ServerUnitAdapterTest {
     @Test
     public void shouldGetServerUnitXML() throws IOException {
         // preparing test data
-        String iconPath = "icons/icon_body.png";
-        ServerUnitAdapter serverUnitAdapter = new ServerUnitAdapter() {
+        String iconPath = "icon/icon_body.gif";
+        ServerUnitAdapter unit = new ServerUnitAdapter() {
             {iconBodyPath = iconPath;}
             @Override
             protected String getUnitBuilderMethodName() {
@@ -136,18 +139,19 @@ public class ServerUnitAdapterTest {
         };
 
         // acting
-        Element element = serverUnitAdapter.getXML();
+        Element element = unit.getXML();
 
         // check results
-        File out = new File("./unit.xml");
-        out.deleteOnExit();
-        FileOutputStream output = new FileOutputStream(out);
-        serverUnitAdapter.store(output, false);
-        output.close();
-        List<String> lines = Files.readAllLines(out.toPath());
+        final BufferedReader reader;
+        try (ByteArrayOutputStream output = new ByteArrayOutputStream()){
+            unit.store(output, false);
+            reader = new BufferedReader(new StringReader(new String(output.toByteArray())));
+        }
+        assertThat(reader).isNotNull();
+        List<String> lines = readAllLines(reader);
         assertThat(lines).isNotEmpty();
         assertThat(lines.get(0)).startsWith("<?xml version=");
-        assertThat(lines.get(1)).startsWith("<" + serverUnitAdapter.getRootElementName());
+        assertThat(lines.get(1)).startsWith("<" + unit.getRootElementName());
         // checking content
         assertThat(element).isNotNull();
         assertThat(element.getAttributeValue("class")).isEqualTo("ServerUnitAdapter");
@@ -162,5 +166,42 @@ public class ServerUnitAdapterTest {
         Element parameter = element.getChild("parameter");
         assertThat(parameter).isNotNull();
         assertThat(parameter.getAttributeValue("icon")).isEqualTo(iconPath);
+    }
+
+    @Test
+    public void shouldSetServerUnitXML() throws IOException, DataConversionException {
+        // preparing test data
+        String iconPath = "icon/icon_body.gif";
+        ServerUnitAdapter unit = new ServerUnitAdapter();
+        assertThat(unit.iconBodyPath).isNull();
+        Element element = unit.getXML();
+        element.addContent(
+          new Element("parameter").setAttribute("icon", iconPath )
+        );
+
+        // acting
+        unit.setXML(element);
+
+        // check results
+        assertThat(unit.iconBodyPath).isEqualTo(iconPath);
+        assertThat(unit.iconBody).isNotEmpty();
+        try(InputStream in = unit.getClass().getClassLoader().getResourceAsStream(unit.iconBodyPath)) {
+            assertThat(in).isNotNull();
+            byte[] buffer = new byte[in.available()];
+            assertThat(in.read(buffer)).isEqualTo(buffer.length);
+            assertThat(buffer).isEqualTo(unit.iconBody);
+        }
+    }
+
+    // private methods
+    private List<String> readAllLines(BufferedReader reader) throws IOException {
+        List<String> lines = new ArrayList<>();
+        String line = reader.readLine();
+        while (line != null) {
+            lines.add(line);
+            line = reader.readLine();
+        }
+        reader.close();
+        return lines;
     }
 }
