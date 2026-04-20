@@ -287,13 +287,6 @@ private transient Object value;
         return new Parameter(name, value);
     }
     /**
-     <builder>
-     To make the parameter from parameter name and value (String value)
-     */
-    public static Parameter empty() {
-        return new Parameter("", "");
-    }
-    /**
     <constructor>
     name and value (Number value)
     */
@@ -366,36 +359,42 @@ private transient Object value;
         return new Parameter().setXML( xml );
     }
     /**
-    <transport>
-    to present parameter as XML
-    */
+     <transport>
+     to present parameter as XML
+
+     @return built xml-element
+     */
     public Element getXML()
     {
         // to make the XML element "parameter"
         Element xml = new Element(ELEMENT);
         xml.setAttribute(new Attribute("name",this.name));
         xml.setAttribute(new Attribute("type",this.type));
-        xml.setAttribute(new Attribute("direction",this.direction));
-        StringBuffer buffer = new StringBuffer();
-        // to store Date object
-        if (DATE.equals(this.type))    buffer.append( ((Date)this.value).getTime() );
-        else
-        // to store raw data array
-        if (RAWDATA.equals(this.type)) buffer.append( Base64.encode((byte[])this.value) );
-        // to store the xml
-        if ( XML.equals(this.type) ) {
-          Element xmlValue = (Element)this.value;
-          if ( xmlValue != null ) {
-            // to store the XML's name
-            buffer.append( xmlValue.getName() );
-            xml.setAttribute(new Attribute("root",xmlValue.getName()));
-            xmlValue = (Element)xmlValue.clone();
-            // to store the content
-            xml.addContent( xmlValue );
-            return xml;
-          }
+        xml.setAttribute(new Attribute("direction", this.direction));
+        StringBuilder buffer = new StringBuilder();
+        switch (type) {
+            case DATE:
+                // to store Date object
+                buffer.append( ((Date)this.value).getTime() );
+                break;
+            case RAWDATA:
+                // to store raw data array
+                buffer.append( Base64.encode((byte[])this.value) );
+                break;
+            case XML:
+                // to return the xml value
+                Element xmlValue = (Element)this.value;
+                if ( xmlValue != null ) {
+                    xml.setAttribute(new Attribute("root",xmlValue.getName()));
+                    xmlValue = (Element)xmlValue.clone();
+                    // to store the content
+                    xml.addContent( xmlValue );
+                    return xml;
+                }
+            default:
+                buffer.append( this.value );
+                break;
         }
-        else buffer.append( this.value );
         xml.setText( buffer.toString() );
         //xml.setAttribute(new Attribute("value",buffer.toString()));
         return xml;

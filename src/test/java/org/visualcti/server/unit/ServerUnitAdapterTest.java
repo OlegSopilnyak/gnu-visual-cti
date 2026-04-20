@@ -13,7 +13,7 @@ import org.jdom.DataConversionException;
 import org.jdom.Element;
 import org.junit.Before;
 import org.junit.Test;
-import org.visualcti.server.Parameter;
+import org.visualcti.server.core.ConfigurationParameter;
 import org.visualcti.server.core.unit.ServerUnit;
 
 public class ServerUnitAdapterTest {
@@ -166,9 +166,10 @@ public class ServerUnitAdapterTest {
         assertThat(parent.getAttributeValue("method")).isEqualTo("build");
         Element parameter = element.getChild("parameter");
         assertThat(parameter).isNotNull();
-        Parameter icon = Parameter.of("x","").setXML(parameter);
+        ConfigurationParameter icon = ConfigurationParameter.of(parameter);
+        assertThat(icon).isNotNull();
         assertThat(icon.getName()).isEqualTo("icon");
-        assertThat(icon.getValue()).isEqualTo(iconPath);
+        assertThat((String) icon.getValue()).isEqualTo(iconPath);
     }
 
     @Test
@@ -177,7 +178,7 @@ public class ServerUnitAdapterTest {
         String iconPath = "icon/icon_body.gif";
         ServerUnitAdapter unit = new ServerUnitAdapter();
         assertThat(unit.iconBodyPath).isNull();
-        Element element = unit.getXML().addContent(Parameter.of("icon", iconPath).getXML());
+        Element element = unit.getXML().addContent(ConfigurationParameter.of("icon", iconPath).getXml());
 
         // acting
         unit.setXML(element);
