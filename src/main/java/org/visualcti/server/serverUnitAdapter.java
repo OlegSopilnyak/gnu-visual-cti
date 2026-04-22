@@ -132,19 +132,20 @@ To set new owner of this unit (null for root unit)
    */
    public void setOwner(serverUnit owner)
    {
-        UnitRegistry.unRegister(this);
-        if (owner == null) {
-            this.owner=null; this.path=this.getName();
-        }else{
-            String old = this.path;
-            try {
-                this.path = owner.getPath()+"/"+this.getName();
-                UnitRegistry.register( this );
-                this.owner = owner;
-            }catch(Exception e){
-                this.path = old;// restore old path
-            }
-        }
+       UnitRegistry.unRegister(this);
+       if (owner == null) {
+           this.owner = null;
+           this.path = this.getName();
+       } else {
+           String old = this.path;
+           try {
+               this.path = owner.getPath() + "/" + this.getName();
+               UnitRegistry.register(this);
+               this.owner = owner;
+           } catch (Exception e) {
+               this.path = old;// restore old path
+           }
+       }
    }
 /////////// INHERITING PART (end) ////////////////////
 

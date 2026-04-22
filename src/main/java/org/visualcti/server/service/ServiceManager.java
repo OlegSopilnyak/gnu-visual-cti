@@ -37,10 +37,12 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.service;
 
-import java.io.*;
-
-import org.visualcti.server.*;
+import java.io.IOException;
+import org.visualcti.server.UnitRegistry;
 import org.visualcti.server.action.serverAction;
+import org.visualcti.server.unitCommand;
+import org.visualcti.server.unitError;
+import org.visualcti.server.unitEvent;
 
 /**
 <Singleton>
@@ -67,7 +69,8 @@ To get Type of unit
    public final String getType(){return "[manager]";}
     /** process configuration (nothing) */
     protected final void processConfiguration(org.jdom.Element xml) {}
-   /**
+
+    /**
    <action>
    to Start service manager
    */

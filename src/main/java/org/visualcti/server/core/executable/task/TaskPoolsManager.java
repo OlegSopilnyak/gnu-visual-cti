@@ -51,6 +51,9 @@ import org.visualcti.server.core.unit.part.UnitsComposite;
  * @see XmlAware
  */
 public interface TaskPoolsManager extends UnitsComposite, Engine, XmlAware {
+    // factory-owner group name of the task pool (by default)
+    String SYSTEM_GROUP = "System";
+
     /**
      * <accessor>
      * To get access to tasks root directory
@@ -75,7 +78,7 @@ public interface TaskPoolsManager extends UnitsComposite, Engine, XmlAware {
      * get access to TaskPool for scheduler by CT-device name & device's factory
      *
      * @param name the name of tasks pool
-     * @param factory the name of factory-owner of task pool
+     * @param factory the name of factory-owner group name of the task pool
      * @return local pool instance
      */
     TasksPoolUnit getTaskPool(String name, String factory);

@@ -81,7 +81,9 @@ public interface XmlAware extends Serializable {
      * @return entity's XML
      * @see Element
      */
-    Element getXML();
+    default Element getXML() {
+        throw new UnsupportedOperationException("Not supported yet. Should be override in child.");
+    }
 
     /**
      * <converter>
@@ -94,7 +96,9 @@ public interface XmlAware extends Serializable {
      * @throws NullPointerException    if something went wrong
      * @see Element
      */
-    void setXML(Element xml) throws IOException, DataConversionException, NumberFormatException, NullPointerException;
+    default void setXML(Element xml) throws IOException, DataConversionException, NumberFormatException, NullPointerException {
+        throw new UnsupportedOperationException("Not supported yet. Should be override in child.");
+    }
 
     /**
      * <transport>

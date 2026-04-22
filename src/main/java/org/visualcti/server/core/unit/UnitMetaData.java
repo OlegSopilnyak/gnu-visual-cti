@@ -165,9 +165,10 @@ public final class UnitMetaData implements UnitBasics {
      * @return the value
      */
     @Override
-    public UnitState getUnitState() {
+    public UnitState currentUnitState() {
         return UnitState.of(meta.get(MetaDataName.STATE));
     }
+
 
     /**
      * <acessor>
@@ -179,7 +180,7 @@ public final class UnitMetaData implements UnitBasics {
     public String toString() {
         return "MetaData of " + this.getName() +
                 "\n\tClass:" + this.className() +
-                "\n\tState:" + this.getUnitState() +
+                "\n\tState:" + this.currentUnitState() +
                 "\n\tRegistry path:" + this.getPath() + "\n";
     }
 
@@ -211,7 +212,7 @@ public final class UnitMetaData implements UnitBasics {
         meta.put(MetaDataName.CLASS, unit.getClass().getName());
         meta.put(MetaDataName.NAME, unit.getName());
         meta.put(MetaDataName.PATH, unit.getPath());
-        meta.put(MetaDataName.STATE, unit.getUnitState());
+        meta.put(MetaDataName.STATE, unit.currentUnitState());
     }
 
     private void fullTransferTo(ServerCommandResponse response) {
@@ -222,7 +223,7 @@ public final class UnitMetaData implements UnitBasics {
         response.setParameter(new Parameter(MetaDataName.CLASS.name, className()).output());
         response.setParameter(new Parameter(MetaDataName.NAME.name, getName()).output());
         response.setParameter(new Parameter(MetaDataName.PATH.name, getPath()).output());
-        response.setParameter(new Parameter(MetaDataName.STATE.name, getUnitState().toString()).output());
+        response.setParameter(new Parameter(MetaDataName.STATE.name, currentUnitState().toString()).output());
     }
 
     private void transferOnly(List<String> metaNames, ServerCommandResponse response) {

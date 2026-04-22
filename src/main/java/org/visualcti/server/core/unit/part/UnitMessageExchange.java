@@ -53,7 +53,9 @@ public interface UnitMessageExchange {
      *
      * @return not null reference to the factory
      */
-    UnitMessageFactory getMessageFactory();
+    default UnitMessageFactory getMessageFactory() {
+        throw new UnsupportedOperationException("Not supported yet. Should be override in child.");
+    }
 
     /**
      * <dispatcher>
@@ -64,7 +66,9 @@ public interface UnitMessageExchange {
      * @param message action message to dispatch
      * @see UnitMessage
      */
-    void dispatch(UnitMessage message);
+    default void dispatch(UnitMessage message) {
+        throw new UnsupportedOperationException("Not supported yet. Should be override in child.");
+    }
 
     /**
      * <executer>
@@ -75,5 +79,7 @@ public interface UnitMessageExchange {
      * @param command command to execute
      * @throws Exception if it cannot execute
      */
-    void execute(ServerCommandRequest command) throws Exception;
+    default void execute(ServerCommandRequest command) throws Exception {
+        throw new UnsupportedOperationException("Not supported yet. Should be override in child.");
+    }
 }

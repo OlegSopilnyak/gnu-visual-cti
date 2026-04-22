@@ -37,7 +37,13 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server;
 
+import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.Callable;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+import org.visualcti.server.core.unit.ServerUnit;
+
 /**
 <registry>
 Class for manage the serverUnits
@@ -47,44 +53,67 @@ public final class UnitRegistry
 /**
 The storage of registered server-units
 */
-private static final HashMap units = new HashMap();
+private static final Map<String, Object> units = new HashMap<>();
+// the lock for safe updating units map
+private static final Lock lock = new ReentrantLock();
     /**
-    <mutator>
-    to register serverUnit
-    */
-    public static void register(serverUnit unit) throws Exception
+     <mutator>
+     to register serverUnit
+
+     @see serverUnit#getPath()
+     */
+    public static void register(serverUnit unit) throws IOException
     {
         String path = unit.getPath();
-        if (path == null) throw new Exception("Unit have invalid path");
-        if ( lookup(path) != null) throw new Exception("Path ["+path+"] already registered");
-        synchronized (units){ units.put(path, unit); }
+        if (path == null) throw new IOException("Unit have invalid path");
+        if (lookup(path, serverUnit.class) != null) throw new IOException("Path [" + path + "] already registered");
+        safeAction(() -> units.put(path, unit));
     }
     /**
-    <mutator>
-    to reregister server unit
-    */
-    public static void reRegister(serverUnit unit) throws Exception
+     <mutator>
+     to register serverUnit
+
+     @see ServerUnit#getPath()
+     */
+    public static void register(ServerUnit unit) throws IOException
     {
-        try {synchronized (units){units.put(unit.getPath(), unit);}
-        }catch(NullPointerException e){
-            throw new Exception("Unit have invalid path");
-        }
+        String path = unit.getPath();
+        if (path == null) throw new IOException("Unit have invalid path");
+        if (lookup(path, ServerUnit.class) != null) throw new IOException("Path [" + path + "] already registered");
+        safeAction(() -> units.put(path, unit));
     }
     /**
-    <mutator>
-    to unregister server unit
-    */
+     <mutator>
+     to unregister server unit
+
+     @see serverUnit#getPath()
+     */
     public static void unRegister(serverUnit unit)
     {
-        try {synchronized (units){units.remove(unit.getPath());}
+        try {safeAction(() -> units.remove(unit.getPath()));
+        }catch(NullPointerException e){}
+//System.out.println("[UnitRegistry] unRegister "+unit);
+    }
+    /**
+     <mutator>
+     to unregister server unit
+
+     @see ServerUnit#getPath()
+     */
+    public static void unRegister(ServerUnit unit)
+    {
+        try {safeAction(() -> units.remove(unit.getPath()));
         }catch(NullPointerException e){}
 //System.out.println("[UnitRegistry] unRegister "+unit);
     }
     /**
     <accessor>
     to get instance of serverUnit by Path
+
+     @see #lookup(String, Class)
+     @see serverUnit
     */
-    public static Object lookup(String unitPath)
+    public static Object lookupOld(String unitPath)
     {
         return UnitRegistry.lookup(unitPath, serverUnit.class);
     }
@@ -94,15 +123,18 @@ private static final HashMap units = new HashMap();
     */
     public static Object lookup( String unitPath, Class unitClass)
     {
-        Object unit = null;
-        synchronized (units){unit = units.get(unitPath);}
-        // check is instance class, have unitClass as parent
-        return unitClass.isInstance( unit ) ? unit:null;
+        return safeAction(() -> {
+            final Object unit = units.get(unitPath);
+            // check is instance class, have unitClass as parent
+            return unitClass.isInstance(unit) ? unit : null;
 //        return unit.getClass().isAssignableFrom( unitClass ) ? unit:null;
+        });
     }
     /**
     <accessor>
     get list of paths of all registered units
+
+     @see #list(String)
     */
     public static String[] list() {return list(null);}
     
@@ -112,20 +144,23 @@ private static final HashMap units = new HashMap();
     */
     public static String[] list(String prefix)
     {
-        HashMap copy = null;
-        // to make copy of registered units
-        synchronized(units){copy = (HashMap)units.clone();}
-        // to made iterator for regigisterd unit paths
-        Iterator keys = copy.keySet().iterator();
-        Vector set = new Vector();// container for paths
-        // to iterate all registered unit paths
-        while( keys.hasNext() )  {
-            String key = (String)keys.next();
-            if ( prefix == null || key.startsWith(prefix) ) set.addElement( key );
+        return safeAction(() ->
+                units.keySet().stream()
+                        .filter(path -> prefix == null || path.startsWith(prefix))
+                        .toArray(String[]::new)
+        );
+    }
+
+    // private methods
+    private static <T> T safeAction(Callable<T> action) {
+        lock.lock();
+        try {
+            return action.call();
+        } catch (Exception e) {
+            return null;
+        } finally {
+            lock.unlock();
         }
-        if ( set.size() == 0) return null;// empty set
-        // To copy selected paths to String array
-        String [] list = new String[set.size()];  set.copyInto( list );
-        return list;
+
     }
 }

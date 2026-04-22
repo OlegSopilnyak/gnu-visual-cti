@@ -37,6 +37,7 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.core.unit;
 
+import java.io.IOException;
 import java.rmi.registry.Registry;
 import java.util.Map;
 import java.util.Optional;
@@ -91,6 +92,7 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
      * Should override for root unit
      *
      * @param message action message to dispatch
+     * @see UnitMessageExchange#dispatch(UnitMessage)
      * @see UnitMessage
      * @see #getOwner()
      */
@@ -111,6 +113,7 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
      *
      * @param command command to execute
      * @throws Exception if it cannot execute
+     * @see UnitMessageExchange#execute(ServerCommandRequest)
      * @see ServerCommandRequest
      * @see MessageFamilyType#GET
      * @see Parameter
@@ -144,17 +147,48 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
 /////////// SERVER UNIT HIERARCHY PART (begin) ////////////////////
     /**
      * <mutator>
-     * to add child to the composite units tree
+     * to add child to the composite units tree<BR/>
+     * set up the owner for the child unit this unit
      *
      * @param child the unit to add
-     * @see ServerUnit
+     * @see UnitsComposite#add(ServerUnit)
+     * @see ServerUnit#setOwner(ServerUnit)
      * @see #addBranch(ServerUnit)
      */
     @Override
     default void add(ServerUnit child) {
-        if (child.getOwner() != this) {
-            child.setOwner(this);
-            addBranch(child);
+        if (child != null && child.getOwner() != this) {
+            try {
+                // attaching child to units registry
+                child.setOwner(this);
+                // adding child to unit's tree
+                addBranch(child);
+            } catch (IOException e) {
+                e.printStackTrace(Tools.err);
+            }
+        }
+    }
+
+    /**
+     * <mutator>
+     * to remove child from the composite units tree
+     *
+     * @param child the unit to remove
+     * @see ServerUnit
+     * @see #removeBranch(ServerUnit)
+     * @see #setOwner(ServerUnit)
+     */
+    @Override
+    default void remove(ServerUnit child) {
+        if (child.getOwner() == this) {
+            try {
+                // detaching child unit from units registry
+                child.setOwner(null);
+                // removing child from unit's tree
+                removeBranch(child);
+            } catch (IOException e) {
+                e.printStackTrace(Tools.err);
+            }
         }
     }
 /////////// SERVER UNIT HIERARCHY PART (end) ////////////////////
@@ -164,7 +198,7 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
      * <config>
      * To configure the unit, using information from XML Element
      *
-     * @param configuration new configuration of the unit
+     * @param configuration new configuration value of the unit
      * @see Element
      */
     void configure(Element configuration);
@@ -187,4 +221,20 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
      */
     void setProperties(Map<String, Object> properties);
 ///////////// PROPERTIES PART (end) //////////////
+    /**
+     * <builder>
+     * The builder of the instance of the server unit unsing XML Element
+     *
+     * @param <T> the type of built server unit
+     */
+    interface Builder<T extends ServerUnit> {
+        /**
+         * <maker>
+         * To build the instance of server unit from XML Element
+         *
+         * @param configuration XML configuration of the server unit
+         * @return built server unit instance
+         */
+        T build(Element configuration) throws IOException;
+    }
 }

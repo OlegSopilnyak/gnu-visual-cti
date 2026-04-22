@@ -49,6 +49,7 @@ import java.util.stream.Stream;
 import org.jdom.DataConversionException;
 import org.jdom.Element;
 import org.jdom.Text;
+import org.visualcti.server.UnitRegistry;
 import org.visualcti.server.core.ConfigurationParameter;
 import org.visualcti.server.core.XmlAware;
 import org.visualcti.server.core.unit.ServerUnit;
@@ -90,9 +91,10 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
     protected UnitState unitState = UnitState.PASSIVE;
     // The to the owner of this unit
     protected ServerUnit owner;
+    // the branches of server units tree
     private final Collection<ServerUnit> branches = new ArrayList<>();
     // the factory of server action messages
-    protected UnitMessageFactory actionMessageFactory = UnitMessages.factorySingleton();
+    protected final UnitMessageFactory actionMessageFactory = UnitMessages.factorySingleton();
 
     /**
      * <accessor>
@@ -135,7 +137,7 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
      * To get Current state of unit (active/passive/broken)
      */
     @Override
-    public UnitState getUnitState() {
+    public UnitState currentUnitState() {
         return unitState;
     }
 
@@ -429,11 +431,31 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
      * <mutator>
      * To set new owner of this unit (null for the root unit)
      *
-     * @param owner the owner of the unit
+     * @param owner the owner of the unit (or null if unit removed from units tree)
      */
     @Override
-    public void setOwner(ServerUnit owner) {
-        this.owner = owner;
+    public void setOwner(ServerUnit owner) throws IOException {
+        final String unitName = getName();
+        // unregistering unit from the registry
+        UnitRegistry.unRegister(this);
+        // unit detached from the units  registry
+        if (owner == null) {
+            // unit kept detached from the registry
+            this.owner = null;
+            this.unitPath = unitName;
+            // removing unit's branches as well
+            this.removeAll();
+        } else {
+            // preparing new value of unit path
+            this.unitPath = owner.getPath() + "/" + unitName;
+            // registering unit with new value of the path
+            UnitRegistry.register(this);
+            this.owner = owner;
+            // updating unit paths for unit's branches
+            for (final ServerUnit branch : branches) {
+                branch.setOwner(this);
+            }
+        }
     }
 
     /**

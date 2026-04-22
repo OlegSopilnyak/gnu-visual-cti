@@ -37,7 +37,10 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.task;
 
+import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -51,7 +54,6 @@ import org.visualcti.server.core.executable.task.TasksPoolUnit;
 import org.visualcti.server.core.unit.message.MessageFamilyType;
 import org.visualcti.server.core.unit.message.MessageType;
 import org.visualcti.server.core.unit.message.UnitMessage;
-import org.visualcti.server.core.unit.message.UnitMessageFactory;
 import org.visualcti.server.core.unit.message.action.UnitActionEvent;
 import org.visualcti.server.core.unit.message.command.ServerCommandRequest;
 import org.visualcti.server.unit.ServerUnitAdapter;
@@ -62,7 +64,7 @@ import org.visualcti.server.unit.ServerUnitAdapter;
  * @see Task
  * @see TasksPoolUnit
  */
-public class TasksPoolUnitAdapter extends ServerUnitAdapter implements TasksPoolUnit {
+public class TasksPoolUnitAdapter extends ServerUnitAdapter implements TasksPoolUnit, Engine {
     // The list of tasks in the pool
     private final List<Task> pool = Collections.synchronizedList(new LinkedList<>());
     // working ring of the tasks (used in the in-service engine state)
@@ -73,6 +75,12 @@ public class TasksPoolUnitAdapter extends ServerUnitAdapter implements TasksPool
     private transient volatile Task currentTask = null;
     // type of tasks pool
     private PoolType poolType;
+    // the group of tasks pool
+    private String group;
+    // the name of file of the pool's XML
+    private String poolFile;
+    // the file of the pool's XML
+    private File poolLocation;
     // the state of engine (tasks pool)
     private Engine.State unitEngineState = Engine.State.OUT_OF_SERVICE;
 
@@ -103,6 +111,75 @@ public class TasksPoolUnitAdapter extends ServerUnitAdapter implements TasksPool
     }
 
     /**
+     * <accessor>
+     * To get Name of the unit to show in UI
+     */
+    @Override
+    public String getName() {
+        return isEmpty(group) ? super.getName() : group + "/" + super.getName();
+    }
+
+    /**
+     * <accessor>
+     * To get the group name of the pool
+     *
+     * @return group name of the pool
+     */
+    @Override
+    public String getGroup() {
+        return group;
+    }
+
+    /**
+     * <mutator>
+     * To set up the group name of the pool
+     *
+     * @param group new value of pool's group
+     * @return reference to tasks pool
+     */
+    @Override
+    public TasksPoolUnit setGroup(String group) {
+        this.group = group;
+        return this;
+    }
+
+    /**
+     * <mutator>
+     * To set up the tasks list file name of the pool
+     *
+     * @param poolFile new value of pool's file name
+     * @return reference to tasks pool
+     */
+    @Override
+    public TasksPoolUnit setPoolFile(String poolFile) {
+        this.poolFile = poolFile;
+        this.poolLocation = new File(poolFile);
+        return this;
+    }
+
+    /**
+     * <accessor>
+     * To get current state value
+     *
+     * @return the current state ID of the engine
+     */
+    @Override
+    public short getState() {
+        return unitEngineState.getCode();
+    }
+
+    /**
+     * <mutator>
+     * To set up the new state value
+     *
+     * @param state new state ID of the engine
+     */
+    @Override
+    public void setState(short state) {
+        this.unitEngineState = State.of(state);
+    }
+
+    /**
      * <action>
      * to Start the engine
      *
@@ -116,7 +193,7 @@ public class TasksPoolUnitAdapter extends ServerUnitAdapter implements TasksPool
                 // to copying tasks from pool to the tasks ring
                 inServiceTasksRing.addAll(pool);
                 // update the state
-                unitEngineState = State.IN_SERVICE;
+                unitEngineState = Engine.State.IN_SERVICE;
             });
             // preparing engine started successfully event
             final UnitActionEvent event = actionMessageFactory.build(MessageType.EVENT, UnitActionEvent.class);
@@ -147,7 +224,7 @@ public class TasksPoolUnitAdapter extends ServerUnitAdapter implements TasksPool
             inServiceTasksRing.clear();
             currentTask = null;
             // update the state
-            unitEngineState = State.OUT_OF_SERVICE;
+            unitEngineState = Engine.State.OUT_OF_SERVICE;
         });
         // preparing engine stopped successfully event
         final UnitMessage event = actionMessageFactory.build(MessageType.EVENT, UnitActionEvent.class);
@@ -176,7 +253,7 @@ public class TasksPoolUnitAdapter extends ServerUnitAdapter implements TasksPool
      */
     @Override
     public boolean isStopped() {
-        return unitEngineState == State.OUT_OF_SERVICE;
+        return unitEngineState == Engine.State.OUT_OF_SERVICE;
     }
 
     /**
@@ -224,6 +301,84 @@ public class TasksPoolUnitAdapter extends ServerUnitAdapter implements TasksPool
     }
 
     /**
+     * <accessor>
+     * To get the installed pool's tasks list
+     *
+     * @return list of installed tasks
+     * @see Task
+     */
+    @Override
+    public Collection<Task> tasks() {
+        return new ArrayList<>(pool);
+    }
+
+    /**
+     * <mutator>
+     * To add the task to a pool.
+     *
+     * @param task   instance to add
+     * @param notify flag is need notification after
+     * @return true if added successfully
+     * @see Task
+     */
+    @Override
+    public boolean add(Task task, boolean notify) {
+        return false;
+    }
+
+    /**
+     * <mutator>
+     * To update the task in a pool.
+     *
+     * @param task instance to update
+     * @return true if updated successfully
+     * @see Task
+     */
+    @Override
+    public boolean update(Task task) {
+        return false;
+    }
+
+    /**
+     * <mutator>
+     * To remove the task from a pool.
+     *
+     * @param task instance to remove
+     * @return true if removed successfully
+     * @see Task
+     */
+    @Override
+    public boolean remove(Task task) {
+        return false;
+    }
+
+    /**
+     * <order>
+     * To move task up in the tasks list.
+     *
+     * @param task to move up
+     * @return true if moved successfully
+     * @see Task
+     */
+    @Override
+    public boolean up(Task task) {
+        return false;
+    }
+
+    /**
+     * <order>
+     * To move task down in the tasks list.
+     *
+     * @param task to move down
+     * @return true if moved successfully
+     * @see Task
+     */
+    @Override
+    public boolean down(Task task) {
+        return false;
+    }
+
+    /**
      * <converter>
      * To represent entity as an XML element
      *
@@ -237,29 +392,20 @@ public class TasksPoolUnitAdapter extends ServerUnitAdapter implements TasksPool
 
     /**
      * <converter>
-     * To update the entity's fields from XML
+     * To load tasks list from external XML file
      *
-     * @param xml possible entity's XML
      * @throws IOException             if something went wrong
      * @throws DataConversionException if something went wrong
      * @throws NumberFormatException   if something went wrong
      * @throws NullPointerException    if something went wrong
+     * @see #setPoolFile(String)
+     * @see #setXML(Element)
      * @see Element
+     * @see java.io.InputStream
      */
     @Override
-    public void setXML(Element xml) throws IOException, DataConversionException, NumberFormatException, NullPointerException {
-
-    }
-
-    /**
-     * <accessor>
-     * To get reference to messages factory
-     *
-     * @return not null reference to the factory
-     */
-    @Override
-    public UnitMessageFactory getMessageFactory() {
-        return actionMessageFactory;
+    public void loadingTasksList() throws IOException, DataConversionException, NumberFormatException, NullPointerException {
+        // preparing tasks file InputStream
     }
 
     /**
@@ -284,5 +430,12 @@ public class TasksPoolUnitAdapter extends ServerUnitAdapter implements TasksPool
         } finally {
             tasksRingLock.unlock();
         }
+    }
+
+    //To get the installed pool's tasks list as a string
+    private String tasksList() {
+        final StringBuilder builder = new StringBuilder();
+        tasks().forEach(task -> builder.append(task.getName()).append("\n"));
+        return builder.toString();
     }
 }

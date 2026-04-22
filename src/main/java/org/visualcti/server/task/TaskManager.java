@@ -147,12 +147,47 @@ is Engine have State.OUT_SERVICE state
    */
    public final boolean isStopped(){return this.state == Engine.State.OUT_OF_SERVICE;}
 
-   /**
+    /**
+     * <accessor>
+     * To get current state value
+     *
+     * @return the current state ID of the engine
+     */
+    @Override
+    public short getState() {
+        return state.getCode();
+    }
+
+    /**
 <accessor>
 current engine state
    */
-   public final Engine.State getState(){return this.state;}
-   /**
+//   @Override
+//   public final Engine.State getUnitState(){return this.state;}
+
+    /**
+     * <mutator>
+     * To set up the new state value
+     *
+     * @param state new state ID of the engine
+     */
+    @Override
+    public void setState(short state) {
+        this.state = State.of(state);
+    }
+
+    /**
+     * <mutator>
+     * To set up the new state value
+     *
+     * @param state new state of the engine
+     */
+    @Override
+    public void setEngineState(State state) {
+        this.state = state;
+    }
+
+    /**
 <accessor>
 To get Name of unit (abstract)
    */

@@ -37,6 +37,7 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.core.unit.part;
 
+import java.io.IOException;
 import java.util.stream.Stream;
 import org.visualcti.server.core.unit.ServerUnit;
 
@@ -56,8 +57,12 @@ public interface UnitsComposite {
     /**
      * <mutator>
      * To set new owner of this unit (null for the root unit)
+     *
+     * @param owner new value of unit's owner
+     * @throws IOException if cannot reregister unit (or children) in units registry
+     * @see org.visualcti.server.UnitRegistry#register(ServerUnit)
      */
-    void setOwner(ServerUnit owner);
+    void setOwner(ServerUnit owner) throws IOException;
 
     /**
      * <mutator>
@@ -67,7 +72,7 @@ public interface UnitsComposite {
      * @see ServerUnit
      * @see #addBranch(ServerUnit)
      */
-    void  add(ServerUnit child);
+    void add(ServerUnit child);
 
     /**
      * <mutator>
@@ -87,12 +92,7 @@ public interface UnitsComposite {
      * @see ServerUnit
      * @see #removeBranch(ServerUnit)
      */
-    default void remove(ServerUnit child) {
-        if (child.getOwner() == this) {
-            child.setOwner(null);
-            removeBranch(child);
-        }
-    }
+    void remove(ServerUnit child);
 
     /**
      * <mutator>

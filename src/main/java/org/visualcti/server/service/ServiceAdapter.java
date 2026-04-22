@@ -37,13 +37,16 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.service;
 
-import java.io.*;
-import java.util.*;
-
-import org.visualcti.server.*;
+import java.io.IOException;
+import java.util.Enumeration;
+import java.util.Vector;
+import org.visualcti.server.action.event.unitEventListener;
+import org.visualcti.server.action.serverAction;
 import org.visualcti.server.core.unit.message.command.UnknownCommandException;
-import org.visualcti.server.action.*;
-import org.visualcti.server.action.event.*;
+import org.visualcti.server.serverUnitAdapter;
+import org.visualcti.server.unitAction;
+import org.visualcti.server.unitCommand;
+
 /**
 class-adapter for Service
 */
@@ -97,11 +100,11 @@ To get body unit's Icon (gif | jpeg)
    public byte[] getIcon(){return null;}
 
    /**
-<accessor>
-current service state
-   */
+    * <accessor>
+    * current service state
+    */
    public final short getState(){return this.state;}
-    /**
+   /**
 <accessor>
 Get access to Service state String
     */

@@ -37,8 +37,11 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.core.executable.task;
 
+import java.io.IOException;
+import java.util.Collection;
+import org.jdom.DataConversionException;
+import org.jdom.Element;
 import org.visualcti.server.core.XmlAware;
-import org.visualcti.server.core.executable.Engine;
 import org.visualcti.server.core.unit.ServerUnit;
 
 /**
@@ -51,7 +54,7 @@ import org.visualcti.server.core.unit.ServerUnit;
  * @author Sopilnyak Oleg
  * @version 3.01
  */
-public interface TasksPoolUnit extends Engine, ServerUnit, XmlAware {
+public interface TasksPoolUnit extends ServerUnit, XmlAware {
     /**
      * Type: task-pool type
      */
@@ -106,6 +109,32 @@ public interface TasksPoolUnit extends Engine, ServerUnit, XmlAware {
 
     /**
      * <accessor>
+     * To get the group name of the pool
+     *
+     * @return group name of the pool
+     */
+    String getGroup();
+
+    /**
+     * <mutator>
+     * To set up the group name of the pool
+     *
+     * @param group new value of pool's group
+     * @return reference to tasks pool
+     */
+    TasksPoolUnit setGroup(String group);
+
+    /**
+     * <mutator>
+     * To set up the tasks list file name of the pool
+     *
+     * @param poolFile new value of pool's file name
+     * @return reference to tasks pool
+     */
+    TasksPoolUnit setPoolFile(String poolFile);
+
+    /**
+     * <accessor>
      * To get the current(executed) task. (returned last next() call)
      * This method works only when engine isStarted()
      *
@@ -124,4 +153,100 @@ public interface TasksPoolUnit extends Engine, ServerUnit, XmlAware {
      * @see Task
      */
     Task next();
+
+    /**
+     * <accessor>
+     * To get the installed pool's tasks list
+     *
+     * @return list of installed tasks
+     * @see Task
+     */
+    Collection<Task> tasks();
+
+    /**
+     * <mutator>
+     * To add the task to a pool.
+     *
+     * @param task   instance to add
+     * @param notify flag is need notification after
+     * @return true if added successfully
+     * @see Task
+     */
+    boolean add(Task task, boolean notify);
+
+    /**
+     * <mutator>
+     * To update the task in a pool.
+     *
+     * @param task instance to update
+     * @return true if updated successfully
+     * @see Task
+     */
+    boolean update(Task task);
+
+    /**
+     * <mutator>
+     * To remove the task from a pool.
+     *
+     * @param task instance to remove
+     * @return true if removed successfully
+     * @see Task
+     */
+    boolean remove(Task task);
+
+    /**
+     * <order>
+     * To move task up in the tasks list.
+     *
+     * @param task to move up
+     * @return true if moved successfully
+     * @see Task
+     */
+    boolean up(Task task);
+
+    /**
+     * <order>
+     * To move task down in the tasks list.
+     *
+     * @param task to move down
+     * @return true if moved successfully
+     * @see Task
+     */
+    boolean down(Task task);
+
+    /**
+     * <converter>
+     * To update the entity's fields from XML
+     *
+     * @param xml possible entity's XML
+     * @throws IOException             if something went wrong
+     * @throws DataConversionException if something went wrong
+     * @throws NumberFormatException   if something went wrong
+     * @throws NullPointerException    if something went wrong
+     * @see Element
+     */
+    @Override
+    default void setXML(Element xml) throws IOException, DataConversionException, NumberFormatException, NullPointerException {
+        // here we update unit from element of main server configuration
+        setPoolType(PoolType.of(xml.getAttributeValue("type")));
+        String[] name = xml.getAttributeValue("name").split("/");
+        if (name.length > 1) {
+            setGroup(name[1]);
+        }
+        setPoolFile(xml.getAttributeValue("file"));
+        // the call loading of XML from pool-file
+        loadingTasksList();
+    }
+
+    /**
+     * <converter>
+     * To load tasks list from external XML file
+     *
+     * @throws IOException             if something went wrong
+     * @throws DataConversionException if something went wrong
+     * @throws NumberFormatException   if something went wrong
+     * @throws NullPointerException    if something went wrong
+     * @see #setPoolFile(String)
+     */
+    void loadingTasksList() throws IOException, DataConversionException, NumberFormatException, NullPointerException;
 }

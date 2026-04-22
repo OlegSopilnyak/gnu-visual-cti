@@ -112,7 +112,18 @@ is Engine have State.OUT_SERVICE state
 <accessor>
 current engine state
    */
-   public Engine.State getState(){return this.state;}
+   public short getState(){return this.state.getCode();}
+
+    /**
+     * <mutator>
+     * To set up the new state value
+     *
+     * @param state new state ID of the engine
+     */
+    @Override
+    public void setState(short state) {
+        this.state = State.of(state);
+    }
    /**
 <accessor>
 To get Current state of unit

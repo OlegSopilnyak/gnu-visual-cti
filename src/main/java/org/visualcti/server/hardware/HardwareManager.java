@@ -65,7 +65,7 @@ private static Manager instance = null;
     <producer>
     To get access to Manager reference
     */
-    public static final Manager getManager()
+    public static Manager getManager()
     {
         if (instance == null)
         {
@@ -158,8 +158,20 @@ is Engine have State.OUT_SERVICE state
 <accessor>
 current engine state
    */
-   public final Engine.State getState(){return this.state;}
-/**
+   public final short getState(){return this.state.getCode();}
+
+    /**
+     * <mutator>
+     * To set up the new state value
+     *
+     * @param state new state ID of the engine
+     */
+    @Override
+    public void setState(short state) {
+        this.state = State.of(state);
+    }
+
+    /**
 Pool of available devices
 */
 private final ArrayList devices = new ArrayList(100);

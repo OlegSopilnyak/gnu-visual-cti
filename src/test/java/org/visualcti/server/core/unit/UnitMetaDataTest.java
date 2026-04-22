@@ -69,7 +69,7 @@ public class UnitMetaDataTest {
         doReturn(type).when(unit).getType();
         doReturn(name).when(unit).getName();
         doReturn(path).when(unit).getPath();
-        doReturn(state).when(unit).getUnitState();
+        doReturn(state).when(unit).currentUnitState();
     }
     @Before
     public void setUp() {
@@ -89,7 +89,7 @@ public class UnitMetaDataTest {
         assertThat(data.getType()).isEqualTo(type);
         assertThat(data.getName()).isEqualTo(name);
         assertThat(data.getPath()).isEqualTo(path);
-        assertThat(data.getUnitState()).isEqualTo(state);
+        assertThat(data.currentUnitState()).isEqualTo(state);
         assertThat(data.className()).isEqualTo(unit.getClass().getName());
     }
 

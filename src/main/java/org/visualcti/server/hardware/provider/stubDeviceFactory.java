@@ -133,9 +133,20 @@ private Engine.State state = Engine.State.OUT_OF_SERVICE;
    * To get access to state ID
    * @return the state's ID
    */
-  public Engine.State getState(){return this.state;}
+  public short getState(){return this.state.getCode();}
 
-  /**
+    /**
+     * <mutator>
+     * To set up the new state value
+     *
+     * @param state new state ID of the engine
+     */
+    @Override
+    public void setState(short state) {
+        this.state = State.of(state);
+    }
+
+    /**
    * <restore>
    * To restore factory's configuration
    * @param xml the factory's configuration

@@ -378,7 +378,7 @@ private DateFormat dateFormat = DateFormat.getDateTimeInstance(DateFormat.SHORT,
     /* to dispatch & execute the command */
     private final void dispath_and_execute(unitCommand command){
       String unitPath = command.getUnitPath();
-      serverUnit unit = (serverUnit)UnitRegistry.lookup(unitPath);
+      serverUnit unit = (serverUnit)UnitRegistry.lookupOld(unitPath);
       if ( unit == null) {
           // invalid unit path reaction
           unitAction answer=null;

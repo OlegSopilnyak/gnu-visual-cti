@@ -44,7 +44,7 @@ public interface UnitBasics {
     /**
      * The lifecycle of unit state
      *
-     * @see #getUnitState()
+     * @see #currentUnitState()
      */
     enum UnitState {
         PASSIVE("passive"),
@@ -76,30 +76,40 @@ public interface UnitBasics {
     /**
      * <accessor>
      * To get body unit's Icon Image (gif | jpeg)
+     *
+     * @return the value
      */
     byte[] getIcon();
 
     /**
      * <accessor>
      * To get Type of unit as string (service, manager, services tree, etc.)
+     *
+     * @return the value
      */
     String getType();
 
     /**
      * <accessor>
      * To get Name of the unit to show in UI
+     *
+     * @return the value
      */
     String getName();
 
     /**
      * <accessor>
      * To get Path to unit instance in repository
+     *
+     * @return the value
      */
     String getPath();
 
     /**
      * <accessor>
      * To get Current state of unit (active/passive/broken)
+     *
+     * @return the value
      */
-    UnitState getUnitState();
+    UnitState currentUnitState();
 }
