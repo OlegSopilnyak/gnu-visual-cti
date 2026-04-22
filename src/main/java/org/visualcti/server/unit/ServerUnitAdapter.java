@@ -72,10 +72,6 @@ import org.visualcti.server.event.model.UnitMessages;
  * @see XmlAware
  */
 public class ServerUnitAdapter implements ServerUnit, XmlAware {
-    public static final String UNIT_TYPE_PACKAGE = "package";
-    public static final String UNIT_TYPE_CLASS = "class";
-    public static final String UNIT_BUILDER_ELEMENT_NAME = "parent";
-    public static final String UNIT_BUILDER_METHOD_ATTRIBUTE = "method";
     public static final String UNIT_ICON_ATTRIBUTE = "icon";
     // the body unit's Icon Image (GIF | JPEG)
     protected byte[] iconBody = null;
