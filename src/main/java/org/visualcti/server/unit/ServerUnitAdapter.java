@@ -39,6 +39,7 @@ package org.visualcti.server.unit;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -46,9 +47,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Stream;
+import org.jdom.Comment;
 import org.jdom.DataConversionException;
 import org.jdom.Element;
-import org.jdom.Text;
 import org.visualcti.server.UnitRegistry;
 import org.visualcti.server.core.ConfigurationParameter;
 import org.visualcti.server.core.XmlAware;
@@ -166,8 +167,10 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
      */
     @Override
     public Element getXML() {
-        final Element element = new Element(getRootElementName());
-        adjustRoot(element).addContent(baseXML());
+        final Element element = buildUnitRootElement();
+        // preparing XML for base part of the unit
+        prepareBaseUnitXML(element);
+        // preparing XML for the parameters and other parts of unit
         prepareUnitXML(element);
         return element;
     }
@@ -176,40 +179,35 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
      * <accessor>
      * To get main class of the unit
      *
-     * @see #adjustRoot(Element)
+     * @see #buildUnitRootElement()
      */
-    protected Class<? extends ServerUnit> getUnitClass() {
+    @Override
+    public Class<? extends ServerUnit> getUnitClass() {
         return ServerUnitAdapter.class;
     }
 
     /**
-     * <accessor>
-     * To get the parent class of the main class of the unit
-     *
-     * @see #adjustRoot(Element)
-     */
-    protected Class<? extends ServerUnit> getParentUnitClass() {
-        return ServerUnit.class;
-    }
-
-    /**
      * <converter>
-     * To adjust parameters of root XML element of the unit
+     * To build parameters of root XML element of the unit (for unit building)
      *
-     * @param rootElement of the unit
      * @see #getXML()
      */
-    protected Element adjustRoot(Element rootElement) {
-        final Class<? extends ServerUnit> unitClass = getUnitClass();
-        final Class<? extends ServerUnit> parentUnitClass = getParentUnitClass();
-        final String unitPackage = unitClass.getPackage().getName();
-        final String parentPackage = parentUnitClass.getPackage().getName();
-        rootElement.setAttribute(UNIT_TYPE_PACKAGE, unitPackage).setAttribute(UNIT_TYPE_CLASS, unitClass.getSimpleName());
-        if (!unitClass.equals(parentUnitClass)) {
-            rootElement.setAttribute("extends",
-                    unitPackage.equals(parentPackage) ? parentUnitClass.getSimpleName() : parentUnitClass.getName()
-            );
+    protected Element buildUnitRootElement() {
+        final Element rootElement = new Element(getRootElementName());
+        //
+        // building server unit main classes part
+        final Class<? extends ServerUnit> unitClass = prepareUnitClassPart(rootElement);
+        //
+        // adding unit description as XML comment
+        final String description = getUnitDescription();
+        // to check the value of the unit's description
+        if (isEmptyString.negate().test(description)) {
+            rootElement.addContent(new Comment(description));
         }
+        //
+        // building server unit builder class part
+        prepareUnitBuilderClassPart(rootElement, unitClass);
+        // returns prepared root element
         return rootElement;
     }
 
@@ -217,44 +215,22 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
      * <accessor>
      * To get class-builder of the unit instance
      *
-     * @see #baseXML()
+     * @see ServerUnit#getUnitBuilderMethodName()
      */
-    protected Class<?> getUnitBuilderClass() {
+    @Override
+    public Class<?> getUnitBuilderClass() {
         return getUnitClass();
-    }
-
-    /**
-     * <accessor>
-     * To get the method name in class-builder to build the unit instance
-     *
-     * @see #baseXML()
-     */
-    protected String getUnitBuilderMethodName() {
-        return null;
     }
 
     /**
      * <converter>
      * To represent base parameters of unit as an XML element
      *
-     * @return entity's XML
      * @see Element
+     * @see #getXML()
      */
-    protected Element baseXML() {
-        final Element element = new Element(UNIT_BUILDER_ELEMENT_NAME);
-        final String description = getUnitDescription();
-        if (description != null && !description.isEmpty()) {
-            element.addContent(new Text(description));
-        }
-        final Class<?> builderClass = getUnitBuilderClass();
-        element
-                .setAttribute(UNIT_TYPE_PACKAGE, builderClass.getPackage().getName())
-                .setAttribute(UNIT_TYPE_CLASS, builderClass.getSimpleName());
-        final String builderMethodName = getUnitBuilderMethodName();
-        if (builderMethodName != null && !builderMethodName.trim().isEmpty()) {
-            element.setAttribute(UNIT_BUILDER_METHOD_ATTRIBUTE, builderMethodName);
-        }
-        return element;
+    protected void prepareBaseUnitXML(Element rootElement) {
+        // doing noting by default
     }
 
     /**
@@ -298,7 +274,7 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
      *
      * @param xml the XML Element of the unit
      * @see Element
-     * @see #baseXML()
+     * @see #setXML(Element)
      */
     protected void prepareBasePart(Element xml) {
         // doing nothing because unit already created
@@ -338,7 +314,7 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
      * @see #prepareMainPart(Element)
      */
     protected void applyUnitParameter(ConfigurationParameter parameter) {
-        // doing nothing here we're restoring only icon parameter
+        // doing nothing here because here we're restoring only icon parameter
     }
 
     /**
@@ -428,6 +404,11 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
      * To set new owner of this unit (null for the root unit)
      *
      * @param owner the owner of the unit (or null if unit removed from units tree)
+     * @see UnitRegistry#unRegister(ServerUnit)
+     * @see UnitRegistry#register(ServerUnit)
+     * @see #getName()
+     * @see #removeAll()
+     * @see #setOwner(ServerUnit)
      */
     @Override
     public void setOwner(ServerUnit owner) throws IOException {
@@ -494,6 +475,76 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
     }
 
     // private methods
+    // building server unit main classes part
+    private Class<? extends ServerUnit> prepareUnitClassPart(Element rootElement) {
+        final Class<? extends ServerUnit> unitClass = getUnitClass();
+        final Class<? extends ServerUnit> parentUnitClass = getUnitExtendsClass();
+        final String unitPackage = unitClass.getPackage().getName();
+        //
+        // attributes in unit's root element (server unit class)
+        rootElement
+                .setAttribute(UNIT_TYPE_PACKAGE, unitPackage)
+                .setAttribute(UNIT_TYPE_CLASS, unitClass.getSimpleName());
+        //
+        if (!unitClass.equals(parentUnitClass)) {
+            // attributes in unit's root element (server unit extends class)
+            final String parentPackage = parentUnitClass.getPackage().getName();
+            final String unitExtendsClassName =
+                    unitPackage.equals(parentPackage) ? parentUnitClass.getSimpleName() : parentUnitClass.getName();
+            rootElement.setAttribute(UNIT_TYPE_EXTENDS_CLASS, unitExtendsClassName);
+        }
+        return unitClass;
+    }
+
+    // building server unit builder class part
+    private void prepareUnitBuilderClassPart(Element rootElement, Class<? extends ServerUnit> unitClass) {
+        final Class<?> builderClass = getUnitBuilderClass();
+        if (builderClass == null) {
+            // in unit class not declared builder class
+            return;
+        }
+        // checking builder stuff before builder XML Element creation
+        final String builderMethodName = getUnitBuilderMethodName();
+        final boolean isEmptyBuilderMethod = isEmptyString.test(builderMethodName);
+        // preparing builder element
+        final Element buliderElement = new Element(UNIT_BUILDER_ELEMENT_NAME);
+        // checking builder class stuff
+        if (builderClass.equals(unitClass) && isEmptyBuilderMethod) {
+            // builder class the same as unit-class and builder method is empty
+        } else if (!isEmptyBuilderMethod) {
+            // checking unit builder method
+            final Method builderMethod = getPublicMethodInstanceFor(builderClass, builderMethodName);
+            // got unit builder method
+            if (builderMethod != null && !unitClass.isAssignableFrom(builderMethod.getReturnType())) {
+                // builder method return type is not compatible with unit class
+                return;
+            }
+            buliderElement
+                    .setAttribute(UNIT_TYPE_PACKAGE, builderClass.getPackage().getName())
+                    .setAttribute(UNIT_TYPE_CLASS, builderClass.getSimpleName())
+                    .setAttribute(UNIT_BUILDER_METHOD_ATTRIBUTE, builderMethodName);
+            // adding builder element to the root unit element XML and return
+            rootElement.addContent(buliderElement);
+        } else if (unitClass.isAssignableFrom(builderClass)) {
+            // builder class is a child of server unit class
+            buliderElement
+                    .setAttribute(UNIT_TYPE_PACKAGE, builderClass.getPackage().getName())
+                    .setAttribute(UNIT_TYPE_CLASS, builderClass.getSimpleName());
+            // adding builder element to the root unit XML element
+            rootElement.addContent(buliderElement);
+        }
+    }
+
+    // getting the public method for the class by name
+    private static Method getPublicMethodInstanceFor(Class<?> clazz, String methodName) {
+        try {
+            return clazz.getMethod(methodName);
+        } catch (NoSuchMethodException e) {
+            // doing nothing just returns null
+            return null;
+        }
+    }
+
     // to load icon body from the path in the classloader
     private void loadIconBodyFrom(String path) {
         try(InputStream in = getClass().getClassLoader().getResourceAsStream(path)) {
@@ -507,5 +558,4 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
             // do nothing in case of error
         }
     }
-
 }

@@ -76,8 +76,10 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
     String UNIT_TYPE_PACKAGE = "package";
     String UNIT_TYPE_CLASS = "class";
     String UNIT_TYPE_EXTENDS_CLASS = "extends";
-    String UNIT_BUILDER_ELEMENT_NAME = "parent";
+    String UNIT_BUILDER_ELEMENT_NAME = "builder";
     String UNIT_BUILDER_METHOD_ATTRIBUTE = "method";
+    // predicate to test is string empty
+    Predicate<String> isEmptyString = string -> string == null || string.trim().isEmpty();
 
     /**
      * <accessor>
@@ -231,6 +233,50 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
      */
     void setProperties(Map<String, Object> properties);
 ///////////// PROPERTIES PART (end) //////////////
+
+///////////// UNIT BUILDER PART (begin) //////////////
+/// BASIC UNIT CLASSES (begin) methods ///
+    /**
+     * <accessor>
+     * To get main class of the unit
+     */
+    default Class<? extends ServerUnit> getUnitClass() {
+        throw new UnsupportedOperationException("Not supported yet. Should be override in child.");
+    }
+
+    /**
+     * <accessor>
+     * To get the parent class of the main class of the unit
+     *
+     * @see #getUnitClass()
+     */
+    default Class<? extends ServerUnit> getUnitExtendsClass() {
+        return ServerUnit.class;
+    }
+/// BASIC UNIT CLASSES (end) methods ///
+///
+/// UNIT BUILDER CLASSES (begin) methods ///
+    /**
+     * <accessor>
+     * To get class-builder of the unit instance
+     */
+    default Class<?> getUnitBuilderClass() {
+        return null;
+    }
+
+    /**
+     * <accessor>
+     * To get the method name in class-builder to build the unit instance
+     *
+     * @see #getUnitBuilderClass()
+     */
+    default String getUnitBuilderMethodName() {
+        return null;
+    }
+/// UNIT BUILDER CLASSES (end) methods ///
+///
+///////////// UNIT BUILDER PART (end) //////////////
+
     /**
      * <builder>
      * Function: The builder of the instance of the server unit, unsing XML Element from scratch
@@ -238,8 +284,6 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
      * @param <T> the type of built server unit
      */
     interface Builder<T extends ServerUnit> {
-        // predicate to test is string empty
-        Predicate<String> isEmptyString = string -> string == null || string.trim().isEmpty();
         // function to calculate canonical java class name
         BiFunction<String, String, String> className = (packageName, className) ->
                 className.contains(".") ? className : packageName + "." + className;
