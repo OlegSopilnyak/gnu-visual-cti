@@ -43,11 +43,13 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import org.jdom.Element;
 import org.junit.Test;
+import org.visualcti.server.core.ConfigurationParameter;
 import org.visualcti.server.unit.ServerUnitAdapter;
 
 public class ServerUnitBuilderTest {
 
     ServerUnitBuilder serverUnitBuilder = ServerUnitBuilder.getInstance();
+    final String currentPackage = ServerUnitBuilderTest.class.getPackage().getName();
 
     @Test
     public void shouldGetInstance() {
@@ -57,9 +59,20 @@ public class ServerUnitBuilderTest {
     @Test
     public void shouldBuildServerUnitAdapter() throws IOException {
         // preparing test data
+        String iconPath = "icon/icon_body.gif";
         ServerUnitAdapter unit = new ServerUnitAdapter();
+        assertThat(unit.getIcon()).isNull();
         Element xml = unit.getXML();
         assertThat(xml).isNotNull();
+        // add builder
+        xml.addContent(new Element("builder")
+                .setAttribute("package", currentPackage)
+                .setAttribute("class", "ServerUnitBuilderTest$ServerUnitAdapterBuilder")
+                .setAttribute("method", "build")
+        );
+        // add icon for the unit
+        xml.addContent(ConfigurationParameter.of("icon", iconPath).getXml());
+        // making xml as string from server unit
         String xmlString;
         try (ByteArrayOutputStream output = new ByteArrayOutputStream()){
             unit.store(output, false);
@@ -71,6 +84,27 @@ public class ServerUnitBuilderTest {
         ServerUnit built = serverUnitBuilder.build(xml);
 
         // check results
-        assertThat(built).isNotNull();
+        assertThat(built).isInstanceOf(ServerUnitAdapter.class);
+        assertThat(built.getIcon()).isNotEmpty();
+        // getting XML from built unit
+        Element element = ((ServerUnitAdapter)built).getXML();
+        // check server unit classes
+        assertThat(element.getAttributeValue("class")).isEqualTo("ServerUnitAdapter");
+        assertThat(element.getAttributeValue("package")).isEqualTo("org.visualcti.server.unit");
+        assertThat(element.getAttributeValue("extends")).isEqualTo("org.visualcti.server.core.unit.ServerUnit");
+        //check icon parameter
+        Element iconParameter = element.getChild("parameter");
+        assertThat(iconParameter).isNotNull();
+        String unitIconPath = ConfigurationParameter.of(iconParameter).getValue();
+        assertThat(unitIconPath).isEqualTo(iconPath);
+        // check builder element
+        assertThat(element.getChild("builder")).isNull();
+    }
+
+    // inner classes
+    private static class ServerUnitAdapterBuilder extends ServerUnitAdapter {
+        public static ServerUnit build() {
+            return new ServerUnitAdapter();
+        }
     }
 }

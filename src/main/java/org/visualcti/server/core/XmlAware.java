@@ -75,6 +75,16 @@ public interface XmlAware extends Serializable {
     }
 
     /**
+     * <accessor>
+     * To get the name of the root element name in XML result
+     *
+     * @return the name of root element
+     * @see #getXML()
+     */
+    default String getRootElementName() {
+        return getClass().getSimpleName();
+    }
+    /**
      * <converter>
      * To represent entity as an XML element
      *
@@ -82,7 +92,7 @@ public interface XmlAware extends Serializable {
      * @see Element
      */
     default Element getXML() {
-        throw new UnsupportedOperationException("Not supported yet. Should be override in child.");
+        return new Element(getRootElementName());
     }
 
     /**

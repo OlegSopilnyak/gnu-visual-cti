@@ -62,7 +62,7 @@ import org.visualcti.util.Property;
  * @version 1.0
  */
 
-public final class Play extends Basis
+public final class PlayAction extends Basis
 {
 /**
 <value>
@@ -107,7 +107,7 @@ public final String get_ID_prefix(){return "Play.";}
     /**
      * <constructor>
      * */
-    public Play(){
+    public PlayAction(){
       super.setAbout("To play sounds chain");
       this.initRuntime();
     }

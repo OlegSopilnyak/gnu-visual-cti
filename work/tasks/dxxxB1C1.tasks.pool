@@ -117,7 +117,7 @@ Fax number: 217-356-3356
           </runtime>
           <link default="Main-chain:Play.0" />
         </briquette>
-        <briquette class="org.visualcti.briquette.telephony.Play">
+        <briquette class="org.visualcti.briquette.telephony.PlayAction">
           <!--base properties of the briquette-->
           <base>
             <property name="ID" type="string">Main-chain:Play.0</property>

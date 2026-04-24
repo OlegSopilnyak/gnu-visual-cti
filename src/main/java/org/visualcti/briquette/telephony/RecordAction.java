@@ -56,7 +56,7 @@ import org.visualcti.server.hardware.*;
  * @version 1.0
  */
 
-public final class Record extends Basis
+public final class RecordAction extends Basis
 {
 /**
 <value>
@@ -109,13 +109,13 @@ public final String get_ID_prefix(){return "Record.";}
     /**
      * <constructor>
      * */
-    public Record(){
+    public RecordAction(){
       super.setAbout("To record the voice");
       this.initRuntime();
     }
     /** init runtime's properties */
     private final void initRuntime(){
-      this.target.setContent( Record.system_cti_Voice );
+      this.target.setContent( RecordAction.system_cti_Voice );
       this.target.setType( Symbol.VOICE );
       this.target.setFormat( Audio.ULAW_8 );
       this.timeout = Symbol.newConst( new Integer(10) );

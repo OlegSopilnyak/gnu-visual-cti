@@ -140,11 +140,13 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
 
     /**
      * <accessor>
-     * To get root element of the unit
+     * To get the name of the root element name in XML result
      *
-     * @see #getXML()
+     * @return the name of root element
+     * @see XmlAware#getXML()
      */
-    protected String getRootElementName() {
+    @Override
+    public String getRootElementName() {
         return "AbstractServerUnit";
     }
 
@@ -191,9 +193,10 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
      * To build parameters of root XML element of the unit (for unit building)
      *
      * @see #getXML()
+     * @see #getRootElementName()
      */
     protected Element buildUnitRootElement() {
-        final Element rootElement = new Element(getRootElementName());
+        final Element rootElement = XmlAware.super.getXML();
         //
         // building server unit main classes part
         final Class<? extends ServerUnit> unitClass = prepareUnitClassPart(rootElement);
@@ -484,13 +487,13 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
         // attributes in unit's root element (server unit class)
         rootElement
                 .setAttribute(UNIT_TYPE_PACKAGE, unitPackage)
-                .setAttribute(UNIT_TYPE_CLASS, unitClass.getSimpleName());
+                .setAttribute(UNIT_TYPE_CLASS, simpleName(unitClass));
         //
         if (!unitClass.equals(parentUnitClass)) {
             // attributes in unit's root element (server unit extends class)
             final String parentPackage = parentUnitClass.getPackage().getName();
             final String unitExtendsClassName =
-                    unitPackage.equals(parentPackage) ? parentUnitClass.getSimpleName() : parentUnitClass.getName();
+                    unitPackage.equals(parentPackage) ? simpleName(parentUnitClass) : parentUnitClass.getName();
             rootElement.setAttribute(UNIT_TYPE_EXTENDS_CLASS, unitExtendsClassName);
         }
         return unitClass;
@@ -506,8 +509,6 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
         // checking builder stuff before builder XML Element creation
         final String builderMethodName = getUnitBuilderMethodName();
         final boolean isEmptyBuilderMethod = isEmptyString.test(builderMethodName);
-        // preparing builder element
-        final Element buliderElement = new Element(UNIT_BUILDER_ELEMENT_NAME);
         // checking builder class stuff
         if (builderClass.equals(unitClass) && isEmptyBuilderMethod) {
             // builder class the same as unit-class and builder method is empty
@@ -519,23 +520,35 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
                 // builder method return type is not compatible with unit class
                 return;
             }
-            buliderElement
-                    .setAttribute(UNIT_TYPE_PACKAGE, builderClass.getPackage().getName())
-                    .setAttribute(UNIT_TYPE_CLASS, builderClass.getSimpleName())
-                    .setAttribute(UNIT_BUILDER_METHOD_ATTRIBUTE, builderMethodName);
-            // adding builder element to the root unit element XML and return
-            rootElement.addContent(buliderElement);
+            // preparing separate builder XML Element
+            // adding builder element to the root unit element XML
+            rootElement.addContent(builderXML(builderClass, builderMethod));
         } else if (unitClass.isAssignableFrom(builderClass)) {
             // builder class is a child of server unit class
-            buliderElement
-                    .setAttribute(UNIT_TYPE_PACKAGE, builderClass.getPackage().getName())
-                    .setAttribute(UNIT_TYPE_CLASS, builderClass.getSimpleName());
             // adding builder element to the root unit XML element
-            rootElement.addContent(buliderElement);
+            rootElement.addContent(builderXML(builderClass, null));
         }
     }
 
+    // to make builder's XML Element
+    private static Element builderXML(final Class<?> builderClass, final Method builderMethod) {
+        // preparing basic builder XML Element
+        final Element builderElement = new Element(UNIT_BUILDER_ELEMENT_NAME)
+                .setAttribute(UNIT_TYPE_PACKAGE, builderClass.getPackage().getName())
+                .setAttribute(UNIT_TYPE_CLASS, simpleName(builderClass));
+        if (builderMethod == null) {
+            // not declared or wrong name of the method in builder class
+        } else {
+            builderElement.setAttribute(UNIT_BUILDER_METHOD_ATTRIBUTE, builderMethod.getName());
+        }
+        return builderElement;
+    }
+
     // getting the public method for the class by name
+    private static String simpleName(Class<?> clazz) {
+        final String[] parts = clazz.getName().split("\\.");
+        return parts[parts.length - 1];
+    }
     private static Method getPublicMethodInstanceFor(Class<?> clazz, String methodName) {
         try {
             return clazz.getMethod(methodName);

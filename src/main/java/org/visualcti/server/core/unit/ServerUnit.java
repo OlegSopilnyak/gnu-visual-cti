@@ -334,7 +334,7 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
             final String builderClassName =
                     className.apply(xml.getAttributeValue(UNIT_TYPE_PACKAGE), xml.getAttributeValue(UNIT_TYPE_CLASS));
             // creating the class of the builder
-            final Class<T> builderClass = (Class<T>) Class.forName(builderClassName);
+            final Class<T> builderClass = (Class<T>) Class.forName(builderClassName, true, extendsClass.getClassLoader());
             // build-instance-method name
             final String builderMethod = xml.getAttributeValue(UNIT_BUILDER_METHOD_ATTRIBUTE);
             final T unit;
@@ -342,8 +342,8 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
                 // just create
                 unit = builderClass.newInstance();
             } else {
-                final Method theMethod = builderClass.getDeclaredMethod(builderMethod);
-                unit = (T) theMethod.invoke(builderClass, new Object[]{});
+                final Method theMethod = builderClass.getMethod(builderMethod);
+                unit = (T) theMethod.invoke(builderClass);
             }
             if (extendsClass.isInstance(unit)) {
                 return unit;

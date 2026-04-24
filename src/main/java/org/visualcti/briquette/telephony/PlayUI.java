@@ -100,7 +100,7 @@ private final java.util.List groups = new ArrayList(4);
  * <attribute>
  * The briquette for edit runtime's properties
  * */
-private Play owner = null;
+private PlayAction owner = null;
   /**
    * <mutator>
    * To change the Beep
@@ -348,8 +348,8 @@ private volatile boolean isAssigned = false;
    * To notify about Operation assigned
    * */
   protected final void assigned(Operation briquette) {
-    if (briquette instanceof Play) {
-      this.owner=(Play)briquette;
+    if (briquette instanceof PlayAction) {
+      this.owner=(PlayAction)briquette;
       this.isAssigned = true;
       this.termination.assign( this.owner.getDTMF() );
       this.beep.setSelectedIndex(this.owner.isBeep()?0:1);

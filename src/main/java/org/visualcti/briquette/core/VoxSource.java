@@ -46,7 +46,7 @@ import java.util.List;
 import org.visualcti.briquette.Program;
 import org.visualcti.briquette.Subroutine;
 import org.visualcti.briquette.Symbol;
-import org.visualcti.briquette.telephony.Play;
+import org.visualcti.briquette.telephony.PlayAction;
 import org.visualcti.media.Audio;
 import org.visualcti.media.Sound;
 import org.visualcti.media.mediaParser;
@@ -89,7 +89,7 @@ public final static int TONE = 3;
     switch( type )
     {
       case Media.RAW:
-        return Play.system_cti_Voice;
+        return PlayAction.system_cti_Voice;
       case Media.FILE:
         return Symbol.newConst("sound.wav");
       case VoxSource.TTS:

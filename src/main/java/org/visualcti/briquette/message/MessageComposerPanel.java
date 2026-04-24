@@ -113,7 +113,7 @@ private final ArrayList properties = new ArrayList();
     protected final java.util.List availableGroups(){return binGroups;}
     protected final Symbol getSymbol(){return attachment;}
     protected final void setSymbol(Symbol symbol){attachment=symbol;}
-    protected final Symbol getConst(){return Play.system_cti_Voice;}
+    protected final Symbol getConst(){return PlayAction.system_cti_Voice;}
   }
 private final SymbolChooser getBinaryDialog() {
   if (this.owner == null) return null;

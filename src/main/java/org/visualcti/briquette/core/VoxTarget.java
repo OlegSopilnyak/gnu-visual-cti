@@ -38,13 +38,9 @@ Fax number: 217-356-3356
 package org.visualcti.briquette.core;
 
 import java.io.*;
-import java.util.*;
-import org.jdom.*;
 import org.visualcti.media.*;
-import org.visualcti.util.*;
 import org.visualcti.briquette.*;
 import org.visualcti.briquette.telephony.*;
-import org.visualcti.briquette.control.*;
 
 /**
  * <p>Title: Visual CTI Java Telephony Server</p>
@@ -73,7 +69,7 @@ public final class VoxTarget extends mediaTarget
  * <member>
  * The default Symbol for any sound's container
  * */
-public static final Symbol defaultTarget = Record.system_cti_Voice;
+public static final Symbol defaultTarget = RecordAction.system_cti_Voice;
   /**
    * <producer>
    * To make a default name of the target's Symbol by type
@@ -143,7 +139,7 @@ private Audio format=null;
     protected final byte[] image(){
       byte[] rawdata = super.image();
       int seconds = (int) ( rawdata.length / format.getSampleRate() );
-      super.owner.set(Record.system_cti_Voice_seconds,new Integer(seconds));
+      super.owner.set(RecordAction.system_cti_Voice_seconds,new Integer(seconds));
       return VoxTarget.this.validImage( rawdata );
     }
     /** constructor */
@@ -167,7 +163,7 @@ private Audio format=null;
     protected final byte[] image(){
       byte[] rawdata = super.image();
       int seconds = (int) ( rawdata.length / format.getSampleRate() );
-      super.owner.set(Record.system_cti_Voice_seconds,new Integer(seconds));
+      super.owner.set(RecordAction.system_cti_Voice_seconds,new Integer(seconds));
       return VoxTarget.this.validImage( rawdata );
     }
     /** constructor */

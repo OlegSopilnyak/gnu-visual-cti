@@ -126,7 +126,7 @@ private final java.util.List groups = new ArrayList(4);
  * <attribute>
  * The briquette for edit runtime's properties
  * */
-private Record owner = null;
+private RecordAction owner = null;
 /**
  * <attribute>
  * visual component for edit target's property
@@ -278,8 +278,8 @@ private volatile boolean isAssigned = false;
    * To notify about Operation assigned
    * */
   protected final void assigned(Operation briquette) {
-    if (briquette instanceof Record) {
-      this.owner=(Record)briquette;
+    if (briquette instanceof RecordAction) {
+      this.owner=(RecordAction)briquette;
       this.isAssigned = true;
       this.target.assign( this.owner.getTarget() );
       this.beepBefore.setSelectedIndex( this.owner.isBeepBefore()?0:1 );

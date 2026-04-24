@@ -90,13 +90,12 @@ Fax number: 217-356-3356
         <xerces.version>2.12.2</xerces.version>
         <javax.media.jmf.version>2.1.1e</javax.media.jmf.version>
         <javax.jms.version>2.0.1</javax.jms.version>
-        <javax.mail.version>1.6.2</javax.mail.version>
+        <javax.mail.version>1.4.7</javax.mail.version>
         <soap.version>2.3.1</soap.version>
         <maven-install-plugin-version>2.5.2</maven-install-plugin-version>
         <maven-shade-plugin-version>3.2.4</maven-shade-plugin-version>
-<!--        <junit.jupiter.version>5.10.0</junit.jupiter.version>-->
         <junit.version>4.13.2</junit.version>
-        <mockito.version>1.9.0</mockito.version>
+        <mockito.version>1.9.5</mockito.version>
         <assertj.version>3.0.0</assertj.version>
     </properties>
     <dependencies>
@@ -127,7 +126,8 @@ Fax number: 217-356-3356
         <!-- Source: https://mvnrepository.com/artifact/javax.mail/javax.mail-api -->
         <dependency>
             <groupId>javax.mail</groupId>
-            <artifactId>javax.mail-api</artifactId>
+            <artifactId>mail</artifactId>
+<!--            <artifactId>javax.mail-api</artifactId>-->
             <version>${javax.mail.version}</version>
         </dependency>
         <!-- Source: https://mvnrepository.com/artifact/soap/soap -->
@@ -165,14 +165,7 @@ Fax number: 217-356-3356
         <dependency>
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>
-<!--            <version>3.27.3</version>-->
             <version>${assertj.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>4.13.2</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
