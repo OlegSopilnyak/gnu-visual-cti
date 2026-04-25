@@ -37,17 +37,16 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.core.unit.exception;
 
-/**
- * Exception: Something went wrong with ServerUnit
- *
- * @see org.visualcti.server.core.unit.ServerUnit
- */
-public class ServerUnitException extends Exception {
-    public ServerUnitException(String message) {
-        super(message);
-    }
+import org.visualcti.server.core.unit.ServerUnit;
 
-    public ServerUnitException(String message, Throwable cause) {
-        super(message, cause);
+/**
+ * Exception: There is non-unique units of the particular type in the units registry
+ *
+ * @see ServerUnitException
+ * @see org.visualcti.server.unit.ServerUnitRegistry#lookup(ServerUnit)
+ */
+public class NoUniqueUnitException extends NoSuchUnitException {
+    public NoUniqueUnitException(String message) {
+        super(message);
     }
 }

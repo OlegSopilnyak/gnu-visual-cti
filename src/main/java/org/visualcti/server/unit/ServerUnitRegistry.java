@@ -38,24 +38,27 @@ Fax number: 217-356-3356
 package org.visualcti.server.unit;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.Collectors;
 import org.visualcti.server.core.unit.ServerUnit;
 import org.visualcti.server.core.unit.exception.CannotRegisterUnitException;
-import org.visualcti.server.core.unit.exception.InvalidUnitException;
+import org.visualcti.server.core.unit.exception.NoSuchUnitException;
+import org.visualcti.server.core.unit.exception.NoUniqueUnitException;
 import org.visualcti.server.core.unit.exception.ServerUnitException;
 
 /**
  * <registry>
- * Class Utility: for manage server units instances
+ * Class Utility: to manage server units instances
  */
 public final class ServerUnitRegistry {
     // The storage of registered server-units
     private static final Map<String, ServerUnit> units = new HashMap<>();
-    // The lock for access to the units
+    // The lock for access to the units map
     private static final Lock lock = new ReentrantLock();
 
     /**
@@ -79,27 +82,36 @@ public final class ServerUnitRegistry {
      * @param unitPath the path of the unit to register
      * @param unit     instance to register
      * @throws ServerUnitException if something went wrong
-     * @see InvalidUnitException
+     * @see NoSuchUnitException
      * @see CannotRegisterUnitException
      * @see #register(ServerUnit)
      */
     public static void register(final String unitPath, final ServerUnit unit) throws ServerUnitException {
         if (unitPath == null || unitPath.trim().isEmpty()) {
             // unit path value of the server unit
-            throw new InvalidUnitException("The ServerUnit has invalid path");
+            throw new NoSuchUnitException("The ServerUnit has invalid path");
         }
-        // defending units map start
-        lock.lock();
-        try {
+        // registering server unit
+        safeUnitAction(() -> {
             // put unit to the map if not exists
             if (units.putIfAbsent(unitPath, unit) != null) {
                 // the unit with the path already registered
                 throw new CannotRegisterUnitException("Path [" + unitPath + "] already registered");
             }
-        } finally {
-            // defending units map end
-            lock.unlock();
-        }
+            return null;
+        });
+//        // defending units map start
+//        lock.lock();
+//        try {
+//            // put unit to the map if not exists
+//            if (units.putIfAbsent(unitPath, unit) != null) {
+//                // the unit with the path already registered
+//                throw new CannotRegisterUnitException("Path [" + unitPath + "] already registered");
+//            }
+//        } finally {
+//            // defending units map end
+//            lock.unlock();
+//        }
     }
 
     /**
@@ -107,13 +119,11 @@ public final class ServerUnitRegistry {
      * to unregister the server unit
      *
      * @param unit the unit to unregister
-     * @throws Exception if something went wrong
-     * @see InvalidUnitException
-     * @see CannotRegisterUnitException
+     * @throws ServerUnitException if something went wrong
      * @see ServerUnit#getPath()
      * @see #unRegister(String)
      */
-    public static void unRegister(final ServerUnit unit) throws Exception {
+    public static void unRegister(final ServerUnit unit) throws ServerUnitException {
         unRegister(unit.getPath());
     }
 
@@ -122,14 +132,37 @@ public final class ServerUnitRegistry {
      * to unregister the server unit
      *
      * @param unitPath the path of the unit to unregister
-     * @throws Exception if something went wrong
-     * @see InvalidUnitException
+     * @throws ServerUnitException if something went wrong
+     * @see NoSuchUnitException
      */
-    public static void unRegister(final String unitPath) throws Exception {
+    public static void unRegister(final String unitPath) throws ServerUnitException {
         if (unitPath == null || unitPath.trim().isEmpty()) {
-            throw new InvalidUnitException("The ServerUnit has invalid path");
+            throw new NoSuchUnitException("The ServerUnit has invalid path");
         }
         safeUnitAction(() -> units.remove(unitPath));
+    }
+
+    /**
+     * <accessor>
+     * to look for the instance of server unit by unit class
+     *
+     * @param unitType the class of the unit to look for
+     * @return found server unit or empty
+     * @throws ServerUnitException if something went wrong
+     * @see NoUniqueUnitException
+     * @see Optional
+     */
+    public static Optional<ServerUnit> lookup(final Class<? extends ServerUnit> unitType) throws ServerUnitException {
+        return Optional.ofNullable(safeUnitAction(() -> {
+            final List<ServerUnit> serverUnitList = units.values().stream().filter(unitType::isInstance).collect(Collectors.toList());
+            if (serverUnitList.isEmpty()) {
+                return null;
+            } else if (serverUnitList.size() == 1) {
+                return serverUnitList.get(0);
+            } else {
+                throw new NoUniqueUnitException("Non unique registered ServerUnit found");
+            }
+        }));
     }
 
     /**
@@ -138,13 +171,13 @@ public final class ServerUnitRegistry {
      *
      * @param unitPath the path of the unit to look for
      * @return found server unit or empty
-     * @throws Exception if something went wrong
-     * @see InvalidUnitException
+     * @throws ServerUnitException if something went wrong
+     * @see NoSuchUnitException
      * @see Optional
      */
-    public static Optional<ServerUnit> lookup(final String unitPath) throws Exception {
+    public static Optional<ServerUnit> lookup(final String unitPath) throws ServerUnitException {
         if (unitPath == null || unitPath.trim().isEmpty()) {
-            throw new InvalidUnitException("The ServerUnit has invalid path");
+            throw new NoSuchUnitException("The ServerUnit has invalid path");
         }
         // returns the result of searching
         return Optional.ofNullable(safeUnitAction(() -> units.get(unitPath)));
@@ -156,13 +189,13 @@ public final class ServerUnitRegistry {
      *
      * @param unit the unit to look for
      * @return found server unit or empty
-     * @throws Exception if something went wrong
+     * @throws ServerUnitException if something went wrong
      * @see Optional
      * @see Optional#empty()
      * @see ServerUnit#getPath()
      * @see #lookup(String)
      */
-    public static Optional<ServerUnit> lookup(final ServerUnit unit) throws Exception {
+    public static Optional<ServerUnit> lookup(final ServerUnit unit) throws ServerUnitException {
         return lookup(unit.getPath());
     }
 
@@ -180,11 +213,13 @@ public final class ServerUnitRegistry {
     private ServerUnitRegistry() {
     }
 
-    private static ServerUnit safeUnitAction(Callable<ServerUnit> action) throws Exception {
+    private static ServerUnit safeUnitAction(Callable<ServerUnit> action) throws ServerUnitException {
         // defending units map start
         lock.lock();
         try {
             return action.call();
+        } catch (Exception e) {
+            throw new ServerUnitException("Cannot do safe action!", e);
         } finally {
             // defending units map end
             lock.unlock();

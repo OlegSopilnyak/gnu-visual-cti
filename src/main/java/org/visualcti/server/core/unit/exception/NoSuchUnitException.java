@@ -38,16 +38,13 @@ Fax number: 217-356-3356
 package org.visualcti.server.core.unit.exception;
 
 /**
- * Exception: Something went wrong with ServerUnit
+ * Exception: There is no unit in the units registry
  *
- * @see org.visualcti.server.core.unit.ServerUnit
+ * @see ServerUnitException
+ * @see org.visualcti.server.unit.ServerUnitRegistry
  */
-public class ServerUnitException extends Exception {
-    public ServerUnitException(String message) {
+public class NoSuchUnitException extends ServerUnitException{
+    public NoSuchUnitException(String message) {
         super(message);
-    }
-
-    public ServerUnitException(String message, Throwable cause) {
-        super(message, cause);
     }
 }
