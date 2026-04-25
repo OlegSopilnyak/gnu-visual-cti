@@ -46,6 +46,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiFunction;
+import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 import org.jdom.Comment;
 import org.jdom.DataConversionException;
@@ -72,16 +76,46 @@ import org.visualcti.server.event.model.UnitMessages;
  * @see ServerUnit
  * @see XmlAware
  */
-public class ServerUnitAdapter implements ServerUnit, XmlAware {
-    public static final String UNIT_ICON_ATTRIBUTE = "icon";
+public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
+    // the name of icon's attribute
+    private static final String UNIT_ICON_ATTRIBUTE = "icon";
+    //
+    // unit activity execution part
+    // testing is parameter unit's icon
+    private static final Predicate<ConfigurationParameter> isUnitIconParameter =
+            parameter -> UNIT_ICON_ATTRIBUTE.equals(parameter.getName());
+    // correct getting the simple name of the class from class.getName()
+    private static final Function<Class<?>, String> simpleName = clazz -> {
+        final String[] parts = clazz.getName().split("\\.");
+        return parts[parts.length - 1];
+    };
+    // correct getting the public method for the class by name
+    private static final BiFunction<Class<?>, String, Method> publicMethodOf = (clazz, methodName) -> {
+        try {
+            return clazz.getMethod(methodName);
+        } catch (NoSuchMethodException e) {
+            // doing nothing just returns null
+            return null;
+        }
+    };
+    // making builder's XML Element
+    private static final BiFunction<Class<?>, Method, Element> builderXmlOf = (builderType, builderMethod) -> {
+        // preparing server unit builder XML Element
+        final Element builderElement = new Element(UNIT_BUILDER_ELEMENT_NAME)
+                .setAttribute(UNIT_TYPE_PACKAGE, builderType.getPackage().getName())
+                .setAttribute(UNIT_TYPE_CLASS, simpleName.apply(builderType));
+        return builderMethod != null
+                // setting up declared name of the method in builder class
+                ? builderElement.setAttribute(UNIT_BUILDER_METHOD_ATTRIBUTE, builderMethod.getName())
+                : builderElement
+                ;
+    };
+    //
+    // main properties of the unit
     // the body unit's Icon Image (GIF | JPEG)
     protected byte[] iconBody = null;
     // the unit's path to the Icon content
     protected String iconBodyPath = null;
-    // the type of the unit
-    protected String unitType = "";
-    // The name of the unit
-    protected String unitName = "";
     // The path to unit instance in repository
     protected String unitPath = "";
     // The current state of the unit
@@ -91,7 +125,25 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
     // the branches of server units tree
     private final Collection<ServerUnit> branches = new ArrayList<>();
     // the factory of server action messages
-    protected final UnitMessageFactory actionMessageFactory = UnitMessages.factorySingleton();
+    private final UnitMessageFactory actionMessageFactory = UnitMessages.factorySingleton();
+    // the properties of the unit
+    private Map<String, Object> properties = new ConcurrentHashMap<>();
+
+    @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof ServerUnitAdapter)) return false;
+        ServerUnitAdapter that = (ServerUnitAdapter) o;
+        return Objects.equals(iconBodyPath, that.iconBodyPath)
+                && Objects.equals(getName(), that.getName())
+                && Objects.equals(getType(), that.getType())
+                && Objects.equals(getPath(), that.getPath())
+                && Objects.equals(getProperties(), that.getProperties());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(iconBodyPath, getType(), getName(), getPath(), getProperties());
+    }
 
     /**
      * <accessor>
@@ -100,24 +152,6 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
     @Override
     public byte[] getIcon() {
         return iconBody;
-    }
-
-    /**
-     * <accessor>
-     * To get Type of unit as string (service, manager, services tree, etc.)
-     */
-    @Override
-    public String getType() {
-        return unitType;
-    }
-
-    /**
-     * <accessor>
-     * To get Name of the unit to show in UI
-     */
-    @Override
-    public String getName() {
-        return unitName;
     }
 
     /**
@@ -136,6 +170,28 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
     @Override
     public UnitState currentUnitState() {
         return unitState;
+    }
+
+    /**
+     * <accessor>
+     * To get main class of the unit
+     *
+     * @see #buildUnitRootElement()
+     */
+    @Override
+    public Class<? extends ServerUnit> getUnitClass() {
+        return ServerUnitAdapter.class;
+    }
+
+    /**
+     * <accessor>
+     * To get class-builder of the unit instance
+     *
+     * @see ServerUnit#getUnitBuilderMethodName()
+     */
+    @Override
+    public Class<?> getUnitBuilderClass() {
+        return getUnitClass();
     }
 
     /**
@@ -178,17 +234,6 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
     }
 
     /**
-     * <accessor>
-     * To get main class of the unit
-     *
-     * @see #buildUnitRootElement()
-     */
-    @Override
-    public Class<? extends ServerUnit> getUnitClass() {
-        return ServerUnitAdapter.class;
-    }
-
-    /**
      * <converter>
      * To build parameters of root XML element of the unit (for unit building)
      *
@@ -215,17 +260,6 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
     }
 
     /**
-     * <accessor>
-     * To get class-builder of the unit instance
-     *
-     * @see ServerUnit#getUnitBuilderMethodName()
-     */
-    @Override
-    public Class<?> getUnitBuilderClass() {
-        return getUnitClass();
-    }
-
-    /**
      * <converter>
      * To represent base parameters of unit as an XML element
      *
@@ -240,7 +274,7 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
      * <converter>
      * To represent the parameters of unit as an XML element
      *
-     * @param rootElement  building from unit XML Element
+     * @param rootElement building from unit XML Element
      * @see Element
      * @see #getXML()
      */
@@ -289,7 +323,7 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
      *
      * @param xml the XML Element of the unit
      * @see Element
-     * @see #prepareUnitXML(Element)
+     * @see #setXML(Element)
      */
     @SuppressWarnings("unchecked")
     protected void prepareMainPart(Element xml) {
@@ -297,7 +331,7 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
         final List<Element> parameters = xml.getChildren(ConfigurationParameter.ELEMENT);
         parameters.stream().map(ConfigurationParameter::of).filter(Objects::nonNull)
                 .forEach(parameter -> {
-                    if (UNIT_ICON_ATTRIBUTE.equals(parameter.getName())) {
+                    if (isUnitIconParameter.test(parameter)) {
                         // found icon parameter
                         iconBodyPath = parameter.getValue();
                         loadIconBodyFrom(iconBodyPath);
@@ -307,6 +341,7 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
                     }
                 });
     }
+
 
     /**
      * <converter>
@@ -326,9 +361,10 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
      *
      * @param xml the XML Element of the unit
      * @see Element
-     * @see #prepareMainPart(Element)
+     * @see #setXML(Element)
+     * @see #setProperties(Map)
      */
-    private void preparePropertiesPart(Element xml) {
+    protected void preparePropertiesPart(Element xml) {
         // doing nothing because unit already created
     }
 
@@ -367,7 +403,7 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
      */
     @Override
     public Map<String, Object> getProperties() {
-        return Collections.emptyMap();
+        return Collections.unmodifiableMap(properties);
     }
 
     /**
@@ -379,7 +415,7 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
      */
     @Override
     public void setProperties(Map<String, Object> properties) {
-
+        this.properties = new ConcurrentHashMap<>(properties);
     }
 
     /**
@@ -487,13 +523,13 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
         // attributes in unit's root element (server unit class)
         rootElement
                 .setAttribute(UNIT_TYPE_PACKAGE, unitPackage)
-                .setAttribute(UNIT_TYPE_CLASS, simpleName(unitClass));
+                .setAttribute(UNIT_TYPE_CLASS, simpleName.apply(unitClass));
         //
         if (!unitClass.equals(parentUnitClass)) {
             // attributes in unit's root element (server unit extends class)
             final String parentPackage = parentUnitClass.getPackage().getName();
             final String unitExtendsClassName =
-                    unitPackage.equals(parentPackage) ? simpleName(parentUnitClass) : parentUnitClass.getName();
+                    unitPackage.equals(parentPackage) ? simpleName.apply(parentUnitClass) : parentUnitClass.getName();
             rootElement.setAttribute(UNIT_TYPE_EXTENDS_CLASS, unitExtendsClassName);
         }
         return unitClass;
@@ -514,7 +550,7 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
             // builder class the same as unit-class and builder method is empty
         } else if (!isEmptyBuilderMethod) {
             // checking unit builder method
-            final Method builderMethod = getPublicMethodInstanceFor(builderClass, builderMethodName);
+            final Method builderMethod = publicMethodOf.apply(builderClass, builderMethodName);
             // got unit builder method
             if (builderMethod != null && !unitClass.isAssignableFrom(builderMethod.getReturnType())) {
                 // builder method return type is not compatible with unit class
@@ -522,45 +558,17 @@ public class ServerUnitAdapter implements ServerUnit, XmlAware {
             }
             // preparing separate builder XML Element
             // adding builder element to the root unit element XML
-            rootElement.addContent(builderXML(builderClass, builderMethod));
+            rootElement.addContent(builderXmlOf.apply(builderClass, builderMethod));
         } else if (unitClass.isAssignableFrom(builderClass)) {
             // builder class is a child of server unit class
             // adding builder element to the root unit XML element
-            rootElement.addContent(builderXML(builderClass, null));
-        }
-    }
-
-    // to make builder's XML Element
-    private static Element builderXML(final Class<?> builderClass, final Method builderMethod) {
-        // preparing basic builder XML Element
-        final Element builderElement = new Element(UNIT_BUILDER_ELEMENT_NAME)
-                .setAttribute(UNIT_TYPE_PACKAGE, builderClass.getPackage().getName())
-                .setAttribute(UNIT_TYPE_CLASS, simpleName(builderClass));
-        if (builderMethod == null) {
-            // not declared or wrong name of the method in builder class
-        } else {
-            builderElement.setAttribute(UNIT_BUILDER_METHOD_ATTRIBUTE, builderMethod.getName());
-        }
-        return builderElement;
-    }
-
-    // getting the public method for the class by name
-    private static String simpleName(Class<?> clazz) {
-        final String[] parts = clazz.getName().split("\\.");
-        return parts[parts.length - 1];
-    }
-    private static Method getPublicMethodInstanceFor(Class<?> clazz, String methodName) {
-        try {
-            return clazz.getMethod(methodName);
-        } catch (NoSuchMethodException e) {
-            // doing nothing just returns null
-            return null;
+            rootElement.addContent(builderXmlOf.apply(builderClass, null));
         }
     }
 
     // to load icon body from the path in the classloader
     private void loadIconBodyFrom(String path) {
-        try(InputStream in = getClass().getClassLoader().getResourceAsStream(path)) {
+        try (InputStream in = getClass().getClassLoader().getResourceAsStream(path)) {
             if (in != null) {
                 final int bodySize = in.available();
                 iconBody = new byte[bodySize];

@@ -61,7 +61,7 @@ public interface TasksPoolUnit extends ServerUnit, XmlAware {
     enum PoolType {
         PUBLIC("public"),
         LOCAL("local");
-        private String type;
+        private final String type;
 
         PoolType(String type) {
             this.type = type;
@@ -74,6 +74,10 @@ public interface TasksPoolUnit extends ServerUnit, XmlAware {
                 }
             }
             return null;
+        }
+
+        public String getType() {
+            return type;
         }
     }
 

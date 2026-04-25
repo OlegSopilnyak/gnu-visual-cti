@@ -297,8 +297,7 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
         @SuppressWarnings("unchecked")
         default T build(Element configuration) throws IOException {
             final String unitPackage = configuration.getAttributeValue(UNIT_TYPE_PACKAGE);
-            final String unitClassName =
-                    className.apply(unitPackage, configuration.getAttributeValue(UNIT_TYPE_CLASS));
+            final String unitClassName = className.apply(unitPackage, configuration.getAttributeValue(UNIT_TYPE_CLASS));
             final String unitExtendsClassName =
                     className.apply(unitPackage, configuration.getAttributeValue(UNIT_TYPE_EXTENDS_CLASS));
             try {
@@ -313,7 +312,7 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
                     throw new IOException("Class " + unitExtendsClassName + " is not extending " + unitClassName);
                 }
                 // creating the instance of server unit
-                final Element unitBuilderXML = configuration.getChild(UNIT_BUILDER_ELEMENT_NAME);
+                final Element unitBuilderXML = getBuilderElement(configuration);
                 final T unit = unitBuilderXML == null ? unitClass.newInstance() : build(unitBuilderXML, unitExtendsClass);
                 // configuring created server unit instance
                 unit.configure(configuration);
@@ -350,5 +349,11 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
             }
             throw new IOException("Built unit is not an instance of " + extendsClass.getName());
         }
+    }
+
+    static Element getBuilderElement(Element configuration) {
+        final Element element = configuration.getChild(UNIT_BUILDER_ELEMENT_NAME);
+        // for backward compatibility of old sever XML format
+        return element != null ? element : configuration.getChild("parent");
     }
 }

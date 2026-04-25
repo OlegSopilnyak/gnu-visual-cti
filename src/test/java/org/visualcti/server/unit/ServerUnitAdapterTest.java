@@ -61,7 +61,7 @@ public class ServerUnitAdapterTest {
     @Before
     public void setUp() {
         // no builder class
-        serverUnitAdapter = new ServerUnitAdapter() {
+        serverUnitAdapter = new ServerUnitAdapterImpl() {
             @Override
             public Class<?> getUnitBuilderClass() {
                 return null;
@@ -72,7 +72,7 @@ public class ServerUnitAdapterTest {
     @Test
     public void shouldAdjustServerUnit_ExtendsClassTheSameAsUnit() {
         // preparing test data
-        ServerUnitAdapter serverUnitAdapter = new ServerUnitAdapter(){
+        ServerUnitAdapter serverUnitAdapter = new ServerUnitAdapterImpl() {
             @Override
             public Class<? extends ServerUnit> getUnitExtendsClass() {
                 return ServerUnitAdapter.class;
@@ -108,7 +108,7 @@ public class ServerUnitAdapterTest {
     @Test
     public void shouldUpdatePrepareBaseUnitXML_BuilderClassCorrect_NoBuilderMethod() {
         // preparing test data
-        ServerUnitAdapter serverUnitAdapter = new ServerUnitAdapter() {
+        ServerUnitAdapter serverUnitAdapter = new ServerUnitAdapterImpl() {
             @Override
             public Class<?> getUnitBuilderClass() {
                 return ServerUnitAdapterBuilder.class;
@@ -121,12 +121,12 @@ public class ServerUnitAdapterTest {
         // check results
         Object content = element.getContent().get(0);
         assertThat(content).isInstanceOf(Comment.class);
-        assertThat(((Comment)content).getText()).isEqualTo("Adapter of server unit");
+        assertThat(((Comment) content).getText()).isEqualTo("Adapter of server unit");
         assertThat(element.getAttributeValue("class")).isEqualTo("ServerUnitAdapter");
         assertThat(element.getAttributeValue("package")).isEqualTo("org.visualcti.server.unit");
         assertThat(element.getAttributeValue("extends")).isEqualTo("org.visualcti.server.core.unit.ServerUnit");
         // check builder element
-        Element builder =  element.getChild("builder");
+        Element builder = element.getChild("builder");
         assertThat(builder).isNotNull();
         assertThat(builder.getAttributeValue("class")).isEqualTo("ServerUnitAdapterTest$ServerUnitAdapterBuilder");
         assertThat(builder.getAttributeValue("package")).isEqualTo("org.visualcti.server.unit");
@@ -136,7 +136,7 @@ public class ServerUnitAdapterTest {
     @Test
     public void shouldUpdatePrepareBaseUnitXML_BuilderClassCorrect_BuilderMethodCorrect() {
         // preparing test data
-        ServerUnitAdapter serverUnitAdapter = new ServerUnitAdapter() {
+        ServerUnitAdapter serverUnitAdapter = new ServerUnitAdapterImpl() {
             @Override
             public Class<?> getUnitBuilderClass() {
                 return ServerUnitAdapterBuilder.class;
@@ -154,12 +154,12 @@ public class ServerUnitAdapterTest {
         // check results
         Object content = element.getContent().get(0);
         assertThat(content).isInstanceOf(Comment.class);
-        assertThat(((Comment)content).getText()).isEqualTo("Adapter of server unit");
+        assertThat(((Comment) content).getText()).isEqualTo("Adapter of server unit");
         assertThat(element.getAttributeValue("class")).isEqualTo("ServerUnitAdapter");
         assertThat(element.getAttributeValue("package")).isEqualTo("org.visualcti.server.unit");
         assertThat(element.getAttributeValue("extends")).isEqualTo("org.visualcti.server.core.unit.ServerUnit");
         // check builder element
-        Element builder =  element.getChild("builder");
+        Element builder = element.getChild("builder");
         assertThat(builder.getAttributeValue("class")).isEqualTo("ServerUnitAdapterTest$ServerUnitAdapterBuilder");
         assertThat(builder.getAttributeValue("package")).isEqualTo("org.visualcti.server.unit");
         assertThat(builder.getAttributeValue("method")).isEqualTo("build");
@@ -168,7 +168,7 @@ public class ServerUnitAdapterTest {
     @Test
     public void shouldUpdatePrepareBaseUnitXML_BuilderClassCorrect_BuilderMethodIncorrect() {
         // preparing test data
-        ServerUnitAdapter serverUnitAdapter = new ServerUnitAdapter() {
+        ServerUnitAdapter serverUnitAdapter = new ServerUnitAdapterImpl() {
             @Override
             public Class<?> getUnitBuilderClass() {
                 return ServerUnitAdapterBuilder.class;
@@ -186,12 +186,12 @@ public class ServerUnitAdapterTest {
         // check results
         Object content = element.getContent().get(0);
         assertThat(content).isInstanceOf(Comment.class);
-        assertThat(((Comment)content).getText()).isEqualTo("Adapter of server unit");
+        assertThat(((Comment) content).getText()).isEqualTo("Adapter of server unit");
         assertThat(element.getAttributeValue("class")).isEqualTo("ServerUnitAdapter");
         assertThat(element.getAttributeValue("package")).isEqualTo("org.visualcti.server.unit");
         assertThat(element.getAttributeValue("extends")).isEqualTo("org.visualcti.server.core.unit.ServerUnit");
         // check builder element
-        Element builder =  element.getChild("builder");
+        Element builder = element.getChild("builder");
         assertThat(builder.getAttributeValue("class")).isEqualTo("ServerUnitAdapterTest$ServerUnitAdapterBuilder");
         assertThat(builder.getAttributeValue("package")).isEqualTo("org.visualcti.server.unit");
         assertThat(builder.getAttributeValue("method")).isNull();
@@ -200,7 +200,7 @@ public class ServerUnitAdapterTest {
     @Test
     public void shouldUpdatePrepareBaseUnitXML_BuilderClassCorrect_NoDescription() {
         // preparing test data
-        ServerUnitAdapter serverUnitAdapter = new ServerUnitAdapter() {
+        ServerUnitAdapter serverUnitAdapter = new ServerUnitAdapterImpl() {
             @Override
             protected String getUnitDescription() {
                 return "";
@@ -223,7 +223,7 @@ public class ServerUnitAdapterTest {
         assertThat(element.getAttributeValue("package")).isEqualTo("org.visualcti.server.unit");
         assertThat(element.getAttributeValue("extends")).isEqualTo("org.visualcti.server.core.unit.ServerUnit");
         // check builder element
-        Element builder =  element.getChild("builder");
+        Element builder = element.getChild("builder");
         assertThat(builder.getAttributeValue("class")).isEqualTo("ServerUnitAdapterTest$ServerUnitAdapterBuilder");
         assertThat(builder.getAttributeValue("package")).isEqualTo("org.visualcti.server.unit");
         assertThat(builder.getAttributeValue("method")).isNull();
@@ -233,12 +233,16 @@ public class ServerUnitAdapterTest {
     public void shouldGetServerUnitXML() throws IOException {
         // preparing test data
         String iconPath = "icon/icon_body.gif";
-        ServerUnitAdapter unit = new ServerUnitAdapter() {
-            {iconBodyPath = iconPath;}
+        ServerUnitAdapter unit = new ServerUnitAdapterImpl() {
+            {
+                iconBodyPath = iconPath;
+            }
+
             @Override
             public Class<?> getUnitBuilderClass() {
                 return ServerUnitAdapterBuilder.class;
             }
+
             @Override
             public String getUnitBuilderMethodName() {
                 return "build";
@@ -250,7 +254,7 @@ public class ServerUnitAdapterTest {
 
         // check results
         final BufferedReader reader;
-        try (ByteArrayOutputStream output = new ByteArrayOutputStream()){
+        try (ByteArrayOutputStream output = new ByteArrayOutputStream()) {
             unit.store(output, false);
             reader = new BufferedReader(new StringReader(output.toString()));
         }
@@ -262,7 +266,7 @@ public class ServerUnitAdapterTest {
         // checking content
         Object content = element.getContent().get(0);
         assertThat(content).isInstanceOf(Comment.class);
-        assertThat(((Comment)content).getText()).isEqualTo("Adapter of server unit");
+        assertThat(((Comment) content).getText()).isEqualTo("Adapter of server unit");
         assertThat(element).isNotNull();
         assertThat(element.getAttributeValue("class")).isEqualTo("ServerUnitAdapter");
         assertThat(element.getAttributeValue("package")).isEqualTo("org.visualcti.server.unit");
@@ -285,10 +289,9 @@ public class ServerUnitAdapterTest {
     public void shouldSetServerUnitXML() throws IOException, DataConversionException {
         // preparing test data
         String iconPath = "icon/icon_body.gif";
-        ServerUnitAdapter unit = new ServerUnitAdapter();
+        ServerUnitAdapter unit = new ServerUnitAdapterImpl();
         assertThat(unit.iconBodyPath).isNull();
-        Element element = unit.getXML()
-                .addContent(ConfigurationParameter.of("icon", iconPath).getXml());
+        Element element = unit.getXML().addContent(ConfigurationParameter.of("icon", iconPath).getXml());
 
         // acting
         unit.setXML(element);
@@ -296,7 +299,7 @@ public class ServerUnitAdapterTest {
         // check results
         assertThat(unit.iconBodyPath).isEqualTo(iconPath);
         assertThat(unit.iconBody).isNotEmpty();
-        try(InputStream in = unit.getClass().getClassLoader().getResourceAsStream(unit.iconBodyPath)) {
+        try (InputStream in = unit.getClass().getClassLoader().getResourceAsStream(unit.iconBodyPath)) {
             assertThat(in).isNotNull();
             byte[] buffer = new byte[in.available()];
             assertThat(in.read(buffer)).isEqualTo(buffer.length);
@@ -317,9 +320,24 @@ public class ServerUnitAdapterTest {
     }
 
     // inner classes
-    private static class ServerUnitAdapterBuilder extends ServerUnitAdapter {
+    private static class ServerUnitAdapterBuilder extends ServerUnitAdapterImpl {
         public ServerUnitAdapter build() {
-            return new ServerUnitAdapter();
+            return new ServerUnitAdapterImpl();
+        }
+    }
+
+    private static class ServerUnitAdapterImpl extends ServerUnitAdapter {
+        public ServerUnitAdapterImpl() {
+        }
+
+        @Override
+        public String getName() {
+            return "Adapter";
+        }
+
+        @Override
+        public String getType() {
+            return "adapter";
         }
     }
 }

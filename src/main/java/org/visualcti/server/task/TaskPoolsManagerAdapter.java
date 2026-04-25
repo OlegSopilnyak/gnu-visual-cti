@@ -136,6 +136,50 @@ public class TaskPoolsManagerAdapter extends ServerUnitAdapter implements TaskPo
 
     }
 
+    /**
+     * <accessor>
+     * To get current state value
+     *
+     * @return the current state ID of the engine
+     */
+    @Override
+    public short getState() {
+        return state.getCode();
+    }
+
+    /**
+     * <mutator>
+     * To set up the new state value
+     *
+     * @param state new state ID of the engine
+     */
+    @Override
+    public void setState(short state) {
+        this.state = State.of(state);
+    }
+
+    /**
+     * <accessor>
+     * To get Name of the unit to show in UI
+     *
+     * @return the value
+     */
+    @Override
+    public String getName() {
+        return "TaskPoolsManager";
+    }
+
+    /**
+     * <accessor>
+     * To get Type of unit as string (service, manager, subsystem, etc.)
+     *
+     * @return the value
+     */
+    @Override
+    public String getType() {
+        return "manager";
+    }
+
     // private methods
     private TasksPoolUnit safeAction(final Callable<TasksPoolUnit> action) {
         poolLock.lock();
@@ -177,27 +221,5 @@ public class TaskPoolsManagerAdapter extends ServerUnitAdapter implements TaskPo
 
     private static String poolKey(String name, String factory) {
         return factory + "/" + name;
-    }
-
-    /**
-     * <accessor>
-     * To get current state value
-     *
-     * @return the current state ID of the engine
-     */
-    @Override
-    public short getState() {
-        return state.getCode();
-    }
-
-    /**
-     * <mutator>
-     * To set up the new state value
-     *
-     * @param state new state ID of the engine
-     */
-    @Override
-    public void setState(short state) {
-        this.state = State.of(state);
     }
 }

@@ -46,6 +46,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Consumer;
 import org.jdom.DataConversionException;
 import org.jdom.Element;
 import org.visualcti.server.core.executable.Engine;
@@ -75,6 +76,8 @@ public class TasksPoolUnitAdapter extends ServerUnitAdapter implements TasksPool
     private transient volatile Task currentTask = null;
     // type of tasks pool
     private PoolType poolType;
+    //    // The name of the unit
+    private String unitName = "";
     // the group of tasks pool
     private String group;
     // the name of file of the pool's XML
@@ -83,6 +86,16 @@ public class TasksPoolUnitAdapter extends ServerUnitAdapter implements TasksPool
     private File poolLocation;
     // the state of engine (tasks pool)
     private Engine.State unitEngineState = Engine.State.OUT_OF_SERVICE;
+    //
+    // to do action in safe for tasks ring way
+    private final Consumer<Runnable> safeTasksRingAction = action -> {
+        tasksRingLock.lock();
+        try {
+            action.run();
+        } finally {
+            tasksRingLock.unlock();
+        }
+    };
 
     /**
      * <accessor>
@@ -116,7 +129,18 @@ public class TasksPoolUnitAdapter extends ServerUnitAdapter implements TasksPool
      */
     @Override
     public String getName() {
-        return isEmpty(group) ? super.getName() : group + "/" + super.getName();
+        return isEmpty(group) ? unitName : group + "/" + unitName;
+    }
+
+    /**
+     * <accessor>
+     * To get Type of unit as string (service, manager, subsystem, etc.)
+     *
+     * @return the value
+     */
+    @Override
+    public String getType() {
+        return getPoolType().getType() +"/tasks/pool";
     }
 
     /**
@@ -189,16 +213,16 @@ public class TasksPoolUnitAdapter extends ServerUnitAdapter implements TasksPool
     @Override
     public void Start() throws IOException {
         if (!isStarted() && !pool.isEmpty()) {
-            dedicatedTasksRing(() -> {
+            safeTasksRingAction.accept(() -> {
                 // to copying tasks from pool to the tasks ring
                 inServiceTasksRing.addAll(pool);
                 // update the state
                 unitEngineState = Engine.State.IN_SERVICE;
             });
             // preparing engine started successfully event
-            final UnitActionEvent event = actionMessageFactory.build(MessageType.EVENT, UnitActionEvent.class);
+            final UnitActionEvent event = getMessageFactory().build(MessageType.EVENT, UnitActionEvent.class);
             // dispatching success engine started event
-            dispatch(event.setUnitPath(getPath()).setFamilyType(MessageFamilyType.START));
+            dispatch(event.setFamilyType(MessageFamilyType.START).setUnitPath(getPath()));
         }
     }
 
@@ -219,7 +243,7 @@ public class TasksPoolUnitAdapter extends ServerUnitAdapter implements TasksPool
         } catch (NullPointerException e) {
             // do nothing here, just ignore if current task is null
         }
-        dedicatedTasksRing(() -> {
+        safeTasksRingAction.accept(() -> {
             // clear the tasks ring
             inServiceTasksRing.clear();
             currentTask = null;
@@ -227,9 +251,9 @@ public class TasksPoolUnitAdapter extends ServerUnitAdapter implements TasksPool
             unitEngineState = Engine.State.OUT_OF_SERVICE;
         });
         // preparing engine stopped successfully event
-        final UnitMessage event = actionMessageFactory.build(MessageType.EVENT, UnitActionEvent.class);
+        final UnitMessage event = getMessageFactory().build(MessageType.EVENT, UnitActionEvent.class);
         // dispatching engine stopped successfully event
-        dispatch(event.setUnitPath(getPath()).setFamilyType(MessageFamilyType.STOP));
+        dispatch(event.setFamilyType(MessageFamilyType.STOP).setUnitPath(getPath()));
     }
 
     /**
@@ -288,7 +312,7 @@ public class TasksPoolUnitAdapter extends ServerUnitAdapter implements TasksPool
             return null;
         } else {
             // rotate tasks ring and setup current one
-            dedicatedTasksRing(() -> {
+            safeTasksRingAction.accept(() -> {
                 // get first Task in the linked list
                 final Task taskFromTheTop = inServiceTasksRing.removeFirst();
                 // set current pool's task
@@ -423,15 +447,6 @@ public class TasksPoolUnitAdapter extends ServerUnitAdapter implements TasksPool
     }
 
     // private methods
-    private void dedicatedTasksRing(final Runnable action) {
-        tasksRingLock.lock();
-        try {
-            action.run();
-        } finally {
-            tasksRingLock.unlock();
-        }
-    }
-
     //To get the installed pool's tasks list as a string
     private String tasksList() {
         final StringBuilder builder = new StringBuilder();

@@ -60,7 +60,17 @@ public class ServerUnitBuilderTest {
     public void shouldBuildServerUnitAdapter() throws IOException {
         // preparing test data
         String iconPath = "icon/icon_body.gif";
-        ServerUnitAdapter unit = new ServerUnitAdapter();
+        ServerUnitAdapter unit = new ServerUnitAdapter() {
+            @Override
+            public String getName() {
+                return "Adapter";
+            }
+
+            @Override
+            public String getType() {
+                return "adapter";
+            }
+        };
         assertThat(unit.getIcon()).isNull();
         Element xml = unit.getXML();
         assertThat(xml).isNotNull();
@@ -104,7 +114,17 @@ public class ServerUnitBuilderTest {
     // inner classes
     private static class ServerUnitAdapterBuilder extends ServerUnitAdapter {
         public static ServerUnit build() {
-            return new ServerUnitAdapter();
+            return new ServerUnitAdapterBuilder();
+        }
+
+        @Override
+        public String getName() {
+            return "Builder";
+        }
+
+        @Override
+        public String getType() {
+            return "builder";
         }
     }
 }

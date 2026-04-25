@@ -83,7 +83,7 @@ public interface UnitBasics {
 
     /**
      * <accessor>
-     * To get Type of unit as string (service, manager, services tree, etc.)
+     * To get Type of unit as string (service, manager, subsystem, etc.)
      *
      * @return the value
      */
