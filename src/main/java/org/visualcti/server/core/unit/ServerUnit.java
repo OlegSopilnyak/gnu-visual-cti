@@ -159,22 +159,23 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
 /////////// SERVER UNIT HIERARCHY PART (begin) ////////////////////
     /**
      * <mutator>
-     * to add child to the composite units tree<BR/>
-     * set up the owner for the child unit this unit
+     * to add child to the server unit composite units tree<BR/>
+     * set up the owner for the child unit current unit
      *
-     * @param child the unit to add
+     * @param unit the unit to add
      * @see UnitsComposite#add(ServerUnit)
-     * @see ServerUnit#setOwner(ServerUnit)
+     * @see UnitsComposite#isChild(ServerUnit)
+     * @see UnitsComposite#setOwner(ServerUnit)
      * @see #addBranch(ServerUnit)
      */
     @Override
-    default void add(ServerUnit child) {
-        if (child != null && child.getOwner() != this) {
+    default void add(ServerUnit unit) {
+        if (unit != null && !isChild(unit)) {
             try {
                 // attaching child to units registry
-                child.setOwner(this);
+                unit.setOwner(this);
                 // adding child to unit's tree
-                addBranch(child);
+                addBranch(unit);
             } catch (IOException e) {
                 e.printStackTrace(Tools.err);
             }
@@ -183,26 +184,48 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
 
     /**
      * <mutator>
-     * to remove child from the composite units tree
+     * to add unit to the server unit composite units tree as a branch
      *
-     * @param child the unit to remove
+     * @param branch the unit to add as a branch
      * @see ServerUnit
+     * @see #add(ServerUnit)
+     */
+    void addBranch(ServerUnit branch);
+
+    /**
+     * <mutator>
+     * to remove child from the server unit composite units tree
+     *
+     * @param unit the unit to remove
+     * @see ServerUnit
+     * @see UnitsComposite#remove(ServerUnit)
+     * @see UnitsComposite#isChild(ServerUnit)
+     * @see UnitsComposite#setOwner(ServerUnit)
      * @see #removeBranch(ServerUnit)
-     * @see #setOwner(ServerUnit)
      */
     @Override
-    default void remove(ServerUnit child) {
-        if (child.getOwner() == this) {
+    default void remove(ServerUnit unit) {
+        if (isChild(unit)) {
             try {
-                // detaching child unit from units registry
-                child.setOwner(null);
+                // detaching child unit from units composite units tree
+                unit.setOwner(null);
                 // removing child from unit's tree
-                removeBranch(child);
+                removeBranch(unit);
             } catch (IOException e) {
                 e.printStackTrace(Tools.err);
             }
         }
     }
+
+    /**
+     * <mutator>
+     * to remove the branch from the server unit's units tree
+     *
+     * @param branch the unit to remove from composite tree
+     * @see ServerUnit
+     * @see #remove(ServerUnit)
+     */
+    void removeBranch(ServerUnit branch);
 /////////// SERVER UNIT HIERARCHY PART (end) ////////////////////
 
 ///////////// PROPERTIES PART (begin) //////////////
@@ -287,6 +310,7 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
         // function to calculate canonical java class name
         BiFunction<String, String, String> className = (packageName, className) ->
                 className.contains(".") ? className : packageName + "." + className;
+
         /**
          * <builder method>
          * To build the instance of server unit from XML Element
@@ -320,7 +344,8 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
                 return unit;
             } catch (ClassNotFoundException e) {
                 throw new IOException("Class not found", e);
-            } catch (IllegalAccessException | InstantiationException | NoSuchMethodException | InvocationTargetException e) {
+            } catch (IllegalAccessException | InstantiationException | NoSuchMethodException |
+                     InvocationTargetException e) {
                 throw new IOException("Cannot make unit instance", e);
             }
         }
@@ -328,8 +353,7 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
         @SuppressWarnings("unchecked")
         default T build(Element xml, Class<?> extendsClass) throws
                 ClassNotFoundException, IllegalAccessException, InstantiationException, NoSuchMethodException,
-                InvocationTargetException, IOException
-        {
+                InvocationTargetException, IOException {
             final String builderClassName =
                     className.apply(xml.getAttributeValue(UNIT_TYPE_PACKAGE), xml.getAttributeValue(UNIT_TYPE_CLASS));
             // creating the class of the builder

@@ -50,17 +50,20 @@ import org.visualcti.server.core.unit.ServerUnit;
 public interface UnitsComposite {
     /**
      * <accessor>
-     * To get access to the owner of this unit (null for root unit)
+     * To get access to the owner of this composite (null for root unit)
+     *
+     * @return the reference to server composite's owner or null if it isn't exists
+     * @see ServerUnit
      */
     ServerUnit getOwner();
 
     /**
      * <mutator>
-     * To set new owner of this unit (null for the root unit)
+     * To set new owner of this composite (null for the root unit)
      *
-     * @param owner new value of unit's owner
+     * @param owner new value of composite's owner
      * @throws IOException if cannot reregister unit (or children) in units registry
-     * @see org.visualcti.server.UnitRegistry#register(ServerUnit)
+     * @see ServerUnit
      */
     void setOwner(ServerUnit owner) throws IOException;
 
@@ -70,19 +73,8 @@ public interface UnitsComposite {
      *
      * @param child the unit to add
      * @see ServerUnit
-     * @see #addBranch(ServerUnit)
      */
     void add(ServerUnit child);
-
-    /**
-     * <mutator>
-     * to add unit to the composite units tree as a branch
-     *
-     * @param branch the unit to add as a branch
-     * @see ServerUnit
-     * @see #add(ServerUnit)
-     */
-    void addBranch(ServerUnit branch);
 
     /**
      * <mutator>
@@ -90,19 +82,8 @@ public interface UnitsComposite {
      *
      * @param child the unit to remove
      * @see ServerUnit
-     * @see #removeBranch(ServerUnit)
      */
     void remove(ServerUnit child);
-
-    /**
-     * <mutator>
-     * to remove the branch from the composite units tree
-     *
-     * @param branch the unit to remove from composite tree
-     * @see ServerUnit
-     * @see #remove(ServerUnit)
-     */
-    void removeBranch(ServerUnit branch);
 
     /**
      * <mutator>
@@ -111,8 +92,9 @@ public interface UnitsComposite {
      * @see #children()
      * @see #remove(ServerUnit)
      */
-    default void removeAll() {
+    default boolean removeAll() {
         children().forEach(this::remove);
+        return true;
     }
 
     /**

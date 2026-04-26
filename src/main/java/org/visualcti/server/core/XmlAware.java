@@ -80,6 +80,7 @@ public interface XmlAware extends Serializable {
      *
      * @return the name of root element
      * @see #getXML()
+     * @see Class#getSimpleName()
      */
     default String getRootElementName() {
         return getClass().getSimpleName();
@@ -90,6 +91,7 @@ public interface XmlAware extends Serializable {
      *
      * @return entity's XML
      * @see Element
+     * @see #getRootElementName()
      */
     default Element getXML() {
         return new Element(getRootElementName());

@@ -67,7 +67,7 @@ import org.visualcti.server.unit.ServerUnitAdapter;
  */
 public class TasksPoolUnitAdapter extends ServerUnitAdapter implements TasksPoolUnit, Engine {
     // The list of tasks in the pool
-    private final List<Task> pool = Collections.synchronizedList(new LinkedList<>());
+    private final List<Task> tasksPool = Collections.synchronizedList(new LinkedList<>());
     // working ring of the tasks (used in the in-service engine state)
     private final LinkedList<Task> inServiceTasksRing = new LinkedList<>();
     // locker for started tasks ring
@@ -76,10 +76,10 @@ public class TasksPoolUnitAdapter extends ServerUnitAdapter implements TasksPool
     private transient volatile Task currentTask = null;
     // type of tasks pool
     private PoolType poolType;
-    //    // The name of the unit
-    private String unitName = "";
+    // The name of the unit
+    private String poolName = "";
     // the group of tasks pool
-    private String group;
+    private String poolGroup;
     // the name of file of the pool's XML
     private String poolFile;
     // the file of the pool's XML
@@ -87,7 +87,7 @@ public class TasksPoolUnitAdapter extends ServerUnitAdapter implements TasksPool
     // the state of engine (tasks pool)
     private Engine.State unitEngineState = Engine.State.OUT_OF_SERVICE;
     //
-    // to do action in safe for tasks ring way
+    // to do action in safe, for tasks ring, way
     private final Consumer<Runnable> safeTasksRingAction = action -> {
         tasksRingLock.lock();
         try {
@@ -126,10 +126,25 @@ public class TasksPoolUnitAdapter extends ServerUnitAdapter implements TasksPool
     /**
      * <accessor>
      * To get Name of the unit to show in UI
+     *
+     * @return the value
      */
     @Override
     public String getName() {
-        return isEmpty(group) ? unitName : group + "/" + unitName;
+        return isEmpty(poolGroup) ? poolName : poolGroup + "/" + poolName;
+    }
+
+    /**
+     * <mutator>
+     * To set up the name of the pool
+     *
+     * @param poolName new value of pool's group
+     * @return reference to tasks pool
+     */
+    @Override
+    public TasksPoolUnit setPoolName(String poolName) {
+        this.poolName = poolName;
+        return this;
     }
 
     /**
@@ -140,7 +155,7 @@ public class TasksPoolUnitAdapter extends ServerUnitAdapter implements TasksPool
      */
     @Override
     public String getType() {
-        return getPoolType().getType() +"/tasks/pool";
+        return getPoolType().getType() + "/tasks/pool";
     }
 
     /**
@@ -150,8 +165,8 @@ public class TasksPoolUnitAdapter extends ServerUnitAdapter implements TasksPool
      * @return group name of the pool
      */
     @Override
-    public String getGroup() {
-        return group;
+    public String getPoolGroup() {
+        return poolGroup;
     }
 
     /**
@@ -162,8 +177,8 @@ public class TasksPoolUnitAdapter extends ServerUnitAdapter implements TasksPool
      * @return reference to tasks pool
      */
     @Override
-    public TasksPoolUnit setGroup(String group) {
-        this.group = group;
+    public TasksPoolUnit setPoolGroup(String group) {
+        this.poolGroup = group;
         return this;
     }
 
@@ -212,11 +227,13 @@ public class TasksPoolUnitAdapter extends ServerUnitAdapter implements TasksPool
      */
     @Override
     public void Start() throws IOException {
-        if (!isStarted() && !pool.isEmpty()) {
+        if (unitState != UnitState.BROKEN && !isStarted() && !tasksPool.isEmpty()) {
             safeTasksRingAction.accept(() -> {
                 // to copying tasks from pool to the tasks ring
-                inServiceTasksRing.addAll(pool);
-                // update the state
+                inServiceTasksRing.addAll(tasksPool);
+                // updating the unit state
+                unitState = UnitState.ACTIVE;
+                // update the engine state
                 unitEngineState = Engine.State.IN_SERVICE;
             });
             // preparing engine started successfully event
@@ -234,26 +251,27 @@ public class TasksPoolUnitAdapter extends ServerUnitAdapter implements TasksPool
      */
     @Override
     public void Stop() throws IOException {
-        if ( isStopped() ) {
-            return;
+        if (unitState != UnitState.BROKEN && !isStopped()) {
+            try {
+                // to stop execution of the current task
+                current().stopExecute();
+            } catch (NullPointerException e) {
+                // do nothing here, just ignore if current task is null
+            }
+            safeTasksRingAction.accept(() -> {
+                // clear the tasks ring
+                inServiceTasksRing.clear();
+                currentTask = null;
+                // updating the unit state
+                unitState = UnitState.PASSIVE;
+                // update the state
+                unitEngineState = Engine.State.OUT_OF_SERVICE;
+            });
+            // preparing engine stopped successfully event
+            final UnitMessage event = getMessageFactory().build(MessageType.EVENT, UnitActionEvent.class);
+            // dispatching engine stopped successfully event
+            dispatch(event.setFamilyType(MessageFamilyType.STOP).setUnitPath(getPath()));
         }
-        try {
-            // to stop execution of the current task
-            current().stopExecute();
-        } catch (NullPointerException e) {
-            // do nothing here, just ignore if current task is null
-        }
-        safeTasksRingAction.accept(() -> {
-            // clear the tasks ring
-            inServiceTasksRing.clear();
-            currentTask = null;
-            // update the state
-            unitEngineState = Engine.State.OUT_OF_SERVICE;
-        });
-        // preparing engine stopped successfully event
-        final UnitMessage event = getMessageFactory().build(MessageType.EVENT, UnitActionEvent.class);
-        // dispatching engine stopped successfully event
-        dispatch(event.setFamilyType(MessageFamilyType.STOP).setUnitPath(getPath()));
     }
 
     /**
@@ -333,7 +351,7 @@ public class TasksPoolUnitAdapter extends ServerUnitAdapter implements TasksPool
      */
     @Override
     public Collection<Task> tasks() {
-        return new ArrayList<>(pool);
+        return new ArrayList<>(tasksPool);
     }
 
     /**

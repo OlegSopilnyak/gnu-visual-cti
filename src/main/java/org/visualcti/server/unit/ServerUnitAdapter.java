@@ -39,6 +39,7 @@ package org.visualcti.server.unit;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -48,12 +49,15 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 import org.jdom.Comment;
 import org.jdom.DataConversionException;
+import org.jdom.Document;
 import org.jdom.Element;
+import org.jdom.output.XMLOutputter;
 import org.visualcti.server.UnitRegistry;
 import org.visualcti.server.core.ConfigurationParameter;
 import org.visualcti.server.core.XmlAware;
@@ -61,7 +65,11 @@ import org.visualcti.server.core.unit.ServerUnit;
 import org.visualcti.server.core.unit.message.MessageType;
 import org.visualcti.server.core.unit.message.UnitMessageFactory;
 import org.visualcti.server.core.unit.message.action.UnitActionError;
+import org.visualcti.server.core.unit.part.UnitBasics;
+import org.visualcti.server.core.unit.part.UnitMessageExchange;
+import org.visualcti.server.core.unit.part.UnitsComposite;
 import org.visualcti.server.event.model.UnitMessages;
+import org.visualcti.util.Tools;
 
 /**
  * <singleton>
@@ -113,9 +121,9 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
     //
     // main properties of the unit
     // the body unit's Icon Image (GIF | JPEG)
-    protected byte[] iconBody = null;
+    protected volatile byte[] iconBody = null;
     // the unit's path to the Icon content
-    protected String iconBodyPath = null;
+    protected volatile String iconBodyPath = null;
     // The path to unit instance in repository
     protected String unitPath = "";
     // The current state of the unit
@@ -176,6 +184,10 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
      * <accessor>
      * To get main class of the unit
      *
+     * @return class-implementation of base server unit type
+     * @see ServerUnit
+     * @see ServerUnit#getUnitClass()
+     * @see #prepareUnitClassPart(Element)
      * @see #buildUnitRootElement()
      */
     @Override
@@ -185,9 +197,28 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
 
     /**
      * <accessor>
+     * To get the parent class of the main class of the unit
+     *
+     * @return the instance of class which extends server unit main class
+     * @see ServerUnit
+     * @see ServerUnit#getUnitExtendsClass()
+     * @see #prepareUnitClassPart(Element)
+     * @see #buildUnitRootElement()
+     * @see #getUnitClass()
+     */
+    @Override
+    public Class<? extends ServerUnit> getUnitExtendsClass() {
+        return ServerUnit.super.getUnitExtendsClass();
+    }
+
+    /**
+     * <accessor>
      * To get class-builder of the unit instance
      *
-     * @see ServerUnit#getUnitBuilderMethodName()
+     * @return the instance of class-builder or null if it isn't used
+     * @see ServerUnit#getUnitBuilderClass()
+     * @see #prepareUnitBuilderClassPart(Element, Class)
+     * @see #buildUnitRootElement()
      */
     @Override
     public Class<?> getUnitBuilderClass() {
@@ -196,9 +227,25 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
 
     /**
      * <accessor>
+     * To get the method name in class-builder to build the unit instance
+     *
+     * @return the name of method-builder or null if it isn't used
+     * @see ServerUnit#getUnitBuilderMethodName()
+     * @see #getUnitBuilderClass()
+     * @see #prepareUnitBuilderClassPart(Element, Class)
+     * @see #buildUnitRootElement()
+     */
+    @Override
+    public String getUnitBuilderMethodName() {
+        return null;
+    }
+
+    /**
+     * <accessor>
      * To get the name of the root element name in XML result
      *
      * @return the name of root element
+     * @see XmlAware#getRootElementName()
      * @see XmlAware#getXML()
      */
     @Override
@@ -210,7 +257,7 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
      * <accessor>
      * To get description of the unit
      *
-     * @see #getXML()
+     * @see #buildUnitRootElement()
      */
     protected String getUnitDescription() {
         return "Adapter of server unit";
@@ -222,6 +269,7 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
      *
      * @return entity's XML
      * @see Element
+     * @see XmlAware#getXML()
      */
     @Override
     public Element getXML() {
@@ -234,14 +282,62 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
     }
 
     /**
+     * <transport>
+     * to store entity's content as XML to the OutputStream
+     * will be used for transport objects in serialization flow or for store to file
+     * Just for current version of Mockito
+     *
+     * @param out     target output stream
+     * @param compact flag which output we are expecting
+     * @throws IOException if it cannot write to output stream
+     * @see XmlAware#store(OutputStream, boolean)
+     */
+    @Deprecated
+    @Override
+    public void store(OutputStream out, boolean compact) throws IOException {
+        XmlAware.super.store(out, compact);
+    }
+
+    /**
+     * <builder>
+     * Preparing human-readable XML outputter to an output stream
+     * Just for current version of Mockito
+     *
+     * @return prepared XML outputter
+     * @see XMLOutputter
+     * @see XmlAware#documentXmlOutputter()
+     */
+    @Deprecated
+    @Override
+    public XMLOutputter documentXmlOutputter() {
+        return XmlAware.super.documentXmlOutputter();
+    }
+
+    /**
+     * <builder>
+     * Preparing the document from entity's XML
+     * Just for current version of Mockito
+     *
+     * @param xml XML element
+     * @return prepared XML Document
+     * @see Document
+     * @see XmlAware#prepareXmlDocument(Element)
+     */
+    @Deprecated
+    @Override
+    public Document prepareXmlDocument(Element xml) {
+        return XmlAware.super.prepareXmlDocument(xml);
+    }
+
+    /**
      * <converter>
      * To build parameters of root XML element of the unit (for unit building)
      *
+     * @return built main unit XML element
      * @see #getXML()
-     * @see #getRootElementName()
      */
     protected Element buildUnitRootElement() {
-        final Element rootElement = XmlAware.super.getXML();
+        final Element rootElement = createRootElement();
         //
         // building server unit main classes part
         final Class<? extends ServerUnit> unitClass = prepareUnitClassPart(rootElement);
@@ -257,6 +353,10 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
         prepareUnitBuilderClassPart(rootElement, unitClass);
         // returns prepared root element
         return rootElement;
+    }
+
+    private Element createRootElement() {
+        return XmlAware.super.getXML();
     }
 
     /**
@@ -285,6 +385,20 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
     }
 
     /**
+     * <tester>
+     * To check is string empty
+     * Just for current version of Mockito
+     *
+     * @param value string to test
+     * @return true if value is empty
+     */
+    @Deprecated
+    @Override
+    public boolean isEmpty(String value) {
+        return XmlAware.super.isEmpty(value);
+    }
+
+    /**
      * <converter>
      * To update the entity's fields from XML
      *
@@ -294,15 +408,18 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
      * @throws NumberFormatException   if something went wrong
      * @throws NullPointerException    if something went wrong
      * @see Element
+     * @see #configure(Element)
+     * @see #settingUpBasePart(Element)
+     * @see #settingUpMainPart(Element)
      */
     @Override
     public void setXML(Element xml) throws IOException, DataConversionException, NumberFormatException, NullPointerException {
-        // preparing base part of the server unit
-        prepareBasePart(xml);
-        // prepare main part of the server unit
-        prepareMainPart(xml);
-        // prepare properties part of the server unit
-        preparePropertiesPart(xml);
+        // preparing base part (for builder) of the server unit by passed unit's root xml element
+        settingUpBasePart(xml);
+        // prepare main part of the server unit by passed unit's root xml element
+        settingUpMainPart(xml);
+        // prepare properties part of the server unit by passed unit's root xml element
+        settingUpPropertiesPart(xml);
     }
 
     /**
@@ -312,8 +429,10 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
      * @param xml the XML Element of the unit
      * @see Element
      * @see #setXML(Element)
+     * @deprecated
      */
-    protected void prepareBasePart(Element xml) {
+    @Deprecated
+    protected void settingUpBasePart(Element xml) {
         // doing nothing because unit already created
     }
 
@@ -324,32 +443,55 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
      * @param xml the XML Element of the unit
      * @see Element
      * @see #setXML(Element)
+     * @see #iconBodyPath
+     * @see #applyUnitParameter(ConfigurationParameter)
      */
     @SuppressWarnings("unchecked")
-    protected void prepareMainPart(Element xml) {
+    protected void settingUpMainPart(Element xml) {
         // the container for parsed from XML parameter
         final List<Element> parameters = xml.getChildren(ConfigurationParameter.ELEMENT);
-        parameters.stream().map(ConfigurationParameter::of).filter(Objects::nonNull)
-                .forEach(parameter -> {
-                    if (isUnitIconParameter.test(parameter)) {
-                        // found icon parameter
-                        iconBodyPath = parameter.getValue();
-                        loadIconBodyFrom(iconBodyPath);
-                    } else {
-                        // process another parameter
-                        applyUnitParameter(parameter);
-                    }
-                });
+        // processing the parameters of the root unit XML elements
+        parameters.stream().map(ConfigurationParameter::of).filter(Objects::nonNull).forEach(processUnitConfigurationParameter);
+        // check the icon
+        Tools.print("Icon Path = " + this.iconBodyPath);
     }
 
+    // to load icon body from the path in the classloader
+    private final Consumer<String> loadIconBody = path-> {
+        try (InputStream in = getClass().getClassLoader().getResourceAsStream(path)) {
+            if (in != null) {
+                final int bodySize = in.available();
+                final byte[] body = new byte[bodySize];
+                final int read = in.read(body);
+                assert read == bodySize : "Read data different of excepted";
+                iconBody = body;
+            }
+        } catch (IOException e) {
+            // do nothing in case of error
+        }
+    };
+
+    // each unit's xml parameter processor ConfigurationParameter
+    private final Consumer<ConfigurationParameter> processUnitConfigurationParameter = parameter -> {
+        if (isUnitIconParameter.test(parameter)) {
+            // found icon parameter
+            final String iconResourcePath = parameter.getValue();
+            this.iconBodyPath = iconResourcePath;
+            loadIconBody.accept(iconResourcePath);
+        } else {
+            // process another parameter
+            applyUnitParameter(parameter);
+        }
+    };
 
     /**
-     * <converter>
-     * To apply parameter of the unit using XML Element
+     * <applier>
+     * To apply configuration parameter of the server unit
      *
-     * @param parameter the unit parameter
+     * @param parameter the unit parameter to apply
      * @see ConfigurationParameter
-     * @see #prepareMainPart(Element)
+     * @see #processUnitConfigurationParameter
+     * @see #settingUpMainPart(Element)
      */
     protected void applyUnitParameter(ConfigurationParameter parameter) {
         // doing nothing here because here we're restoring only icon parameter
@@ -359,12 +501,12 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
      * <converter>
      * To prepare properties of the unit using XML Element
      *
-     * @param xml the XML Element of the unit
+     * @param xml the root XML Element of the unit
      * @see Element
      * @see #setXML(Element)
      * @see #setProperties(Map)
      */
-    protected void preparePropertiesPart(Element xml) {
+    protected void settingUpPropertiesPart(Element xml) {
         // doing nothing because unit already created
     }
 
@@ -374,6 +516,7 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
      *
      * @param configuration new configuration of the unit
      * @see Element
+     * @see ServerUnit#configure(Element)
      * @see #setXML(Element)
      * @see UnitActionError
      * @see UnitMessageFactory#build(MessageType)
@@ -397,7 +540,7 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
     /**
      * <accessor>
      * To get ServerUnit instance properties
-     * may use for visual editing in GUI
+     * may be used for visual editing in GUI
      *
      * @return server unit properties
      */
@@ -408,13 +551,14 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
 
     /**
      * <mutator>
-     * To assign properties to ServerUnit instance
-     * Properties may be changed in GUI
+     * To assign new properties to ServerUnit instance
+     * the properties may be changed in GUI
      *
      * @param properties server unit properties
      */
     @Override
     public void setProperties(Map<String, Object> properties) {
+        // thread safe properties updating
         this.properties = new ConcurrentHashMap<>(properties);
     }
 
@@ -423,6 +567,8 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
      * To get reference to messages factory
      *
      * @return not null reference to the factory
+     * @see UnitMessageFactory
+     * @see UnitMessageExchange#getMessageFactory()
      */
     @Override
     public UnitMessageFactory getMessageFactory() {
@@ -432,6 +578,10 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
     /**
      * <accessor>
      * To get access to the owner of this unit (null for root unit)
+     *
+     * @return the reference to server unit's owner or null if it isn't exists
+     * @see ServerUnit
+     * @see UnitsComposite#getOwner()
      */
     @Override
     public ServerUnit getOwner() {
@@ -442,12 +592,12 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
      * <mutator>
      * To set new owner of this unit (null for the root unit)
      *
-     * @param owner the owner of the unit (or null if unit removed from units tree)
+     * @param owner the owner of the server unit
      * @see UnitRegistry#unRegister(ServerUnit)
      * @see UnitRegistry#register(ServerUnit)
-     * @see #getName()
-     * @see #removeAll()
-     * @see #setOwner(ServerUnit)
+     * @see UnitBasics#getName()
+     * @see UnitsComposite#removeAll()
+     * @see UnitsComposite#setOwner(ServerUnit)
      */
     @Override
     public void setOwner(ServerUnit owner) throws IOException {
@@ -468,9 +618,7 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
             UnitRegistry.register(this);
             this.owner = owner;
             // updating unit paths for unit's branches
-            for (final ServerUnit branch : branches) {
-                branch.setOwner(this);
-            }
+            updateChildrenUnitOwner(owner);
         }
     }
 
@@ -478,13 +626,77 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
      * <mutator>
      * to add unit to the composite units tree as a branch
      *
-     * @param branch the unit to add as a branch
+     * @param branch the unit to add
      * @see ServerUnit
-     * @see #add(ServerUnit)
+     * @see ServerUnit#add(ServerUnit)
      */
     @Override
     public void addBranch(ServerUnit branch) {
         branches.add(branch);
+    }
+
+    /**
+     * <checker>
+     * To check is the unit managing by the composite unit (in units tree), or from parent group
+     * Just for current version of Mockito
+     *
+     * @param unit unit to test
+     * @return true if group contains the unit
+     * @see ServerUnit
+     */
+    @Deprecated
+    @Override
+    public boolean isChild(ServerUnit unit) {
+        return ServerUnit.super.isChild(unit);
+    }
+
+    /**
+     * <mutator>
+     * to add child to the server unit composite units tree<BR/>
+     * set up the owner for the child unit current unit
+     * Just for current version of Mockito
+     *
+     * @param unit the unit to add
+     * @see UnitsComposite#add(ServerUnit)
+     * @see UnitsComposite#isChild(ServerUnit)
+     * @see UnitsComposite#setOwner(ServerUnit)
+     * @see #addBranch(ServerUnit)
+     */
+    @Deprecated
+    @Override
+    public void add(ServerUnit unit) {
+        ServerUnit.super.add(unit);
+    }
+
+    /**
+     * <mutator>
+     * To remove all units from the composite units tree
+     * Just for current version of Mockito
+     *
+     * @see #children()
+     * @see #remove(ServerUnit)
+     */
+    @Deprecated
+    @Override
+    public boolean removeAll() {
+        return ServerUnit.super.removeAll();
+    }
+
+    /**
+     * <mutator>
+     * to remove child from the server unit composite units tree
+     *
+     * @param unit the unit to remove
+     * @see ServerUnit
+     * @see UnitsComposite#remove(ServerUnit)
+     * @see UnitsComposite#isChild(ServerUnit)
+     * @see UnitsComposite#setOwner(ServerUnit)
+     * @see #removeBranch(ServerUnit)
+     */
+    @Deprecated
+    @Override
+    public void remove(ServerUnit unit) {
+        ServerUnit.super.remove(unit);
     }
 
     /**
@@ -493,7 +705,7 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
      *
      * @param branch the unit to remove from composite tree
      * @see ServerUnit
-     * @see #remove(ServerUnit)
+     * @see ServerUnit#remove(ServerUnit)
      */
     @Override
     public void removeBranch(ServerUnit branch) {
@@ -566,17 +778,13 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
         }
     }
 
-    // to load icon body from the path in the classloader
-    private void loadIconBodyFrom(String path) {
-        try (InputStream in = getClass().getClassLoader().getResourceAsStream(path)) {
-            if (in != null) {
-                final int bodySize = in.available();
-                iconBody = new byte[bodySize];
-                final int read = in.read(iconBody);
-                assert read == bodySize : "Read data different of excepted";
-            }
-        } catch (IOException e) {
-            // do nothing in case of error
+    // updating unit paths for unit's branches
+    private void updateChildrenUnitOwner(ServerUnit owner) throws IOException {
+        // assign new value of the unit-owner
+        this.owner = owner;
+        // iterating tree's branches, changing the unit-owner
+        for (final ServerUnit branch : branches) {
+            branch.setOwner(this);
         }
     }
 }

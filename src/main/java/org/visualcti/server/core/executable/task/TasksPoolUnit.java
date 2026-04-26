@@ -55,6 +55,11 @@ import org.visualcti.server.core.unit.ServerUnit;
  * @version 3.01
  */
 public interface TasksPoolUnit extends ServerUnit, XmlAware {
+
+    String TASKS_POOL_TYPE_ATTRIBUTE_NAME = "type";
+    String TASKS_POOL_NAME_ATTRIBUTE_NAME = "name";
+    String TASKS_POOL_EXTERNAL_FILE_ATTRIBUTE_NAME = "file";
+
     /**
      * Type: task-pool type
      */
@@ -117,7 +122,7 @@ public interface TasksPoolUnit extends ServerUnit, XmlAware {
      *
      * @return group name of the pool
      */
-    String getGroup();
+    String getPoolGroup();
 
     /**
      * <mutator>
@@ -126,7 +131,16 @@ public interface TasksPoolUnit extends ServerUnit, XmlAware {
      * @param group new value of pool's group
      * @return reference to tasks pool
      */
-    TasksPoolUnit setGroup(String group);
+    TasksPoolUnit setPoolGroup(String group);
+
+    /**
+     * <mutator>
+     * To set up the name of the pool
+     *
+     * @param name new value of pool's group
+     * @return reference to tasks pool
+     */
+    TasksPoolUnit setPoolName(String name);
 
     /**
      * <mutator>
@@ -228,17 +242,27 @@ public interface TasksPoolUnit extends ServerUnit, XmlAware {
      * @throws NumberFormatException   if something went wrong
      * @throws NullPointerException    if something went wrong
      * @see Element
+     * @see #configure(Element)
      */
     @Override
     default void setXML(Element xml) throws IOException, DataConversionException, NumberFormatException, NullPointerException {
         // here we update unit from element of main server configuration
-        setPoolType(PoolType.of(xml.getAttributeValue("type")));
-        String[] name = xml.getAttributeValue("name").split("/");
-        if (name.length > 1) {
-            setGroup(name[1]);
+        setPoolType(PoolType.of(xml.getAttributeValue(TASKS_POOL_TYPE_ATTRIBUTE_NAME)));
+        final String combinedPoolName = xml.getAttributeValue(TASKS_POOL_NAME_ATTRIBUTE_NAME);
+        if (isEmpty(combinedPoolName)) {
+            // empty value of pool name
+            throw new IOException("Pool name is empty");
         }
-        setPoolFile(xml.getAttributeValue("file"));
-        // the call loading of XML from pool-file
+        // resolving pool-name from XML
+        String[] name = combinedPoolName.split("/");
+        if (name.length > 1) {
+            setPoolGroup(name[1]).setPoolName(name[0])
+                    .setPoolFile(xml.getAttributeValue(TASKS_POOL_EXTERNAL_FILE_ATTRIBUTE_NAME));
+        } else {
+            setPoolName(name[0])
+                    .setPoolFile(xml.getAttributeValue(TASKS_POOL_EXTERNAL_FILE_ATTRIBUTE_NAME));
+        }
+        // loading main part of tasks pool from pool-file
         loadingTasksList();
     }
 

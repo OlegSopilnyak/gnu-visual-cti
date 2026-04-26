@@ -38,6 +38,15 @@ Fax number: 217-356-3356
 package org.visualcti.server.unit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertThrows;
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
@@ -45,12 +54,16 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringReader;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.jdom.Comment;
 import org.jdom.DataConversionException;
 import org.jdom.Element;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.visualcti.server.UnitRegistry;
 import org.visualcti.server.core.ConfigurationParameter;
 import org.visualcti.server.core.unit.ServerUnit;
 
@@ -61,12 +74,17 @@ public class ServerUnitAdapterTest {
     @Before
     public void setUp() {
         // no builder class
-        serverUnitAdapter = new ServerUnitAdapterImpl() {
+        serverUnitAdapter = spy(new ServerUnitAdapterImpl() {
             @Override
             public Class<?> getUnitBuilderClass() {
                 return null;
             }
-        };
+        });
+    }
+
+    @After
+    public void tearDown() {
+        UnitRegistry.unRegister(serverUnitAdapter);
     }
 
     @Test
@@ -233,7 +251,7 @@ public class ServerUnitAdapterTest {
     public void shouldGetServerUnitXML() throws IOException {
         // preparing test data
         String iconPath = "icon/icon_body.gif";
-        ServerUnitAdapter unit = new ServerUnitAdapterImpl() {
+        ServerUnitAdapter unit = spy(new ServerUnitAdapterImpl() {
             {
                 iconBodyPath = iconPath;
             }
@@ -247,11 +265,15 @@ public class ServerUnitAdapterTest {
             public String getUnitBuilderMethodName() {
                 return "build";
             }
-        };
+        });
 
         // acting
         Element element = unit.getXML();
 
+        // check the behavior
+        verify(unit).buildUnitRootElement();
+        verify(unit).prepareBaseUnitXML(element);
+        verify(unit).prepareUnitXML(element);
         // check results
         final BufferedReader reader;
         try (ByteArrayOutputStream output = new ByteArrayOutputStream()) {
@@ -305,6 +327,249 @@ public class ServerUnitAdapterTest {
             assertThat(in.read(buffer)).isEqualTo(buffer.length);
             assertThat(buffer).isEqualTo(unit.iconBody);
         }
+    }
+
+    @Test
+    public void shouldGetUnitProperties() {
+        // preparing test data
+
+        // acting
+        Map<String, Object> properties = serverUnitAdapter.getProperties();
+        Exception error = assertThrows(Exception.class, () -> properties.put("package", "org.visualcti.server.unit"));
+
+        // check results
+        assertThat(error).isInstanceOf(UnsupportedOperationException.class);
+        assertThat(properties).isNotNull().isEmpty();
+    }
+
+    @Test
+    public void shouldSetUnitProperties() {
+        // preparing test data
+        Map<String, Object> properties = new HashMap<>();
+        properties.put("package", "org.visualcti.server.unit");
+        assertThat(serverUnitAdapter.getProperties()).isNotNull().isEmpty();
+
+        // acting
+        serverUnitAdapter.setProperties(properties);
+
+        // check results
+        assertThat(serverUnitAdapter.getProperties())
+                .isNotSameAs(properties)
+                .isEqualTo(properties)
+                .containsKey("package")
+                .containsValue("org.visualcti.server.unit");
+    }
+
+    @Test
+    public void shouldGetUnitOwnerFromScratch() {
+        // preparing test data
+
+        // acting
+        ServerUnit unit = serverUnitAdapter.getOwner();
+
+        // check results
+        assertThat(unit).isNull();
+    }
+
+    @Test
+    public void shouldGetUnitOwnerWithExistOwner() {
+        // preparing test data
+        ServerUnit unitOwner = mock(ServerUnit.class);
+        ServerUnitAdapter adapter = new ServerUnitAdapterImpl(){
+            {
+                this.owner = unitOwner;
+            }
+        };
+
+        // acting
+        ServerUnit unit = adapter.getOwner();
+
+        // check results
+        assertThat(unit).isSameAs(unitOwner);
+    }
+
+    @Test
+    public void shouldSetUnitOwnerValidInstance() throws IOException {
+        // preparing test data
+        ServerUnit unitOwner = mock(ServerUnit.class);
+        doReturn("Owner").when(unitOwner).getPath();
+
+        // acting
+        serverUnitAdapter.setOwner(unitOwner);
+
+        // check the behavior
+        verify(serverUnitAdapter).getName();
+        verify(serverUnitAdapter, never()).removeAll();
+        // check results
+        assertThat(serverUnitAdapter.getOwner()).isSameAs(unitOwner);
+        assertThat(serverUnitAdapter.unitPath).isEqualTo("Owner/" + serverUnitAdapter.getName());
+    }
+
+    @Test
+    public void shouldSetUnitOwnerNull() throws IOException {
+        // preparing test data
+        ServerUnit unitOwner = mock(ServerUnit.class);
+        doReturn("Owner").when(unitOwner).getPath();
+        serverUnitAdapter.setOwner(unitOwner);
+        reset(serverUnitAdapter);
+        assertThat(serverUnitAdapter.getOwner()).isSameAs(unitOwner);
+
+        // acting
+        serverUnitAdapter.setOwner(null);
+
+        // check the behavior
+        verify(serverUnitAdapter).getName();
+        verify(serverUnitAdapter).removeAll();
+        // check results
+        assertThat(serverUnitAdapter.getOwner()).isNull();
+        assertThat(serverUnitAdapter.unitPath).isEqualTo(serverUnitAdapter.getName());
+    }
+
+    @Test
+    public void shouldAddServerUnitChild() throws IOException {
+        // preparing test data
+        ServerUnit unitChild = mock(ServerUnit.class);
+        ServerUnit unitOwner = mock(ServerUnit.class);
+        doReturn("Owner").when(unitOwner).getPath();
+        serverUnitAdapter.setOwner(unitOwner);
+        reset(serverUnitAdapter);
+
+        // acting
+        serverUnitAdapter.add(unitChild);
+
+        // check the behavior
+        verify(serverUnitAdapter).isChild(unitChild);
+        verify(unitChild).setOwner(serverUnitAdapter);
+        verify(serverUnitAdapter).addBranch(unitChild);
+        // check results
+        assertThat(serverUnitAdapter.getOwner()).isSameAs(unitOwner);
+        assertThat(serverUnitAdapter.unitPath).isEqualTo("Owner/" + serverUnitAdapter.getName());
+        assertThat(serverUnitAdapter.children().toArray()).containsExactly(unitChild);
+    }
+
+    @Test
+    public void shouldNotAddServerUnitChild_ChildAdded() throws IOException {
+        // preparing test data
+        ServerUnit unitChild = mock(ServerUnit.class);
+        doReturn(serverUnitAdapter).when(unitChild).getOwner();
+        ServerUnit unitOwner = mock(ServerUnit.class);
+        doReturn("Owner").when(unitOwner).getPath();
+        serverUnitAdapter.setOwner(unitOwner);
+        reset(serverUnitAdapter);
+
+        // acting
+        serverUnitAdapter.add(unitChild);
+
+        // check the behavior
+        verify(serverUnitAdapter).isChild(unitChild);
+        verify(unitChild, never()).setOwner(any(ServerUnit.class));
+        verify(serverUnitAdapter, never()).addBranch(any(ServerUnit.class));
+        // check results
+        assertThat(serverUnitAdapter.getOwner()).isSameAs(unitOwner);
+        assertThat(serverUnitAdapter.unitPath).isEqualTo("Owner/" + serverUnitAdapter.getName());
+        assertThat(serverUnitAdapter.children().toArray()).isEmpty();
+    }
+
+    @Test
+    public void shouldNotAddServerUnitChild_ChildIsNull() throws IOException {
+        // preparing test data
+        ServerUnit unitOwner = mock(ServerUnit.class);
+        doReturn("Owner").when(unitOwner).getPath();
+        serverUnitAdapter.setOwner(unitOwner);
+        reset(serverUnitAdapter);
+
+        // acting
+        serverUnitAdapter.add(null);
+
+        // check the behavior
+        verify(serverUnitAdapter, never()).isChild(any(ServerUnit.class));
+        // check results
+        assertThat(serverUnitAdapter.getOwner()).isSameAs(unitOwner);
+        assertThat(serverUnitAdapter.unitPath).isEqualTo("Owner/" + serverUnitAdapter.getName());
+        assertThat(serverUnitAdapter.children().toArray()).isEmpty();
+    }
+
+    @Test
+    public void shouldNotAddServerUnitChild_ChildSetOwnerThrows() throws IOException {
+        // preparing test data
+        ServerUnit unitChild = mock(ServerUnit.class);
+        doThrow(IOException.class).when(unitChild).setOwner(any(ServerUnit.class));
+        ServerUnit unitOwner = mock(ServerUnit.class);
+        doReturn("Owner").when(unitOwner).getPath();
+        serverUnitAdapter.setOwner(unitOwner);
+        reset(serverUnitAdapter);
+
+        // acting
+        serverUnitAdapter.add(unitChild);
+
+        // check the behavior
+        verify(serverUnitAdapter).isChild(unitChild);
+        verify(unitChild).setOwner(serverUnitAdapter);
+        verify(serverUnitAdapter, never()).addBranch(any(ServerUnit.class));
+        // check results
+        assertThat(serverUnitAdapter.getOwner()).isSameAs(unitOwner);
+        assertThat(serverUnitAdapter.unitPath).isEqualTo("Owner/" + serverUnitAdapter.getName());
+        assertThat(serverUnitAdapter.children().toArray()).isEmpty();
+    }
+
+    @Test
+    public void shouldRemoveServerUnitChild() throws IOException {
+        // preparing test data
+        ServerUnit unitChild = mock(ServerUnit.class);
+        serverUnitAdapter.add(unitChild);
+        doReturn(serverUnitAdapter).when(unitChild).getOwner();
+        assertThat(serverUnitAdapter.children().toArray()).containsExactly(unitChild);
+        reset(serverUnitAdapter);
+
+        // acting
+        serverUnitAdapter.remove(unitChild);
+
+        // check the behavior
+        verify(serverUnitAdapter).isChild(unitChild);
+        verify(unitChild).setOwner(null);
+        verify(serverUnitAdapter).removeBranch(unitChild);
+        // check results
+        assertThat(serverUnitAdapter.children().toArray()).isEmpty();
+    }
+
+    @Test
+    public void shouldNotRemoveServerUnitChild_NotChild() throws IOException {
+        // preparing test data
+        ServerUnit unitChild = mock(ServerUnit.class);
+        serverUnitAdapter.add(unitChild);
+        assertThat(serverUnitAdapter.children().toArray()).containsExactly(unitChild);
+        reset(serverUnitAdapter);
+
+        // acting
+        serverUnitAdapter.remove(unitChild);
+
+        // check the behavior
+        verify(serverUnitAdapter).isChild(unitChild);
+        verify(unitChild, never()).setOwner(null);
+        verify(serverUnitAdapter, never()).removeBranch(any(ServerUnit.class));
+        // check results
+        assertThat(serverUnitAdapter.children().toArray()).containsExactly(unitChild);
+    }
+
+    @Test
+    public void shouldNotRemoveServerUnitChild_ChildSetOwnerThrows() throws IOException {
+        // preparing test data
+        ServerUnit unitChild = mock(ServerUnit.class);
+        serverUnitAdapter.add(unitChild);
+        doReturn(serverUnitAdapter).when(unitChild).getOwner();
+        doThrow(IOException.class).when(unitChild).setOwner(any());
+        assertThat(serverUnitAdapter.children().toArray()).containsExactly(unitChild);
+        reset(serverUnitAdapter);
+
+        // acting
+        serverUnitAdapter.remove(unitChild);
+
+        // check the behavior
+        verify(serverUnitAdapter).isChild(unitChild);
+        verify(unitChild).setOwner(null);
+        verify(serverUnitAdapter, never()).removeBranch(any(ServerUnit.class));
+        // check results
+        assertThat(serverUnitAdapter.children().toArray()).containsExactly(unitChild);
     }
 
     // private methods
