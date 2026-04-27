@@ -113,7 +113,7 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
         try {
             getOwner().dispatch(message);
         } catch (NullPointerException npe) {
-            Tools.error("Warning! Lost message in " + getPath() + " msg:" + message);
+            Tools.error("Warning! Lost message in unit [" + getPath() + "] message:" + message);
         }
     }
 
@@ -145,7 +145,9 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
             final Optional<Parameter> target = command.getParameter("target", Parameter.INPUT_DIRECTION);
             if (target.isPresent() && "meta".equals(target.get().getValue())) {
                 // command asks to get the metadata of the unit
-                final ServerCommandResponse response = getMessageFactory().build(MessageType.RESPONSE);
+                // creating the response to the command
+                final ServerCommandResponse response = getMessageFactory().responseTo(command);
+                // copying unit's metadata to the response
                 UnitMetaData.of(this).transferTo(response);
                 // dispatching the response to the command request
                 dispatch(response.setCommandSuccess(true));
@@ -163,13 +165,14 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
      * set up the owner for the child unit current unit
      *
      * @param unit the unit to add
+     * @return true if it's succeeded
      * @see UnitsComposite#add(ServerUnit)
      * @see UnitsComposite#isChild(ServerUnit)
      * @see UnitsComposite#setOwner(ServerUnit)
      * @see #addBranch(ServerUnit)
      */
     @Override
-    default void add(ServerUnit unit) {
+    default boolean add(ServerUnit unit) {
         if (unit != null && !isChild(unit)) {
             try {
                 // attaching child to units registry
@@ -179,7 +182,9 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
             } catch (IOException e) {
                 e.printStackTrace(Tools.err);
             }
+            return true;
         }
+        return false;
     }
 
     /**
@@ -197,6 +202,7 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
      * to remove child from the server unit composite units tree
      *
      * @param unit the unit to remove
+     * @return true if it's succeeded
      * @see ServerUnit
      * @see UnitsComposite#remove(ServerUnit)
      * @see UnitsComposite#isChild(ServerUnit)
@@ -204,7 +210,7 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
      * @see #removeBranch(ServerUnit)
      */
     @Override
-    default void remove(ServerUnit unit) {
+    default boolean remove(ServerUnit unit) {
         if (isChild(unit)) {
             try {
                 // detaching child unit from units composite units tree
@@ -214,7 +220,9 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
             } catch (IOException e) {
                 e.printStackTrace(Tools.err);
             }
+            return true;
         }
+        return false;
     }
 
     /**

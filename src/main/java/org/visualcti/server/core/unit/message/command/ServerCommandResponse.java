@@ -121,5 +121,17 @@ public interface ServerCommandResponse extends ServerCommandExecutable {
             ServerCommandExecutable.super.updateMessagePropertyBy(parameter);
         }
     }
+
+    /**
+     * To adjust response as a response to the command
+     *
+     * @param command command request
+     */
+    default ServerCommandResponse of(ServerCommandRequest command) {
+        setCorrelationID(command.getCorrelationID()).setLinkName(command.getLinkName())
+                .setFamilyType(command.getFamilyType()).setUnitPath(command.getUnitPath())
+                .setDescription(command.getDescription());
+        return this;
+    }
 }
 

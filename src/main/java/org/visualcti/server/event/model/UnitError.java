@@ -103,4 +103,12 @@ class UnitError extends UnitMessageAdapter implements UnitActionError {
                 : new ErrorNestedException(nestedException);
         return this;
     }
+
+    @Override
+    public String toString() {
+        return "UnitError {\n" + super.toString() +
+                "\nerror: " + getNestedException() +
+                '}';
+    }
 }
+

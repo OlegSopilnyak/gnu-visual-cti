@@ -41,6 +41,8 @@ import java.io.IOException;
 import org.visualcti.server.core.unit.message.MessageType;
 import org.visualcti.server.core.unit.message.UnitMessage;
 import org.visualcti.server.core.unit.message.UnitMessageFactory;
+import org.visualcti.server.core.unit.message.command.ServerCommandRequest;
+import org.visualcti.server.core.unit.message.command.ServerCommandResponse;
 
 /**
  * Builder Adapter: Unit Action Message Builder (the messages factory)
@@ -51,7 +53,7 @@ import org.visualcti.server.core.unit.message.UnitMessageFactory;
 public interface UnitMessageFactoryAdapter extends UnitMessageFactory {
     /**
      * <builder>
-     * To guild or get the instance of action message
+     * To build or get the instance of action message
      *
      * @param type         the type of the message
      * @param messageClass type(class) of the message
@@ -73,7 +75,7 @@ public interface UnitMessageFactoryAdapter extends UnitMessageFactory {
 
     /**
      * <builder>
-     * To guild or get the instance of action message
+     * To build or get the instance of action message
      *
      * @param type the type of the message
      * @param <T>  concrete type of built message
@@ -107,5 +109,23 @@ public interface UnitMessageFactoryAdapter extends UnitMessageFactory {
             return (T) message;
         }
         throw new IOException("Message type is not supported");
+    }
+
+    /**
+     * <builder>
+     * To build the instance of command's response to the command's request
+     *
+     * @param request the request the response is building for
+     * @return instance of response to the request
+     * @throws IOException if it cannot build the response
+     * @see ServerCommandResponse
+     * @see ServerCommandRequest
+     */
+    @Override
+    default ServerCommandResponse responseTo(ServerCommandRequest request) throws IOException {
+        // building the response
+        final ServerCommandResponse response = build(MessageType.RESPONSE);
+        // adjust response's instance as the response to the command request
+        return response.of(request);
     }
 }

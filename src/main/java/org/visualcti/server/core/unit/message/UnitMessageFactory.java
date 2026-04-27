@@ -38,6 +38,8 @@ Fax number: 217-356-3356
 package org.visualcti.server.core.unit.message;
 
 import java.io.IOException;
+import org.visualcti.server.core.unit.message.command.ServerCommandRequest;
+import org.visualcti.server.core.unit.message.command.ServerCommandResponse;
 
 /**
  * Builder: Unit Action Message Builder (the messages factory)
@@ -51,7 +53,7 @@ public interface UnitMessageFactory {
      * @param messageClass type(class) of the message
      * @return built or got instance of the unit action message
      * @param <T> concrete type of built message
-     * @throws IOException throws if cannot build the message
+     * @throws IOException throws if it cannot build the message
      * @see UnitMessage
      * @see MessageType
      */
@@ -69,4 +71,16 @@ public interface UnitMessageFactory {
      * @see MessageType
      */
     <T extends UnitMessage> T build(MessageType type) throws IOException;
+
+    /**
+     * <builder>
+     * To build the instance of command's response to the request
+     *
+     * @param request the request the response is building for
+     * @return instance of response for the request
+     * @throws IOException if it cannot build the message
+     * @see ServerCommandResponse
+     * @see ServerCommandRequest
+     */
+    ServerCommandResponse responseTo(ServerCommandRequest request) throws IOException;
 }

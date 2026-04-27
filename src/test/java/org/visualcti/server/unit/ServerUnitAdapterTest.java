@@ -66,6 +66,7 @@ import org.junit.Test;
 import org.visualcti.server.UnitRegistry;
 import org.visualcti.server.core.ConfigurationParameter;
 import org.visualcti.server.core.unit.ServerUnit;
+import org.visualcti.server.core.unit.part.UnitBasics;
 
 public class ServerUnitAdapterTest {
 
@@ -570,6 +571,43 @@ public class ServerUnitAdapterTest {
         verify(serverUnitAdapter, never()).removeBranch(any(ServerUnit.class));
         // check results
         assertThat(serverUnitAdapter.children().toArray()).containsExactly(unitChild);
+    }
+
+    @Test
+    public void shouldConfigureServerUnit() throws IOException, DataConversionException {
+        // preparing test data
+        ServerUnitAdapter unit = spy(new ServerUnitAdapterImpl());
+        assertThat(unit.unitConfiguration).isNull();
+        assertThat(unit.currentUnitState()).isSameAs(UnitBasics.UnitState.PASSIVE);
+        Element element = unit.getXML();
+
+        // acting
+        unit.configure(element);
+
+        // check the behavior
+        verify(unit).setXML(element);
+        // check results
+        assertThat(unit.unitConfiguration).isSameAs(element);
+        assertThat(unit.currentUnitState()).isSameAs(UnitBasics.UnitState.PASSIVE);
+    }
+
+    @Test
+    public void shouldNotConfigureServerUnit_SetXmlThrows() throws IOException, DataConversionException {
+        // preparing test data
+        ServerUnitAdapter unit = spy(new ServerUnitAdapterImpl());
+        doThrow(IOException.class).when(unit).setXML(any(Element.class));
+        assertThat(unit.unitConfiguration).isNull();
+        assertThat(unit.currentUnitState()).isSameAs(UnitBasics.UnitState.PASSIVE);
+        Element element = unit.getXML();
+
+        // acting
+        unit.configure(element);
+
+        // check the behavior
+        verify(unit).setXML(element);
+        // check results
+        assertThat(unit.unitConfiguration).isNull();
+        assertThat(unit.currentUnitState()).isSameAs(UnitBasics.UnitState.BROKEN);
     }
 
     // private methods

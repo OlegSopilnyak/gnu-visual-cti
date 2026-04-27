@@ -168,13 +168,13 @@ abstract class UnitMessageAdapter implements UnitMessage {
      * true only if the argument is the exact same object as the
      * receiver (==).
      *
+     * @param o Object
+     *          the object to compare with this object.
      * @return boolean
      * <code>true</code>
      * if the object is the same as this object
      * <code>false</code>
      * if it is different from this object.
-     * @param        o Object
-     * the object to compare with this object.
      * @see #hashCode
      */
     @Override
@@ -186,6 +186,16 @@ abstract class UnitMessageAdapter implements UnitMessage {
                         Objects.equals(description, that.description) &&
                         Objects.equals(date, that.date) &&
                         Objects.equals(unitPath, that.unitPath);
+    }
+
+    @Override
+    public String toString() {
+        return "{" +
+                "familyType=" + getFamilyType() +
+                ", description='" + getDescription() + '\'' +
+                ", date=" + getDate() +
+                ", unitPath='" + getUnitPath() + '\'' +
+                '}';
     }
 
     // private methods

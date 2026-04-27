@@ -72,18 +72,20 @@ public interface UnitsComposite {
      * to add child to the composite units tree
      *
      * @param child the unit to add
+     * @return true if it's succeeded
      * @see ServerUnit
      */
-    void add(ServerUnit child);
+    boolean add(ServerUnit child);
 
     /**
      * <mutator>
      * to remove child from the composite units tree
      *
      * @param child the unit to remove
+     * @return true if it's succeeded
      * @see ServerUnit
      */
-    void remove(ServerUnit child);
+    boolean remove(ServerUnit child);
 
     /**
      * <mutator>
@@ -93,8 +95,7 @@ public interface UnitsComposite {
      * @see #remove(ServerUnit)
      */
     default boolean removeAll() {
-        children().forEach(this::remove);
-        return true;
+        return children().anyMatch(this::remove);
     }
 
     /**
