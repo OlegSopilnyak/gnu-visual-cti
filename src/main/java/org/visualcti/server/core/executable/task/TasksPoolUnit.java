@@ -38,6 +38,7 @@ Fax number: 217-356-3356
 package org.visualcti.server.core.executable.task;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collection;
 import org.jdom.DataConversionException;
 import org.jdom.Element;
@@ -72,17 +73,14 @@ public interface TasksPoolUnit extends ServerUnit, XmlAware {
             this.type = type;
         }
 
-        static PoolType of(String type) {
-            for (PoolType p : PoolType.values()) {
-                if (p.type.equalsIgnoreCase(type)) {
-                    return p;
-                }
-            }
-            return null;
-        }
-
         public String getType() {
             return type;
+        }
+
+        static PoolType of(String type) {
+            return Arrays.stream(PoolType.values())
+                    .filter(poolType -> poolType.getType().equalsIgnoreCase(type))
+                    .findFirst().orElse(null);
         }
     }
 
@@ -267,7 +265,7 @@ public interface TasksPoolUnit extends ServerUnit, XmlAware {
     }
 
     /**
-     * <converter>
+     * <loader>
      * To load tasks list from external XML file
      *
      * @throws IOException             if something went wrong

@@ -37,21 +37,22 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.core.unit;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.visualcti.server.Parameter;
-import org.visualcti.server.core.unit.part.UnitBasics;
 import org.visualcti.server.core.unit.message.command.ServerCommandRequest;
 import org.visualcti.server.core.unit.message.command.ServerCommandResponse;
+import org.visualcti.server.core.unit.part.UnitMessageExchange;
 
 /**
  * Metadata: The Meta Information about server unit
  *
- * @see ServerUnit#execute(ServerCommandRequest)
+ * @see UnitMessageExchange#execute(ServerCommandRequest)
  */
-public final class UnitMetaData implements UnitBasics {
+public final class UnitMetaData {
     public enum MetaDataName {
         // Meta Name, content of the image
         ICON("meta.icon"),
@@ -74,12 +75,9 @@ public final class UnitMetaData implements UnitBasics {
         }
 
         public static MetaDataName byMetaName(String metaName) {
-            for (MetaDataName meta : MetaDataName.values()) {
-                if (meta.name.equalsIgnoreCase(metaName)) {
-                    return meta;
-                }
-            }
-            return null;
+            return Arrays.stream(MetaDataName.values())
+                    .filter(dataName -> dataName.name.equalsIgnoreCase(metaName))
+                    .findFirst().orElse(null);
         }
 
         @Override
@@ -98,7 +96,21 @@ public final class UnitMetaData implements UnitBasics {
      *
      * @param unit server unit
      * @return made metadata for the unit
-     * @see ServerUnit#execute(ServerCommandRequest)
+     * @see UnitMessageExchange#execute(ServerCommandRequest)
+     * @see RunnableServerUnit
+     */
+    public static UnitMetaData of(RunnableServerUnit unit) {
+        return new UnitMetaData(unit);
+    }
+
+    /**
+     * <builder>
+     * To make metadata for the server unit
+     *
+     * @param unit server unit
+     * @return made metadata for the unit
+     * @see UnitMessageExchange#execute(ServerCommandRequest)
+     * @see ServerUnit
      */
     public static UnitMetaData of(ServerUnit unit) {
         return new UnitMetaData(unit);
@@ -110,7 +122,6 @@ public final class UnitMetaData implements UnitBasics {
      *
      * @return the value
      */
-    @Override
     public byte[] getIcon() {
         return (byte[]) meta.get(MetaDataName.ICON);
     }
@@ -121,7 +132,6 @@ public final class UnitMetaData implements UnitBasics {
      *
      * @return the value
      */
-    @Override
     public String getType() {
         return String.valueOf(meta.get(MetaDataName.TYPE));
     }
@@ -142,7 +152,6 @@ public final class UnitMetaData implements UnitBasics {
      *
      * @return the value
      */
-    @Override
     public String getName() {
         return String.valueOf(meta.get(MetaDataName.NAME));
     }
@@ -153,7 +162,6 @@ public final class UnitMetaData implements UnitBasics {
      *
      * @return the value
      */
-    @Override
     public String getPath() {
         return String.valueOf(meta.get(MetaDataName.PATH));
     }
@@ -164,9 +172,8 @@ public final class UnitMetaData implements UnitBasics {
      *
      * @return the value
      */
-    @Override
-    public UnitState currentUnitState() {
-        return UnitState.of(meta.get(MetaDataName.STATE));
+    public RunnableServerUnit.UnitState currentUnitState() {
+        return RunnableServerUnit.UnitState.of(meta.get(MetaDataName.STATE));
     }
 
 
@@ -178,9 +185,11 @@ public final class UnitMetaData implements UnitBasics {
      * @see Object#toString()
      */
     public String toString() {
+        final RunnableServerUnit.UnitState state = currentUnitState();
+        final String unitState = state == null ? "unknown" : state.toString();
         return "MetaData of " + this.getName() +
                 "\n\tClass:" + this.className() +
-                "\n\tState:" + this.currentUnitState() +
+                "\n\tState:" + unitState +
                 "\n\tRegistry path:" + this.getPath() + "\n";
     }
 
@@ -206,13 +215,17 @@ public final class UnitMetaData implements UnitBasics {
     }
 
     // private methods
+    private UnitMetaData(RunnableServerUnit unit) {
+        this((ServerUnit) unit);
+        meta.put(MetaDataName.STATE, unit.currentUnitState());
+    }
+
     private UnitMetaData(ServerUnit unit) {
         meta.put(MetaDataName.ICON, unit.getIcon());
         meta.put(MetaDataName.TYPE, unit.getType());
         meta.put(MetaDataName.CLASS, unit.getClass().getName());
         meta.put(MetaDataName.NAME, unit.getName());
         meta.put(MetaDataName.PATH, unit.getPath());
-        meta.put(MetaDataName.STATE, unit.currentUnitState());
     }
 
     private void fullTransferTo(ServerCommandResponse response) {

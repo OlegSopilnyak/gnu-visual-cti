@@ -63,11 +63,8 @@ import org.visualcti.server.UnitRegistry;
 import org.visualcti.server.core.ConfigurationParameter;
 import org.visualcti.server.core.XmlAware;
 import org.visualcti.server.core.unit.ServerUnit;
-import org.visualcti.server.core.unit.message.MessageFamilyType;
-import org.visualcti.server.core.unit.message.MessageType;
 import org.visualcti.server.core.unit.message.UnitMessage;
 import org.visualcti.server.core.unit.message.UnitMessageFactory;
-import org.visualcti.server.core.unit.message.action.UnitActionError;
 import org.visualcti.server.core.unit.message.command.ServerCommandRequest;
 import org.visualcti.server.core.unit.part.UnitBasics;
 import org.visualcti.server.core.unit.part.UnitMessageExchange;
@@ -124,15 +121,13 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
     //
     // main properties of the unit
     // loaded or built unit XML element
-    protected Element unitConfiguration = null;
+    protected volatile Element unitConfiguration = null;
     // the body unit's Icon Image (GIF | JPEG)
     protected volatile byte[] iconBody = null;
     // the unit's path to the Icon content
     protected volatile String iconBodyPath = null;
     // The path to unit instance in repository
     protected String unitPath = "";
-    // The current state of the unit
-    protected UnitState unitState = UnitState.PASSIVE;
     // The to the owner of this unit
     protected ServerUnit owner;
     // the branches of server units tree
@@ -198,22 +193,12 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
 
     /**
      * <accessor>
-     * To get Current state of unit (active/passive/broken)
-     */
-    @Override
-    public UnitState currentUnitState() {
-        return unitState;
-    }
-
-    /**
-     * <accessor>
      * To get main class of the unit
      *
      * @return class-implementation of base server unit type
-     * @see ServerUnit
      * @see ServerUnit#getUnitClass()
+     * @see #getUnitBuilderClass()
      * @see #prepareUnitClassPart(Element)
-     * @see #buildUnitRootElement()
      */
     @Override
     public Class<? extends ServerUnit> getUnitClass() {
@@ -225,11 +210,8 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
      * To get the parent class of the main class of the unit
      *
      * @return the instance of class which extends server unit main class
-     * @see ServerUnit
      * @see ServerUnit#getUnitExtendsClass()
      * @see #prepareUnitClassPart(Element)
-     * @see #buildUnitRootElement()
-     * @see #getUnitClass()
      */
     @Override
     public Class<? extends ServerUnit> getUnitExtendsClass() {
@@ -243,7 +225,6 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
      * @return the instance of class-builder or null if it isn't used
      * @see ServerUnit#getUnitBuilderClass()
      * @see #prepareUnitBuilderClassPart(Element, Class)
-     * @see #buildUnitRootElement()
      */
     @Override
     public Class<?> getUnitBuilderClass() {
@@ -256,9 +237,7 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
      *
      * @return the name of method-builder or null if it isn't used
      * @see ServerUnit#getUnitBuilderMethodName()
-     * @see #getUnitBuilderClass()
      * @see #prepareUnitBuilderClassPart(Element, Class)
-     * @see #buildUnitRootElement()
      */
     @Override
     public String getUnitBuilderMethodName() {
@@ -366,7 +345,7 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
      * @see #getXML()
      */
     protected Element buildUnitRootElement() {
-        final Element rootElement = createRootElement();
+        final Element rootElement = XmlAware.super.getXML();
         //
         // building server unit main classes part
         final Class<? extends ServerUnit> unitClass = prepareUnitClassPart(rootElement);
@@ -382,10 +361,6 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
         prepareUnitBuilderClassPart(rootElement, unitClass);
         // returns prepared root element
         return rootElement;
-    }
-
-    private Element createRootElement() {
-        return XmlAware.super.getXML();
     }
 
     /**
@@ -541,38 +516,6 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
     }
 
     /**
-     * <config>
-     * To configure the unit, using information from XML Element
-     *
-     * @param configuration new configuration of the unit
-     * @see Element
-     * @see ServerUnit#configure(Element)
-     * @see #setXML(Element)
-     * @see UnitActionError
-     * @see UnitMessageFactory#build(MessageType)
-     * @see #getMessageFactory()
-     */
-    @Override
-    public void configure(Element configuration) {
-        try {
-            setXML(configuration);
-            this.unitConfiguration = configuration;
-        } catch (IOException | DataConversionException e) {
-            unitState = UnitState.BROKEN;
-            try {
-                final UnitActionError error = getMessageFactory().build(MessageType.ERROR);
-                dispatch(error.setNestedException(e)
-                        .setFamilyType(MessageFamilyType.ERROR)
-                        .setDate(System.currentTimeMillis())
-                        .setUnitPath(getName())
-                        .setDescription("Cannot restore server unit :" + getName()));
-            } catch (IOException ex) {
-                // doing nothing, server unit is already in broken state
-            }
-        }
-    }
-
-    /**
      * <accessor>
      * To get ServerUnit instance properties
      * may be used for visual editing in GUI
@@ -665,6 +608,7 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
      * @param unit unit to test
      * @return true if group contains the unit
      * @see ServerUnit
+     * @see UnitsComposite#isChild(ServerUnit)
      */
     @Deprecated
     @Override
@@ -690,6 +634,8 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
         if (ServerUnit.super.add(unit)) {
             // loaded configuration is not actual after units tree activity
             this.unitConfiguration = null;
+            // rebuilding and storing configuration as JDOM element
+            this.unitConfiguration = getXML();
             return true;
         } else {
             return false;
@@ -702,7 +648,7 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
      *
      * @param branch the unit to add
      * @see ServerUnit
-     * @see ServerUnit#add(ServerUnit)
+     * @see ServerUnit#addBranch(ServerUnit)
      */
     @Override
     public void addBranch(ServerUnit branch) {
@@ -726,6 +672,8 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
         if (ServerUnit.super.remove(unit)) {
             // loaded configuration is not actual after units tree activity
             this.unitConfiguration = null;
+            // rebuilding and storing configuration as JDOM element
+            this.unitConfiguration = getXML();
             return true;
         } else {
             return false;
@@ -738,7 +686,7 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
      *
      * @param branch the unit to remove from composite tree
      * @see ServerUnit
-     * @see ServerUnit#remove(ServerUnit)
+     * @see ServerUnit#removeBranch(ServerUnit)
      */
     @Override
     public void removeBranch(ServerUnit branch) {
@@ -752,7 +700,9 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
      *
      * @see #children()
      * @see #remove(ServerUnit)
+     * @see UnitsComposite#removeAll()
      */
+    @Deprecated
     @Override
     public boolean removeAll() {
         return ServerUnit.super.removeAll();
@@ -765,14 +715,33 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
      * @return the stream to the units list managed by composite
      * @see Stream
      * @see ServerUnit
+     * @see UnitsComposite#children()
      */
     @Override
     public Stream<ServerUnit> children() {
         return branches.stream();
     }
 
-    // private methods
+    /**
+     * <config>
+     * To configure the unit, using information from XML Element
+     *
+     * @param configuration new configuration value of the unit
+     * @see Element
+     */
+    @Override
+    public void configure(Element configuration) {
+        try {
+            setXML(configuration);
+        } catch (IOException | DataConversionException e) {
+            // ignore exception on this level
+        }
+    }
+// private methods
     // building server unit main classes part
+    /**
+     * @see #buildUnitRootElement()
+     */
     private Class<? extends ServerUnit> prepareUnitClassPart(Element rootElement) {
         final Class<? extends ServerUnit> unitClass = getUnitClass();
         final Class<? extends ServerUnit> parentUnitClass = getUnitExtendsClass();
@@ -794,6 +763,9 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
     }
 
     // building server unit builder class part
+    /**
+     * @see #buildUnitRootElement()
+     */
     private void prepareUnitBuilderClassPart(Element rootElement, Class<? extends ServerUnit> unitClass) {
         final Class<?> builderClass = getUnitBuilderClass();
         if (builderClass == null) {
@@ -825,6 +797,9 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
     }
 
     // updating unit paths for unit's branches
+    /**
+     * @see #setOwner(ServerUnit)
+     */
     private void updateChildrenUnitOwner(ServerUnit owner) throws IOException {
         // assign new value of the unit-owner
         this.owner = owner;

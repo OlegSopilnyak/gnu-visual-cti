@@ -52,12 +52,8 @@ import org.jdom.Element;
 import org.visualcti.server.core.executable.Engine;
 import org.visualcti.server.core.executable.task.Task;
 import org.visualcti.server.core.executable.task.TasksPoolUnit;
-import org.visualcti.server.core.unit.message.MessageFamilyType;
-import org.visualcti.server.core.unit.message.MessageType;
-import org.visualcti.server.core.unit.message.UnitMessage;
-import org.visualcti.server.core.unit.message.action.UnitActionEvent;
 import org.visualcti.server.core.unit.message.command.ServerCommandRequest;
-import org.visualcti.server.unit.ServerUnitAdapter;
+import org.visualcti.server.unit.RunnableUnitAdapter;
 
 /**
  * Implementation Adapter: server tasks pool unit engine
@@ -65,7 +61,7 @@ import org.visualcti.server.unit.ServerUnitAdapter;
  * @see Task
  * @see TasksPoolUnit
  */
-public class TasksPoolUnitAdapter extends ServerUnitAdapter implements TasksPoolUnit, Engine {
+public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPoolUnit {
     // The list of tasks in the pool
     private final List<Task> tasksPool = Collections.synchronizedList(new LinkedList<>());
     // working ring of the tasks (used in the in-service engine state)
@@ -227,20 +223,20 @@ public class TasksPoolUnitAdapter extends ServerUnitAdapter implements TasksPool
      */
     @Override
     public void Start() throws IOException {
-        if (unitState != UnitState.BROKEN && !isStarted() && !tasksPool.isEmpty()) {
-            safeTasksRingAction.accept(() -> {
-                // to copying tasks from pool to the tasks ring
-                inServiceTasksRing.addAll(tasksPool);
-                // updating the unit state
-                unitState = UnitState.ACTIVE;
-                // update the engine state
-                unitEngineState = Engine.State.IN_SERVICE;
-            });
-            // preparing engine started successfully event
-            final UnitActionEvent event = getMessageFactory().build(MessageType.EVENT, UnitActionEvent.class);
-            // dispatching success engine started event
-            dispatch(event.setFamilyType(MessageFamilyType.START).setUnitPath(getPath()));
-        }
+//        if (unitState != UnitState.BROKEN && !isStarted() && !tasksPool.isEmpty()) {
+//            safeTasksRingAction.accept(() -> {
+//                // to copying tasks from pool to the tasks ring
+//                inServiceTasksRing.addAll(tasksPool);
+//                // updating the unit state
+//                unitState = UnitState.ACTIVE;
+//                // update the engine state
+//                unitEngineState = Engine.State.IN_SERVICE;
+//            });
+//            // preparing engine started successfully event
+//            final UnitActionEvent event = getMessageFactory().build(MessageType.EVENT, UnitActionEvent.class);
+//            // dispatching success engine started event
+//            dispatch(event.setFamilyType(MessageFamilyType.START).setUnitPath(getPath()));
+//        }
     }
 
     /**
@@ -251,27 +247,27 @@ public class TasksPoolUnitAdapter extends ServerUnitAdapter implements TasksPool
      */
     @Override
     public void Stop() throws IOException {
-        if (unitState != UnitState.BROKEN && !isStopped()) {
-            try {
-                // to stop execution of the current task
-                current().stopExecute();
-            } catch (NullPointerException e) {
-                // do nothing here, just ignore if current task is null
-            }
-            safeTasksRingAction.accept(() -> {
-                // clear the tasks ring
-                inServiceTasksRing.clear();
-                currentTask = null;
-                // updating the unit state
-                unitState = UnitState.PASSIVE;
-                // update the state
-                unitEngineState = Engine.State.OUT_OF_SERVICE;
-            });
-            // preparing engine stopped successfully event
-            final UnitMessage event = getMessageFactory().build(MessageType.EVENT, UnitActionEvent.class);
-            // dispatching engine stopped successfully event
-            dispatch(event.setFamilyType(MessageFamilyType.STOP).setUnitPath(getPath()));
-        }
+//        if (unitState != UnitState.BROKEN && !isStopped()) {
+//            try {
+//                // to stop execution of the current task
+//                current().stopExecute();
+//            } catch (NullPointerException e) {
+//                // do nothing here, just ignore if current task is null
+//            }
+//            safeTasksRingAction.accept(() -> {
+//                // clear the tasks ring
+//                inServiceTasksRing.clear();
+//                currentTask = null;
+//                // updating the unit state
+//                unitState = UnitState.PASSIVE;
+//                // update the state
+//                unitEngineState = Engine.State.OUT_OF_SERVICE;
+//            });
+//            // preparing engine stopped successfully event
+//            final UnitMessage event = getMessageFactory().build(MessageType.EVENT, UnitActionEvent.class);
+//            // dispatching engine stopped successfully event
+//            dispatch(event.setFamilyType(MessageFamilyType.STOP).setUnitPath(getPath()));
+//        }
     }
 
     /**

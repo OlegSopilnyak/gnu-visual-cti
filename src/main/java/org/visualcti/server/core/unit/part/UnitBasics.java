@@ -41,38 +41,38 @@ package org.visualcti.server.core.unit.part;
  * Type: Basic properties of the server unit
  */
 public interface UnitBasics {
-    /**
-     * The lifecycle of unit state
-     *
-     * @see #currentUnitState()
-     */
-    enum UnitState {
-        PASSIVE("passive"),
-        ACTIVE("active"),
-        BROKEN("broken");
-        private final String state;
-
-        UnitState(String state) {
-            this.state = state;
-        }
-
-        public static UnitState of(Object state) {
-            if (state instanceof UnitState) {
-                return (UnitState) state;
-            } if (state instanceof String) {
-                for (UnitState unitState : UnitState.values()) {
-                    if (unitState.state.equalsIgnoreCase((String) state))
-                        return unitState;
-                }
-            }
-            return null;
-        }
-
-        @Override
-        public String toString() {
-            return state;
-        }
-    }
+//    /**
+//     * The lifecycle of unit state
+//     *
+//     * @see #currentUnitState()
+//     */
+//    enum UnitState {
+//        PASSIVE("passive"),
+//        ACTIVE("active"),
+//        BROKEN("broken");
+//        private final String state;
+//
+//        UnitState(String state) {
+//            this.state = state;
+//        }
+//
+//        public static UnitState of(Object state) {
+//            if (state instanceof UnitState) {
+//                return (UnitState) state;
+//            } if (state instanceof String) {
+//                for (UnitState unitState : UnitState.values()) {
+//                    if (unitState.state.equalsIgnoreCase((String) state))
+//                        return unitState;
+//                }
+//            }
+//            return null;
+//        }
+//
+//        @Override
+//        public String toString() {
+//            return state;
+//        }
+//    }
     /**
      * <accessor>
      * To get body unit's Icon Image (gif | jpeg)
@@ -104,12 +104,4 @@ public interface UnitBasics {
      * @return the value
      */
     String getPath();
-
-    /**
-     * <accessor>
-     * To get Current state of unit (active/passive/broken)
-     *
-     * @return the value
-     */
-    UnitState currentUnitState();
 }

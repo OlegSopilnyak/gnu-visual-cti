@@ -124,7 +124,7 @@ public interface Engine extends XmlAware, UnitMessageExchange {
      * <action>
      * To start the engine
      *
-     * @throws IOException if engine can't start
+     * @throws IOException if the engine can't start
      */
     default void Start() throws IOException {
         if (isStarted()) {

@@ -62,6 +62,11 @@ public class ServerUnitBuilderTest {
         String iconPath = "icon/icon_body.gif";
         ServerUnitAdapter unit = new ServerUnitAdapter() {
             @Override
+            public void configure(Element configuration) {
+
+            }
+
+            @Override
             public String getName() {
                 return "Adapter";
             }

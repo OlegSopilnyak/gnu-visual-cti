@@ -38,6 +38,7 @@ Fax number: 217-356-3356
 package org.visualcti.server.core.unit.message;
 
 import java.io.IOException;
+import org.visualcti.server.core.unit.ServerUnit;
 import org.visualcti.server.core.unit.message.command.ServerCommandRequest;
 import org.visualcti.server.core.unit.message.command.ServerCommandResponse;
 
@@ -47,12 +48,12 @@ import org.visualcti.server.core.unit.message.command.ServerCommandResponse;
 public interface UnitMessageFactory {
     /**
      * <builder>
-     * To guild or get the instance of action message
+     * To build or get the instance of action message
      *
-     * @param type the type of the message
+     * @param type         the type of the message
      * @param messageClass type(class) of the message
+     * @param <T>          concrete type of built message
      * @return built or got instance of the unit action message
-     * @param <T> concrete type of built message
      * @throws IOException throws if it cannot build the message
      * @see UnitMessage
      * @see MessageType
@@ -61,16 +62,34 @@ public interface UnitMessageFactory {
 
     /**
      * <builder>
-     * To guild or get the instance of action message
+     * To build or get the instance of action message
      *
      * @param type the type of the message
+     * @param <T>  concrete type of built message
      * @return built or got instance of the unit action message
-     * @param <T> concrete type of built message
      * @throws IOException if it cannot build the message
      * @see UnitMessage
      * @see MessageType
      */
     <T extends UnitMessage> T build(MessageType type) throws IOException;
+
+    /**
+     * <builder>
+     * To build or get the instance of an action message
+     *
+     * @param unit the sourcer of the message
+     * @param type the type of the message
+     * @param familyType the concrete type of message family
+     * @param description the description of built message
+     * @return built or got instance of the unit action message
+     * @param <T>  concrete type of built message
+     * @throws IOException if it cannot build the message
+     * @see ServerUnit
+     * @see UnitMessage
+     * @see MessageType
+     * @see MessageFamilyType
+     */
+    <T extends UnitMessage> T buildFor(ServerUnit unit, MessageType type, MessageFamilyType familyType, String description) throws IOException ;
 
     /**
      * <builder>

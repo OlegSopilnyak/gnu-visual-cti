@@ -101,9 +101,8 @@ public interface ServerCommandResponse extends ServerCommandExecutable {
      */
     @Override
     default Element getXML() {
-        final Parameter isCommandSuccessParameter = new Parameter(RESPONSE_SUCCESS_PARAMETER_NAME, isCommandSuccess());
         return ServerCommandExecutable.super.getXML()
-                .addContent(isCommandSuccessParameter.getXML());
+                .addContent(Parameter.of(RESPONSE_SUCCESS_PARAMETER_NAME, isCommandSuccess()).getXML());
     }
 
     /**
@@ -126,9 +125,11 @@ public interface ServerCommandResponse extends ServerCommandExecutable {
      * To adjust response as a response to the command
      *
      * @param command command request
+     * @return built instance of command response to the command request
      */
     default ServerCommandResponse of(ServerCommandRequest command) {
-        setCorrelationID(command.getCorrelationID()).setLinkName(command.getLinkName())
+        this
+                .setCorrelationID(command.getCorrelationID()).setLinkName(command.getLinkName())
                 .setFamilyType(command.getFamilyType()).setUnitPath(command.getUnitPath())
                 .setDescription(command.getDescription());
         return this;

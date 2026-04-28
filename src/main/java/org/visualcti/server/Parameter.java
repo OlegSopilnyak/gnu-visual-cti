@@ -232,7 +232,7 @@ private transient Object value;
     public boolean getBooleanValue() throws IOException
     {
         if ( !BOOLEAN.equals(this.type) ) throw new IOException("can't convert");
-        return ((Boolean)this.value).booleanValue();
+        return (Boolean) this.value;
     }
     public final boolean getValue(boolean value)
     {
@@ -282,9 +282,24 @@ private transient Object value;
     /**
      <builder>
      To make the parameter from parameter name and value (String value)
+     @param name the name of the parameter
+     @param value the value of the parameter as a string
+     @return built parameter instance
      */
-    public static Parameter of(final String name, final String value) {
-        return new Parameter(name, value);
+    public static Parameter of(final String name, final Object value) {
+        if (value == null) {
+            // unacceptable value
+            throw new IllegalArgumentException("value cannot be null");
+        }
+        if (value instanceof String) {
+            return new Parameter(name, (String) value);
+        } else if (value instanceof Number) {
+            return new Parameter(name, (Number) value);
+        } else if (value instanceof Boolean) {
+            return new Parameter(name, (Boolean) value);
+        }
+        // unacceptable value
+        throw new IllegalArgumentException("unknown value type: " + value.getClass().getName());
     }
     /**
     <constructor>
@@ -340,7 +355,7 @@ private transient Object value;
     */
     public Parameter(String name,boolean value)
     {
-        this(name,new Boolean(value));
+        this(name, Boolean.valueOf(value));
     }
     /**
     <constructor>
@@ -436,13 +451,12 @@ private transient Object value;
         }
         else
         if ( BOOLEAN.equals(this.type) ) {
-          if ( value == null ) this.value = new Boolean(text);
-          else this.value = new Boolean(value);
+          if ( value == null ) this.value = Boolean.valueOf(text);
+          else this.value = Boolean.valueOf(value);
         }
         else
         if ( RAWDATA.equals(this.type) ) {
-          if ( value == null ) this.value = Base64.decode(text);
-          this.value = Base64.decode(value);
+            this.value = value == null ? Base64.decode(text) : Base64.decode(value);
         }
         // unknown type, type is STRING
         else {this.type = STRING;        this.value = text;}
@@ -453,21 +467,19 @@ private transient Object value;
         return this;
     }
     /**
-    Tp translate the parameter to the String
+    To translate the parameter to the String
     like this:
     {=> name(type) = value}
     parameter's direction ("=>" input, "<=" output)
     */
     public final String toString()
     {
-      StringBuffer buffer = new StringBuffer();
-      return buffer
-              .append("{")
-              .append(this.isInput() ? "=>":"<=")
-              .append(" ").append(this.name)
-              .append("(").append(this.type).append(")")
-              .append(" = ").append(this.value)
-              .append("}").toString();
+        return  "{" +
+                (this.isInput() ? "=>" : "<=") +
+                " " + this.name +
+                "(" + this.type + ")" +
+                " = " + this.value +
+                "}";
     }
 
     /**

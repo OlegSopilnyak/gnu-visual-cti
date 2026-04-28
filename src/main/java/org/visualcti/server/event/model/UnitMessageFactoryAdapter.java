@@ -38,6 +38,8 @@ Fax number: 217-356-3356
 package org.visualcti.server.event.model;
 
 import java.io.IOException;
+import org.visualcti.server.core.unit.ServerUnit;
+import org.visualcti.server.core.unit.message.MessageFamilyType;
 import org.visualcti.server.core.unit.message.MessageType;
 import org.visualcti.server.core.unit.message.UnitMessage;
 import org.visualcti.server.core.unit.message.UnitMessageFactory;
@@ -113,13 +115,80 @@ public interface UnitMessageFactoryAdapter extends UnitMessageFactory {
 
     /**
      * <builder>
+     * To build or get the instance of an action message
+     *
+     * @param unit the sourcer of the message
+     * @param type the type of the message
+     * @param familyType the concrete type of message family
+     * @param description the description of built message
+     * @return built or got instance of the unit action message
+     * @param <T>  concrete type of built message
+     * @throws IOException if it cannot build the message
+     * @see ServerUnit
+     * @see UnitMessage
+     * @see MessageType
+     * @see MessageFamilyType
+     * @see #buildFor(ServerUnit, MessageType, MessageFamilyType)
+     */
+    @Override
+    default <T extends UnitMessage> T buildFor(ServerUnit unit, MessageType type, MessageFamilyType familyType, String description) throws IOException {
+        final T result = buildFor(unit, type, familyType);
+        result.setDescription(description);
+        return result;
+    }
+
+    /**
+     * <builder>
+     * To build or get the instance of an action message
+     *
+     * @param unit the sourcer of the message
+     * @param type the type of the message
+     * @return built or got instance of the unit action message
+     * @param <T>  concrete type of built message
+     * @throws IOException if it cannot build the message
+     * @see ServerUnit
+     * @see UnitMessage
+     * @see MessageType
+     * @see MessageFamilyType
+     * @see #buildFor(ServerUnit, MessageType)
+     */
+    default <T extends UnitMessage> T buildFor(ServerUnit unit, MessageType type, MessageFamilyType familyType) throws IOException {
+        final T result = buildFor(unit, type);
+        result.setFamilyType(familyType);
+        return result;
+    }
+
+    /**
+     * <builder>
+     * To build or get the instance of action message
+     *
+     * @param unit the sourcer of the message
+     * @param type the type of the message
+     * @param <T>  concrete type of built message
+     * @return built or got instance of the unit action message
+     * @throws IOException if it cannot build the message
+     * @see ServerUnit
+     * @see UnitMessage
+     * @see MessageType
+     * @see #build(MessageType)
+     */
+    default <T extends UnitMessage> T buildFor(ServerUnit unit, MessageType type) throws IOException {
+        final T result = build(type);
+        result.setDate(System.currentTimeMillis()).setUnitPath(unit.getPath());
+        return result;
+    }
+
+    /**
+     * <builder>
      * To build the instance of command's response to the command's request
      *
      * @param request the request the response is building for
      * @return instance of response to the request
      * @throws IOException if it cannot build the response
      * @see ServerCommandResponse
+     * @see ServerCommandResponse#of(ServerCommandRequest)
      * @see ServerCommandRequest
+     * @see #build(MessageType)
      */
     @Override
     default ServerCommandResponse responseTo(ServerCommandRequest request) throws IOException {

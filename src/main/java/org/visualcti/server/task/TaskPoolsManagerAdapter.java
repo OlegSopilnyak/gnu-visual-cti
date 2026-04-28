@@ -48,7 +48,7 @@ import org.jdom.DataConversionException;
 import org.jdom.Element;
 import org.visualcti.server.core.executable.task.TaskPoolsManager;
 import org.visualcti.server.core.executable.task.TasksPoolUnit;
-import org.visualcti.server.unit.ServerUnitAdapter;
+import org.visualcti.server.unit.RunnableUnitAdapter;
 import org.visualcti.util.Tools;
 
 /**
@@ -57,7 +57,7 @@ import org.visualcti.util.Tools;
  *
  * @see TaskPoolsManager
  */
-public class TaskPoolsManagerAdapter extends ServerUnitAdapter implements TaskPoolsManager {
+public class TaskPoolsManagerAdapter extends RunnableUnitAdapter implements TaskPoolsManager {
     // current state of the engine
     private transient volatile State state = State.OUT_OF_SERVICE;
     // the reference in FileSystem to the tasks directory

@@ -52,16 +52,15 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.visualcti.server.Parameter;
 import org.visualcti.server.core.unit.message.command.ServerCommandResponse;
-import org.visualcti.server.core.unit.part.UnitBasics;
 
 public class UnitMetaDataTest {
     @Mock
-    ServerUnit unit;
+    RunnableServerUnit unit;
     byte[] icon = new byte[]{1,2};
     String type = "test-unit-type";
     String name = "unit";
     String path = "unit-path";
-    UnitBasics.UnitState state = UnitBasics.UnitState.PASSIVE;
+    RunnableServerUnit.UnitState state = RunnableServerUnit.UnitState.PASSIVE;
 //    String state = "passive";
 
     private void prepareUnit() {
