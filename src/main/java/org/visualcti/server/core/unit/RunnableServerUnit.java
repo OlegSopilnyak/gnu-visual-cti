@@ -40,6 +40,7 @@ package org.visualcti.server.core.unit;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.function.Consumer;
+import org.jdom.Element;
 import org.visualcti.server.core.executable.Engine;
 import org.visualcti.server.core.unit.message.MessageFamilyType;
 import org.visualcti.server.core.unit.message.MessageType;
@@ -136,6 +137,7 @@ public interface RunnableServerUnit extends ServerUnit, Engine {
      *
      * @return true if runnable unit is broken
      * @see #currentUnitState()
+     * @see ServerUnit#configure(Element)
      * @see UnitState#BROKEN
      */
     default boolean isBroken() {
@@ -222,6 +224,9 @@ public interface RunnableServerUnit extends ServerUnit, Engine {
      * To start the runnable child of the unit
      *
      * @param runnable the child of the unit to start
+     * @see #currentUnitState(UnitState)
+     * @see UnitState#BROKEN
+     * @see #dispatchExceptionFor(Exception, String)
      */
     default void startUnitChild(RunnableServerUnit runnable) {
         try {

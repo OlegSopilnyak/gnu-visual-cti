@@ -222,4 +222,28 @@ public class TaskPoolsManagerAdapter extends RunnableUnitAdapter implements Task
     private static String poolKey(String name, String factory) {
         return factory + "/" + name;
     }
+
+    /**
+     * <action>
+     * To start the internal runnable parts of the unit
+     * Should be implemented in the children classes
+     *
+     * @throws IOException if them can't be started
+     */
+    @Override
+    public void startUnitRunnable() throws IOException {
+
+    }
+
+    /**
+     * <action>
+     * To stop the internal runnable parts of the unit
+     * Should be implemented in the children classes
+     *
+     * @throws IOException if them can't be stopped
+     */
+    @Override
+    public void stopUnitRunnable() throws IOException {
+
+    }
 }

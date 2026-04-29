@@ -37,6 +37,7 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.unit;
 
+import java.io.IOException;
 import org.jdom.Element;
 import org.visualcti.server.core.executable.Engine;
 import org.visualcti.server.core.unit.RunnableServerUnit;
@@ -62,6 +63,8 @@ public abstract class RunnableUnitAdapter extends ServerUnitAdapter implements R
     /**
      * <accessor>
      * To get Current state of unit (active/passive/broken)
+     *
+     * @return current state value
      */
     @Override
     public UnitState currentUnitState() {
@@ -78,6 +81,134 @@ public abstract class RunnableUnitAdapter extends ServerUnitAdapter implements R
     @Override
     public void currentUnitState(UnitState unitState) {
         this.unitState = unitState;
+    }
+
+    /**
+     * <accessor>
+     * To check is unit had the problems during configuring and can't be started or stopped
+     * Just for current version of Mockito
+     *
+     * @return true if runnable unit is broken
+     * @see #currentUnitState()
+     * @see UnitState#BROKEN
+     * @see ServerUnitAdapter#configure(Element)
+     * @see #cannotConfigureBecause(Exception)
+     * @deprecated
+     */
+    @Deprecated
+    @Override
+    public boolean isBroken() {
+        return RunnableServerUnit.super.isBroken();
+    }
+
+    /**
+     * <accessor>
+     * To check is Engine is working (in service)
+     * Just for current version of Mockito
+     *
+     * @return true if runnable unit is started
+     * @see #currentUnitState()
+     * @see UnitState#ACTIVE
+     * @deprecated
+     */
+    @Deprecated
+    @Override
+    public boolean isStarted() {
+        return RunnableServerUnit.super.isStarted();
+    }
+
+    /**
+     * <accessor>
+     * To check is Engine is stopped (out of service)
+     * Just for current version of Mockito
+     *
+     * @return true if runnable unit is stopped
+     * @see #currentUnitState()
+     * @see UnitState#PASSIVE
+     * @deprecated
+     */
+    @Deprecated
+    @Override
+    public boolean isStopped() {
+        return RunnableServerUnit.super.isStopped();
+    }
+
+    /**
+     * <action>
+     * To start the runnable unit
+     * Just for current version of Mockito
+     *
+     * @throws IOException if the unit can't be started
+     * @see RunnableServerUnit#Start()
+     * @deprecated
+     */
+    @Deprecated
+    @Override
+    public void Start() throws IOException {
+        RunnableServerUnit.super.Start();
+    }
+
+    /**
+     * <action>
+     * To start the internal runnable parts of the unit
+     * Should be implemented in the children classes
+     *
+     * @throws IOException if them can't be started
+     */
+    @Override
+    public abstract void startUnitRunnable() throws IOException;
+
+    /**
+     * <action>
+     * To start the runnable child of the unit
+     * Just for current version of Mockito
+     *
+     * @param runnable the child of the unit to start
+     * @deprecated
+     */
+    @Deprecated
+    @Override
+    public void startUnitChild(RunnableServerUnit runnable) {
+        RunnableServerUnit.super.startUnitChild(runnable);
+    }
+
+    /**
+     * <action>
+     * To stop the runnable unit
+     * Just for current version of Mockito
+     *
+     * @throws IOException if the unit can't be started
+     * @see RunnableServerUnit#Stop()
+     * @deprecated
+     */
+    @Deprecated
+    @Override
+    public void Stop() throws IOException {
+        RunnableServerUnit.super.Stop();
+    }
+
+    /**
+     * <action>
+     * To stop the internal runnable parts of the unit
+     * Should be implemented in the children classes
+     *
+     * @throws IOException if them can't be stopped
+     */
+    @Override
+    public abstract void stopUnitRunnable() throws IOException;
+
+    /**
+     * <action>
+     * To stop the runnable child of the unit
+     * Just for current version of Mockito
+     *
+     * @param runnable the child of the unit to stop
+     * @deprecated
+     */
+    @Deprecated
+    @Override
+    public void stopUnitChild(RunnableServerUnit runnable) {
+        RunnableServerUnit.super.stopUnitChild(runnable);
     }
 
     /**

@@ -42,8 +42,11 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import java.io.IOException;
@@ -51,8 +54,36 @@ import org.jdom.DataConversionException;
 import org.jdom.Element;
 import org.junit.Test;
 import org.visualcti.server.core.unit.RunnableServerUnit;
+import org.visualcti.server.core.unit.message.action.UnitActionEvent;
 
 public class RunnableUnitAdapterTest {
+    RunnableUnitAdapter runnableUnitAdapter = spy(new RunnableUnitAdapterImpl());
+
+    @Test
+    public void shouldGetCurrentUnitState() {
+        // preparing test data
+
+        // acting
+        RunnableServerUnit.UnitState state = runnableUnitAdapter.currentUnitState();
+
+        // check results
+        assertThat(state).isNotNull().isSameAs(RunnableServerUnit.UnitState.PASSIVE);
+        assertThat(runnableUnitAdapter.isStopped()).isTrue();
+    }
+
+    @Test
+    public void shouldSetCurrentUnitState() {
+        // preparing test data
+        runnableUnitAdapter.currentUnitState(RunnableServerUnit.UnitState.ACTIVE);
+
+        // acting
+        RunnableServerUnit.UnitState state = runnableUnitAdapter.currentUnitState();
+
+        // check results
+        assertThat(state).isNotNull().isSameAs(RunnableServerUnit.UnitState.ACTIVE);
+        assertThat(runnableUnitAdapter.isStarted()).isTrue();
+    }
+
     @Test
     public void shouldConfigureServerUnit() throws IOException, DataConversionException {
         // preparing test data
@@ -92,8 +123,111 @@ public class RunnableUnitAdapterTest {
         // check results
         assertThat(unit.unitConfiguration).isNull();
         assertThat(unit.currentUnitState()).isSameAs(RunnableServerUnit.UnitState.BROKEN);
+        assertThat(unit.isBroken()).isTrue();
     }
 
+    @Test
+    public void shouldStartUnit_NoChildren() throws IOException {
+        // preparing test data
+        assertThat(runnableUnitAdapter.isStarted()).isFalse();
+        reset(runnableUnitAdapter);
+
+        // acting
+        runnableUnitAdapter.Start();
+
+        // check the behavior
+        verify(runnableUnitAdapter).isBroken();
+        verify(runnableUnitAdapter).isStarted();
+        verify(runnableUnitAdapter).startUnitRunnable();
+        verify(runnableUnitAdapter, never()).startUnitChild(any(RunnableServerUnit.class));
+        verify(runnableUnitAdapter).currentUnitState(RunnableServerUnit.UnitState.ACTIVE);
+        verify(runnableUnitAdapter).dispatch(any(UnitActionEvent.class));
+        // check results
+        assertThat(runnableUnitAdapter.isStarted()).isTrue();
+    }
+
+    @Test
+    public void shouldStartUnit_WithChild() throws IOException {
+        // preparing test data
+        RunnableUnitAdapter unit = mock(RunnableUnitAdapter.class);
+        runnableUnitAdapter.add(unit);
+        assertThat(runnableUnitAdapter.isStarted()).isFalse();
+        reset(runnableUnitAdapter, unit);
+
+        // acting
+        runnableUnitAdapter.Start();
+
+        // check the behavior
+        verify(unit).Start();
+        verify(unit, never()).currentUnitState(any(RunnableServerUnit.UnitState.class));
+        verify(runnableUnitAdapter).isBroken();
+        verify(runnableUnitAdapter).isStarted();
+        verify(runnableUnitAdapter).startUnitRunnable();
+        verify(runnableUnitAdapter).startUnitChild(unit);
+        verify(runnableUnitAdapter, never()).dispatchExceptionFor(any(IOException.class), anyString());
+        verify(runnableUnitAdapter).currentUnitState(RunnableServerUnit.UnitState.ACTIVE);
+        verify(runnableUnitAdapter).dispatch(any(UnitActionEvent.class));
+        // check results
+        assertThat(runnableUnitAdapter.isStarted()).isTrue();
+    }
+
+    @Test
+    public void shouldStartUnit_WithChildThrows() throws IOException {
+        // preparing test data
+        RunnableServerUnit unit = mock(RunnableServerUnit.class);
+        runnableUnitAdapter.add(unit);
+        assertThat(runnableUnitAdapter.isStarted()).isFalse();
+        reset(runnableUnitAdapter, unit);
+        doThrow(IOException.class).when(unit).Start();
+
+        // acting
+        runnableUnitAdapter.Start();
+
+        // check the behavior
+        verify(unit).Start();
+        verify(unit).currentUnitState(RunnableServerUnit.UnitState.BROKEN);
+        verify(runnableUnitAdapter).isBroken();
+        verify(runnableUnitAdapter).isStarted();
+        verify(runnableUnitAdapter).startUnitRunnable();
+        verify(runnableUnitAdapter).startUnitChild(unit);
+        verify(runnableUnitAdapter).dispatchExceptionFor(any(IOException.class), anyString());
+        verify(runnableUnitAdapter).currentUnitState(RunnableServerUnit.UnitState.ACTIVE);
+        verify(runnableUnitAdapter, times(2)).dispatch(any(UnitActionEvent.class));
+        // check results
+        assertThat(runnableUnitAdapter.isStarted()).isTrue();
+    }
+
+    @Test
+    public void shouldNotStartUnit_AlreadyStarted() throws IOException {
+        // preparing test data
+        runnableUnitAdapter.currentUnitState(RunnableServerUnit.UnitState.ACTIVE);
+
+        // acting
+        runnableUnitAdapter.Start();
+
+        // check the behavior
+        verify(runnableUnitAdapter).isBroken();
+        verify(runnableUnitAdapter).isStarted();
+        verify(runnableUnitAdapter, never()).startUnitRunnable();
+        // check results
+    }
+
+    @Test
+    public void shouldNotStartUnit_UnitBroken() throws IOException {
+        // preparing test data
+        runnableUnitAdapter.currentUnitState(RunnableServerUnit.UnitState.BROKEN);
+
+        // acting
+        runnableUnitAdapter.Start();
+
+        // check the behavior
+        verify(runnableUnitAdapter).isBroken();
+        verify(runnableUnitAdapter, never()).isStarted();
+        verify(runnableUnitAdapter, never()).startUnitRunnable();
+        // check results
+    }
+
+    // inner classes
     private static class RunnableUnitAdapterImpl extends RunnableUnitAdapter {
         @Override
         public String getType() {
@@ -103,6 +237,15 @@ public class RunnableUnitAdapterTest {
         @Override
         public String getName() {
             return "RunnableUnitAdapter";
+        }
+        @Override
+        public void startUnitRunnable() throws IOException {
+
+        }
+
+        @Override
+        public void stopUnitRunnable() throws IOException {
+
         }
     }
 }
