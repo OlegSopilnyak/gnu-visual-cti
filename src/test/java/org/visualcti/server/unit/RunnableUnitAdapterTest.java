@@ -39,7 +39,10 @@ package org.visualcti.server.unit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
@@ -63,6 +66,7 @@ public class RunnableUnitAdapterTest {
 
         // check the behavior
         verify(unit).setXML(element);
+        verify(unit, never()).cannotConfigureBecause(any(Exception.class));
         // check results
         assertThat(unit.unitConfiguration).isSameAs(element);
         assertThat(unit.currentUnitState()).isSameAs(RunnableServerUnit.UnitState.PASSIVE);
@@ -72,7 +76,8 @@ public class RunnableUnitAdapterTest {
     public void shouldNotConfigureServerUnit_SetXmlThrows() throws IOException, DataConversionException {
         // preparing test data
         RunnableUnitAdapter unit = spy(new RunnableUnitAdapterImpl());
-        doThrow(IOException.class).when(unit).setXML(any(Element.class));
+        Exception error = new IOException("Don't want to configure");
+        doThrow(error).when(unit).setXML(any(Element.class));
         assertThat(unit.unitConfiguration).isNull();
         assertThat(unit.currentUnitState()).isSameAs(RunnableServerUnit.UnitState.PASSIVE);
         Element element = unit.getXML();
@@ -82,6 +87,8 @@ public class RunnableUnitAdapterTest {
 
         // check the behavior
         verify(unit).setXML(element);
+        verify(unit).cannotConfigureBecause(error);
+        verify(unit).dispatchExceptionFor(eq(error), anyString());
         // check results
         assertThat(unit.unitConfiguration).isNull();
         assertThat(unit.currentUnitState()).isSameAs(RunnableServerUnit.UnitState.BROKEN);

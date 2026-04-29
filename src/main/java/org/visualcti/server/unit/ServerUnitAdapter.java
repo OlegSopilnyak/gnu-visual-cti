@@ -37,6 +37,8 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.unit;
 
+import static org.visualcti.server.core.unit.ServerUnit.Builder.className;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -50,7 +52,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiFunction;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
@@ -428,16 +429,57 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
 
     /**
      * <converter>
-     * To prepare base parameters of the unit using XML Element
+     * To prepare base parameters of the unit using XML Element and correct xml if it's needed
      *
      * @param xml the XML Element of the unit
      * @see Element
      * @see #setXML(Element)
-     * @deprecated
+     * @see #getUnitBuilderClass()
+     * @see #getUnitBuilderMethodName()
      */
-    @Deprecated
-    protected void settingUpBasePart(Element xml) {
-        // doing nothing because unit already created
+    protected void settingUpBasePart(final Element xml) {
+        Element builder = xml.getChild(UNIT_BUILDER_ELEMENT_NAME);
+        final Class<?> unitBuilderClass = this.getUnitBuilderClass();
+        if (builder == null && unitBuilderClass == null) {
+            // nothing to check and update
+            return;
+        }
+        // check builder class
+        if (unitBuilderClass == null) {
+            // removing unit builder xml element from the incoming unit's XML
+            xml.removeChild(UNIT_BUILDER_ELEMENT_NAME);
+            // nothing to check more
+            return;
+        }
+        //
+        // adjusting builder XML element for builder method
+        if (builder == null) {
+            // creating new builder XML element for current unit
+            builder = new Element(UNIT_BUILDER_ELEMENT_NAME)
+                    .setAttribute(UNIT_TYPE_PACKAGE, unitBuilderClass.getPackage().getName())
+                    .setAttribute(UNIT_TYPE_CLASS, simpleName.apply(unitBuilderClass));
+            xml.addContent(builder);
+        }
+        // check data from incoming unit builder xml
+        final String builderClassName = builder == null ? null : className.apply(
+                builder.getAttributeValue(UNIT_TYPE_PACKAGE), builder.getAttributeValue(UNIT_TYPE_CLASS)
+        );
+        // check builder class name
+        if (!unitBuilderClass.getName().equals(builderClassName)) {
+            // updating unit builder xml-element in the incoming unit's XML
+            builder
+                    .setAttribute(UNIT_TYPE_PACKAGE, unitBuilderClass.getPackage().getName())
+                    .setAttribute(UNIT_TYPE_CLASS, simpleName.apply(unitBuilderClass));
+        }
+        // check builder method name
+        final String unitBuilderMethodName = this.getUnitBuilderMethodName();
+        if (isEmpty(unitBuilderMethodName)) {
+            // removing unit builder method xml attribute from the builder XML
+            builder.removeAttribute(UNIT_BUILDER_METHOD_ATTRIBUTE);
+        } else if (!unitBuilderMethodName.equals(builder.getAttributeValue(UNIT_BUILDER_METHOD_ATTRIBUTE))) {
+            // updating unit builder method xml attribute in the builder XML
+            builder.setAttribute(UNIT_BUILDER_METHOD_ATTRIBUTE, unitBuilderMethodName);
+        }
     }
 
     /**
@@ -447,46 +489,21 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
      * @param xml the XML Element of the unit
      * @see Element
      * @see #setXML(Element)
-     * @see #iconBodyPath
+     * @see #processParameter(ConfigurationParameter)
      * @see #applyUnitParameter(ConfigurationParameter)
+     * @see #unitPath
      */
     @SuppressWarnings("unchecked")
     protected void settingUpMainPart(Element xml) {
+        // initiating unit path value
+        this.unitPath = getName();
         // the container for parsed from XML parameter
         final List<Element> parameters = xml.getChildren(ConfigurationParameter.ELEMENT);
         // processing the parameters of the root unit XML elements
-        parameters.stream().map(ConfigurationParameter::of)
-                .filter(Objects::nonNull)
-                .forEach(processUnitConfigurationParameter);
+        parameters.stream()
+                .map(ConfigurationParameter::of).filter(Objects::nonNull)
+                .forEach(this::processParameter);
     }
-
-    // to load icon body from the path in the classloader
-    private final Consumer<String> loadIconBody = path -> {
-        try (InputStream in = getClass().getClassLoader().getResourceAsStream(path)) {
-            if (in != null) {
-                final int bodySize = in.available();
-                final byte[] body = new byte[bodySize];
-                final int read = in.read(body);
-                assert read == bodySize : "Read data different of excepted";
-                iconBody = body;
-            }
-        } catch (IOException e) {
-            // do nothing in case of error
-        }
-    };
-
-    // each unit's xml parameter processor ConfigurationParameter
-    private final Consumer<ConfigurationParameter> processUnitConfigurationParameter = parameter -> {
-        if (isUnitIconParameter.test(parameter)) {
-            // found icon parameter
-            final String iconResourcePath = parameter.getValue();
-            this.iconBodyPath = iconResourcePath;
-            loadIconBody.accept(iconResourcePath);
-        } else {
-            // process another parameter
-            applyUnitParameter(parameter);
-        }
-    };
 
     /**
      * <converter>
@@ -495,7 +512,7 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
      *
      * @param parameter the unit parameter to apply
      * @see ConfigurationParameter
-     * @see #processUnitConfigurationParameter
+     * @see #processParameter(ConfigurationParameter)
      * @see #settingUpMainPart(Element)
      */
     protected void applyUnitParameter(ConfigurationParameter parameter) {
@@ -733,12 +750,28 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
     public void configure(Element configuration) {
         try {
             setXML(configuration);
+            // saving successful configuration to the unit's field
+            this.unitConfiguration = configuration;
         } catch (IOException | DataConversionException e) {
-            // ignore exception on this level
+            // delegate exception processing to children
+            cannotConfigureBecause(e);
         }
     }
-// private methods
+
+    /**
+     * <config>
+     * <notify>
+     * To notify system about broken unit configuration
+     *
+     * @param e the cause of malfunction
+     */
+    protected void cannotConfigureBecause(Exception e) {
+        // ignore exception on this level
+    }
+
+    // private methods
     // building server unit main classes part
+
     /**
      * @see #buildUnitRootElement()
      */
@@ -763,6 +796,7 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
     }
 
     // building server unit builder class part
+
     /**
      * @see #buildUnitRootElement()
      */
@@ -797,6 +831,7 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
     }
 
     // updating unit paths for unit's branches
+
     /**
      * @see #setOwner(ServerUnit)
      */
@@ -806,6 +841,44 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
         // iterating tree's branches, changing the unit-owner
         for (final ServerUnit branch : branches) {
             branch.setOwner(this);
+        }
+    }
+
+    //to process the xml configuration parameter of the unit
+
+    /**
+     * @see #settingUpMainPart(Element)
+     * @see #iconBodyPath
+     * @see #applyUnitParameter(ConfigurationParameter)
+     */
+    private void processParameter(ConfigurationParameter parameter) {
+        if (isUnitIconParameter.test(parameter)) {
+            // found icon parameter
+            final String iconResourcePath = parameter.getValue();
+            this.iconBodyPath = iconResourcePath;
+            loadingIconFrom(iconResourcePath);
+        } else {
+            // process another parameter
+            applyUnitParameter(parameter);
+        }
+    }
+
+    // to load icon body from the path in the classloader
+
+    /**
+     * @see #processParameter(ConfigurationParameter)
+     */
+    private void loadingIconFrom(final String path) {
+        try (final InputStream in = getClass().getClassLoader().getResourceAsStream(path)) {
+            if (in != null) {
+                final int bodySize = in.available();
+                final byte[] body = new byte[bodySize];
+                final int read = in.read(body);
+                assert read == bodySize : "Read data different of excepted";
+                iconBody = body;
+            }
+        } catch (IOException e) {
+            // do nothing in case of error
         }
     }
 }

@@ -54,7 +54,7 @@ public final class ServerUnitBuilder implements ServerUnit.Builder<ServerUnit> {
      *
      * @return the instance
      */
-    public  static ServerUnitBuilder getInstance() {
+    public static ServerUnitBuilder getInstance() {
         if (instance != null) {
             return instance;
         }

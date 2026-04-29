@@ -57,15 +57,10 @@ public class ServerUnitBuilderTest {
     }
 
     @Test
-    public void shouldBuildServerUnitAdapter() throws IOException {
+    public void shouldBuildServerUnitAdapter_UnitBuilderClassIsEmpty() throws IOException {
         // preparing test data
         String iconPath = "icon/icon_body.gif";
         ServerUnitAdapter unit = new ServerUnitAdapter() {
-            @Override
-            public void configure(Element configuration) {
-
-            }
-
             @Override
             public String getName() {
                 return "Adapter";
@@ -83,7 +78,7 @@ public class ServerUnitBuilderTest {
         xml.addContent(new Element("builder")
                 .setAttribute("package", currentPackage)
                 .setAttribute("class", "ServerUnitBuilderTest$ServerUnitAdapterBuilder")
-                .setAttribute("method", "build")
+                .setAttribute("method", "buildNoBuilder")
         );
         // add icon for the unit
         xml.addContent(ConfigurationParameter.of("icon", iconPath).getXml());
@@ -116,9 +111,77 @@ public class ServerUnitBuilderTest {
         assertThat(element.getChild("builder")).isNull();
     }
 
+    @Test
+    public void shouldBuildServerUnitAdapter_UnitBuilderClassIsDefault() throws IOException {
+        // preparing test data
+        String iconPath = "icon/icon_body.gif";
+        ServerUnitAdapter unit = new ServerUnitAdapter() {
+            @Override
+            public String getName() {
+                return "Adapter";
+            }
+
+            @Override
+            public String getType() {
+                return "adapter";
+            }
+        };
+        assertThat(unit.getIcon()).isNull();
+        Element xml = unit.getXML();
+        assertThat(xml).isNotNull();
+        // add builder
+        xml.addContent(new Element("builder")
+                .setAttribute("package", currentPackage)
+                .setAttribute("class", "ServerUnitBuilderTest$ServerUnitAdapterBuilder")
+                .setAttribute("method", "buildStandardBuilder")
+        );
+        // add icon for the unit
+        xml.addContent(ConfigurationParameter.of("icon", iconPath).getXml());
+        // making xml as string from server unit
+        String xmlString;
+        try (ByteArrayOutputStream output = new ByteArrayOutputStream()){
+            unit.store(output, false);
+            xmlString = output.toString();
+        }
+        assertThat(xmlString).isNotNull().isNotEmpty();
+
+        // acting
+        ServerUnit built = serverUnitBuilder.build(xml);
+
+        // check results
+        assertThat(built).isInstanceOf(ServerUnitAdapter.class);
+        assertThat(built.getIcon()).isNotEmpty();
+        // getting XML from built unit
+        Element element = ((ServerUnitAdapter)built).getXML();
+        // check server unit classes
+        assertThat(element.getAttributeValue("class")).isEqualTo("ServerUnitAdapter");
+        assertThat(element.getAttributeValue("package")).isEqualTo("org.visualcti.server.unit");
+        assertThat(element.getAttributeValue("extends")).isEqualTo("org.visualcti.server.core.unit.ServerUnit");
+        //check icon parameter
+        Element iconParameter = element.getChild("parameter");
+        assertThat(iconParameter).isNotNull();
+        String unitIconPath = ConfigurationParameter.of(iconParameter).getValue();
+        assertThat(unitIconPath).isEqualTo(iconPath);
+        // check builder element
+        Element builder = element.getChild("builder");
+        assertThat(builder).isNotNull();
+        assertThat(builder.getAttributeValue("class")).isEqualTo("ServerUnitAdapter");
+        assertThat(builder.getAttributeValue("package")).isEqualTo("org.visualcti.server.unit");
+        assertThat(builder.getAttributeValue("method")).isNull();
+    }
+
     // inner classes
     private static class ServerUnitAdapterBuilder extends ServerUnitAdapter {
-        public static ServerUnit build() {
+        public static ServerUnit buildNoBuilder() {
+            return new ServerUnitAdapterBuilder() {
+                @Override
+                public Class<?> getUnitBuilderClass() {
+                    return null;
+                }
+            };
+        }
+
+        public static ServerUnit buildStandardBuilder() {
             return new ServerUnitAdapterBuilder();
         }
 

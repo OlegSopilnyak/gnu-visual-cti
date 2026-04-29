@@ -272,6 +272,7 @@ public class ServerUnitAdapterTest {
 
         // check the behavior
         verify(unit).buildUnitRootElement();
+        verify(unit).getUnitDescription();
         verify(unit).prepareBaseUnitXML(element);
         verify(unit).prepareUnitXML(element);
         // check results
@@ -308,7 +309,7 @@ public class ServerUnitAdapterTest {
     }
 
     @Test
-    public void shouldSetServerUnitXML() throws IOException, DataConversionException {
+    public void shouldSetServerUnitXML_CheckResults() throws IOException, DataConversionException {
         // preparing test data
         String iconPath = "icon/icon_body.gif";
         ServerUnitAdapter unit = new ServerUnitAdapterImpl();
@@ -319,6 +320,7 @@ public class ServerUnitAdapterTest {
         unit.setXML(element);
 
         // check results
+        assertThat(unit.getPath()).isEqualTo(unit.getName());
         assertThat(unit.iconBodyPath).isEqualTo(iconPath);
         assertThat(unit.iconBody).isNotEmpty();
         try (InputStream in = unit.getClass().getClassLoader().getResourceAsStream(unit.iconBodyPath)) {
@@ -327,6 +329,23 @@ public class ServerUnitAdapterTest {
             assertThat(in.read(buffer)).isEqualTo(buffer.length);
             assertThat(buffer).isEqualTo(unit.iconBody);
         }
+    }
+
+    @Test
+    public void shouldSetServerUnitXML_CheckBehavior() throws IOException, DataConversionException {
+        // preparing test data
+        String iconPath = "icon/icon_body.gif";
+        ServerUnitAdapter unit = new ServerUnitAdapterImpl();
+        assertThat(unit.iconBodyPath).isNull();
+        Element element = serverUnitAdapter.getXML().addContent(ConfigurationParameter.of("icon", iconPath).getXml());
+
+        // acting
+        serverUnitAdapter.setXML(element);
+
+        // check behavior
+        verify(serverUnitAdapter).settingUpBasePart(element);
+        verify(serverUnitAdapter).settingUpMainPart(element);
+        // check results
     }
 
     @Test
@@ -375,7 +394,7 @@ public class ServerUnitAdapterTest {
     public void shouldGetUnitOwnerWithExistOwner() {
         // preparing test data
         ServerUnit unitOwner = mock(ServerUnit.class);
-        ServerUnitAdapter adapter = new ServerUnitAdapterImpl(){
+        ServerUnitAdapter adapter = new ServerUnitAdapterImpl() {
             {
                 this.owner = unitOwner;
             }

@@ -37,15 +37,10 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.unit;
 
-import java.io.IOException;
-import org.jdom.DataConversionException;
 import org.jdom.Element;
 import org.visualcti.server.core.executable.Engine;
 import org.visualcti.server.core.unit.RunnableServerUnit;
 import org.visualcti.server.core.unit.ServerUnit;
-import org.visualcti.server.core.unit.message.MessageType;
-import org.visualcti.server.core.unit.message.UnitMessageFactory;
-import org.visualcti.server.core.unit.message.action.UnitActionError;
 
 /**
  * <singleton>
@@ -87,25 +82,20 @@ public abstract class RunnableUnitAdapter extends ServerUnitAdapter implements R
 
     /**
      * <config>
-     * To configure the unit, using information from XML Element
+     * <notify>
+     * To notify system about broken unit configuration
      *
-     * @param configuration new configuration of the unit
-     * @see Element
+     * @param e the cause of malfunction
      * @see ServerUnitAdapter#configure(Element)
-     * @see #setXML(Element)
-     * @see UnitActionError
-     * @see UnitMessageFactory#build(MessageType)
-     * @see #getMessageFactory()
+     * @see UnitState#BROKEN
+     * @see #dispatchExceptionFor(Exception, String)
      */
     @Override
-    public void configure(Element configuration) {
-        try {
-            setXML(configuration);
-            this.unitConfiguration = configuration;
-        } catch (IOException | DataConversionException e) {
-            unitState = UnitState.BROKEN;
-            dispatchExceptionFor(e, "Cannot restore server unit :" + getName());
-        }
+    protected void cannotConfigureBecause(Exception e) {
+        // mark unit as broken one
+        unitState = UnitState.BROKEN;
+        // dispatching malfunction cause to the event-listeners
+        dispatchExceptionFor(e, "Cannot restore server unit :" + getName());
     }
 
     /**
