@@ -227,6 +227,104 @@ public class RunnableUnitAdapterTest {
         // check results
     }
 
+    @Test
+    public void shouldStopUnit_NoChildren() throws IOException {
+        // preparing test data
+        runnableUnitAdapter.currentUnitState(RunnableServerUnit.UnitState.ACTIVE);
+        reset(runnableUnitAdapter);
+
+        // acting
+        runnableUnitAdapter.Stop();
+
+        // check the behavior
+        verify(runnableUnitAdapter).isBroken();
+        verify(runnableUnitAdapter).isStopped();
+        verify(runnableUnitAdapter).stopUnitRunnable();
+        verify(runnableUnitAdapter, never()).stopUnitChild(any(RunnableServerUnit.class));
+        verify(runnableUnitAdapter).currentUnitState(RunnableServerUnit.UnitState.PASSIVE);
+        verify(runnableUnitAdapter).dispatch(any(UnitActionEvent.class));
+        // check results
+        assertThat(runnableUnitAdapter.isStopped()).isTrue();
+    }
+
+    @Test
+    public void shouldStopUnit_WitChild() throws IOException {
+        // preparing test data
+        RunnableUnitAdapter unit = mock(RunnableUnitAdapter.class);
+        runnableUnitAdapter.add(unit);
+        runnableUnitAdapter.currentUnitState(RunnableServerUnit.UnitState.ACTIVE);
+        reset(runnableUnitAdapter, unit);
+
+        // acting
+        runnableUnitAdapter.Stop();
+
+        // check the behavior
+        verify(unit).Stop();
+        verify(unit, never()).currentUnitState(any(RunnableServerUnit.UnitState.class));
+        verify(runnableUnitAdapter).isBroken();
+        verify(runnableUnitAdapter).isStopped();
+        verify(runnableUnitAdapter).stopUnitRunnable();
+        verify(runnableUnitAdapter).stopUnitChild(unit);
+        verify(runnableUnitAdapter).currentUnitState(RunnableServerUnit.UnitState.PASSIVE);
+        verify(runnableUnitAdapter).dispatch(any(UnitActionEvent.class));
+        // check results
+        assertThat(runnableUnitAdapter.isStopped()).isTrue();
+    }
+
+    @Test
+    public void shouldStopUnit_WitChildTrows() throws IOException {
+        // preparing test data
+        RunnableUnitAdapter unit = mock(RunnableUnitAdapter.class);
+        runnableUnitAdapter.add(unit);
+        runnableUnitAdapter.currentUnitState(RunnableServerUnit.UnitState.ACTIVE);
+        reset(runnableUnitAdapter, unit);
+        doThrow(IOException.class).when(unit).Stop();
+
+        // acting
+        runnableUnitAdapter.Stop();
+
+        // check the behavior
+        verify(unit).Stop();
+        verify(unit).currentUnitState(RunnableServerUnit.UnitState.BROKEN);
+        verify(runnableUnitAdapter).isBroken();
+        verify(runnableUnitAdapter).isStopped();
+        verify(runnableUnitAdapter).stopUnitRunnable();
+        verify(runnableUnitAdapter).stopUnitChild(unit);
+        verify(runnableUnitAdapter).currentUnitState(RunnableServerUnit.UnitState.PASSIVE);
+        verify(runnableUnitAdapter, times(2)).dispatch(any(UnitActionEvent.class));
+        // check results
+        assertThat(runnableUnitAdapter.isStopped()).isTrue();
+    }
+
+    @Test
+    public void shouldStopUnit_StillStopped() throws IOException {
+        // preparing test data
+
+        // acting
+        runnableUnitAdapter.Stop();
+
+        // check the behavior
+        verify(runnableUnitAdapter).isBroken();
+        verify(runnableUnitAdapter).isStopped();
+        verify(runnableUnitAdapter, never()).stopUnitRunnable();
+        // check results
+    }
+
+    @Test
+    public void shouldStopUnit_UnitBroken() throws IOException {
+        // preparing test data
+        runnableUnitAdapter.currentUnitState(RunnableServerUnit.UnitState.BROKEN);
+
+        // acting
+        runnableUnitAdapter.Stop();
+
+        // check the behavior
+        verify(runnableUnitAdapter).isBroken();
+        verify(runnableUnitAdapter, never()).isStopped();
+        verify(runnableUnitAdapter, never()).stopUnitRunnable();
+        // check results
+    }
+
     // inner classes
     private static class RunnableUnitAdapterImpl extends RunnableUnitAdapter {
         @Override
