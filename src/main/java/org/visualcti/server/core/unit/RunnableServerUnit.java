@@ -39,6 +39,7 @@ package org.visualcti.server.core.unit;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.function.Consumer;
 import org.jdom.Element;
 import org.visualcti.server.core.executable.Engine;
@@ -47,6 +48,8 @@ import org.visualcti.server.core.unit.message.MessageType;
 import org.visualcti.server.core.unit.message.UnitMessage;
 import org.visualcti.server.core.unit.message.UnitMessageFactory;
 import org.visualcti.server.core.unit.message.action.UnitActionError;
+import org.visualcti.server.core.unit.message.command.ServerCommandRequest;
+import org.visualcti.server.core.unit.message.command.UnknownCommandException;
 import org.visualcti.server.core.unit.part.UnitMessageExchange;
 
 /**
@@ -62,7 +65,7 @@ import org.visualcti.server.core.unit.part.UnitMessageExchange;
  * @see ServerUnit
  * @see Engine
  */
-public interface RunnableServerUnit extends ServerUnit, Engine {
+public interface RunnableServerUnit extends ServerUnit, Engine, UnitMessage.Listener {
     /**
      * The lifecycle of unit state
      *
@@ -90,6 +93,181 @@ public interface RunnableServerUnit extends ServerUnit, Engine {
             return state;
         }
     }
+
+    /**
+     * <executer>
+     * To execute command for this unit.
+     * The method will call outside the unit.
+     * If command is invalid the exception will be thrown.
+     *
+     * @param command command to execute
+     * @throws Exception if it cannot execute
+     * @see ServerUnit#execute(ServerCommandRequest)
+     * @see ServerCommandRequest#getFamilyType()
+     * @see MessageFamilyType#START
+     * @see MessageFamilyType#STOP
+     * @see #Start()
+     * @see #Stop()
+     */
+    @Override
+    default void execute(ServerCommandRequest command) throws Exception {
+        try {
+            // trying to execute the command in the parent unit
+            ServerUnit.super.execute(command);
+            // it's enough for this command
+            return;
+        } catch (UnknownCommandException e) {
+            // doing nothing just execute allowed command types
+        }
+        // processing command request
+        switch( command.getFamilyType() ) {
+            case START:
+                // starting the unit
+                this.Start();
+                return;
+            case STOP:
+                // stopping the unit
+                this.Stop();
+                return;
+            default:
+                // the command isn't processed here
+                throw new UnknownCommandException(command.getFamilyType() + " isn't supported!");
+        }
+    }
+
+    /**
+     * <dispatcher>
+     * To dispatch event, error, or command response from the unit
+     * This method will be called inside the activity of unit.
+     * Should override for root unit
+     *
+     * @param message action message to dispatch
+     * @see UnitMessageExchange#dispatch(UnitMessage)
+     * @see UnitMessage
+     * @see #getOwner()
+     */
+    @Override
+    default void dispatch(UnitMessage message) {
+        if (getOwner() == null) {
+            // processing the message here
+            handleUnitMessage(message);
+        } else {
+            // delegate processing to the unit owner
+            getOwner().dispatch(message);
+        }
+    }
+
+    /**
+     * <action>
+     * Processing message in this unit
+     *
+     * @see UnitMessage
+     * @param message the message to process
+     */
+    default void processUnitMessage(UnitMessage message) {
+        System.err.println("\tWarning! in the Unit " + this.getName());
+        System.err.println("\tUnprocessed message [" + message + "]\n\tThe message will be lost...");
+    }
+
+    /**
+     * <action>
+     * to handle the server event message
+     *
+     * @param message the message to handle by listener
+     * @see UnitMessage
+     * @see #listeners()
+     * @see #processUnitMessage(UnitMessage)
+     * @see #notifyListeners(UnitMessage)
+     * @see UnitMessage.Listener#handleUnitMessage(UnitMessage)
+     */
+    @Override
+    default void handleUnitMessage(UnitMessage message) {
+        if (isEmpty(listeners())) {
+            // processing unit message locally
+            processUnitMessage(message);
+        } else {
+            // delegate unit message's processing to the unit's listeners
+            notifyListeners(message);
+        }
+    }
+
+    /**
+     * <action>
+     * to notify unit's message listeners
+     *
+     * @param message the message to handle by listener
+     * @see #handleUnitMessage(UnitMessage)
+     * @see UnitMessage
+     * @see #listeners()
+     * @see #processUnitMessage(UnitMessage)
+     * @see #notifyListener(UnitMessage.Listener, UnitMessage)
+     */
+    default void notifyListeners(UnitMessage message) {
+        for (final UnitMessage.Listener listener : listeners()) {
+            if (listener == this) {
+                // local message's processing
+                processUnitMessage(message);
+            } else {
+                // delegate unit message's processing to the unit's messages listener
+                notifyListener(listener, message);
+            }
+        }
+    }
+
+    /**
+     * <action>
+     * to process unit message through the messages listener of the unit
+     *
+     * @param listener the listener of unit message
+     * @param message the message to process
+     * @see #notifyListeners(UnitMessage)
+     * @see UnitMessage
+     * @see UnitMessage.Listener
+     * @see UnitMessage.Listener#handleUnitMessage(UnitMessage)
+     * @see #dispatchError(Exception, String)
+     * @see #removeUnitMessageListener(UnitMessage.Listener)
+     */
+    default void notifyListener(UnitMessage.Listener listener, UnitMessage message) {
+        try {
+            // processing message through messages listener
+            listener.handleUnitMessage(message);
+        } catch (Exception e) {
+            // processing mistake in the listener detected
+            dispatchError(e, "Cannot handle message [" + message + "]");
+            // removing broken listener from the listeners list
+            removeUnitMessageListener(listener);
+        }
+    }
+
+    static boolean isEmpty(Collection<?> container) {
+        return container == null || container.isEmpty();
+    }
+
+    /**
+     * <accessor>
+     * To get message-listeners associated with the unit
+     *
+     * @return message-listeners
+     */
+    Collection<UnitMessage.Listener> listeners();
+
+    /**
+     * <mutator>
+     * To add messages listener to the unit
+     *
+     * @param listener messages listener to add
+     * @see #listeners()
+     */
+    void addUnitMessageListener(UnitMessage.Listener listener);
+
+    /**
+     * <mutator>
+     * To remove messages listener from the unit
+     *
+     * @param listener messages listener to remove
+     * @see #listeners()
+     */
+    void removeUnitMessageListener(UnitMessage.Listener listener);
 
     /**
      * <accessor>
@@ -226,14 +404,14 @@ public interface RunnableServerUnit extends ServerUnit, Engine {
      * @param runnable the child of the unit to start
      * @see #currentUnitState(UnitState)
      * @see UnitState#BROKEN
-     * @see #dispatchExceptionFor(Exception, String)
+     * @see #dispatchError(Exception, String)
      */
     default void startUnitChild(RunnableServerUnit runnable) {
         try {
             runnable.Start();
         } catch (IOException e) {
             runnable.currentUnitState(UnitState.BROKEN);
-            dispatchExceptionFor(e, "Cannot start server unit :" + runnable.getPath());
+            dispatchError(e, "Cannot start server unit :" + runnable.getPath());
         }
     }
 
@@ -288,25 +466,45 @@ public interface RunnableServerUnit extends ServerUnit, Engine {
             runnable.Stop();
         } catch (IOException e) {
             runnable.currentUnitState(UnitState.BROKEN);
-            dispatchExceptionFor(e, "Cannot stop server unit :" + runnable.getPath());
+            dispatchError(e, "Cannot stop server unit :" + runnable.getPath());
         }
     }
 
     /**
      * <action>
-     * To create and dispatch the error message from the unit
+     * To create and dispatch the error-type message from the unit
      *
-     * @param exception       the cause of the error
+     * @param exception   the cause of the error
      * @param description the description of the error
+     * @see UnitActionError
+     * @see UnitActionError#setNestedException(Exception)
+     * @see #getMessageFactory()
+     * @see UnitMessageFactory#buildFor(ServerUnit, MessageType, MessageFamilyType, String)
+     * @see #dispatch(UnitMessage)
      */
-    default void dispatchExceptionFor(Exception exception, String description) {
+    default void dispatchError(Exception exception, String description) {
         try {
-            final UnitActionError  error =
-                    getMessageFactory().buildFor(this, MessageType.ERROR, MessageFamilyType.ERROR, description);
-            dispatch(error.setNestedException(exception));
+            final UnitActionError error = getMessageFactory()
+                    .buildFor(this, MessageType.ERROR, MessageFamilyType.ERROR, description);
+            if (exception != null) {
+                error.setNestedException(exception);
+            }
+            dispatch(error);
         } catch (IOException ex) {
             // doing nothing, server unit is already in broken state
         }
+    }
+
+
+    /**
+     * <action>
+     * To create and dispatch the error-type message from the unit
+     *
+     * @param description the description of the error
+     * @see #dispatchError(Exception, String)
+     */
+    default void dispatchError(String description) {
+        dispatchError(null, description);
     }
 
     /**

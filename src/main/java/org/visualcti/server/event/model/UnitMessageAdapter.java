@@ -45,8 +45,11 @@ import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.Date;
 import java.util.Objects;
+import org.jdom.Element;
 import org.visualcti.server.core.unit.message.MessageFamilyType;
+import org.visualcti.server.core.unit.message.MessageType;
 import org.visualcti.server.core.unit.message.UnitMessage;
+import org.visualcti.util.Tools;
 
 /**
  * <prototype>
@@ -191,14 +194,80 @@ abstract class UnitMessageAdapter implements UnitMessage {
     @Override
     public String toString() {
         return "{" +
-                "familyType=" + getFamilyType() +
+                "type=" + getMessageType().name() +
+                ", subType=" + getFamilyType().name() +
                 ", description='" + getDescription() + '\'' +
                 ", date=" + getDate() +
                 ", unitPath='" + getUnitPath() + '\'' +
                 '}';
     }
 
-    // private methods
+    /**
+     * <check-and-update>
+     * To check and update basic attribute values of the message
+     *
+     * @param xml restored XML of the message
+     * @param type expected type of the message
+     * @throws IOException if something went wrong
+     * @see Element
+     * @see MessageType
+     * @see #baseMessageXML(Element)
+     * @see UnitMessage#BASE_MESSAGE_TYPE_ATTRIBUTE
+     * @see #setMessageType(MessageType)
+     */
+    @Override
+    public void checkAndUpdateMessageType(final Element xml, final MessageType type) throws IOException {
+        final String typeName = xml.getAttributeValue(BASE_MESSAGE_TYPE_ATTRIBUTE);
+        final MessageType messageType = MessageType.byName(typeName);
+        if (type != null && type != messageType) {
+            Tools.error("Message type '" + typeName + "' is invalid!");
+            throw new IOException("XML document not for the " + type);
+        } else {
+            setMessageType(messageType);
+        }
+    }
+
+    /**
+     * <check-and-update>
+     * To check and update message family's type
+     *
+     * @param xml  restored XML of the message
+     * @param type expected type of the message family
+     * @throws IOException if something went wrong
+     * @see Element
+     * @see MessageFamilyType
+     * @see #baseMessageXML(Element)
+     * @see UnitMessage#BASE_MESSAGE_FAMILY_TYPE_ATTRIBUTE
+     * @see #setFamilyType(MessageFamilyType)
+     */
+    @Override
+    public void checkAndUpdateMessageType(final Element xml, final MessageFamilyType type) throws IOException {
+        final String typeName = xml.getAttributeValue(BASE_MESSAGE_FAMILY_TYPE_ATTRIBUTE);
+        final MessageFamilyType messageType = MessageFamilyType.byName(typeName);
+        if (type != null && type != messageType) {
+            Tools.error("Message family type '" + typeName + "' is invalid!");
+            throw new IOException("Invalid message family type ["+typeName+"]");
+        } else {
+            setFamilyType(messageType);
+        }
+    }
+
+    /**
+     * <check-and-update>
+     * To set up message creation date
+     *
+     * @param xml restored XML of the message
+     * @see UnitMessage#BASE_MESSAGE_WHEN_ATTRIBUTE
+     * @see Element
+     * @see #baseMessageXML(Element)
+     * @see #setDate(long)
+     */
+    @Override
+    public void checkAndUpdateMessageWhen(final Element xml) {
+        final String whenTime = xml.getAttributeValue(BASE_MESSAGE_WHEN_ATTRIBUTE);
+        setDate(whenTime == null || whenTime.trim().isEmpty() ? -1L : Long.parseLong(whenTime));
+    }
+// private methods
 
     /**
      * Calling during Java serialization

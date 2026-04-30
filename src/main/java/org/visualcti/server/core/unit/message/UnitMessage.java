@@ -41,6 +41,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Date;
+import java.util.List;
 import org.jdom.Attribute;
 import org.jdom.DataConversionException;
 import org.jdom.Element;
@@ -88,7 +89,7 @@ public interface UnitMessage extends XmlAware, Cloneable {
      * @param messageFamilyType new value of message's family type
      * @return reference to the message
      */
-    default UnitMessage setFamilyType(MessageFamilyType messageFamilyType){
+    default UnitMessage setFamilyType(MessageFamilyType messageFamilyType) {
         // do nothing by default
         return this;
     }
@@ -196,30 +197,23 @@ public interface UnitMessage extends XmlAware, Cloneable {
      * @throws NullPointerException    if something went wrong
      * @see Element
      * @see XmlAware#restore(InputStream)
+     * @see #setupMessageParameter(Parameter)
      */
+    @SuppressWarnings("unchecked")
     @Override
     default void setXML(final Element xml) throws IOException, DataConversionException, NumberFormatException, NullPointerException {
         // to restore the base properties
         baseMessageXML(xml.getChild(BASE_ELEMENT_NAME));
-        // to restore the description of the message
+        // Set up description of message by default
         setDescription("");
-        // iterate parameter elements
-        for (final Object child : xml.getChildren(Parameter.ELEMENT)) {
+        // iterate message-parameter elements
+        final List<Element> parameterElementsList = xml.getChildren(Parameter.ELEMENT);
+        for (final Element parameterXml : parameterElementsList) {
             try {
-                final Parameter parameter = Parameter.restore((Element) child);
-                if(parameter == null) {
-                    // sounds strange but let it be
-                    continue;
-                }
-                // updating the property of the message by restored parameter
-                if (DESCRIPTION_PARAMETER_NAME.equals(parameter.getName())) {
-                    // description parameter is detected
-                    // to get the parameter value (description)
-                    // if something went wrong, assign to description "Invalid action's description!"
-                    setDescription(parameter.getValue("Invalid action's description!"));
-                } else {
-                    // updating not description executable property parameter
-                    updateMessagePropertyBy(parameter);
+                final Parameter parameter = Parameter.restore(parameterXml);
+                if (parameter != null) {
+                    // to set up message's parameter
+                    setupMessageParameter(parameter);
                 }
             } catch (Exception e) {
                 Tools.error("Restore parameter error!");
@@ -229,11 +223,33 @@ public interface UnitMessage extends XmlAware, Cloneable {
     }
 
     /**
+     * <converter>
+     * setting up message's parameter
+     *
+     * @param parameter of the message
+     * @see #setXML(Element)
+     * @see Parameter
+     * @see #setDescription(String)
+     * @see #updateMessagePropertyBy(Parameter)
+     */
+    default void setupMessageParameter(final Parameter parameter) {
+        // updating the property of the message by restored parameter
+        if (DESCRIPTION_PARAMETER_NAME.equals(parameter.getName())) {
+            // description parameter is detected
+            // if something went wrong, assign to description "Invalid action's description!"
+            setDescription(parameter.getValue("Invalid action's description!"));
+        } else {
+            // updating not description executable property parameter
+            updateMessagePropertyBy(parameter);
+        }
+    }
+
+    /**
      * To update the message property by restored from XML Parameter instance
      *
      * @param parameter the value
+     * @see #setupMessageParameter(Parameter)
      * @see Parameter
-     * @see #setXML(Element)
      */
     default void updateMessagePropertyBy(final Parameter parameter) {
         // do nothing by default for basic message
@@ -268,24 +284,20 @@ public interface UnitMessage extends XmlAware, Cloneable {
         return xml;
     }
 
-    default Attribute messageAttribute(String attributeName, MessageFamilyType type) {
-        final String attributeValue = type == null ? "" : type.name();
-        return new Attribute(attributeName, attributeValue);
+    static Attribute messageAttribute(String attributeName, MessageFamilyType type) {
+        return messageAttribute(attributeName, type == null ? null : type.name());
     }
 
-    default Attribute messageAttribute(String attributeName, MessageType type) {
-        final String attributeValue = type == null ? "" : type.name();
-        return new Attribute(attributeName, attributeValue);
+    static Attribute messageAttribute(String attributeName, MessageType type) {
+        return messageAttribute(attributeName, type == null ? null : type.name());
     }
 
-    default Attribute messageAttribute(String attributeName, Date dateTime) {
-        final String attributeValue = dateTime == null ? "" : String.valueOf(dateTime.getTime());
-        return new Attribute(attributeName, attributeValue);
+    static Attribute messageAttribute(String attributeName, Date dateTime) {
+        return messageAttribute(attributeName, dateTime == null ? null : String.valueOf(dateTime.getTime()));
     }
 
-    default Attribute messageAttribute(String attributeName, String value) {
-        final String attributeValue = value == null ? "" : value;
-        return new Attribute(attributeName, attributeValue);
+    static Attribute messageAttribute(String attributeName, String value) {
+        return new Attribute(attributeName, value == null ? "" : value);
     }
 
     /**
@@ -300,20 +312,13 @@ public interface UnitMessage extends XmlAware, Cloneable {
      * @see Element
      * @see UnitMessage#setXML(Element)
      * @see UnitMessage#checkAndUpdateMessageType(Element, MessageType)
-     * @see UnitMessage#BASE_MESSAGE_TYPE_ATTRIBUTE
-     * @see UnitMessage#setMessageType(MessageType)
      * @see UnitMessage#checkAndUpdateMessageType(Element, MessageFamilyType)
-     * @see UnitMessage#BASE_MESSAGE_FAMILY_TYPE_ATTRIBUTE
-     * @see UnitMessage#setFamilyType(MessageFamilyType)
      * @see UnitMessage#checkAndUpdateMessageWhen(Element)
-     * @see UnitMessage#BASE_MESSAGE_WHEN_ATTRIBUTE
-     * @see UnitMessage#setDate(long)
      * @see UnitMessage#BASE_MESSAGE_UNIT_PATH_ATTRIBUTE
      * @see UnitMessage#setUnitPath(String)
      */
     default void baseMessageXML(final Element xml)
-            throws IOException, DataConversionException, NumberFormatException, NullPointerException
-    {
+            throws IOException, DataConversionException, NumberFormatException, NullPointerException {
         if (xml == null) {
             throw new IOException("Invalid basic part of the message.");
         }
@@ -326,30 +331,61 @@ public interface UnitMessage extends XmlAware, Cloneable {
 
     }
 
-    default void checkAndUpdateMessageType(final Element xml, final MessageType type) throws IOException {
-        final String typeName = xml.getAttributeValue(BASE_MESSAGE_TYPE_ATTRIBUTE);
-        final MessageType messageType = MessageType.byName(typeName);
-        if (type != null && type != messageType) {
-            Tools.error("Message type '" + typeName + "' is invalid!");
-            throw new IOException("XML document not for the " + type);
-        } else {
-            setMessageType(messageType);
-        }
-    }
+    /**
+     * <check-and-update>
+     * To check and update message's type from xml
+     *
+     * @param xml  restored XML of the message
+     * @param type expected type of the message
+     * @throws IOException if something went wrong
+     * @see Element
+     * @see MessageType
+     * @see #baseMessageXML(Element)
+     * @see UnitMessage#BASE_MESSAGE_TYPE_ATTRIBUTE
+     * @see #setMessageType(MessageType)
+     */
+    void checkAndUpdateMessageType(Element xml, MessageType type) throws IOException;
 
-    default void checkAndUpdateMessageType(final Element xml, final MessageFamilyType type) throws IOException {
-        final String typeName = xml.getAttributeValue(BASE_MESSAGE_FAMILY_TYPE_ATTRIBUTE);
-        final MessageFamilyType messageType = MessageFamilyType.byName(typeName);
-        if (type != null && type != messageType) {
-            Tools.error("Message family type '" + typeName + "' is invalid!");
-            throw new IOException("Invalid message family type ["+typeName+"]");
-        } else {
-            setFamilyType(messageType);
-        }
-    }
+    /**
+     * <check-and-update>
+     * To check and update message family's type from xml
+     *
+     * @param xml  restored XML of the message
+     * @param type expected type of the message family
+     * @throws IOException if something went wrong
+     * @see Element
+     * @see MessageFamilyType
+     * @see #baseMessageXML(Element)
+     * @see UnitMessage#BASE_MESSAGE_FAMILY_TYPE_ATTRIBUTE
+     * @see #setFamilyType(MessageFamilyType)
+     */
+    void checkAndUpdateMessageType(final Element xml, final MessageFamilyType type) throws IOException;
 
-    default void checkAndUpdateMessageWhen(final Element xml) {
-        final String whenTime = xml.getAttributeValue(BASE_MESSAGE_WHEN_ATTRIBUTE);
-        setDate(whenTime == null || whenTime.trim().isEmpty() ? -1L : Long.parseLong(whenTime));
+    /**
+     * <check-and-update>
+     * To restore or set up message creation date from xml
+     *
+     * @param xml restored XML of the message
+     * @see Element
+     * @see #baseMessageXML(Element)
+     * @see UnitMessage#BASE_MESSAGE_WHEN_ATTRIBUTE
+     * @see #setDate(long)
+     */
+    void checkAndUpdateMessageWhen(final Element xml);
+
+    /**
+     * <listener>
+     * The listener of dispatched unit message
+     *
+     * @see UnitMessage
+     */
+    interface Listener {
+        /**
+         * <action>
+         * to handle the server event
+         *
+         * @param message the message to handle by listener
+         */
+        void handleUnitMessage(UnitMessage message);
     }
 }

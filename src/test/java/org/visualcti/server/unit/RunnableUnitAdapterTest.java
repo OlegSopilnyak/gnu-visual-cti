@@ -50,10 +50,17 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import java.io.IOException;
+import java.util.Collection;
 import org.jdom.DataConversionException;
 import org.jdom.Element;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 import org.visualcti.server.core.unit.RunnableServerUnit;
+import org.visualcti.server.core.unit.ServerUnit;
+import org.visualcti.server.core.unit.message.MessageFamilyType;
+import org.visualcti.server.core.unit.message.MessageType;
+import org.visualcti.server.core.unit.message.UnitMessage;
+import org.visualcti.server.core.unit.message.action.UnitActionError;
 import org.visualcti.server.core.unit.message.action.UnitActionEvent;
 
 public class RunnableUnitAdapterTest {
@@ -119,7 +126,7 @@ public class RunnableUnitAdapterTest {
         // check the behavior
         verify(unit).setXML(element);
         verify(unit).cannotConfigureBecause(error);
-        verify(unit).dispatchExceptionFor(eq(error), anyString());
+        verify(unit).dispatchError(eq(error), anyString());
         // check results
         assertThat(unit.unitConfiguration).isNull();
         assertThat(unit.currentUnitState()).isSameAs(RunnableServerUnit.UnitState.BROKEN);
@@ -164,7 +171,7 @@ public class RunnableUnitAdapterTest {
         verify(runnableUnitAdapter).isStarted();
         verify(runnableUnitAdapter).startUnitRunnable();
         verify(runnableUnitAdapter).startUnitChild(unit);
-        verify(runnableUnitAdapter, never()).dispatchExceptionFor(any(IOException.class), anyString());
+        verify(runnableUnitAdapter, never()).dispatchError(any(IOException.class), anyString());
         verify(runnableUnitAdapter).currentUnitState(RunnableServerUnit.UnitState.ACTIVE);
         verify(runnableUnitAdapter).dispatch(any(UnitActionEvent.class));
         // check results
@@ -190,7 +197,7 @@ public class RunnableUnitAdapterTest {
         verify(runnableUnitAdapter).isStarted();
         verify(runnableUnitAdapter).startUnitRunnable();
         verify(runnableUnitAdapter).startUnitChild(unit);
-        verify(runnableUnitAdapter).dispatchExceptionFor(any(IOException.class), anyString());
+        verify(runnableUnitAdapter).dispatchError(any(IOException.class), anyString());
         verify(runnableUnitAdapter).currentUnitState(RunnableServerUnit.UnitState.ACTIVE);
         verify(runnableUnitAdapter, times(2)).dispatch(any(UnitActionEvent.class));
         // check results
@@ -323,6 +330,274 @@ public class RunnableUnitAdapterTest {
         verify(runnableUnitAdapter, never()).isStopped();
         verify(runnableUnitAdapter, never()).stopUnitRunnable();
         // check results
+    }
+
+    @Test
+    public void shouldGetMessagesListeners_Empty() {
+        // preparing test data
+
+        // acting
+        Collection<UnitMessage.Listener>listeners = runnableUnitAdapter.listeners();
+
+        // check results
+        assertThat(listeners).isEmpty();
+    }
+
+    @Test
+    public void shouldGetMessagesListeners_NotEmpty() {
+        // preparing test data
+        Collection<UnitMessage.Listener>listenersBefore = runnableUnitAdapter.listeners();
+        assertThat(listenersBefore).isEmpty();
+        UnitMessage.Listener listener = mock(UnitMessage.Listener.class);
+        runnableUnitAdapter.addUnitMessageListener(listener);
+
+        // acting
+        Collection<UnitMessage.Listener>listeners = runnableUnitAdapter.listeners();
+
+        // check results
+        assertThat(listeners).isNotEmpty().isNotEqualTo(listenersBefore).contains(listener);
+    }
+
+    @Test
+    public void shouldAddUnitMessageListener() {
+        // preparing test data
+        Collection<UnitMessage.Listener>listenersBefore = runnableUnitAdapter.listeners();
+        assertThat(listenersBefore).isEmpty();
+        UnitMessage.Listener listener = mock(UnitMessage.Listener.class);
+
+        // acting
+        runnableUnitAdapter.addUnitMessageListener(listener);
+
+        // check results
+        assertThat(runnableUnitAdapter.listeners()).isNotEmpty().isNotEqualTo(listenersBefore).contains(listener);
+    }
+
+    @Test
+    public void shouldRemoveUnitMessageListener() {
+        // preparing test data
+        UnitMessage.Listener listener = mock(UnitMessage.Listener.class);
+        runnableUnitAdapter.addUnitMessageListener(listener);
+        assertThat(runnableUnitAdapter.listeners()).contains(listener);
+
+        // acting
+        runnableUnitAdapter.removeUnitMessageListener(listener);
+
+        // check results
+        assertThat(runnableUnitAdapter.listeners()).isEmpty();
+    }
+
+    @Test
+    public void shouldDispatchExceptionFor_Exception() {
+        // preparing test data
+        IOException exception = mock(IOException.class);
+        String message = "The error message";
+
+        // acting
+        runnableUnitAdapter.dispatchError(exception, message);
+
+        // check the behavior
+        ArgumentCaptor<UnitMessage> captor = ArgumentCaptor.forClass(UnitMessage.class);
+        verify(runnableUnitAdapter).dispatch(captor.capture());
+        UnitMessage errorMessage = captor.getValue();
+        assertThat(errorMessage).isNotNull().isInstanceOf(UnitActionError.class);
+        assertThat(errorMessage.getDescription()).isEqualTo(message);
+        assertThat(((UnitActionError)errorMessage).getNestedException()).isNotNull();
+        // check results
+    }
+
+    @Test
+    public void shouldDispatchExceptionFor_JustMessage() {
+        // preparing test data
+        String message = "The error message";
+
+        // acting
+        runnableUnitAdapter.dispatchError(message);
+
+        // check the behavior
+        ArgumentCaptor<UnitMessage> captor = ArgumentCaptor.forClass(UnitMessage.class);
+        verify(runnableUnitAdapter).dispatch(captor.capture());
+        UnitMessage errorMessage = captor.getValue();
+        assertThat(errorMessage).isNotNull().isInstanceOf(UnitActionError.class);
+        assertThat(errorMessage.getDescription()).isEqualTo(message);
+        assertThat(((UnitActionError)errorMessage).getNestedException()).isNull();
+        // check results
+    }
+
+    @Test
+    public void shouldDispatchMessage_NoListeners() throws IOException {
+        // preparing test data
+        String message = "The stopped message";
+        UnitMessage event = runnableUnitAdapter.getMessageFactory()
+                .buildFor(runnableUnitAdapter, MessageType.EVENT, MessageFamilyType.STOP, message);
+
+        // acting
+        runnableUnitAdapter.dispatch(event);
+
+        // check the behavior
+        verify(runnableUnitAdapter).getOwner();
+        verify(runnableUnitAdapter).handleUnitMessage(event);
+        verify(runnableUnitAdapter).listeners();
+        verify(runnableUnitAdapter).processUnitMessage(event);
+    }
+
+    @Test
+    public void shouldDispatchMessage_WithListener() throws IOException {
+        // preparing test data
+        String message = "The stopped message";
+        UnitMessage event = runnableUnitAdapter.getMessageFactory()
+                .buildFor(runnableUnitAdapter, MessageType.EVENT, MessageFamilyType.STOP, message);
+        UnitMessage.Listener listener = mock(UnitMessage.Listener.class);
+        runnableUnitAdapter.addUnitMessageListener(listener);
+
+        // acting
+        runnableUnitAdapter.dispatch(event);
+
+        // check the behavior
+        verify(runnableUnitAdapter).getOwner();
+        verify(runnableUnitAdapter).handleUnitMessage(event);
+        verify(runnableUnitAdapter, times(2)).listeners();
+        verify(runnableUnitAdapter, never()).processUnitMessage(any(UnitMessage.class));
+        verify(listener).handleUnitMessage(event);
+    }
+
+    @Test
+    public void shouldDispatchMessage_ThroughOwner() throws IOException {
+        // preparing test data
+        String message = "The stopped message";
+        UnitMessage event = runnableUnitAdapter.getMessageFactory()
+                .buildFor(runnableUnitAdapter, MessageType.EVENT, MessageFamilyType.STOP, message);
+        ServerUnit owner = mock(ServerUnit.class);
+        runnableUnitAdapter.setOwner(owner);
+
+        // acting
+        runnableUnitAdapter.dispatch(event);
+
+        // check the behavior
+        verify(runnableUnitAdapter, times(2)).getOwner();
+        verify(owner).dispatch(event);
+        verify(runnableUnitAdapter, never()).handleUnitMessage(any(UnitMessage.class));
+    }
+
+    @Test
+    public void shouldProcessUnitMessage() throws IOException {
+        // preparing test data
+        String message = "The stopped message";
+        UnitMessage event = runnableUnitAdapter.getMessageFactory()
+                .buildFor(runnableUnitAdapter, MessageType.EVENT, MessageFamilyType.STOP, message);
+
+        // acting
+        runnableUnitAdapter.processUnitMessage(event);
+
+        // check the behavior
+        verify(runnableUnitAdapter, never()).currentUnitState();
+    }
+
+    @Test
+    public void shouldHandleUnitMessage_NoListeners() throws IOException {
+        // preparing test data
+        String message = "The stopped message";
+        UnitMessage event = runnableUnitAdapter.getMessageFactory()
+                .buildFor(runnableUnitAdapter, MessageType.EVENT, MessageFamilyType.STOP, message);
+
+        // acting
+        runnableUnitAdapter.handleUnitMessage(event);
+
+        // check the behavior
+        verify(runnableUnitAdapter).listeners();
+        verify(runnableUnitAdapter).processUnitMessage(event);
+        verify(runnableUnitAdapter, never()).notifyListeners(any(UnitMessage.class));
+    }
+
+    @Test
+    public void shouldHandleUnitMessage_WithListener() throws IOException {
+        // preparing test data
+        String message = "The stopped message";
+        UnitMessage event = runnableUnitAdapter.getMessageFactory()
+                .buildFor(runnableUnitAdapter, MessageType.EVENT, MessageFamilyType.STOP, message);
+        UnitMessage.Listener listener = mock(UnitMessage.Listener.class);
+        runnableUnitAdapter.addUnitMessageListener(listener);
+
+        // acting
+        runnableUnitAdapter.handleUnitMessage(event);
+
+        // check the behavior
+        verify(runnableUnitAdapter, times(2)).listeners();
+        verify(runnableUnitAdapter, never()).processUnitMessage(any(UnitMessage.class));
+        verify(runnableUnitAdapter).notifyListeners(event);
+        verify(runnableUnitAdapter).notifyListener(listener, event);
+        verify(listener).handleUnitMessage(event);
+    }
+
+    @Test
+    public void shouldNotifyListeners_NoListeners() throws IOException {
+        // preparing test data
+        String message = "The stopped message";
+        UnitMessage event = runnableUnitAdapter.getMessageFactory()
+                .buildFor(runnableUnitAdapter, MessageType.EVENT, MessageFamilyType.STOP, message);
+
+        // acting
+        runnableUnitAdapter.notifyListeners(event);
+
+        // check the behavior
+        verify(runnableUnitAdapter).listeners();
+        verify(runnableUnitAdapter,never()).notifyListener(any(UnitMessage.Listener.class), any(UnitMessage.class));
+    }
+
+    @Test
+    public void shouldNotifyListeners_WithListeners() throws IOException {
+        // preparing test data
+        String message = "The stopped message";
+        UnitMessage event = runnableUnitAdapter.getMessageFactory()
+                .buildFor(runnableUnitAdapter, MessageType.EVENT, MessageFamilyType.STOP, message);
+        UnitMessage.Listener listener = mock(UnitMessage.Listener.class);
+        runnableUnitAdapter.addUnitMessageListener(listener);
+
+        // acting
+        runnableUnitAdapter.notifyListeners(event);
+
+        // check the behavior
+        verify(runnableUnitAdapter).listeners();
+        verify(runnableUnitAdapter).notifyListener(listener, event);
+        verify(listener).handleUnitMessage(event);
+    }
+
+    @Test
+    public void shouldNotifyListener_HappyDay() throws IOException {
+        // preparing test data
+        String message = "The stopped message";
+        UnitMessage event = runnableUnitAdapter.getMessageFactory()
+                .buildFor(runnableUnitAdapter, MessageType.EVENT, MessageFamilyType.STOP, message);
+        UnitMessage.Listener listener = mock(UnitMessage.Listener.class);
+        runnableUnitAdapter.addUnitMessageListener(listener);
+
+        // acting
+        runnableUnitAdapter.notifyListener(listener, event);
+
+        // check the behavior
+        verify(listener).handleUnitMessage(event);
+        verify(runnableUnitAdapter, never()).dispatchError(any(Exception.class), anyString());
+    }
+
+    @Test
+    public void shouldNotNotifyListener_ListenerThrows() throws IOException {
+        // preparing test data
+        String message = "The stopped message";
+        UnitMessage event = runnableUnitAdapter.getMessageFactory()
+                .buildFor(runnableUnitAdapter, MessageType.EVENT, MessageFamilyType.STOP, message);
+        UnitMessage.Listener listener = mock(UnitMessage.Listener.class);
+        runnableUnitAdapter.addUnitMessageListener(listener);
+        Exception error = new RuntimeException("Don't want to handle this.");
+        doThrow(error).when(listener).handleUnitMessage(event);
+
+        // acting
+        runnableUnitAdapter.notifyListener(listener, event);
+
+        // check the behavior
+        verify(listener).handleUnitMessage(event);
+        verify(runnableUnitAdapter).dispatchError(eq(error), anyString());
+        verify(runnableUnitAdapter).removeUnitMessageListener(listener);
+        // check results
+        assertThat(runnableUnitAdapter.listeners()).isEmpty();
     }
 
     // inner classes

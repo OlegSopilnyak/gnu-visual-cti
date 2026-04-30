@@ -38,10 +38,16 @@ Fax number: 217-356-3356
 package org.visualcti.server.unit;
 
 import java.io.IOException;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
 import org.jdom.Element;
 import org.visualcti.server.core.executable.Engine;
 import org.visualcti.server.core.unit.RunnableServerUnit;
 import org.visualcti.server.core.unit.ServerUnit;
+import org.visualcti.server.core.unit.message.UnitMessage;
+import org.visualcti.server.core.unit.part.UnitMessageExchange;
 
 /**
  * <singleton>
@@ -57,6 +63,8 @@ import org.visualcti.server.core.unit.ServerUnit;
  * @see Engine
  */
 public abstract class RunnableUnitAdapter extends ServerUnitAdapter implements RunnableServerUnit {
+    // the listeners of unit messages
+    private Collection<UnitMessage.Listener> listeners = Collections.emptyList();
     // The current state of the unit
     protected UnitState unitState = UnitState.PASSIVE;
 
@@ -81,6 +89,47 @@ public abstract class RunnableUnitAdapter extends ServerUnitAdapter implements R
     @Override
     public void currentUnitState(UnitState unitState) {
         this.unitState = unitState;
+    }
+
+    /**
+     * <accessor>
+     * To get message-listeners associated with the unit
+     *
+     * @return message-listeners
+     */
+    @Override
+    public Collection<UnitMessage.Listener> listeners() {
+        return listeners;
+    }
+
+    /**
+     * <mutator>
+     * To add messages listener to the unit
+     *
+     * @param listener messages listener to add
+     * @see #listeners()
+     */
+    @Override
+    public void addUnitMessageListener(UnitMessage.Listener listener) {
+        final List<UnitMessage.Listener> listeners = new LinkedList<>(this.listeners);
+        listeners.add(listener);
+        // safe updating of listeners list
+        this.listeners = Collections.unmodifiableList(listeners);
+    }
+
+    /**
+     * <mutator>
+     * To remove messages listener from the unit
+     *
+     * @param listener messages listener to remove
+     * @see #listeners()
+     */
+    @Override
+    public void removeUnitMessageListener(UnitMessage.Listener listener) {
+        final List<UnitMessage.Listener> listeners = new LinkedList<>(this.listeners);
+        listeners.remove(listener);
+        // safe updating of listeners list
+        this.listeners = Collections.unmodifiableList(listeners);
     }
 
     /**
@@ -212,6 +261,119 @@ public abstract class RunnableUnitAdapter extends ServerUnitAdapter implements R
     }
 
     /**
+     * <action>
+     * To create and dispatch the error message from the unit
+     * Just for current version of Mockito
+     *
+     * @param exception   the cause of the error
+     * @param description the description of the error
+     * @see RunnableServerUnit#dispatchError(Exception, String)
+     * @deprecated
+     */
+    @Deprecated
+    @Override
+    public void dispatchError(Exception exception, String description) {
+        RunnableServerUnit.super.dispatchError(exception, description);
+    }
+
+    /**
+     * <action>
+     * To create and dispatch the error-type message from the unit
+     * Just for current version of Mockito
+     *
+     * @param description the description of the error
+     * @see #dispatchError(Exception, String)
+     * @deprecated
+     */
+    @Deprecated
+    @Override
+    public void dispatchError(String description) {
+        RunnableServerUnit.super.dispatchError(description);
+    }
+
+    /**
+     * <dispatcher>
+     * To dispatch event, error, or command response from the unit
+     * This method will be called inside the activity of unit.
+     * Just for current version of Mockito
+     *
+     * @param message action message to dispatch
+     * @see UnitMessageExchange#dispatch(UnitMessage)
+     * @see UnitMessage
+     * @deprecated
+     */
+    @Deprecated
+    @Override
+    public void dispatch(UnitMessage message) {
+        RunnableServerUnit.super.dispatch(message);
+    }
+
+    /**
+     * <action>
+     * Processing message in this unit
+     * Just for current version of Mockito
+     *
+     * @see UnitMessage
+     * @param message the message to process
+     * @deprecated
+     */
+    @Deprecated
+    @Override
+    public void processUnitMessage(UnitMessage message) {
+        RunnableServerUnit.super.processUnitMessage(message);
+    }
+
+    /**
+     * <action>
+     * to handle the server event message
+     * Just for current version of Mockito
+     *
+     * @param message the message to handle by listener
+     * @see UnitMessage
+     * @see RunnableServerUnit#handleUnitMessage(UnitMessage)
+     * @deprecated
+     */
+    @Deprecated
+    @Override
+    public void handleUnitMessage(UnitMessage message) {
+        RunnableServerUnit.super.handleUnitMessage(message);
+    }
+
+    /**
+     * <action>
+     * to notify unit's message listeners
+     * Just for current version of Mockito
+     *
+     * @param message the message to handle by listener
+     * @see UnitMessage
+     * @see RunnableServerUnit#notifyListeners(UnitMessage)
+     * @deprecated
+     */
+    @Deprecated
+    @Override
+    public void notifyListeners(UnitMessage message) {
+        RunnableServerUnit.super.notifyListeners(message);
+    }
+
+    /**
+     * <action>
+     * to process unit message through the messages listener of the unit
+     * Just for current version of Mockito
+     *
+     * @param listener the listener of unit message
+     * @param message  the message to process
+     * @see UnitMessage
+     * @see UnitMessage.Listener
+     * @see RunnableServerUnit#notifyListener(UnitMessage.Listener, UnitMessage)
+     * @deprecated
+     */
+    @Deprecated
+    @Override
+    public void notifyListener(UnitMessage.Listener listener, UnitMessage message) {
+        RunnableServerUnit.super.notifyListener(listener, message);
+    }
+
+    /**
      * <config>
      * <notify>
      * To notify system about broken unit configuration
@@ -219,28 +381,13 @@ public abstract class RunnableUnitAdapter extends ServerUnitAdapter implements R
      * @param e the cause of malfunction
      * @see ServerUnitAdapter#configure(Element)
      * @see UnitState#BROKEN
-     * @see #dispatchExceptionFor(Exception, String)
+     * @see #dispatchError(Exception, String)
      */
     @Override
     protected void cannotConfigureBecause(Exception e) {
         // mark unit as broken one
         unitState = UnitState.BROKEN;
         // dispatching malfunction cause to the event-listeners
-        dispatchExceptionFor(e, "Cannot restore server unit :" + getName());
-    }
-
-    /**
-     * <action>
-     * To create and dispatch the error message from the unit
-     * Just for current version of Mockito
-     *
-     * @param exception   the cause of the error
-     * @param description the description of the error
-     * @deprecated
-     */
-    @Deprecated
-    @Override
-    public void dispatchExceptionFor(Exception exception, String description) {
-        RunnableServerUnit.super.dispatchExceptionFor(exception, description);
+        dispatchError(e, "Cannot restore server unit :" + getName());
     }
 }
