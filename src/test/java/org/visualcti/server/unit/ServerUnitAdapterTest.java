@@ -63,9 +63,17 @@ import org.jdom.Element;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
+import org.visualcti.server.Parameter;
 import org.visualcti.server.UnitRegistry;
 import org.visualcti.server.core.ConfigurationParameter;
 import org.visualcti.server.core.unit.ServerUnit;
+import org.visualcti.server.core.unit.message.MessageFamilyType;
+import org.visualcti.server.core.unit.message.MessageType;
+import org.visualcti.server.core.unit.message.UnitMessage;
+import org.visualcti.server.core.unit.message.command.ServerCommandRequest;
+import org.visualcti.server.core.unit.message.command.ServerCommandResponse;
+import org.visualcti.server.core.unit.message.command.UnknownCommandException;
 
 public class ServerUnitAdapterTest {
 
@@ -589,6 +597,67 @@ public class ServerUnitAdapterTest {
         verify(serverUnitAdapter, never()).removeBranch(any(ServerUnit.class));
         // check results
         assertThat(serverUnitAdapter.children().toArray()).containsExactly(unitChild);
+    }
+
+    @Test
+    public void shouldExecuteCommand_GetMeta() throws Exception {
+        // preparing test data
+        ServerCommandRequest request = serverUnitAdapter.getMessageFactory()
+                .buildFor(serverUnitAdapter, MessageType.COMMAND, MessageFamilyType.GET, "Getting meta-info");
+        request.setNeedResponse(true).setParameter(Parameter.of("target", "meta").input());
+        reset(serverUnitAdapter);
+
+        // acting
+        serverUnitAdapter.execute(request);
+
+        // check the behavior
+        verify(serverUnitAdapter).getMessageFactory();
+        ArgumentCaptor<UnitMessage> captor = ArgumentCaptor.forClass(UnitMessage.class);
+        verify(serverUnitAdapter).dispatch(captor.capture());
+        UnitMessage message = captor.getValue();
+        // check results
+        assertThat(message).isInstanceOf(ServerCommandResponse.class);
+        ServerCommandResponse response = (ServerCommandResponse) message;
+        assertThat(response.getFamilyType()).isSameAs(request.getFamilyType()).isSameAs(MessageFamilyType.GET);
+        assertThat(response.getCorrelationID()).isEqualTo(request.getCorrelationID());
+        assertThat(response.getLinkName()).isEqualTo(request.getLinkName());
+        assertThat(response.isCommandSuccess()).isTrue();
+    }
+
+    @Test
+    public void shouldNotExecuteCommand_NotGet() throws Exception {
+        // preparing test data
+        ServerCommandRequest request = serverUnitAdapter.getMessageFactory()
+                .buildFor(serverUnitAdapter, MessageType.COMMAND, MessageFamilyType.SET, "Getting meta-info");
+        request.setNeedResponse(true).setParameter(Parameter.of("target", "meta").input());
+        reset(serverUnitAdapter);
+
+        // acting
+        Exception e = assertThrows(Exception.class, () -> serverUnitAdapter.execute(request));
+
+        // check the behavior
+        assertThat(e).isInstanceOf(UnknownCommandException.class);
+        assertThat(e.getMessage()).isEqualTo("SET isn't supported!");
+        verify(serverUnitAdapter, never()).getMessageFactory();
+        // check results
+    }
+
+    @Test
+    public void shouldNotExecuteCommand_NoNeedsResponse() throws Exception {
+        // preparing test data
+        ServerCommandRequest request = serverUnitAdapter.getMessageFactory()
+                .buildFor(serverUnitAdapter, MessageType.COMMAND, MessageFamilyType.GET, "Getting meta-info");
+        request.setNeedResponse(false).setParameter(Parameter.of("target", "meta").input());
+        reset(serverUnitAdapter);
+
+        // acting
+        Exception e = assertThrows(Exception.class, () -> serverUnitAdapter.execute(request));
+
+        // check the behavior
+        assertThat(e).isInstanceOf(UnknownCommandException.class);
+        assertThat(e.getMessage()).isEqualTo("GET isn't supported! Asynchronous execution isn't supported.");
+        verify(serverUnitAdapter, never()).getMessageFactory();
+        // check results
     }
 
     // private methods

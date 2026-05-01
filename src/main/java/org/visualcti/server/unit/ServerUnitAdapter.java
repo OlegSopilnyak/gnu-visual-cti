@@ -52,6 +52,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
@@ -67,6 +68,7 @@ import org.visualcti.server.core.unit.ServerUnit;
 import org.visualcti.server.core.unit.message.UnitMessage;
 import org.visualcti.server.core.unit.message.UnitMessageFactory;
 import org.visualcti.server.core.unit.message.command.ServerCommandRequest;
+import org.visualcti.server.core.unit.message.command.ServerCommandResponse;
 import org.visualcti.server.core.unit.part.UnitBasics;
 import org.visualcti.server.core.unit.part.UnitMessageExchange;
 import org.visualcti.server.core.unit.part.UnitsComposite;
@@ -170,6 +172,12 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
     @Override
     public void execute(ServerCommandRequest command) throws Exception {
         ServerUnit.super.execute(command);
+    }
+
+    @Deprecated
+    @Override
+    public void respondTo(ServerCommandRequest command, Consumer<ServerCommandResponse> beforeDispatch) throws IOException {
+        ServerUnit.super.respondTo(command, beforeDispatch);
     }
 
     /**

@@ -50,6 +50,13 @@ class CommandResponse extends CommandAdapter implements ServerCommandResponse {
     // is request executed well
     private transient boolean requestSuccess;
 
+    @Override
+    public String toString() {
+        return "Command {\n" + super.toString() +
+                "\nsuccess=" + requestSuccess +
+                "\n}";
+    }
+
     /**
      * <accessor>
      * To get is command executed well?

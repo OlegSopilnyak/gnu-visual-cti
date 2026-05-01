@@ -79,7 +79,7 @@ public class ServerUnitRegistryTest {
         assertThat(ServerUnitRegistry.lookup(unit)).isPresent();
         Optional<ServerUnit> found = ServerUnitRegistry.lookup(unitPath);
         assertThat(found).isPresent();
-        assertThat(found.get()).isSameAs(unit);
+        assertThat(found).contains(unit);
     }
 
     @Test

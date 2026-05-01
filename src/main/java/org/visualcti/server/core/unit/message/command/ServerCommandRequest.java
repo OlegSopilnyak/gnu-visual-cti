@@ -62,6 +62,8 @@ public interface ServerCommandRequest extends ServerCommandExecutable {
     String COMMAND_NEED_RESPONSE_PARAMETER_NAME = "@need_response";
     String COMMAND_ERROR_PARAMETER_NAME = "@error";
     String COMMAND_DONE_PARAMETER_NAME = "@request-is-done";
+    String COMMAND_TARGET_PARAMETER = "target";
+    String GET_UNIT_META_TARGET = "meta";
 
     /**
      * <accessor>

@@ -43,10 +43,9 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import org.jdom.Element;
-import org.visualcti.server.core.executable.Engine;
 import org.visualcti.server.core.unit.RunnableServerUnit;
-import org.visualcti.server.core.unit.ServerUnit;
 import org.visualcti.server.core.unit.message.UnitMessage;
+import org.visualcti.server.core.unit.message.command.ServerCommandRequest;
 import org.visualcti.server.core.unit.part.UnitMessageExchange;
 
 /**
@@ -59,8 +58,8 @@ import org.visualcti.server.core.unit.part.UnitMessageExchange;
  *
  * @author Sopilnyak Oleg
  * @version 3.02
- * @see ServerUnit
- * @see Engine
+ * @see ServerUnitAdapter
+ * @see RunnableServerUnit
  */
 public abstract class RunnableUnitAdapter extends ServerUnitAdapter implements RunnableServerUnit {
     // the listeners of unit messages
@@ -371,6 +370,26 @@ public abstract class RunnableUnitAdapter extends ServerUnitAdapter implements R
     @Override
     public void notifyListener(UnitMessage.Listener listener, UnitMessage message) {
         RunnableServerUnit.super.notifyListener(listener, message);
+    }
+
+
+    /**
+     * <executer>
+     * To execute command for this unit.
+     * The method will call outside the unit.
+     * If command is invalid the exception will be thrown.
+     * Just for current version of Mockito
+     *
+     * @param command command to execute
+     * @throws Exception if it cannot execute
+     * @see ServerCommandRequest
+     * @see RunnableUnitAdapter#execute(ServerCommandRequest)
+     * @deprecated
+     */
+    @Deprecated
+    @Override
+    public void execute(ServerCommandRequest command) throws Exception {
+        RunnableServerUnit.super.execute(command);
     }
 
     /**

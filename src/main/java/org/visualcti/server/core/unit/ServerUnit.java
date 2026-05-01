@@ -37,6 +37,9 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.core.unit;
 
+import static org.visualcti.server.core.unit.message.command.ServerCommandRequest.COMMAND_TARGET_PARAMETER;
+import static org.visualcti.server.core.unit.message.command.ServerCommandRequest.GET_UNIT_META_TARGET;
+
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -44,12 +47,14 @@ import java.rmi.registry.Registry;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 import org.jdom.Element;
 import org.visualcti.server.Parameter;
 import org.visualcti.server.core.unit.message.MessageFamilyType;
 import org.visualcti.server.core.unit.message.MessageType;
 import org.visualcti.server.core.unit.message.UnitMessage;
+import org.visualcti.server.core.unit.message.UnitMessageFactory;
 import org.visualcti.server.core.unit.message.command.ServerCommandRequest;
 import org.visualcti.server.core.unit.message.command.ServerCommandResponse;
 import org.visualcti.server.core.unit.message.command.UnknownCommandException;
@@ -80,6 +85,9 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
     String UNIT_BUILDER_METHOD_ATTRIBUTE = "method";
     // predicate to test is string empty
     Predicate<String> isEmptyString = string -> string == null || string.trim().isEmpty();
+    // Consumer for command response before dispatch action in respondTo(...)
+    Consumer<ServerCommandResponse> COMMAND_NOT_NEEDED_RESPONSE = response -> {
+    };
 
     /**
      * <accessor>
@@ -140,21 +148,52 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
      */
     @Override
     default void execute(ServerCommandRequest command) throws Exception {
-        if (MessageFamilyType.GET == command.getFamilyType() && command.isNeedResponse()) {
-            // getting parameter with name "target" from the executing command
-            final Optional<Parameter> target = command.getParameter("target", Parameter.INPUT_DIRECTION);
-            if (target.isPresent() && "meta".equals(target.get().getValue())) {
-                // command asks to get the metadata of the unit
-                // creating the response to the command
-                final ServerCommandResponse response = getMessageFactory().responseTo(command);
-                // copying unit's metadata to the response
-                UnitMetaData.of(this).transferTo(response);
-                // dispatching the response to the command request
-                dispatch(response.setCommandSuccess(true));
-                return;
-            }
+        switch (command.getFamilyType()) {
+            case GET:
+                if (command.isNeedResponse()) {
+                    // getting parameter with name "target" from the executing command
+                    final Optional<Parameter> target = command.getParameter(COMMAND_TARGET_PARAMETER, Parameter.INPUT_DIRECTION);
+                    if (target.isPresent() && GET_UNIT_META_TARGET.equals(target.get().getValue())) {
+                        // command asks to get the metadata of the unit, do it before response's dispatching
+                        final Consumer<ServerCommandResponse> loadMetaDataBeforeDispatch = response ->
+                                UnitMetaData.of(this).transferTo(response);
+                        respondTo(command, loadMetaDataBeforeDispatch);
+                    } else {
+                        throw new UnknownCommandException(command.getFamilyType() + " isn't supported! Wrong GET target");
+                    }
+                } else {
+                    // Asynchronous execution isn't supported yet
+                    throw new UnknownCommandException(command.getFamilyType() + " isn't supported! Asynchronous execution isn't supported.");
+                }
+                break;
+            default:
+                throw new UnknownCommandException(command.getFamilyType() + " isn't supported!");
         }
-        throw new UnknownCommandException(command.getFamilyType() + " isn't supported!");
+    }
+
+    /**
+     * <executer>
+     * To do action before dispatching the command response
+     *
+     * @param command        command which requires response
+     * @param beforeDispatch to do something before response dispatching
+     * @throws IOException if something went wrong
+     * @see ServerCommandRequest
+     * @see Consumer#accept(Object)
+     * @see ServerCommandResponse
+     * @see #getMessageFactory()
+     * @see UnitMessageFactory#responseTo(ServerCommandRequest)
+     * @see #dispatch(UnitMessage)
+     */
+    default void respondTo(ServerCommandRequest command, Consumer<ServerCommandResponse> beforeDispatch) throws IOException {
+        if (command.isNeedResponse()) {
+            // creating the response to the command
+            final ServerCommandResponse response = getMessageFactory().responseTo(command);
+            // to do action before response dispatch
+            beforeDispatch.accept(response);
+            // dispatching the response to the command request
+            dispatch(response.setCommandSuccess(true));
+        }
     }
 //////////////// ACTIONS PART (end) ///////////////////
 

@@ -38,10 +38,12 @@ Fax number: 217-356-3356
 package org.visualcti.server.event.model;
 
 
+import java.util.Comparator;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 import org.visualcti.server.Parameter;
@@ -62,6 +64,28 @@ abstract class CommandAdapter extends UnitMessageAdapter implements ServerComman
     // name of the link to the console shell
     private transient String linkName = "Unknown";
 
+    @Override
+    public String toString() {
+        return "{\n\t" + super.toString() +
+                "\nparameters: " + parametersToString() +
+                ",\ncorrelationId='" + correlationId + '\'' +
+                ",\nlinkName='" + linkName + "'\n" +
+                '}';
+    }
+
+    private String parametersToString() {
+        final StringBuilder builder = new StringBuilder("{\n");
+        final AtomicBoolean isFirst = new AtomicBoolean(true);
+        parameters.values().stream().sorted(Comparator.comparing(Parameter::getName)).forEach(p -> {
+            if(isFirst.get()) {
+                isFirst.getAndSet(false);
+            } else {
+                builder.append(",\n");
+            }
+            builder.append(p);
+        });
+        return builder.append("\n}").toString();
+    }
     /**
      * <accessor>
      * To get the correlation ID of the executable message

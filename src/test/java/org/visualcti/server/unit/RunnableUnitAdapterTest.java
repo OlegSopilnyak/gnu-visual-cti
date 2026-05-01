@@ -38,9 +38,11 @@ Fax number: 217-356-3356
 package org.visualcti.server.unit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertThrows;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -51,6 +53,8 @@ import static org.mockito.Mockito.verify;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.List;
+import java.util.function.Consumer;
 import org.jdom.DataConversionException;
 import org.jdom.Element;
 import org.junit.Test;
@@ -62,6 +66,9 @@ import org.visualcti.server.core.unit.message.MessageType;
 import org.visualcti.server.core.unit.message.UnitMessage;
 import org.visualcti.server.core.unit.message.action.UnitActionError;
 import org.visualcti.server.core.unit.message.action.UnitActionEvent;
+import org.visualcti.server.core.unit.message.command.ServerCommandRequest;
+import org.visualcti.server.core.unit.message.command.ServerCommandResponse;
+import org.visualcti.server.core.unit.message.command.UnknownCommandException;
 
 public class RunnableUnitAdapterTest {
     RunnableUnitAdapter runnableUnitAdapter = spy(new RunnableUnitAdapterImpl());
@@ -600,6 +607,136 @@ public class RunnableUnitAdapterTest {
         assertThat(runnableUnitAdapter.listeners()).isEmpty();
     }
 
+    @Test
+    public void shouldExecuteStartUnit_NoNeedResponse() throws Exception {
+        // preparing test data
+        ServerCommandRequest request = runnableUnitAdapter.getMessageFactory()
+                .buildFor(runnableUnitAdapter, MessageType.COMMAND, MessageFamilyType.START, "Starting the unit");
+        assertThat(runnableUnitAdapter.isStarted()).isFalse();
+        reset(runnableUnitAdapter);
+
+        // acting
+        runnableUnitAdapter.execute(request);
+
+        // check the behavior
+        verify(runnableUnitAdapter).Start();
+        verify(runnableUnitAdapter).respondTo(eq(request), any(Consumer.class));
+        ArgumentCaptor<UnitMessage> captor = ArgumentCaptor.forClass(UnitMessage.class);
+        verify(runnableUnitAdapter, atLeastOnce()).dispatch(captor.capture());
+        assertThat(captor.getAllValues()).hasSize(1);
+        assertThat(captor.getValue()).isInstanceOf(UnitActionEvent.class);
+        // check results
+        assertThat(runnableUnitAdapter.isStarted()).isTrue();
+    }
+
+    @Test
+    public void shouldExecuteStartUnit_WithResponse() throws Exception {
+        // preparing test data
+        ServerCommandRequest request = runnableUnitAdapter.getMessageFactory()
+                .buildFor(runnableUnitAdapter, MessageType.COMMAND, MessageFamilyType.START, "Starting the unit");
+        assertThat(runnableUnitAdapter.isStarted()).isFalse();
+        reset(runnableUnitAdapter);
+
+        // acting
+        runnableUnitAdapter.execute(request.setNeedResponse(true));
+
+        // check the behavior
+        verify(runnableUnitAdapter).Start();
+        verify(runnableUnitAdapter).respondTo(eq(request), any(Consumer.class));
+        ArgumentCaptor<UnitMessage> captor = ArgumentCaptor.forClass(UnitMessage.class);
+        verify(runnableUnitAdapter, atLeastOnce()).dispatch(captor.capture());
+        List<UnitMessage> unitMessages = captor.getAllValues();
+        assertThat(unitMessages).hasSize(2);
+        assertThat(unitMessages.get(0)).isInstanceOf(UnitActionEvent.class);
+        assertThat(unitMessages.get(1)).isInstanceOf(ServerCommandResponse.class);
+        // check results
+        assertThat(runnableUnitAdapter.isStarted()).isTrue();
+    }
+
+    @Test
+    public void shouldNotExecuteStartUnit_WrongCommandType() throws Exception {
+        // preparing test data
+        ServerCommandRequest request = runnableUnitAdapter.getMessageFactory()
+                .buildFor(runnableUnitAdapter, MessageType.COMMAND, MessageFamilyType.GET, "Starting the unit");
+        assertThat(runnableUnitAdapter.isStarted()).isFalse();
+        reset(runnableUnitAdapter);
+
+        // acting
+        Exception e = assertThrows(Exception.class, () -> runnableUnitAdapter.execute(request));
+
+        // check the behavior
+        verify(runnableUnitAdapter, never()).Start();
+        // check results
+        assertThat(e).isInstanceOf(UnknownCommandException.class);
+        assertThat(e.getMessage()).isEqualTo("GET isn't supported!");
+        assertThat(runnableUnitAdapter.isStarted()).isFalse();
+    }
+
+    @Test
+    public void shouldExecuteStopUnit_NoNeedResponse() throws Exception {
+        // preparing test data
+        ServerCommandRequest request = runnableUnitAdapter.getMessageFactory()
+                .buildFor(runnableUnitAdapter, MessageType.COMMAND, MessageFamilyType.STOP, "Stopping the unit");
+        runnableUnitAdapter.currentUnitState(RunnableServerUnit.UnitState.ACTIVE);
+        reset(runnableUnitAdapter);
+
+        // acting
+        runnableUnitAdapter.execute(request);
+
+        // check the behavior
+        verify(runnableUnitAdapter).Stop();
+        verify(runnableUnitAdapter).respondTo(eq(request), any(Consumer.class));
+        ArgumentCaptor<UnitMessage> captor = ArgumentCaptor.forClass(UnitMessage.class);
+        verify(runnableUnitAdapter, atLeastOnce()).dispatch(captor.capture());
+        assertThat(captor.getAllValues()).hasSize(1);
+        assertThat(captor.getValue()).isInstanceOf(UnitActionEvent.class);
+        // check results
+        assertThat(runnableUnitAdapter.isStopped()).isTrue();
+    }
+
+    @Test
+    public void shouldExecuteStopUnit_WithResponse() throws Exception {
+        // preparing test data
+        ServerCommandRequest request = runnableUnitAdapter.getMessageFactory()
+                .buildFor(runnableUnitAdapter, MessageType.COMMAND, MessageFamilyType.STOP, "Stopping the unit");
+        runnableUnitAdapter.currentUnitState(RunnableServerUnit.UnitState.ACTIVE);
+        reset(runnableUnitAdapter);
+
+        // acting
+        runnableUnitAdapter.execute(request.setNeedResponse(true));
+
+        // check the behavior
+        verify(runnableUnitAdapter).Stop();
+        verify(runnableUnitAdapter).respondTo(eq(request), any(Consumer.class));
+        ArgumentCaptor<UnitMessage> captor = ArgumentCaptor.forClass(UnitMessage.class);
+        verify(runnableUnitAdapter, atLeastOnce()).dispatch(captor.capture());
+        List<UnitMessage> unitMessages = captor.getAllValues();
+        assertThat(unitMessages).hasSize(2);
+        assertThat(unitMessages.get(0)).isInstanceOf(UnitActionEvent.class);
+        assertThat(unitMessages.get(1)).isInstanceOf(ServerCommandResponse.class);
+        // check results
+        assertThat(runnableUnitAdapter.isStopped()).isTrue();
+    }
+
+    @Test
+    public void shouldNotExecuteStopUnit_WrongCommandType() throws Exception {
+        // preparing test data
+        ServerCommandRequest request = runnableUnitAdapter.getMessageFactory()
+                .buildFor(runnableUnitAdapter, MessageType.COMMAND, MessageFamilyType.GET, "Stopping the unit");
+        runnableUnitAdapter.currentUnitState(RunnableServerUnit.UnitState.ACTIVE);
+        reset(runnableUnitAdapter);
+
+        // acting
+        Exception e = assertThrows(Exception.class, () -> runnableUnitAdapter.execute(request));
+
+        // check the behavior
+        verify(runnableUnitAdapter, never()).Stop();
+        // check results
+        assertThat(e).isInstanceOf(UnknownCommandException.class);
+        assertThat(e.getMessage()).isEqualTo("GET isn't supported!");
+        assertThat(runnableUnitAdapter.isStopped()).isFalse();
+    }
+
     // inner classes
     private static class RunnableUnitAdapterImpl extends RunnableUnitAdapter {
         @Override
@@ -611,13 +748,14 @@ public class RunnableUnitAdapterTest {
         public String getName() {
             return "RunnableUnitAdapter";
         }
+
         @Override
-        public void startUnitRunnable() throws IOException {
+        public void startUnitRunnable() {
 
         }
 
         @Override
-        public void stopUnitRunnable() throws IOException {
+        public void stopUnitRunnable() {
 
         }
     }

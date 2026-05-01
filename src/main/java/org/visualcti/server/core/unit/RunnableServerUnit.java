@@ -114,24 +114,29 @@ public interface RunnableServerUnit extends ServerUnit, Engine, UnitMessage.List
         try {
             // trying to execute the command in the parent unit
             ServerUnit.super.execute(command);
-            // it's enough for this command
+            // the command has been done there.
+            // no needs to process it further.
             return;
         } catch (UnknownCommandException e) {
-            // doing nothing just execute allowed command types
+            // doing nothing just trying to execute command further
         }
+        //
+        final MessageFamilyType commandType = command.getFamilyType();
         // processing command request
-        switch( command.getFamilyType() ) {
+        switch (commandType) {
             case START:
                 // starting the unit
-                this.Start();
+                Start();
+                respondTo(command, COMMAND_NOT_NEEDED_RESPONSE);
                 return;
             case STOP:
                 // stopping the unit
-                this.Stop();
+                Stop();
+                respondTo(command, COMMAND_NOT_NEEDED_RESPONSE);
                 return;
             default:
                 // the command isn't processed here
-                throw new UnknownCommandException(command.getFamilyType() + " isn't supported!");
+                throw new UnknownCommandException(commandType + " isn't supported!");
         }
     }
 

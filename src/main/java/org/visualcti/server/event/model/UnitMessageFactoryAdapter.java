@@ -38,6 +38,7 @@ Fax number: 217-356-3356
 package org.visualcti.server.event.model;
 
 import java.io.IOException;
+import java.util.UUID;
 import org.visualcti.server.core.unit.ServerUnit;
 import org.visualcti.server.core.unit.message.MessageFamilyType;
 import org.visualcti.server.core.unit.message.MessageType;
@@ -155,6 +156,9 @@ public interface UnitMessageFactoryAdapter extends UnitMessageFactory {
     default <T extends UnitMessage> T buildFor(ServerUnit unit, MessageType type, MessageFamilyType familyType) throws IOException {
         final T result = buildFor(unit, type);
         result.setFamilyType(familyType);
+        if (result instanceof ServerCommandRequest) {
+            ((ServerCommandRequest)result).setCorrelationID(UUID.randomUUID().toString());
+        }
         return result;
     }
 

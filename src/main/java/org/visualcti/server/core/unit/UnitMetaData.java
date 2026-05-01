@@ -226,6 +226,7 @@ public final class UnitMetaData {
         meta.put(MetaDataName.CLASS, unit.getClass().getName());
         meta.put(MetaDataName.NAME, unit.getName());
         meta.put(MetaDataName.PATH, unit.getPath());
+        meta.put(MetaDataName.STATE, RunnableServerUnit.UnitState.BROKEN);
     }
 
     private void fullTransferTo(ServerCommandResponse response) {
