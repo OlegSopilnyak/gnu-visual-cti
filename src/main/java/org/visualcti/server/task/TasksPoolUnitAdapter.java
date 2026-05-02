@@ -40,20 +40,28 @@ package org.visualcti.server.task;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.Callable;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.Consumer;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.jdom.DataConversionException;
 import org.jdom.Element;
-import org.visualcti.server.core.executable.Engine;
 import org.visualcti.server.core.executable.task.Task;
 import org.visualcti.server.core.executable.task.TasksPoolUnit;
-import org.visualcti.server.core.unit.message.command.ServerCommandRequest;
+import org.visualcti.server.core.unit.message.MessageFamilyType;
+import org.visualcti.server.core.unit.message.MessageType;
+import org.visualcti.server.core.unit.message.action.UnitActionError;
+import org.visualcti.server.core.unit.message.action.UnitActionEvent;
 import org.visualcti.server.unit.RunnableUnitAdapter;
+import org.visualcti.util.Tools;
 
 /**
  * Implementation Adapter: server tasks pool unit engine
@@ -63,7 +71,9 @@ import org.visualcti.server.unit.RunnableUnitAdapter;
  */
 public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPoolUnit {
     // The list of tasks in the pool
-    private final List<Task> tasksPool = Collections.synchronizedList(new LinkedList<>());
+    private volatile List<Task> tasksPool = Collections.emptyList();
+    // predicate checks is task valid
+    private final Predicate<Task> validTask = task -> task != null && !isEmpty(task.getName());
     // working ring of the tasks (used in the in-service engine state)
     private final LinkedList<Task> inServiceTasksRing = new LinkedList<>();
     // locker for started tasks ring
@@ -81,17 +91,13 @@ public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPo
     // the file of the pool's XML
     private File poolLocation;
     // the state of engine (tasks pool)
-    private Engine.State unitEngineState = Engine.State.OUT_OF_SERVICE;
-    //
-    // to do action in safe, for tasks ring, way
-    private final Consumer<Runnable> safeTasksRingAction = action -> {
-        tasksRingLock.lock();
-        try {
-            action.run();
-        } finally {
-            tasksRingLock.unlock();
-        }
-    };
+//    private Engine.State unitEngineState = Engine.State.OUT_OF_SERVICE;
+
+    @Deprecated
+    @Override
+    public boolean isPublic() {
+        return TasksPoolUnit.super.isPublic();
+    }
 
     /**
      * <accessor>
@@ -107,7 +113,7 @@ public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPo
 
     /**
      * <mutator>
-     * To set up the type of task-pool
+     * To set moveTaskUp the type of task-pool
      *
      * @param poolType new value of task-pool type
      * @return reference to the pool
@@ -121,18 +127,18 @@ public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPo
 
     /**
      * <accessor>
-     * To get Name of the unit to show in UI
+     * To get the name of the pool
      *
-     * @return the value
+     * @return the name of the pool
      */
     @Override
-    public String getName() {
-        return isEmpty(poolGroup) ? poolName : poolGroup + "/" + poolName;
+    public String getPoolName() {
+        return poolName;
     }
 
     /**
      * <mutator>
-     * To set up the name of the pool
+     * To set moveTaskUp the name of the pool
      *
      * @param poolName new value of pool's group
      * @return reference to tasks pool
@@ -141,17 +147,6 @@ public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPo
     public TasksPoolUnit setPoolName(String poolName) {
         this.poolName = poolName;
         return this;
-    }
-
-    /**
-     * <accessor>
-     * To get Type of unit as string (service, manager, subsystem, etc.)
-     *
-     * @return the value
-     */
-    @Override
-    public String getType() {
-        return getPoolType().getType() + "/tasks/pool";
     }
 
     /**
@@ -167,7 +162,7 @@ public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPo
 
     /**
      * <mutator>
-     * To set up the group name of the pool
+     * To set moveTaskUp the group name of the pool
      *
      * @param group new value of pool's group
      * @return reference to tasks pool
@@ -178,9 +173,15 @@ public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPo
         return this;
     }
 
+    @Deprecated
+    @Override
+    public String getName() {
+        return TasksPoolUnit.super.getName();
+    }
+
     /**
      * <mutator>
-     * To set up the tasks list file name of the pool
+     * To set moveTaskUp the tasks list file name of the pool
      *
      * @param poolFile new value of pool's file name
      * @return reference to tasks pool
@@ -194,129 +195,141 @@ public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPo
 
     /**
      * <accessor>
-     * To get current state value
+     * To get Type of unit as string (service, manager, subsystem, etc.)
      *
-     * @return the current state ID of the engine
+     * @return the value
      */
     @Override
-    public short getState() {
-        return unitEngineState.getCode();
+    public String getType() {
+        return getPoolType().getType() + "/tasks/pool";
     }
+//
+//    /**
+//     * <accessor>
+//     * To get current state value
+//     *
+//     * @return the current state ID of the engine
+//     */
+//    @Override
+//    public short getState() {
+//        return unitEngineState.getCode();
+//    }
 
-    /**
-     * <mutator>
-     * To set up the new state value
-     *
-     * @param state new state ID of the engine
-     */
-    @Override
-    public void setState(short state) {
-        this.unitEngineState = State.of(state);
-    }
+//    /**
+//     * <mutator>
+//     * To set moveTaskUp the new state value
+//     *
+//     * @param state new state ID of the engine
+//     */
+//    @Override
+//    public void setState(short state) {
+//        this.unitEngineState = State.of(state);
+//    }
+//
+//    /**
+//     * <action>
+//     * to Start the engine
+//     *
+//     * @throws IOException if engine can't start
+//     * @see #isStarted()
+//     */
+//    @Override
+//    public void Start() throws IOException {
+////        if (unitState != UnitState.BROKEN && !isStarted() && !tasksPool.isEmpty()) {
+////            safeTasksRingAction.accept(() -> {
+////                // to copying tasks from pool to the tasks ring
+////                inServiceTasksRing.addAll(tasksPool);
+////                // updating the unit state
+////                unitState = UnitState.ACTIVE;
+////                // updateTask the engine state
+////                unitEngineState = Engine.State.IN_SERVICE;
+////            });
+////            // preparing engine started successfully event
+////            final UnitActionEvent event = getMessageFactory().build(MessageType.EVENT, UnitActionEvent.class);
+////            // dispatching success engine started event
+////            dispatch(event.setFamilyType(MessageFamilyType.START).setUnitPath(getPath()));
+////        }
+//    }
+//
+//    /**
+//     * <action>
+//     * To start the internal runnable parts of the unit
+//     * Should be implemented in the children classes
+//     *
+//     * @throws IOException if them can't be started
+//     */
+//    @Override
+//    public void startUnitRunnable() throws IOException {
+//
+//    }
+//
+//    /**
+//     * <action>
+//     * to Stop the engine
+//     *
+//     * @throws IOException if engine can't stop
+//     */
+//    @Override
+//    public void Stop() throws IOException {
+////        if (unitState != UnitState.BROKEN && !isStopped()) {
+////            try {
+////                // to stop execution of the current task
+////                current().stopExecute();
+////            } catch (NullPointerException e) {
+////                // do nothing here, just ignore if current task is null
+////            }
+////            safeTasksRingAction.accept(() -> {
+////                // clear the tasks ring
+////                inServiceTasksRing.clear();
+////                currentTask = null;
+////                // updating the unit state
+////                unitState = UnitState.PASSIVE;
+////                // updateTask the state
+////                unitEngineState = Engine.State.OUT_OF_SERVICE;
+////            });
+////            // preparing engine stopped successfully event
+////            final UnitMessage event = getMessageFactory().build(MessageType.EVENT, UnitActionEvent.class);
+////            // dispatching engine stopped successfully event
+////            dispatch(event.setFamilyType(MessageFamilyType.STOP).setUnitPath(getPath()));
+////        }
+//    }
+//
+//    /**
+//     * <action>
+//     * To stop the internal runnable parts of the unit
+//     * Should be implemented in the children classes
+//     *
+//     * @throws IOException if them can't be stopped
+//     */
+//    @Override
+//    public void stopUnitRunnable() throws IOException {
+//
+//    }
 
-    /**
-     * <action>
-     * to Start the engine
-     *
-     * @throws IOException if engine can't start
-     * @see #isStarted()
-     */
-    @Override
-    public void Start() throws IOException {
-//        if (unitState != UnitState.BROKEN && !isStarted() && !tasksPool.isEmpty()) {
-//            safeTasksRingAction.accept(() -> {
-//                // to copying tasks from pool to the tasks ring
-//                inServiceTasksRing.addAll(tasksPool);
-//                // updating the unit state
-//                unitState = UnitState.ACTIVE;
-//                // update the engine state
-//                unitEngineState = Engine.State.IN_SERVICE;
-//            });
-//            // preparing engine started successfully event
-//            final UnitActionEvent event = getMessageFactory().build(MessageType.EVENT, UnitActionEvent.class);
-//            // dispatching success engine started event
-//            dispatch(event.setFamilyType(MessageFamilyType.START).setUnitPath(getPath()));
-//        }
-    }
-
-    /**
-     * <action>
-     * To start the internal runnable parts of the unit
-     * Should be implemented in the children classes
-     *
-     * @throws IOException if them can't be started
-     */
-    @Override
-    public void startUnitRunnable() throws IOException {
-
-    }
-
-    /**
-     * <action>
-     * to Stop the engine
-     *
-     * @throws IOException if engine can't stop
-     */
-    @Override
-    public void Stop() throws IOException {
-//        if (unitState != UnitState.BROKEN && !isStopped()) {
-//            try {
-//                // to stop execution of the current task
-//                current().stopExecute();
-//            } catch (NullPointerException e) {
-//                // do nothing here, just ignore if current task is null
-//            }
-//            safeTasksRingAction.accept(() -> {
-//                // clear the tasks ring
-//                inServiceTasksRing.clear();
-//                currentTask = null;
-//                // updating the unit state
-//                unitState = UnitState.PASSIVE;
-//                // update the state
-//                unitEngineState = Engine.State.OUT_OF_SERVICE;
-//            });
-//            // preparing engine stopped successfully event
-//            final UnitMessage event = getMessageFactory().build(MessageType.EVENT, UnitActionEvent.class);
-//            // dispatching engine stopped successfully event
-//            dispatch(event.setFamilyType(MessageFamilyType.STOP).setUnitPath(getPath()));
-//        }
-    }
-
-    /**
-     * <action>
-     * To stop the internal runnable parts of the unit
-     * Should be implemented in the children classes
-     *
-     * @throws IOException if them can't be stopped
-     */
-    @Override
-    public void stopUnitRunnable() throws IOException {
-
-    }
-
-    /**
-     * <accessor>
-     * To check is Engine is working (in service)
-     *
-     * @return true if Engine is in service
-     * @see State#IN_SERVICE
-     */
-    @Override
-    public boolean isStarted() {
-        return unitEngineState == Engine.State.IN_SERVICE;
-    }
-
-    /**
-     * <accessor>
-     * To check is Engine is stopped (out of service)
-     *
-     * @return true if Engine is out of service
-     * @see State#OUT_OF_SERVICE
-     */
-    @Override
-    public boolean isStopped() {
-        return unitEngineState == Engine.State.OUT_OF_SERVICE;
-    }
+//    /**
+//     * <accessor>
+//     * To check is Engine is working (in service)
+//     *
+//     * @return true if Engine is in service
+//     * @see State#IN_SERVICE
+//     */
+//    @Override
+//    public boolean isStarted() {
+//        return unitEngineState == Engine.State.IN_SERVICE;
+//    }
+//
+//    /**
+//     * <accessor>
+//     * To check is Engine is stopped (out of service)
+//     *
+//     * @return true if Engine is out of service
+//     * @see State#OUT_OF_SERVICE
+//     */
+//    @Override
+//    public boolean isStopped() {
+//        return unitEngineState == Engine.State.OUT_OF_SERVICE;
+//    }
+//
 
     /**
      * <accessor>
@@ -328,7 +341,7 @@ public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPo
      */
     @Override
     public Task current() {
-        return isStarted() ? currentTask : null;
+        return safeForTasksRing(() -> isStarted() ? this.currentTask : null);
     }
 
     /**
@@ -350,15 +363,12 @@ public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPo
             return null;
         } else {
             // rotate tasks ring and setup current one
-            safeTasksRingAction.accept(() -> {
-                // get first Task in the linked list
-                final Task taskFromTheTop = inServiceTasksRing.removeFirst();
-                // set current pool's task
-                currentTask = taskFromTheTop.clone();
-                // place to tail of list
-                inServiceTasksRing.addLast(taskFromTheTop);
+            return safeForTasksRing(() -> {
+                // set current pool's task using task from the tasks ring top
+                currentTask = topTask();
+                // returns current task
+                return currentTask;
             });
-            return currentTask;
         }
     }
 
@@ -376,29 +386,53 @@ public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPo
 
     /**
      * <mutator>
-     * To add the task to a pool.
+     * To add the task to the tasks list.
      *
      * @param task   instance to add
-     * @param notify flag is need notification after
+     * @param notify flag is need notification after (used when tasks are loading)
      * @return true if added successfully
      * @see Task
+     * @see #loadTasksList()
      */
     @Override
-    public boolean add(Task task, boolean notify) {
-        return false;
+    public boolean addTask(Task task, boolean notify) {
+        if (validTask.negate().test(task)) {
+            // incoming task is invalid
+            dispatchTasksError("Add:Invalid task to add");
+            return false;
+        }
+        // to check is task in the tasks list
+        if (hasTaskInside(task)) {
+            // incoming task already in pool
+            dispatchTasksError("Add:Task already exists");
+            // incoming task is in the pool already
+            return false;
+        }
+        // adding task to the tasks list of the pool and update tasks list of the pool
+        final List<Task> tasks = new LinkedList<>(tasksPool);
+        return tasks.add(task) && updateTasksList(tasks, !notify, "Add");
     }
 
     /**
      * <mutator>
-     * To update the task in a pool.
+     * To update the task in the tasks list.
      *
      * @param task instance to update
      * @return true if updated successfully
      * @see Task
+     * @see #removeTask(Task)
+     * @see #addTask(Task, boolean)
      */
     @Override
-    public boolean update(Task task) {
-        return false;
+    public boolean updateTask(Task task) {
+        if (validTask.negate().test(task)) {
+            // incoming task is invalid
+            dispatchTasksError("Update:Invalid task to update");
+            return false;
+        } else {
+            // remove the task and add it again
+            return removeTask(task) && addTask(task, true);
+        }
     }
 
     /**
@@ -410,11 +444,29 @@ public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPo
      * @see Task
      */
     @Override
-    public boolean remove(Task task) {
-        return false;
+    public boolean removeTask(Task task) {
+        if (validTask.negate().test(task)) {
+            // incoming task is invalid
+            dispatchTasksError("Remove:Invalid task to remove");
+            return false;
+        }
+        // to check is task isn't inside the tasks list
+        if (!hasTaskInside(task)) {
+            // incoming task already in pool
+            dispatchTasksError("Remove:Task isn't exists");
+            // incoming task is in the pool already
+            return false;
+        }
+        // removing task by task name and returning updated tasks list
+        return updateTasksList(tasksPool.stream()
+                        .filter(t -> !Objects.equals(task.getName(), t.getName()))
+                        .collect(Collectors.toList()),
+                false,
+                "Remove");
     }
 
     /**
+     * <mutator>
      * <order>
      * To move task up in the tasks list.
      *
@@ -423,8 +475,24 @@ public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPo
      * @see Task
      */
     @Override
-    public boolean up(Task task) {
-        return false;
+    public boolean moveTaskUp(Task task) {
+        if (validTask.negate().test(task)) {
+            // incoming task is invalid
+            dispatchTasksError("Up:Invalid task to move.");
+            return false;
+        }
+        final int taskIndex = taskIndexOf(task);
+        if (taskIndex == -1) {
+            // incoming task is not in the tasks list
+            dispatchTasksError("Up:Not found task to move.");
+            return false;
+        } else if(taskIndex == 0) {
+            // incoming task already occupied the top of tasks list
+            dispatchTasksError("Up:The task to move is on the top.");
+            return false;
+        }
+        // moving task moveTaskUp in tasks list and updateTask the tasks pool
+        return updateTasksList(exchangeTasks(taskIndex, -1), false, "Up");
     }
 
     /**
@@ -436,8 +504,24 @@ public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPo
      * @see Task
      */
     @Override
-    public boolean down(Task task) {
-        return false;
+    public boolean moveTaskDown(Task task) {
+        if (validTask.negate().test(task)) {
+            // incoming task is invalid
+            dispatchTasksError("Down:Invalid task to move");
+            return false;
+        }
+        final int taskIndex = taskIndexOf(task);
+        if (taskIndex == -1) {
+            // incoming task is not in the tasks list
+            dispatchTasksError("Down:Not found task to move.");
+            return false;
+        } else if(taskIndex >= tasksPool.size() - 1) {
+            // incoming task already occupied the top of tasks list
+            dispatchTasksError("Down:The task to move is on the bottom.");
+            return false;
+        }
+        // moving task down in tasks list and updateTask the tasks pool
+        return updateTasksList(exchangeTasks(taskIndex, 1), false, "Down");
     }
 
     /**
@@ -466,25 +550,168 @@ public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPo
      * @see java.io.InputStream
      */
     @Override
-    public void loadingTasksList() throws IOException, DataConversionException, NumberFormatException, NullPointerException {
+    public void loadTasksList() throws IOException, DataConversionException, NumberFormatException, NullPointerException {
         // preparing tasks file InputStream
     }
 
     /**
-     * <executer>
-     * To execute console command for this unit.
-     * The method will call outside the unit.
-     * If command is invalid the exception will be thrown.
+     * <loader>
+     * To save tasks list to the external XML file
      *
-     * @param command command to execute
-     * @throws Exception if it cannot execute
+     * @throws IOException if something went wrong
      */
     @Override
-    public void execute(ServerCommandRequest command) throws Exception {
+    public void saveTasksList() throws IOException {
 
     }
 
+    /**
+     * <action>
+     * To start the internal runnable parts of the unit
+     * Should be implemented in the children classes
+     *
+     * @see TasksPoolUnit#Start()
+     */
+    @Override
+    public void startUnitRunnable() {
+        safeForTasksRing(() -> {
+                    // to copying tasks from pool to the tasks ring
+                    inServiceTasksRing.addAll(tasksPool);
+                    // get the task from the top of tasks ring
+                    currentTask = topTask();
+                    // doesn't matter
+                    return null;
+                }
+        );
+    }
+
+    /**
+     * <action>
+     * To stop the internal runnable parts of the unit
+     * Should be implemented in the children classes
+     *
+     * @see TasksPoolUnit#Stop()
+     */
+    @Override
+    public void stopUnitRunnable() {
+        safeForTasksRing(() -> {
+                    // to clean the tasks ring
+                    inServiceTasksRing.clear();
+                    // set moveTaskUp current-task as null
+                    currentTask = topTask();
+                    // doesn't matter
+                    return null;
+                }
+        );
+    }
+//
+//    /**
+//     * <executer>
+//     * To execute console command for this unit.
+//     * The method will call outside the unit.
+//     * If command is invalid the exception will be thrown.
+//     *
+//     * @param command command to execute
+//     * @throws Exception if it cannot execute
+//     */
+//    @Override
+//    public void execute(ServerCommandRequest command) throws Exception {
+//
+//    }
+
     // private methods
+    // to get the task from the top of tasks ring's list and move it to the bottom of the one
+    private Task topTask() {
+        if (inServiceTasksRing.isEmpty()) {
+            // tasks ring is empty
+            return null;
+        }
+        // get first Task in the linked list
+        final Task taskFromTheTop = inServiceTasksRing.removeFirst();
+        // place it to tail of the linked list
+        inServiceTasksRing.addLast(taskFromTheTop);
+        // return task from the top moved to the bottom
+        return taskFromTheTop.clone();
+    }
+
+    // exchanging tasks in tasks list
+    private List<Task> exchangeTasks(final int taskIndex, final int offset) {
+        final Task[] tasks = tasksPool.toArray(new Task[0]);
+        final Task targetTask = tasks[taskIndex];
+        final Task toMoveTask = tasks[taskIndex + offset];
+        tasks[taskIndex] = toMoveTask;
+        tasks[taskIndex + offset] = targetTask;
+        return Arrays.asList(tasks);
+    }
+
+    // updating tasks list of the pool and save changes
+    private boolean updateTasksList(final List<Task> tasks, final boolean dontNotify, String action) {
+        this.tasksPool = tasks;
+        // saving updated tasks list of the pool
+        try {
+            this.saveTasksList();
+        } catch (IOException e) {
+            e.printStackTrace(Tools.err);
+            return false;
+        }
+        if (!dontNotify) {
+            // notify about tasks list modification
+            dispatchTasksModifiedEvent(action);
+        }
+        return true;
+    }
+
+    // to look for the index of task in the tasks list
+    private int taskIndexOf(final Task task) {
+        final Task[] tasks = tasksPool.toArray(new Task[0]);
+        return IntStream.range(0, tasks.length)
+                .filter(i -> Objects.equals(tasks[i].getName(), task.getName())).findFirst().orElse(-1);
+    }
+
+    // dispatching tasks list updated event
+    private void dispatchTasksModifiedEvent(final String action) {
+        try {
+            final String eventMessage = action + ":tasks.list\n" + this.tasksList();
+            final UnitActionEvent event = getMessageFactory()
+                    .buildFor(this, MessageType.EVENT, MessageFamilyType.STATE, "");
+            dispatch(event.setDescription(eventMessage));
+        } catch (IOException e) {
+            e.printStackTrace(Tools.err);
+            // ignoring the exception
+        }
+    }
+
+    // dispatching tasks list updating error
+    private void dispatchTasksError(final String errorMessage) {
+        try {
+            final UnitActionError error =
+                    getMessageFactory().buildFor(this, MessageType.ERROR, MessageFamilyType.ERROR, "");
+            dispatch(error.setDescription(errorMessage));
+        } catch (IOException e) {
+            e.printStackTrace(Tools.err);
+            // ignoring the exception
+        }
+
+    }
+
+    // to do action in safe, for tasks ring, way
+    private Task safeForTasksRing(Callable<Task> action) {
+        tasksRingLock.lock();
+        try {
+            return action.call();
+        } catch (Exception e) {
+            e.printStackTrace(Tools.err);
+            return null;
+        } finally {
+            tasksRingLock.unlock();
+        }
+    }
+
+    // to check is task inside tasks list
+    private boolean hasTaskInside(final Task task) {
+        return tasksPool.stream().anyMatch(t -> Objects.equals(t.getName(), task.getName()));
+    }
+
     //To get the installed pool's tasks list as a string
     private String tasksList() {
         final StringBuilder builder = new StringBuilder();

@@ -42,8 +42,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import org.jdom.DataConversionException;
 import org.jdom.Element;
-import org.visualcti.server.core.XmlAware;
-import org.visualcti.server.core.unit.ServerUnit;
+import org.visualcti.server.core.unit.RunnableServerUnit;
 
 /**
  * <p>Title: Visual CTI Java Telephony Server</p>
@@ -55,7 +54,7 @@ import org.visualcti.server.core.unit.ServerUnit;
  * @author Sopilnyak Oleg
  * @version 3.01
  */
-public interface TasksPoolUnit extends ServerUnit, XmlAware {
+public interface TasksPoolUnit extends RunnableServerUnit {
 
     String TASKS_POOL_TYPE_ATTRIBUTE_NAME = "type";
     String TASKS_POOL_NAME_ATTRIBUTE_NAME = "name";
@@ -100,6 +99,7 @@ public interface TasksPoolUnit extends ServerUnit, XmlAware {
      * @param poolType new value of task-pool type
      * @return reference to the pool
      * @see PoolType
+     * @see #setXML(Element)
      */
     TasksPoolUnit setPoolType(PoolType poolType);
 
@@ -128,8 +128,17 @@ public interface TasksPoolUnit extends ServerUnit, XmlAware {
      *
      * @param group new value of pool's group
      * @return reference to tasks pool
+     * @see #setXML(Element)
      */
     TasksPoolUnit setPoolGroup(String group);
+
+    /**
+     * <accessor>
+     * To get the name of the pool
+     *
+     * @return the name of the pool
+     */
+    String getPoolName();
 
     /**
      * <mutator>
@@ -137,8 +146,20 @@ public interface TasksPoolUnit extends ServerUnit, XmlAware {
      *
      * @param name new value of pool's group
      * @return reference to tasks pool
+     * @see #setXML(Element)
      */
     TasksPoolUnit setPoolName(String name);
+
+    /**
+     * <accessor>
+     * To get Name of the unit to show in UI
+     *
+     * @return the value
+     */
+    @Override
+    default String getName() {
+        return isEmpty(getPoolGroup()) ? getPoolName() : getPoolGroup() + "/" + getPoolName();
+    }
 
     /**
      * <mutator>
@@ -146,6 +167,7 @@ public interface TasksPoolUnit extends ServerUnit, XmlAware {
      *
      * @param poolFile new value of pool's file name
      * @return reference to tasks pool
+     * @see #setXML(Element)
      */
     TasksPoolUnit setPoolFile(String poolFile);
 
@@ -181,24 +203,25 @@ public interface TasksPoolUnit extends ServerUnit, XmlAware {
 
     /**
      * <mutator>
-     * To add the task to a pool.
+     * To addTask the task to a pool.
      *
-     * @param task   instance to add
-     * @param notify flag is need notification after
+     * @param task   instance to addTask
+     * @param notify flag is need notification after (used when tasks are loading)
      * @return true if added successfully
      * @see Task
+     * @see #loadTasksList()
      */
-    boolean add(Task task, boolean notify);
+    boolean addTask(Task task, boolean notify);
 
     /**
      * <mutator>
-     * To update the task in a pool.
+     * To updateTask the task in a pool.
      *
-     * @param task instance to update
+     * @param task instance to updateTask
      * @return true if updated successfully
      * @see Task
      */
-    boolean update(Task task);
+    boolean updateTask(Task task);
 
     /**
      * <mutator>
@@ -208,7 +231,7 @@ public interface TasksPoolUnit extends ServerUnit, XmlAware {
      * @return true if removed successfully
      * @see Task
      */
-    boolean remove(Task task);
+    boolean removeTask(Task task);
 
     /**
      * <order>
@@ -218,7 +241,7 @@ public interface TasksPoolUnit extends ServerUnit, XmlAware {
      * @return true if moved successfully
      * @see Task
      */
-    boolean up(Task task);
+    boolean moveTaskUp(Task task);
 
     /**
      * <order>
@@ -228,11 +251,11 @@ public interface TasksPoolUnit extends ServerUnit, XmlAware {
      * @return true if moved successfully
      * @see Task
      */
-    boolean down(Task task);
+    boolean moveTaskDown(Task task);
 
     /**
      * <converter>
-     * To update the entity's fields from XML
+     * To updateTask the entity's fields from XML
      *
      * @param xml possible entity's XML
      * @throws IOException             if something went wrong
@@ -244,7 +267,7 @@ public interface TasksPoolUnit extends ServerUnit, XmlAware {
      */
     @Override
     default void setXML(Element xml) throws IOException, DataConversionException, NumberFormatException, NullPointerException {
-        // here we update unit from element of main server configuration
+        // here we updateTask unit from element of main server configuration
         setPoolType(PoolType.of(xml.getAttributeValue(TASKS_POOL_TYPE_ATTRIBUTE_NAME)));
         final String combinedPoolName = xml.getAttributeValue(TASKS_POOL_NAME_ATTRIBUTE_NAME);
         if (isEmpty(combinedPoolName)) {
@@ -252,16 +275,16 @@ public interface TasksPoolUnit extends ServerUnit, XmlAware {
             throw new IOException("Pool name is empty");
         }
         // resolving pool-name from XML
-        String[] name = combinedPoolName.split("/");
-        if (name.length > 1) {
-            setPoolGroup(name[1]).setPoolName(name[0])
+        final String[] nameParts = combinedPoolName.split("/");
+        if (nameParts.length > 1) {
+            setPoolGroup(nameParts[1]).setPoolName(nameParts[0])
                     .setPoolFile(xml.getAttributeValue(TASKS_POOL_EXTERNAL_FILE_ATTRIBUTE_NAME));
         } else {
-            setPoolName(name[0])
+            setPoolName(nameParts[0])
                     .setPoolFile(xml.getAttributeValue(TASKS_POOL_EXTERNAL_FILE_ATTRIBUTE_NAME));
         }
-        // loading main part of tasks pool from pool-file
-        loadingTasksList();
+        // loading tasks list of the pool from the external pool-file
+        loadTasksList();
     }
 
     /**
@@ -272,7 +295,15 @@ public interface TasksPoolUnit extends ServerUnit, XmlAware {
      * @throws DataConversionException if something went wrong
      * @throws NumberFormatException   if something went wrong
      * @throws NullPointerException    if something went wrong
-     * @see #setPoolFile(String)
+     * @see #setXML(Element)
      */
-    void loadingTasksList() throws IOException, DataConversionException, NumberFormatException, NullPointerException;
+    void loadTasksList() throws IOException, DataConversionException, NumberFormatException, NullPointerException;
+
+    /**
+     * <loader>
+     * To save tasks list to the external XML file
+     *
+     * @throws IOException             if something went wrong
+     */
+    void saveTasksList() throws IOException;
 }
