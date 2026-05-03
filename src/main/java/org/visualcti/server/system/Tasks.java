@@ -51,7 +51,7 @@ public final class Tasks
 {
     public static final void adjustPools(List validNames)
     {
-      Manager manager=(Manager)UnitRegistry.lookup("/Tasks",Manager.class);
+      Manager manager=(Manager)UnitRegistry.lookupOld("/Tasks",Manager.class);
       if ( manager != null) System.out.println("manager "+manager);
     }
     /**

@@ -59,6 +59,8 @@ public interface TasksPoolUnit extends RunnableServerUnit {
     String TASKS_POOL_TYPE_ATTRIBUTE_NAME = "type";
     String TASKS_POOL_NAME_ATTRIBUTE_NAME = "name";
     String TASKS_POOL_EXTERNAL_FILE_ATTRIBUTE_NAME = "file";
+    String TASKS_LIST_ROOT_ELEMENT_NAME = "TasksPool";
+    String TASKS_POOL_ROOT_ELEMENT_NAME = "pool";
 
     /**
      * Type: task-pool type
@@ -292,12 +294,11 @@ public interface TasksPoolUnit extends RunnableServerUnit {
      * To load tasks list from external XML file
      *
      * @throws IOException             if something went wrong
-     * @throws DataConversionException if something went wrong
      * @throws NumberFormatException   if something went wrong
      * @throws NullPointerException    if something went wrong
      * @see #setXML(Element)
      */
-    void loadTasksList() throws IOException, DataConversionException, NumberFormatException, NullPointerException;
+    void loadTasksList() throws IOException, NumberFormatException, NullPointerException;
 
     /**
      * <loader>

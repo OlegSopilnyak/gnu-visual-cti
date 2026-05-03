@@ -38,19 +38,15 @@ Fax number: 217-356-3356
 package org.visualcti.server.core.executable.task;
 
 import java.io.File;
-import org.visualcti.server.core.XmlAware;
-import org.visualcti.server.core.executable.Engine;
-import org.visualcti.server.core.unit.part.UnitsComposite;
+import org.visualcti.server.core.unit.RunnableServerUnit;
 
 /**
  * <manager>
  * The manager of task pools
  *
- * @see UnitsComposite
- * @see Engine
- * @see XmlAware
+ * @see RunnableServerUnit
  */
-public interface TaskPoolsManager extends UnitsComposite, Engine, XmlAware {
+public interface TaskPoolsManager extends RunnableServerUnit {
     // factory-owner group name of the task pool (by default)
     String SYSTEM_GROUP = "System";
 
@@ -77,7 +73,7 @@ public interface TaskPoolsManager extends UnitsComposite, Engine, XmlAware {
      * <accessor>
      * get access to TaskPool for scheduler by CT-device name & device's factory
      *
-     * @param name the name of tasks pool
+     * @param name    the name of tasks pool
      * @param factory the name of factory-owner group name of the task pool
      * @return local pool instance
      */

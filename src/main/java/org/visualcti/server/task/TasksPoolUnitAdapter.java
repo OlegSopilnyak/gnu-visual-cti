@@ -38,7 +38,9 @@ Fax number: 217-356-3356
 package org.visualcti.server.task;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -53,9 +55,13 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.jdom.DataConversionException;
+import org.jdom.Document;
 import org.jdom.Element;
+import org.visualcti.server.UnitRegistry;
 import org.visualcti.server.core.executable.task.Task;
+import org.visualcti.server.core.executable.task.TaskPoolsManager;
 import org.visualcti.server.core.executable.task.TasksPoolUnit;
+import org.visualcti.server.core.unit.exception.ServerUnitException;
 import org.visualcti.server.core.unit.message.MessageFamilyType;
 import org.visualcti.server.core.unit.message.MessageType;
 import org.visualcti.server.core.unit.message.action.UnitActionError;
@@ -72,6 +78,7 @@ import org.visualcti.util.Tools;
 public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPoolUnit {
     // The list of tasks in the pool
     private volatile List<Task> tasksPool = Collections.emptyList();
+    private volatile Element tasksListConfiguration = new Element(TASKS_LIST_ROOT_ELEMENT_NAME);
     // predicate checks is task valid
     private final Predicate<Task> validTask = task -> task != null && !isEmpty(task.getName());
     // working ring of the tasks (used in the in-service engine state)
@@ -90,8 +97,6 @@ public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPo
     private String poolFile;
     // the file of the pool's XML
     private File poolLocation;
-    // the state of engine (tasks pool)
-//    private Engine.State unitEngineState = Engine.State.OUT_OF_SERVICE;
 
     @Deprecated
     @Override
@@ -203,133 +208,6 @@ public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPo
     public String getType() {
         return getPoolType().getType() + "/tasks/pool";
     }
-//
-//    /**
-//     * <accessor>
-//     * To get current state value
-//     *
-//     * @return the current state ID of the engine
-//     */
-//    @Override
-//    public short getState() {
-//        return unitEngineState.getCode();
-//    }
-
-//    /**
-//     * <mutator>
-//     * To set moveTaskUp the new state value
-//     *
-//     * @param state new state ID of the engine
-//     */
-//    @Override
-//    public void setState(short state) {
-//        this.unitEngineState = State.of(state);
-//    }
-//
-//    /**
-//     * <action>
-//     * to Start the engine
-//     *
-//     * @throws IOException if engine can't start
-//     * @see #isStarted()
-//     */
-//    @Override
-//    public void Start() throws IOException {
-////        if (unitState != UnitState.BROKEN && !isStarted() && !tasksPool.isEmpty()) {
-////            safeTasksRingAction.accept(() -> {
-////                // to copying tasks from pool to the tasks ring
-////                inServiceTasksRing.addAll(tasksPool);
-////                // updating the unit state
-////                unitState = UnitState.ACTIVE;
-////                // updateTask the engine state
-////                unitEngineState = Engine.State.IN_SERVICE;
-////            });
-////            // preparing engine started successfully event
-////            final UnitActionEvent event = getMessageFactory().build(MessageType.EVENT, UnitActionEvent.class);
-////            // dispatching success engine started event
-////            dispatch(event.setFamilyType(MessageFamilyType.START).setUnitPath(getPath()));
-////        }
-//    }
-//
-//    /**
-//     * <action>
-//     * To start the internal runnable parts of the unit
-//     * Should be implemented in the children classes
-//     *
-//     * @throws IOException if them can't be started
-//     */
-//    @Override
-//    public void startUnitRunnable() throws IOException {
-//
-//    }
-//
-//    /**
-//     * <action>
-//     * to Stop the engine
-//     *
-//     * @throws IOException if engine can't stop
-//     */
-//    @Override
-//    public void Stop() throws IOException {
-////        if (unitState != UnitState.BROKEN && !isStopped()) {
-////            try {
-////                // to stop execution of the current task
-////                current().stopExecute();
-////            } catch (NullPointerException e) {
-////                // do nothing here, just ignore if current task is null
-////            }
-////            safeTasksRingAction.accept(() -> {
-////                // clear the tasks ring
-////                inServiceTasksRing.clear();
-////                currentTask = null;
-////                // updating the unit state
-////                unitState = UnitState.PASSIVE;
-////                // updateTask the state
-////                unitEngineState = Engine.State.OUT_OF_SERVICE;
-////            });
-////            // preparing engine stopped successfully event
-////            final UnitMessage event = getMessageFactory().build(MessageType.EVENT, UnitActionEvent.class);
-////            // dispatching engine stopped successfully event
-////            dispatch(event.setFamilyType(MessageFamilyType.STOP).setUnitPath(getPath()));
-////        }
-//    }
-//
-//    /**
-//     * <action>
-//     * To stop the internal runnable parts of the unit
-//     * Should be implemented in the children classes
-//     *
-//     * @throws IOException if them can't be stopped
-//     */
-//    @Override
-//    public void stopUnitRunnable() throws IOException {
-//
-//    }
-
-//    /**
-//     * <accessor>
-//     * To check is Engine is working (in service)
-//     *
-//     * @return true if Engine is in service
-//     * @see State#IN_SERVICE
-//     */
-//    @Override
-//    public boolean isStarted() {
-//        return unitEngineState == Engine.State.IN_SERVICE;
-//    }
-//
-//    /**
-//     * <accessor>
-//     * To check is Engine is stopped (out of service)
-//     *
-//     * @return true if Engine is out of service
-//     * @see State#OUT_OF_SERVICE
-//     */
-//    @Override
-//    public boolean isStopped() {
-//        return unitEngineState == Engine.State.OUT_OF_SERVICE;
-//    }
-//
 
     /**
      * <accessor>
@@ -486,7 +364,7 @@ public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPo
             // incoming task is not in the tasks list
             dispatchTasksError("Up:Not found task to move.");
             return false;
-        } else if(taskIndex == 0) {
+        } else if (taskIndex == 0) {
             // incoming task already occupied the top of tasks list
             dispatchTasksError("Up:The task to move is on the top.");
             return false;
@@ -515,7 +393,7 @@ public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPo
             // incoming task is not in the tasks list
             dispatchTasksError("Down:Not found task to move.");
             return false;
-        } else if(taskIndex >= tasksPool.size() - 1) {
+        } else if (taskIndex >= tasksPool.size() - 1) {
             // incoming task already occupied the top of tasks list
             dispatchTasksError("Down:The task to move is on the bottom.");
             return false;
@@ -533,25 +411,62 @@ public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPo
      */
     @Override
     public Element getXML() {
-        return null;
+        return unitConfiguration;
+    }
+
+    @Override
+    public void setXML(Element xml) throws IOException, DataConversionException, NumberFormatException, NullPointerException {
+        TasksPoolUnit.super.setXML(xml);
+        this.unitPath = this.getName();
     }
 
     /**
      * <converter>
      * To load tasks list from external XML file
      *
-     * @throws IOException             if something went wrong
-     * @throws DataConversionException if something went wrong
-     * @throws NumberFormatException   if something went wrong
-     * @throws NullPointerException    if something went wrong
+     * @throws IOException           if something went wrong
+     * @throws NumberFormatException if something went wrong
+     * @throws NullPointerException  if something went wrong
      * @see #setPoolFile(String)
      * @see #setXML(Element)
      * @see Element
      * @see java.io.InputStream
      */
+    @SuppressWarnings("unchecked")
     @Override
-    public void loadTasksList() throws IOException, DataConversionException, NumberFormatException, NullPointerException {
-        // preparing tasks file InputStream
+    public void loadTasksList() throws IOException, NumberFormatException, NullPointerException {
+        try {
+            // getting instance of task pools manager
+            final TaskPoolsManager poolsManager = UnitRegistry.lookup(TaskPoolsManager.class);
+            // preparing tasks-list external file
+            final File tasksListFile = new File(poolsManager.getRoot(), this.poolFile);
+            // loading tasks-list xml and restore the tasks
+            try (final FileInputStream in = new FileInputStream(tasksListFile)) {
+                final Element tasksListXml = load(in);
+                final List<Element> xmlsList = tasksListXml.getChildren(Task.ROOT_ELEMENT);
+                xmlsList.stream().map(TaskMaker::restore).filter(Objects::nonNull)
+                        .forEach(task -> addTask(task, false));
+                // saving correct configuration
+                this.tasksListConfiguration = tasksListXml;
+                this.poolLocation = tasksListFile;
+                // adding tasks pool to the pools manager
+                poolsManager.add(this);
+            }
+        } catch (ServerUnitException e) {
+            throw new IOException("Wrong manager in registry", e);
+        }
+    }
+
+    @Deprecated
+    @Override
+    public Element load(InputStream in) throws IOException {
+        return TasksPoolUnit.super.load(in);
+    }
+
+    @Deprecated
+    @Override
+    public Document prepareXmlDocument(InputStream in) throws IOException {
+        return TasksPoolUnit.super.prepareXmlDocument(in);
     }
 
     /**

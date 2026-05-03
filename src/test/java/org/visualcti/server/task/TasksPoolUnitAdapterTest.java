@@ -49,11 +49,19 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import org.jdom.DataConversionException;
+import org.jdom.Element;
 import org.junit.After;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Matchers;
+import org.visualcti.server.UnitRegistry;
 import org.visualcti.server.core.executable.task.Task;
+import org.visualcti.server.core.executable.task.TaskPoolsManager;
+import org.visualcti.server.core.executable.task.TasksPoolUnit;
 import org.visualcti.server.core.unit.message.UnitMessage;
 import org.visualcti.server.core.unit.message.action.UnitActionError;
 import org.visualcti.server.core.unit.message.action.UnitActionEvent;
@@ -491,5 +499,37 @@ public class TasksPoolUnitAdapterTest {
         // check results
         assertThat(tasksPool.tasks()).containsExactly(task1, task2);
         assertThat(modified).isFalse();
+    }
+
+    @Test
+    public void shouldLoadTasksList_ExistsFile() throws IOException, DataConversionException {
+        // preparing test data
+        String managerPath = "Tasks/Manager";
+        String managerDirectory = "work/tasks";
+        TaskPoolsManager poolsManager = mock(TaskPoolsManager.class);
+//        doCallRealMethod().when(poolsManager).add(any(ServerUnit.class));
+        doReturn(managerPath).when(poolsManager).getPath();
+        doReturn(new File(managerDirectory)).when(poolsManager).getRoot();
+        UnitRegistry.register(poolsManager);
+
+
+        // acting
+        Element pool = new Element("pool")
+                .setAttribute("type", "public")
+                .setAttribute("name", "public")
+                .setAttribute("file", "public.tasks.pool");
+        TasksPoolUnit tasksPoolUnit = spy(new TasksPoolUnitAdapter());
+        tasksPoolUnit.configure(pool);
+
+        // check the behavior
+        verify(tasksPoolUnit).setXML(pool);
+        verify(tasksPoolUnit).loadTasksList();
+        ArgumentCaptor<InputStream> loadCaptor = ArgumentCaptor.forClass(InputStream.class);
+        verify(tasksPoolUnit).load(loadCaptor.capture());
+        verify(tasksPoolUnit).prepareXmlDocument(loadCaptor.getValue());
+        verify(tasksPoolUnit, times(3)).addTask(any(Task.class), Matchers.eq(false));
+        verify(poolsManager).add(tasksPoolUnit);
+        // check results
+        assertThat(tasksPoolUnit.tasks()).hasSize(3);
     }
 }

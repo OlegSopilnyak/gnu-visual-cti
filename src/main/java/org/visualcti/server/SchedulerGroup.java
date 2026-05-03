@@ -54,7 +54,7 @@ final class SchedulerGroup extends groupUnitAdapter implements Engine
     */
     public final Database getDatabase()
     {
-        return (Database)UnitRegistry.lookup("/Service/Database", Database.class);
+        return (Database)UnitRegistry.lookupOld("/Service/Database", Database.class);
     }
     /**
     <accessor>
@@ -62,7 +62,7 @@ final class SchedulerGroup extends groupUnitAdapter implements Engine
     */
     public final Messenger getMessenger()
     {
-        return (Messenger)UnitRegistry.lookup("/Service/Messenger", Messenger.class);
+        return (Messenger)UnitRegistry.lookupOld("/Service/Messenger", Messenger.class);
     }
 /**
 <attribute>

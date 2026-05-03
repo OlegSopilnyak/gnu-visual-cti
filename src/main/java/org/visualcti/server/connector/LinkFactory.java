@@ -139,7 +139,7 @@ private transient volatile org.visualcti.server.security.Manager security = null
         if (this.security == null)
         {
             this.security =
-                (org.visualcti.server.security.Manager)UnitRegistry.lookup
+                (org.visualcti.server.security.Manager)UnitRegistry.lookupOld
                                                     (
                                                     "/Service/Security",
                                                     org.visualcti.server.security.Manager.class

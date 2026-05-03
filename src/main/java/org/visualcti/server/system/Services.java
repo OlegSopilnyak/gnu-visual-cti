@@ -81,7 +81,7 @@ public final class Services
             // get registered service.Manager from registry
             Class mngClass = org.visualcti.server.service.Manager.class;
             // get registered root Class of services system
-            Service service = (Service)UnitRegistry.lookup("/Service", mngClass);
+            Service service = (Service)UnitRegistry.lookupOld("/Service", mngClass);
             srvs = (org.visualcti.server.service.Manager)service;
             if (srvs == null) throw new ClassCastException();
             // store services to Server
@@ -103,7 +103,7 @@ public final class Services
             // get registered log.Log from registry
             Class logClass = org.visualcti.server.log.Log.class;
             // get registered root Class of services system
-            Service service = (Service)UnitRegistry.lookup("/Service/Log", logClass);
+            Service service = (Service)UnitRegistry.lookupOld("/Service/Log", logClass);
             log = (org.visualcti.server.log.Log)service;
             if (log == null) throw new ClassCastException();
             server.setLogger(log);
@@ -124,7 +124,7 @@ public final class Services
             // get registered connector.Manager from registry
             Class connectClass = org.visualcti.server.connector.Manager.class;
             // get registered root Class of services system
-            Service service = (Service)UnitRegistry.lookup("/Service/Connector", connectClass);
+            Service service = (Service)UnitRegistry.lookupOld("/Service/Connector", connectClass);
             connectors = (org.visualcti.server.connector.Manager)service;
             if (connectors == null) throw new ClassCastException();
             server.setConnectorsManager(connectors);

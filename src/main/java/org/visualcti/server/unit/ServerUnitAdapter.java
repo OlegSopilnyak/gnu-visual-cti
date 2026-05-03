@@ -298,48 +298,24 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
         return element;
     }
 
-    /**
-     * <transport>
-     * to store entity's content as XML to the OutputStream
-     * will be used for transport objects in serialization flow or for store to file
-     * Just for current version of Mockito
-     *
-     * @param out     target output stream
-     * @param compact flag which output we are expecting
-     * @throws IOException if it cannot write to output stream
-     * @see XmlAware#store(OutputStream, boolean)
-     */
     @Deprecated
     @Override
     public void store(OutputStream out, boolean compact) throws IOException {
         XmlAware.super.store(out, compact);
     }
 
-    /**
-     * <builder>
-     * Preparing human-readable XML outputter to an output stream
-     * Just for current version of Mockito
-     *
-     * @return prepared XML outputter
-     * @see XMLOutputter
-     * @see XmlAware#documentXmlOutputter()
-     */
+    @Deprecated
+    @Override
+    public void store(Element XML, OutputStream out, boolean compact) throws IOException {
+        XmlAware.super.store(XML, out, compact);
+    }
+
     @Deprecated
     @Override
     public XMLOutputter documentXmlOutputter() {
         return XmlAware.super.documentXmlOutputter();
     }
 
-    /**
-     * <builder>
-     * Preparing the document from entity's XML
-     * Just for current version of Mockito
-     *
-     * @param xml XML element
-     * @return prepared XML Document
-     * @see Document
-     * @see XmlAware#prepareXmlDocument(Element)
-     */
     @Deprecated
     @Override
     public Document prepareXmlDocument(Element xml) {
@@ -760,6 +736,8 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
             setXML(configuration);
             // saving successful configuration to the unit's field
             this.unitConfiguration = configuration;
+            // registering unit in the registry
+            UnitRegistry.register(this);
         } catch (IOException | DataConversionException e) {
             // delegate exception processing to children
             cannotConfigureBecause(e);
