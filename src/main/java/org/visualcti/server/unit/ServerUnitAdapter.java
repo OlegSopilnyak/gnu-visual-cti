@@ -306,8 +306,8 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
 
     @Deprecated
     @Override
-    public void store(Element XML, OutputStream out, boolean compact) throws IOException {
-        XmlAware.super.store(XML, out, compact);
+    public void store(Element rootXmlElement, OutputStream out, boolean compact) throws IOException {
+        XmlAware.super.store(rootXmlElement, out, compact);
     }
 
     @Deprecated

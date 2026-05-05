@@ -39,8 +39,10 @@ package org.visualcti.server.task;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -54,6 +56,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import org.jdom.Comment;
 import org.jdom.DataConversionException;
 import org.jdom.Document;
 import org.jdom.Element;
@@ -66,6 +69,7 @@ import org.visualcti.server.core.unit.message.MessageFamilyType;
 import org.visualcti.server.core.unit.message.MessageType;
 import org.visualcti.server.core.unit.message.action.UnitActionError;
 import org.visualcti.server.core.unit.message.action.UnitActionEvent;
+import org.visualcti.server.core.unit.message.command.ServerCommandRequest;
 import org.visualcti.server.unit.RunnableUnitAdapter;
 import org.visualcti.util.Tools;
 
@@ -78,7 +82,13 @@ import org.visualcti.util.Tools;
 public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPoolUnit {
     // The list of tasks in the pool
     private volatile List<Task> tasksPool = Collections.emptyList();
-    private volatile Element tasksListConfiguration = new Element(TASKS_LIST_ROOT_ELEMENT_NAME);
+    // XML-Document of the list of tasks in the pool
+    private final Document tasksListConfigurationDocument = new Document().setContent(Arrays.asList(
+            new Comment(Tools.getLicenceHeader()),
+            new Element(TASKS_LIST_ROOT_ELEMENT_NAME)
+                    .setAttribute(TASKS_POOL_TYPE_ATTRIBUTE_NAME, "unknown")
+                    .addContent(new Comment(TASKS_LIST_ABOUT_TEMPLATE))
+    ));
     // predicate checks is task valid
     private final Predicate<Task> validTask = task -> task != null && !isEmpty(task.getName());
     // working ring of the tasks (used in the in-service engine state)
@@ -95,8 +105,6 @@ public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPo
     private String poolGroup;
     // the name of file of the pool's XML
     private String poolFile;
-    // the file of the pool's XML
-    private File poolLocation;
 
     @Deprecated
     @Override
@@ -194,7 +202,6 @@ public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPo
     @Override
     public TasksPoolUnit setPoolFile(String poolFile) {
         this.poolFile = poolFile;
-        this.poolLocation = new File(poolFile);
         return this;
     }
 
@@ -273,7 +280,7 @@ public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPo
      * @see #loadTasksList()
      */
     @Override
-    public boolean addTask(Task task, boolean notify) {
+    public boolean addTask(final Task task, final boolean notify) {
         if (validTask.negate().test(task)) {
             // incoming task is invalid
             dispatchTasksError("Add:Invalid task to add");
@@ -288,7 +295,8 @@ public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPo
         }
         // adding task to the tasks list of the pool and update tasks list of the pool
         final List<Task> tasks = new LinkedList<>(tasksPool);
-        return tasks.add(task) && updateTasksList(tasks, !notify, "Add");
+        tasks.add(task);
+        return updateTasksList(tasks, !notify, "Add");
     }
 
     /**
@@ -302,14 +310,24 @@ public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPo
      * @see #addTask(Task, boolean)
      */
     @Override
-    public boolean updateTask(Task task) {
+    public boolean updateTask(final Task task) {
         if (validTask.negate().test(task)) {
             // incoming task is invalid
             dispatchTasksError("Update:Invalid task to update");
             return false;
         } else {
-            // remove the task and add it again
-            return removeTask(task) && addTask(task, true);
+            final int taskIndex = taskIndexOf(task);
+            if (taskIndex == -1) {
+                // incoming task is not in the tasks list
+                dispatchTasksError("Update:Not found task to update.");
+                return false;
+            } else {
+                // substitute old task instance by the new one in the tasks list
+                final List<Task> tasks = new LinkedList<>(tasksPool);
+                tasks.set(taskIndex, task);
+                // updating tasks list and store it
+                return updateTasksList(tasks, false, "Update");
+            }
         }
     }
 
@@ -382,7 +400,7 @@ public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPo
      * @see Task
      */
     @Override
-    public boolean moveTaskDown(Task task) {
+    public boolean moveTaskDown(final Task task) {
         if (validTask.negate().test(task)) {
             // incoming task is invalid
             dispatchTasksError("Down:Invalid task to move");
@@ -421,7 +439,7 @@ public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPo
     }
 
     /**
-     * <converter>
+     * <tasks-keeper>
      * To load tasks list from external XML file
      *
      * @throws IOException           if something went wrong
@@ -435,6 +453,21 @@ public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPo
     @SuppressWarnings("unchecked")
     @Override
     public void loadTasksList() throws IOException, NumberFormatException, NullPointerException {
+        // preparing tasks list configuration xml-document
+        final String tasksListPoolType = this.poolType.getType();
+        final List<?> rootContent = this.tasksListConfigurationDocument.getContent();
+        if (rootContent == null || rootContent.size() < 2) {
+            throw new IOException("Tasks list configuration document is invalid.");
+        }
+        final Object licence = rootContent.get(0);
+        if (!(licence instanceof Comment)) {
+            throw new IOException("Tasks list licence is invalid.");
+        }
+        final Element tasksListElement = this.tasksListConfigurationDocument.getRootElement();
+        tasksListElement.getContent().clear();
+        tasksListElement.setAttribute(TASKS_POOL_TYPE_ATTRIBUTE_NAME, tasksListPoolType);
+        final String tasksListAbout = String.format(TASKS_LIST_ABOUT_TEMPLATE, tasksListPoolType);
+        tasksListElement.addContent(new Comment(tasksListAbout));
         try {
             // getting instance of task pools manager
             final TaskPoolsManager poolsManager = UnitRegistry.lookup(TaskPoolsManager.class);
@@ -442,15 +475,36 @@ public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPo
             final File tasksListFile = new File(poolsManager.getRoot(), this.poolFile);
             // loading tasks-list xml and restore the tasks
             try (final FileInputStream in = new FileInputStream(tasksListFile)) {
-                final Element tasksListXml = load(in);
-                final List<Element> xmlsList = tasksListXml.getChildren(Task.ROOT_ELEMENT);
+                final List<Element> xmlsList = restoreDocumentFrom(in).getRootElement().getChildren(Task.ROOT_ELEMENT);
                 xmlsList.stream().map(TaskMaker::restore).filter(Objects::nonNull)
-                        .forEach(task -> addTask(task, false));
-                // saving correct configuration
-                this.tasksListConfiguration = tasksListXml;
-                this.poolLocation = tasksListFile;
+                        // adding restored tasks to the tasks pool
+                        .forEach(task -> addTask(task, false))
+                ;
                 // adding tasks pool to the pools manager
                 poolsManager.add(this);
+            }
+        } catch (ServerUnitException e) {
+            throw new IOException("Wrong manager in registry", e);
+        }
+    }
+
+    /**
+     * <tasks-keeper>
+     * To save tasks list to the external XML file
+     *
+     * @throws IOException if something went wrong
+     * @see #updateTasksList(List, boolean, String)
+     */
+    @Override
+    public void saveTasksList() throws IOException {
+        try {
+            // getting instance of task pools manager
+            final TaskPoolsManager poolsManager = UnitRegistry.lookup(TaskPoolsManager.class);
+            // preparing tasks-list external file
+            final File tasksListFile = new File(poolsManager.getRoot(), this.poolFile);
+            // saving tasks to the external file
+            try (final FileOutputStream out = new FileOutputStream(tasksListFile)) {
+                store(this.tasksListConfigurationDocument, out);
             }
         } catch (ServerUnitException e) {
             throw new IOException("Wrong manager in registry", e);
@@ -465,19 +519,20 @@ public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPo
 
     @Deprecated
     @Override
+    public Document restoreDocumentFrom(InputStream in) throws IOException {
+        return TasksPoolUnit.super.restoreDocumentFrom(in);
+    }
+
+    @Deprecated
+    @Override
     public Document prepareXmlDocument(InputStream in) throws IOException {
         return TasksPoolUnit.super.prepareXmlDocument(in);
     }
 
-    /**
-     * <loader>
-     * To save tasks list to the external XML file
-     *
-     * @throws IOException if something went wrong
-     */
+    @Deprecated
     @Override
-    public void saveTasksList() throws IOException {
-
+    public void store(Document document, OutputStream out) throws IOException {
+        TasksPoolUnit.super.store(document, out);
     }
 
     /**
@@ -519,20 +574,20 @@ public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPo
                 }
         );
     }
-//
-//    /**
-//     * <executer>
-//     * To execute console command for this unit.
-//     * The method will call outside the unit.
-//     * If command is invalid the exception will be thrown.
-//     *
-//     * @param command command to execute
-//     * @throws Exception if it cannot execute
-//     */
-//    @Override
-//    public void execute(ServerCommandRequest command) throws Exception {
-//
-//    }
+
+    /**
+     * <executer>
+     * To execute console command for this unit.
+     * The method will call outside the unit.
+     * If command is invalid the exception will be thrown.
+     *
+     * @param command command to execute
+     * @throws Exception if it cannot execute
+     */
+    @Override
+    public void execute(ServerCommandRequest command) throws Exception {
+        super.execute(command);
+    }
 
     // private methods
     // to get the task from the top of tasks ring's list and move it to the bottom of the one
@@ -561,17 +616,25 @@ public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPo
 
     // updating tasks list of the pool and save changes
     private boolean updateTasksList(final List<Task> tasks, final boolean dontNotify, String action) {
+        final Element tasksListXml = tasksListConfigurationDocument.getRootElement();
+        tasksListXml.removeChildren(Task.ROOT_ELEMENT);
+        // copying task-xmls to the tasks list xml-element
+        tasks.forEach(task -> {
+            final Element taskXml = task.getXML().detach();
+            tasksListXml.addContent(taskXml);
+        });
         this.tasksPool = tasks;
-        // saving updated tasks list of the pool
-        try {
-            this.saveTasksList();
-        } catch (IOException e) {
-            e.printStackTrace(Tools.err);
-            return false;
-        }
         if (!dontNotify) {
-            // notify about tasks list modification
-            dispatchTasksModifiedEvent(action);
+            try {
+                // saving updated tasks list of the pool
+                this.saveTasksList();
+            } catch (IOException e) {
+                // tasks list updating failed
+                e.printStackTrace(Tools.err);
+                return false;
+            }
+            // notify about tasks list modification event
+            this.dispatchTasksModifiedEvent(action);
         }
         return true;
     }

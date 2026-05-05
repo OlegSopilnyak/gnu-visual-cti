@@ -39,8 +39,8 @@ package org.visualcti.server.task;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -55,6 +55,7 @@ import java.io.InputStream;
 import org.jdom.DataConversionException;
 import org.jdom.Element;
 import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Matchers;
@@ -68,9 +69,16 @@ import org.visualcti.server.core.unit.message.action.UnitActionEvent;
 
 public class TasksPoolUnitAdapterTest {
     TasksPoolUnitAdapter tasksPool = spy(new TasksPoolUnitAdapter());
+    TaskPoolsManager poolsManager;
+
+    @Before
+    public void setUp() throws Exception {
+        poolsManager = createTaskPoolsManager();
+    }
 
     @After
     public void tearDown() throws Exception {
+        UnitRegistry.unRegister(poolsManager);
         tasksPool.Stop();
     }
 
@@ -111,6 +119,8 @@ public class TasksPoolUnitAdapterTest {
         Task current = mock(Task.class);
         doReturn("test").when(current).getName();
         doReturn(current).when(current).clone();
+        doReturn(new Element("task")).when(current).getXML();
+        doAnswer(invocation -> null).when(tasksPool).saveTasksList();
         tasksPool.addTask(current, true);
         tasksPool.Start();
 
@@ -134,11 +144,13 @@ public class TasksPoolUnitAdapterTest {
     }
 
     @Test
-    public void shouldNotGetCurrent_NotStarted() {
+    public void shouldNotGetCurrent_NotStarted() throws IOException {
         // preparing test data
         Task current = mock(Task.class);
         doReturn("test").when(current).getName();
         doReturn(current).when(current).clone();
+        doReturn(new Element("task")).when(current).getXML();
+        doAnswer(invocation -> null).when(tasksPool).saveTasksList();
         tasksPool.addTask(current, true);
 
         // acting
@@ -154,6 +166,8 @@ public class TasksPoolUnitAdapterTest {
         Task current = mock(Task.class);
         doReturn("test").when(current).getName();
         doReturn(current).when(current).clone();
+        doReturn(new Element("task-1")).when(current).getXML();
+        doAnswer(invocation -> null).when(tasksPool).saveTasksList();
         tasksPool.addTask(current, true);
         tasksPool.Start();
 
@@ -175,6 +189,9 @@ public class TasksPoolUnitAdapterTest {
         Task task2 = mock(Task.class);
         doReturn("test-2").when(task2).getName();
         doReturn(task2).when(task2).clone();
+        doReturn(new Element("task-1")).when(task1).getXML();
+        doReturn(new Element("task-2")).when(task2).getXML();
+        doAnswer(invocation -> null).when(tasksPool).saveTasksList();
         tasksPool.addTask(task1, true);
         tasksPool.addTask(task2, true);
         tasksPool.Start();
@@ -189,11 +206,14 @@ public class TasksPoolUnitAdapterTest {
     }
 
     @Test
-    public void shouldNotGetNext_NotStarted() {
+    public void shouldNotGetNext_NotStarted() throws IOException {
         // preparing test data
         Task current = mock(Task.class);
         doReturn("test").when(current).getName();
+        doReturn(new Element("task")).when(current).getXML();
         doReturn(current).when(current).clone();
+        doReturn(new Element("task")).when(current).getXML();
+        doAnswer(invocation -> null).when(tasksPool).saveTasksList();
         tasksPool.addTask(current, true);
 
         // acting
@@ -210,6 +230,8 @@ public class TasksPoolUnitAdapterTest {
         Task task = mock(Task.class);
         doReturn("test").when(task).getName();
         doReturn(task).when(task).clone();
+        doReturn(new Element("task")).when(task).getXML();
+        doAnswer(invocation -> null).when(tasksPool).saveTasksList();
         assertThat(tasksPool.tasks()).isEmpty();
 
         // acting
@@ -256,6 +278,8 @@ public class TasksPoolUnitAdapterTest {
         Task task = mock(Task.class);
         doReturn("test").when(task).getName();
         doReturn(task).when(task).clone();
+        doReturn(new Element("task")).when(task).getXML();
+        doAnswer(invocation -> null).when(tasksPool).saveTasksList();
         tasksPool.addTask(task, true);
         reset(tasksPool);
         assertThat(tasksPool.tasks()).containsExactly(task);
@@ -281,9 +305,12 @@ public class TasksPoolUnitAdapterTest {
         Task task = mock(Task.class);
         doReturn("test").when(task).getName();
         doReturn(task).when(task).clone();
+        doReturn(new Element("task")).when(task).getXML();
+        doAnswer(invocation -> null).when(tasksPool).saveTasksList();
         tasksPool.addTask(task, true);
         reset(tasksPool);
         assertThat(tasksPool.tasks()).containsExactly(task);
+        doAnswer(invocation -> null).when(tasksPool).saveTasksList();
 
         // acting
         boolean modified = tasksPool.removeTask(task);
@@ -329,7 +356,7 @@ public class TasksPoolUnitAdapterTest {
 
         // acting
         boolean modifiedMock = tasksPool.removeTask(mock(Task.class));
-        boolean modifiedNull = tasksPool.removeTask((Task) null);
+        boolean modifiedNull = tasksPool.removeTask(null);
 
         // check the behavior
         verify(tasksPool, never()).saveTasksList();
@@ -346,28 +373,35 @@ public class TasksPoolUnitAdapterTest {
     }
 
     @Test
-    public void shouldUpdateTask_TaskAlreadyThere() {
+    public void shouldUpdateTask_TaskAlreadyThere() throws IOException {
         // preparing test data
         Task task = mock(Task.class);
         doReturn("test").when(task).getName();
         doReturn(task).when(task).clone();
+        doReturn(new Element("task")).when(task).getXML();
+        doAnswer(invocation -> null).when(tasksPool).saveTasksList();
         tasksPool.addTask(task, true);
         reset(tasksPool);
         assertThat(tasksPool.tasks()).containsExactly(task);
+        doAnswer(invocation -> null).when(tasksPool).saveTasksList();
 
         // acting
         boolean modified = tasksPool.updateTask(task);
 
         // check the behavior
-        verify(tasksPool).removeTask(task);
-        verify(tasksPool).addTask(task, true);
+        verify(tasksPool).saveTasksList();
+        verify(tasksPool).getMessageFactory();
+        ArgumentCaptor<UnitMessage> captor = ArgumentCaptor.forClass(UnitMessage.class);
+        verify(tasksPool, atLeastOnce()).dispatch(captor.capture());
+        assertThat(captor.getAllValues()).hasSize(1);
+        assertThat(captor.getValue()).isInstanceOf(UnitActionEvent.class);
         // check results
         assertThat(tasksPool.tasks()).containsExactly(task);
         assertThat(modified).isTrue();
     }
 
     @Test
-    public void shouldNotUpdateTask_TaskNotThere() {
+    public void shouldNotUpdateTask_TaskNotThere() throws IOException {
         // preparing test data
         Task task = mock(Task.class);
         doReturn("test").when(task).getName();
@@ -378,8 +412,12 @@ public class TasksPoolUnitAdapterTest {
         boolean modified = tasksPool.updateTask(task);
 
         // check the behavior
-        verify(tasksPool).removeTask(task);
-        verify(tasksPool, never()).addTask(any(Task.class), anyBoolean());
+        verify(tasksPool, never()).saveTasksList();
+        verify(tasksPool).getMessageFactory();
+        ArgumentCaptor<UnitMessage> captor = ArgumentCaptor.forClass(UnitMessage.class);
+        verify(tasksPool, atLeastOnce()).dispatch(captor.capture());
+        assertThat(captor.getAllValues()).hasSize(1);
+        assertThat(captor.getValue()).isInstanceOf(UnitActionError.class);
         // check results
         assertThat(tasksPool.tasks()).isEmpty();
         assertThat(modified).isFalse();
@@ -394,10 +432,14 @@ public class TasksPoolUnitAdapterTest {
         Task task2 = mock(Task.class);
         doReturn("test-2").when(task2).getName();
         doReturn(task2).when(task2).clone();
+        doReturn(new Element("task-1")).when(task1).getXML();
+        doReturn(new Element("task-2")).when(task2).getXML();
+        doAnswer(invocation -> null).when(tasksPool).saveTasksList();
         tasksPool.addTask(task1, true);
         tasksPool.addTask(task2, true);
-        assertThat(tasksPool.tasks()).containsExactly(task1, task2);
         reset(tasksPool);
+        assertThat(tasksPool.tasks()).containsExactly(task1, task2);
+        doAnswer(invocation -> null).when(tasksPool).saveTasksList();
 
         // acting
         boolean modified = tasksPool.moveTaskUp(task2);
@@ -419,14 +461,18 @@ public class TasksPoolUnitAdapterTest {
         // preparing test data
         Task task1 = mock(Task.class);
         doReturn("test-1").when(task1).getName();
-        doReturn(task1).when(task1).clone();
         Task task2 = mock(Task.class);
         doReturn("test-2").when(task2).getName();
+        doReturn(task1).when(task1).clone();
         doReturn(task2).when(task2).clone();
+        doReturn(new Element("task-1")).when(task1).getXML();
+        doReturn(new Element("task-2")).when(task2).getXML();
+        doAnswer(invocation -> null).when(tasksPool).saveTasksList();
         tasksPool.addTask(task1, true);
         tasksPool.addTask(task2, true);
-        assertThat(tasksPool.tasks()).containsExactly(task1, task2);
         reset(tasksPool);
+        assertThat(tasksPool.tasks()).containsExactly(task1, task2);
+        doAnswer(invocation -> null).when(tasksPool).saveTasksList();
 
         // acting
         boolean modified = tasksPool.moveTaskUp(task1);
@@ -452,10 +498,14 @@ public class TasksPoolUnitAdapterTest {
         Task task2 = mock(Task.class);
         doReturn("test-2").when(task2).getName();
         doReturn(task2).when(task2).clone();
+        doReturn(new Element("task-1")).when(task1).getXML();
+        doReturn(new Element("task-2")).when(task2).getXML();
+        doAnswer(invocation -> null).when(tasksPool).saveTasksList();
         tasksPool.addTask(task1, true);
         tasksPool.addTask(task2, true);
-        assertThat(tasksPool.tasks()).containsExactly(task1, task2);
         reset(tasksPool);
+        assertThat(tasksPool.tasks()).containsExactly(task1, task2);
+        doAnswer(invocation -> null).when(tasksPool).saveTasksList();
 
         // acting
         boolean modified = tasksPool.moveTaskDown(task1);
@@ -481,6 +531,9 @@ public class TasksPoolUnitAdapterTest {
         Task task2 = mock(Task.class);
         doReturn("test-2").when(task2).getName();
         doReturn(task2).when(task2).clone();
+        doReturn(new Element("task-1")).when(task1).getXML();
+        doReturn(new Element("task-2")).when(task2).getXML();
+        doAnswer(invocation -> null).when(tasksPool).saveTasksList();
         tasksPool.addTask(task1, true);
         tasksPool.addTask(task2, true);
         assertThat(tasksPool.tasks()).containsExactly(task1, task2);
@@ -504,32 +557,60 @@ public class TasksPoolUnitAdapterTest {
     @Test
     public void shouldLoadTasksList_ExistsFile() throws IOException, DataConversionException {
         // preparing test data
-        String managerPath = "Tasks/Manager";
-        String managerDirectory = "work/tasks";
-        TaskPoolsManager poolsManager = mock(TaskPoolsManager.class);
-//        doCallRealMethod().when(poolsManager).add(any(ServerUnit.class));
-        doReturn(managerPath).when(poolsManager).getPath();
-        doReturn(new File(managerDirectory)).when(poolsManager).getRoot();
-        UnitRegistry.register(poolsManager);
+        String poolType = "public";
+        String poolName = "public";
+        String poolFileName = "public.tasks.pool";
+        TasksPoolUnit tasksPoolUnit = tasksPool;
+        Element poolXml = new Element("pool")
+                .setAttribute("type", poolType).setAttribute("name", poolName).setAttribute("file", poolFileName);
 
 
         // acting
-        Element pool = new Element("pool")
-                .setAttribute("type", "public")
-                .setAttribute("name", "public")
-                .setAttribute("file", "public.tasks.pool");
-        TasksPoolUnit tasksPoolUnit = spy(new TasksPoolUnitAdapter());
-        tasksPoolUnit.configure(pool);
+        tasksPoolUnit.configure(poolXml);
 
         // check the behavior
-        verify(tasksPoolUnit).setXML(pool);
+        verify(tasksPoolUnit).setXML(poolXml);
         verify(tasksPoolUnit).loadTasksList();
         ArgumentCaptor<InputStream> loadCaptor = ArgumentCaptor.forClass(InputStream.class);
-        verify(tasksPoolUnit).load(loadCaptor.capture());
+        verify(tasksPoolUnit).restoreDocumentFrom(loadCaptor.capture());
         verify(tasksPoolUnit).prepareXmlDocument(loadCaptor.getValue());
         verify(tasksPoolUnit, times(3)).addTask(any(Task.class), Matchers.eq(false));
         verify(poolsManager).add(tasksPoolUnit);
         // check results
         assertThat(tasksPoolUnit.tasks()).hasSize(3);
+    }
+
+    @Test
+    public void shouldSaveTaskList_TemporalFile() throws IOException {
+        // preparing test data
+        String poolType = "public";
+        String poolName = "public";
+        String poolFileName = "public.tasks.pool";
+        String temporalFileName = "temporal.tasks.pool";
+        TasksPoolUnit tasksPoolUnit = tasksPool;
+        Element poolXml = new Element("pool")
+                .setAttribute("type", poolType).setAttribute("name", poolName).setAttribute("file", poolFileName);
+        tasksPoolUnit.configure(poolXml);
+
+
+        // acting
+        tasksPoolUnit.setPoolFile(temporalFileName);
+        tasksPoolUnit.saveTasksList();
+
+        // check results
+        File tasksListFile = new File(poolsManager.getRoot(), temporalFileName);
+        assertThat(tasksListFile).exists();
+        tasksListFile.deleteOnExit();
+    }
+
+    // private methods
+    private TaskPoolsManager createTaskPoolsManager() throws IOException {
+        String managerPath = "Tasks/Manager";
+        String managerDirectory = "work/tasks";
+        TaskPoolsManager poolsManager = mock(TaskPoolsManager.class);
+        doReturn(managerPath).when(poolsManager).getPath();
+        doReturn(new File(managerDirectory)).when(poolsManager).getRoot();
+        UnitRegistry.register(poolsManager);
+        return poolsManager;
     }
 }

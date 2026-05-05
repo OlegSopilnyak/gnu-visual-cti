@@ -147,21 +147,41 @@ public interface XmlAware extends Serializable {
      * to store entity's content as XML to the OutputStream
      * will be used for transport objects in serialization flow or for store to file
      *
-     * @param XML xml-element to be stored
+     * @param rootXmlElement xml-element to be stored
      * @param out target output stream
      * @param compact flag which output we are expecting
      * @throws IOException if it cannot write to output stream
+     * @see Element
+     * @see OutputStream
      * @see XMLOutputter
      * @see XmlAware#getXML()
      * @see XmlAware#prepareXmlDocument(Element)
      * @see XmlAware#compactXmlOutputter()
      * @see XmlAware#documentXmlOutputter()
      */
-    default void store(Element XML, final OutputStream out, boolean compact) throws IOException {
+    default void store(Element rootXmlElement, final OutputStream out, boolean compact) throws IOException {
         // preparing outputter for the XML content
         final XMLOutputter outputter = compact ? compactXmlOutputter() : documentXmlOutputter();
         // preparing the JDOM document from entity's XML
-        outputter.output(prepareXmlDocument(XML), out);
+        outputter.output(prepareXmlDocument(rootXmlElement), out);
+        out.flush();
+    }
+
+    /**
+     * <transport>
+     * To store separated XML document
+     * Will be used in storing to external XML files
+     *
+     * @param document document to store
+     * @param out target output stream
+     * @throws IOException if it cannot write to output stream
+     * @see Document
+     * @see OutputStream
+     * @see XMLOutputter#output(Document, OutputStream)
+     * @see XmlAware#documentXmlOutputter()
+     */
+    default void store(Document document, OutputStream out) throws IOException {
+        documentXmlOutputter().output(document, out);
         out.flush();
     }
 
@@ -246,8 +266,24 @@ public interface XmlAware extends Serializable {
      * @see #restore(InputStream)
      */
     default Element load(InputStream in) throws IOException {
+        return restoreDocumentFrom(in).getRootElement();
+    }
+
+
+    /**
+     * <transport>
+     * to load XML from the InputStream
+     *
+     * @param in source input stream
+     * @return loaded xml-document
+     * @throws IOException if it cannot read from input stream
+     * @see Document
+     * @see InputStream
+     * @see #load(InputStream)
+     */
+    default Document restoreDocumentFrom(InputStream in) throws IOException {
         try {
-            return prepareXmlDocument(in).getRootElement();
+            return prepareXmlDocument(in);
         } catch (NullPointerException | NumberFormatException e) {
             e.printStackTrace(Tools.err);
             throw new IOException("Invalid XML");
