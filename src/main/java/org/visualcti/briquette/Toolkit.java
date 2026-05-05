@@ -177,7 +177,8 @@ private final static ArrayList makers =  new ArrayList();
             // to adjust the instance
             return oper.setXML( xml );
         }catch(Exception e){
-          return null;// some wrong :(
+            e.printStackTrace(Tools.err);
+            return null;// something went wrong :(
         }
     }
 }

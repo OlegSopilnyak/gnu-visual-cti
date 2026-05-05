@@ -23,10 +23,10 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-Contact oleg.sopilnyak@gmail.com or gennady@visualcti.org for more information.
+Contact oleg@visualcti.org or gennady@visualcti.org for more information.
 
-Ukraine point of contact: Oleg Sopilnyak - oleg.sopilnyak@gmail.com
-Home Phone:	+380-63-8420220 (russian)
+Ukraine point of contact: Oleg Sopilnyak - oleg@visualcti.org
+Home Phone:	380-62-3851086 (russian)
 
 USA point of contact: Justin Kuntz - jkuntz@prominic.com
 Prominic Technologies, Inc.
@@ -38,7 +38,7 @@ Fax number: 217-356-3356
 -->
 <TasksPool type="public">
   <!--The tasks pool for [public]-->
-  <task class="org.visualcti.briquette.Program">
+  <task class="org.visualcti.briquette.Programm">
     <format date="MM/dd/yyyy" time="HH.mm" />
     <chain>
       <property name="name" type="string">VoiceMail &amp; Support System</property>
@@ -1655,7 +1655,7 @@ Fax number: 217-356-3356
               </runtime>
               <link default="Library.chain.1:Play.0" />
             </briquette>
-            <briquette class="org.visualcti.briquette.telephony.PlayAction">
+            <briquette class="org.visualcti.briquette.telephony.Play">
               <!--base properties of the briquette-->
               <base>
                 <property name="ID" type="string">Library.chain.1:Play.0</property>
@@ -2355,7 +2355,7 @@ Fax number: 217-356-3356
               </runtime>
               <link default="Library.chain.2:Play.2" alternate="Library.chain.2:IF.7" />
             </briquette>
-            <briquette class="org.visualcti.briquette.telephony.PlayAction">
+            <briquette class="org.visualcti.briquette.telephony.Play">
               <!--base properties of the briquette-->
               <base>
                 <property name="ID" type="string">Library.chain.2:Play.2</property>
@@ -3394,7 +3394,7 @@ Fax number: 217-356-3356
                       </runtime>
                       <link default="Library.chain.1:Play.0" />
                     </briquette>
-                    <briquette class="org.visualcti.briquette.telephony.PlayAction">
+                    <briquette class="org.visualcti.briquette.telephony.Play">
                       <!--base properties of the briquette-->
                       <base>
                         <property name="ID" type="string">Library.chain.1:Play.0</property>
@@ -3584,7 +3584,7 @@ Fax number: 217-356-3356
                       </runtime>
                       <link default="Library.chain.0:IF.1" />
                     </briquette>
-                    <briquette class="org.visualcti.briquette.telephony.PlayAction">
+                    <briquette class="org.visualcti.briquette.telephony.Play">
                       <!--base properties of the briquette-->
                       <base>
                         <property name="ID" type="string">Library.chain.0:Play.0</property>
@@ -4337,7 +4337,7 @@ Fax number: 217-356-3356
                       </runtime>
                       <link default="Library.chain.0:Operation.0" alternate="Library.chain.0:Exit.1" />
                     </briquette>
-                    <briquette class="org.visualcti.briquette.telephony.PlayAction">
+                    <briquette class="org.visualcti.briquette.telephony.Play">
                       <!--base properties of the briquette-->
                       <base>
                         <property name="ID" type="string">Library.chain.0:Play.0</property>
@@ -4752,7 +4752,7 @@ Fax number: 217-356-3356
                   </runtime>
                   <link default="Library.chain.1:Math.2" alternate="Library.chain.1:Math.0" />
                 </briquette>
-                <briquette class="org.visualcti.briquette.telephony.PlayAction">
+                <briquette class="org.visualcti.briquette.telephony.Play">
                   <!--base properties of the briquette-->
                   <base>
                     <property name="ID" type="string">Library.chain.1:Play.0</property>
@@ -4860,7 +4860,7 @@ Fax number: 217-356-3356
                   </runtime>
                   <link />
                 </briquette>
-                <briquette class="org.visualcti.briquette.telephony.RecordAction">
+                <briquette class="org.visualcti.briquette.telephony.Record">
                   <!--base properties of the briquette-->
                   <base>
                     <property name="ID" type="string">Library.chain.1:Record.0</property>
@@ -5372,7 +5372,7 @@ Fax number: 217-356-3356
               </runtime>
               <link default="Library.chain.4:Math.5" />
             </briquette>
-            <briquette class="org.visualcti.briquette.telephony.PlayAction">
+            <briquette class="org.visualcti.briquette.telephony.Play">
               <!--base properties of the briquette-->
               <base>
                 <property name="ID" type="string">Library.chain.4:Play.1</property>
@@ -6316,7 +6316,7 @@ Fax number: 217-356-3356
                   </runtime>
                   <link default="Library.chain.0:Play.0" />
                 </briquette>
-                <briquette class="org.visualcti.briquette.telephony.PlayAction">
+                <briquette class="org.visualcti.briquette.telephony.Play">
                   <!--base properties of the briquette-->
                   <base>
                     <property name="ID" type="string">Library.chain.0:Play.0</property>
@@ -6437,7 +6437,7 @@ Fax number: 217-356-3356
       </library>
     </chain>
   </task>
-  <task class="org.visualcti.briquette.Program">
+  <task class="org.visualcti.briquette.Programm">
     <format date="MM/dd/yyyy" time="HH.mm" />
     <chain>
       <property name="name" type="string">Simple IVR</property>
@@ -6538,7 +6538,7 @@ Fax number: 217-356-3356
           </runtime>
           <link default="Main-chain:Play.0" alternate="Main-chain:Exit.0" />
         </briquette>
-        <briquette class="org.visualcti.briquette.telephony.PlayAction">
+        <briquette class="org.visualcti.briquette.telephony.Play">
           <!--base properties of the briquette-->
           <base>
             <property name="ID" type="string">Main-chain:Play.0</property>
@@ -6782,7 +6782,7 @@ Fax number: 217-356-3356
           </runtime>
           <link default="Main-chain:Play.1" />
         </briquette>
-        <briquette class="org.visualcti.briquette.telephony.PlayAction">
+        <briquette class="org.visualcti.briquette.telephony.Play">
           <!--base properties of the briquette-->
           <base>
             <property name="ID" type="string">Main-chain:Play.1</property>
@@ -6940,7 +6940,7 @@ Fax number: 217-356-3356
               </runtime>
               <link default="Library.chain.0:Play.0" />
             </briquette>
-            <briquette class="org.visualcti.briquette.telephony.PlayAction">
+            <briquette class="org.visualcti.briquette.telephony.Play">
               <!--base properties of the briquette-->
               <base>
                 <property name="ID" type="string">Library.chain.0:Play.0</property>
@@ -7070,7 +7070,7 @@ Fax number: 217-356-3356
               </runtime>
               <link default="Library.chain.0:Play.1" alternate="Library.chain.0:IF.0" />
             </briquette>
-            <briquette class="org.visualcti.briquette.telephony.PlayAction">
+            <briquette class="org.visualcti.briquette.telephony.Play">
               <!--base properties of the briquette-->
               <base>
                 <property name="ID" type="string">Library.chain.0:Play.1</property>
@@ -7134,7 +7134,7 @@ Fax number: 217-356-3356
       </library>
     </chain>
   </task>
-  <task class="org.visualcti.briquette.Program">
+  <task class="org.visualcti.briquette.Programm">
     <format date="MM/dd/yyyy" time="HH.mm" />
     <chain>
       <property name="name" type="string">FileSystem based CallCenter &amp; VoiceMail</property>
@@ -8557,7 +8557,7 @@ Fax number: 217-356-3356
               </runtime>
               <link default="Library.chain.0:Play.0" />
             </briquette>
-            <briquette class="org.visualcti.briquette.telephony.PlayAction">
+            <briquette class="org.visualcti.briquette.telephony.Play">
               <!--base properties of the briquette-->
               <base>
                 <property name="ID" type="string">Library.chain.0:Play.0</property>
@@ -8799,7 +8799,7 @@ Fax number: 217-356-3356
               </runtime>
               <link default="Library.chain.1:Play.0" />
             </briquette>
-            <briquette class="org.visualcti.briquette.telephony.PlayAction">
+            <briquette class="org.visualcti.briquette.telephony.Play">
               <!--base properties of the briquette-->
               <base>
                 <property name="ID" type="string">Library.chain.1:Play.0</property>
@@ -9293,7 +9293,7 @@ Fax number: 217-356-3356
               </runtime>
               <link default="Library.chain.2:Play.0" />
             </briquette>
-            <briquette class="org.visualcti.briquette.telephony.PlayAction">
+            <briquette class="org.visualcti.briquette.telephony.Play">
               <!--base properties of the briquette-->
               <base>
                 <property name="ID" type="string">Library.chain.2:Play.0</property>
@@ -10010,7 +10010,7 @@ Fax number: 217-356-3356
                   </runtime>
                   <link default="Library.chain.0:Math.2" />
                 </briquette>
-                <briquette class="org.visualcti.briquette.telephony.PlayAction">
+                <briquette class="org.visualcti.briquette.telephony.Play">
                   <!--base properties of the briquette-->
                   <base>
                     <property name="ID" type="string">Library.chain.0:Play.0</property>
@@ -10320,7 +10320,7 @@ Fax number: 217-356-3356
                   </runtime>
                   <link default="Library.chain.0:Math.7" />
                 </briquette>
-                <briquette class="org.visualcti.briquette.telephony.PlayAction">
+                <briquette class="org.visualcti.briquette.telephony.Play">
                   <!--base properties of the briquette-->
                   <base>
                     <property name="ID" type="string">Library.chain.0:Play.1</property>
@@ -10344,7 +10344,7 @@ Fax number: 217-356-3356
                   </runtime>
                   <link default="Library.chain.0:Record.0" />
                 </briquette>
-                <briquette class="org.visualcti.briquette.telephony.RecordAction">
+                <briquette class="org.visualcti.briquette.telephony.Record">
                   <!--base properties of the briquette-->
                   <base>
                     <property name="ID" type="string">Library.chain.0:Record.0</property>
@@ -10427,7 +10427,7 @@ Fax number: 217-356-3356
                   </runtime>
                   <link default="Library.chain.0:Play.1" />
                 </briquette>
-                <briquette class="org.visualcti.briquette.telephony.PlayAction">
+                <briquette class="org.visualcti.briquette.telephony.Play">
                   <!--base properties of the briquette-->
                   <base>
                     <property name="ID" type="string">Library.chain.0:Play.2</property>
@@ -10619,7 +10619,7 @@ Fax number: 217-356-3356
                   </runtime>
                   <link default="Library.chain.0:Play.3" alternate="Library.chain.0:IF.8" />
                 </briquette>
-                <briquette class="org.visualcti.briquette.telephony.PlayAction">
+                <briquette class="org.visualcti.briquette.telephony.Play">
                   <!--base properties of the briquette-->
                   <base>
                     <property name="ID" type="string">Library.chain.0:Play.3</property>

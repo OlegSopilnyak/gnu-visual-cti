@@ -62,7 +62,7 @@ import org.visualcti.util.Property;
  * @version 1.0
  */
 
-public final class PlayAction extends Basis
+public class PlayAction extends Basis
 {
 /**
 <value>

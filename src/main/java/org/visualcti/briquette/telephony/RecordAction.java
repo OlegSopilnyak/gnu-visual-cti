@@ -56,7 +56,7 @@ import org.visualcti.server.hardware.*;
  * @version 1.0
  */
 
-public final class RecordAction extends Basis
+public class RecordAction extends Basis
 {
 /**
 <value>

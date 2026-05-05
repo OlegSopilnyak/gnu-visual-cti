@@ -66,7 +66,7 @@ $Header: /VisualCTI_project/src/org/visualcti/briquette/Program.java 20    23.02
  * @author Sopilnyak Oleg
  * @version 3.0
  */
-final public class Program extends TaskAdapter
+public class Program extends TaskAdapter
                     //implements ProgrammSymbols
 {
 /**

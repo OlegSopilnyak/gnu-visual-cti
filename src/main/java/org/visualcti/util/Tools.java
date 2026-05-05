@@ -197,6 +197,12 @@ public static final void xmlSave(Element xml,String file)
  */
 public static final String getLicence(){return licence;}
 /**
+ * <accessor>
+ * To get access to system's licence header
+ * @return
+ */
+public static final String getLicenceHeader(){return xmlLicence;}
+/**
  * <licence>
  * The text of licence
  */

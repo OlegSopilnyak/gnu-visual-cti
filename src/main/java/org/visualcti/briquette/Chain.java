@@ -80,7 +80,7 @@ public static final String ELEMENT = "chain";
         // to store library
         xml.addContent( this.library.getXML() );
         // to store breakpoints
-        xml.addContent( this.breakpointsXML() );
+        if (!breakpoints.isEmpty()) xml.addContent(this.breakpointsXML());
         return xml;
     }
       /**
@@ -462,7 +462,10 @@ private volatile Operation mainBriquette = null;
     {
         if ( this.sequence.contains(briquette) )
         {
-            if (this.mainBriquette != null) this.mainBriquette.setMaster( false );
+            if (this.mainBriquette != null && !Objects.equals(this.mainBriquette, briquette))
+            {
+                this.mainBriquette.setMaster(false);
+            }
             this.mainBriquette = briquette;
         }
     }
