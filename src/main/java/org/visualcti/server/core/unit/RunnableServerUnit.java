@@ -128,12 +128,12 @@ public interface RunnableServerUnit extends ServerUnit, Engine, UnitMessage.List
                 // starting the unit
                 Start();
                 respondTo(command, COMMAND_NOT_NEEDED_RESPONSE);
-                return;
+                break;
             case STOP:
                 // stopping the unit
                 Stop();
                 respondTo(command, COMMAND_NOT_NEEDED_RESPONSE);
-                return;
+                break;
             default:
                 // the command isn't processed here
                 throw new UnknownCommandException(commandType + " isn't supported!");

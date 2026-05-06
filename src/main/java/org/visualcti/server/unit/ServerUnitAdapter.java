@@ -180,6 +180,12 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
         ServerUnit.super.respondTo(command, beforeDispatch);
     }
 
+    @Deprecated
+    @Override
+    public void respondTo(ServerCommandRequest command, boolean commandSuccess, Consumer<ServerCommandResponse> beforeDispatch) throws IOException {
+        ServerUnit.super.respondTo(command, commandSuccess, beforeDispatch);
+    }
+
     /**
      * <accessor>
      * To get the body unit's Icon Image (GIF | JPEG)
