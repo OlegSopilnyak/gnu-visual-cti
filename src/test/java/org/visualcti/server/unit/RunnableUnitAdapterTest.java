@@ -59,6 +59,7 @@ import org.jdom.DataConversionException;
 import org.jdom.Element;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
+import org.visualcti.server.Parameter;
 import org.visualcti.server.core.unit.RunnableServerUnit;
 import org.visualcti.server.core.unit.ServerUnit;
 import org.visualcti.server.core.unit.message.MessageFamilyType;
@@ -70,6 +71,7 @@ import org.visualcti.server.core.unit.message.command.ServerCommandRequest;
 import org.visualcti.server.core.unit.message.command.ServerCommandResponse;
 import org.visualcti.server.core.unit.message.command.UnknownCommandException;
 
+@SuppressWarnings("unchecked")
 public class RunnableUnitAdapterTest {
     RunnableUnitAdapter runnableUnitAdapter = spy(new RunnableUnitAdapterImpl());
 
@@ -657,7 +659,8 @@ public class RunnableUnitAdapterTest {
     public void shouldNotExecuteStartUnit_WrongCommandType() throws Exception {
         // preparing test data
         ServerCommandRequest request = runnableUnitAdapter.getMessageFactory()
-                .buildFor(runnableUnitAdapter, MessageType.COMMAND, MessageFamilyType.GET, "Starting the unit");
+                .buildFor(runnableUnitAdapter, MessageType.COMMAND, MessageFamilyType.GET, "Getting the unit info");
+        request.setNeedResponse(true).setParameter(Parameter.of("target", "info").input());
         assertThat(runnableUnitAdapter.isStarted()).isFalse();
         reset(runnableUnitAdapter);
 
@@ -722,7 +725,8 @@ public class RunnableUnitAdapterTest {
     public void shouldNotExecuteStopUnit_WrongCommandType() throws Exception {
         // preparing test data
         ServerCommandRequest request = runnableUnitAdapter.getMessageFactory()
-                .buildFor(runnableUnitAdapter, MessageType.COMMAND, MessageFamilyType.GET, "Stopping the unit");
+                .buildFor(runnableUnitAdapter, MessageType.COMMAND, MessageFamilyType.GET, "Getting the unit info");
+        request.setNeedResponse(true).setParameter(Parameter.of("target", "info").input());
         runnableUnitAdapter.currentUnitState(RunnableServerUnit.UnitState.ACTIVE);
         reset(runnableUnitAdapter);
 

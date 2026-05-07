@@ -101,9 +101,9 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
         return parts[parts.length - 1];
     };
     // correct getting the public method for the class by name
-    private static final BiFunction<Class<?>, String, Method> publicMethodOf = (clazz, methodName) -> {
+    private static final BiFunction<Class<?>, String, Method> publicMethodOf = (methodsContainer, methodName) -> {
         try {
-            return clazz.getMethod(methodName);
+            return methodsContainer.getMethod(methodName);
         } catch (NoSuchMethodException e) {
             // doing nothing just returns null
             return null;
@@ -135,11 +135,25 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
     protected ServerUnit owner;
     // the branches of server units tree
     private final Collection<ServerUnit> branches = new ArrayList<>();
-    // the factory of server action messages
-    private final UnitMessageFactory actionMessageFactory = UnitMessages.factorySingleton();
     // the properties of the unit
     private Map<String, Object> properties = new ConcurrentHashMap<>();
 
+    /**
+     * Compares the argument to the receiver, and answers true
+     * if they represent the <em>same</em> object using a class
+     * specific comparison. The implementation in Object answers
+     * true only if the argument is the exact same object as the
+     * receiver (==).
+     *
+     * @return boolean
+     * <code>true</code>
+     * if the object is the same as this object
+     * <code>false</code>
+     * if it is different from this object.
+     * @param        o Object
+     * the object to compare with this object.
+     * @see #hashCode
+     */
     @Override
     public boolean equals(Object o) {
         if (!(o instanceof ServerUnitAdapter)) return false;
@@ -151,6 +165,15 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
                 && Objects.equals(getProperties(), that.getProperties());
     }
 
+    /**
+     * Answers an integer hash code for the receiver. Any two
+     * objects which answer <code>true</code> when passed to
+     * <code>.equals</code> must answer the same value for this
+     * method.
+     *
+     * @return    the receiver's hash.
+     * @see #equals
+     */
     @Override
     public int hashCode() {
         return Objects.hash(iconBodyPath, getType(), getName(), getPath(), getProperties());
@@ -197,7 +220,7 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
 
     /**
      * <accessor>
-     * To get Path to unit instance in repository
+     * To get Path to unit instance in the units repository
      *
      * @return the value
      */
@@ -240,6 +263,7 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
      * @return the instance of class-builder or null if it isn't used
      * @see ServerUnit#getUnitBuilderClass()
      * @see #prepareUnitBuilderClassPart(Element, Class)
+     * @see #getUnitBuilderMethodName()
      */
     @Override
     public Class<?> getUnitBuilderClass() {
@@ -253,6 +277,7 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
      * @return the name of method-builder or null if it isn't used
      * @see ServerUnit#getUnitBuilderMethodName()
      * @see #prepareUnitBuilderClassPart(Element, Class)
+     * @see #getUnitBuilderClass()
      */
     @Override
     public String getUnitBuilderMethodName() {
@@ -368,6 +393,7 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
     /**
      * <converter>
      * To represent the parameters of unit as an XML element
+     * Here managed the icon of the server unit
      *
      * @param rootElement building from unit XML Element
      * @see Element
@@ -379,14 +405,6 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
         }
     }
 
-    /**
-     * <tester>
-     * To check is string empty
-     * Just for current version of Mockito
-     *
-     * @param value string to test
-     * @return true if value is empty
-     */
     @Deprecated
     @Override
     public boolean isEmpty(String value) {
@@ -420,6 +438,7 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
     /**
      * <converter>
      * To prepare base parameters of the unit using XML Element and correct xml if it's needed
+     * Setting up here unit's class and extends class, unit instance builder stuff as well
      *
      * @param xml the XML Element of the unit
      * @see Element
@@ -479,9 +498,9 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
      * @param xml the XML Element of the unit
      * @see Element
      * @see #setXML(Element)
-     * @see #processParameter(ConfigurationParameter)
-     * @see #applyUnitParameter(ConfigurationParameter)
      * @see #unitPath
+     * @see #processParameter(ConfigurationParameter)
+     * @see ConfigurationParameter#ELEMENT
      */
     @SuppressWarnings("unchecked")
     protected void settingUpMainPart(Element xml) {
@@ -497,20 +516,6 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
 
     /**
      * <converter>
-     * <applier>
-     * To apply configuration parameter of the server unit
-     *
-     * @param parameter the unit parameter to apply
-     * @see ConfigurationParameter
-     * @see #processParameter(ConfigurationParameter)
-     * @see #settingUpMainPart(Element)
-     */
-    protected void applyUnitParameter(ConfigurationParameter parameter) {
-        // doing nothing here because here we're restoring only icon parameter
-    }
-
-    /**
-     * <converter>
      * To prepare properties of the unit using XML Element
      *
      * @param xml the root XML Element of the unit
@@ -520,6 +525,37 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
      */
     protected void settingUpPropertiesPart(Element xml) {
         // doing nothing because unit already created
+    }
+
+    /**
+     * @see #settingUpMainPart(Element)
+     * @see #iconBodyPath
+     * @see #applyUnitParameter(ConfigurationParameter)
+     * @see #loadingIconFrom(String)
+     */
+    protected void processParameter(ConfigurationParameter parameter) {
+        if (isUnitIconParameter.test(parameter)) {
+            // found icon parameter
+            final String iconResourcePath = parameter.getValue();
+            this.iconBodyPath = iconResourcePath;
+            loadingIconFrom(iconResourcePath);
+        } else {
+            // process another parameter
+            applyUnitParameter(parameter);
+        }
+    }
+
+    /**
+     * <converter>
+     * <applier>
+     * To apply configuration parameter of the server unit
+     *
+     * @param parameter the unit parameter to apply
+     * @see ConfigurationParameter
+     * @see #processParameter(ConfigurationParameter)
+     */
+    protected void applyUnitParameter(ConfigurationParameter parameter) {
+        // doing nothing here because here we're restoring only icon parameter
     }
 
     /**
@@ -557,7 +593,7 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
      */
     @Override
     public UnitMessageFactory getMessageFactory() {
-        return actionMessageFactory;
+        return UnitMessages.factorySingleton();
     }
 
     /**
@@ -607,16 +643,6 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
         }
     }
 
-    /**
-     * <checker>
-     * To check is the unit managing by the composite unit (in units tree), or from parent group
-     * Just for current version of Mockito
-     *
-     * @param unit unit to test
-     * @return true if group contains the unit
-     * @see ServerUnit
-     * @see UnitsComposite#isChild(ServerUnit)
-     */
     @Deprecated
     @Override
     public boolean isChild(ServerUnit unit) {
@@ -638,15 +664,7 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
      */
     @Override
     public boolean add(ServerUnit unit) {
-        if (ServerUnit.super.add(unit)) {
-            // loaded configuration is not actual after units tree activity
-            this.unitConfiguration = null;
-            // rebuilding and storing configuration as JDOM element
-            this.unitConfiguration = getXML();
-            return true;
-        } else {
-            return false;
-        }
+        return ServerUnit.super.add(unit) && updatedUnitConfiguration();
     }
 
     /**
@@ -676,15 +694,7 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
      */
     @Override
     public boolean remove(ServerUnit unit) {
-        if (ServerUnit.super.remove(unit)) {
-            // loaded configuration is not actual after units tree activity
-            this.unitConfiguration = null;
-            // rebuilding and storing configuration as JDOM element
-            this.unitConfiguration = getXML();
-            return true;
-        } else {
-            return false;
-        }
+        return ServerUnit.super.remove(unit) && updatedUnitConfiguration();
     }
 
     /**
@@ -700,15 +710,6 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
         branches.remove(branch);
     }
 
-    /**
-     * <mutator>
-     * To remove all units from the composite units tree
-     * Just for current version of Mockito
-     *
-     * @see #children()
-     * @see #remove(ServerUnit)
-     * @see UnitsComposite#removeAll()
-     */
     @Deprecated
     @Override
     public boolean removeAll() {
@@ -762,6 +763,15 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
     }
 
     // private methods
+    // to update XML configuration of the unit
+    private boolean updatedUnitConfiguration() {
+        // loaded configuration is not actual after units tree activity
+        this.unitConfiguration = null;
+        // rebuilding and storing configuration as JDOM element
+        this.unitConfiguration = getXML();
+        return true;
+    }
+
     // building server unit main classes part
 
     /**
@@ -833,25 +843,6 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
         // iterating tree's branches, changing the unit-owner
         for (final ServerUnit branch : branches) {
             branch.setOwner(this);
-        }
-    }
-
-    //to process the xml configuration parameter of the unit
-
-    /**
-     * @see #settingUpMainPart(Element)
-     * @see #iconBodyPath
-     * @see #applyUnitParameter(ConfigurationParameter)
-     */
-    private void processParameter(ConfigurationParameter parameter) {
-        if (isUnitIconParameter.test(parameter)) {
-            // found icon parameter
-            final String iconResourcePath = parameter.getValue();
-            this.iconBodyPath = iconResourcePath;
-            loadingIconFrom(iconResourcePath);
-        } else {
-            // process another parameter
-            applyUnitParameter(parameter);
         }
     }
 

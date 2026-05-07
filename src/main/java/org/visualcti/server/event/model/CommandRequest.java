@@ -179,4 +179,13 @@ class CommandRequest extends CommandAdapter implements ServerCommandRequest {
                 requestSuccess == that.requestSuccess &&
                 done == that.done;
     }
+
+    @Override
+    public String toString() {
+        return "CommandRequest\n"+super.toString() +"\nrequest properties:{" +
+                "needResponse=" + needResponse +
+                ", succeed=" + requestSuccess +
+                ", done=" + done +
+                '}';
+    }
 }

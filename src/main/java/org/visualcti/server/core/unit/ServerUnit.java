@@ -179,7 +179,7 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
     static void validateCommand(ServerCommandRequest command) throws UnknownCommandException {
         if (!command.isNeedResponse()) {
             // Asynchronous execution isn't supported yet
-            throw new UnknownCommandException(command.getFamilyType() + " isn't supported! Asynchronous execution isn't supported.");
+            throw new UnknownCommandException("Asynchronous execution isn't supported yet!");
         }
     }
 

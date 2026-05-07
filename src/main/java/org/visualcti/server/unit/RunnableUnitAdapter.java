@@ -46,7 +46,6 @@ import org.jdom.Element;
 import org.visualcti.server.core.unit.RunnableServerUnit;
 import org.visualcti.server.core.unit.message.UnitMessage;
 import org.visualcti.server.core.unit.message.command.ServerCommandRequest;
-import org.visualcti.server.core.unit.part.UnitMessageExchange;
 
 /**
  * <singleton>
@@ -131,65 +130,24 @@ public abstract class RunnableUnitAdapter extends ServerUnitAdapter implements R
         this.listeners = Collections.unmodifiableList(listeners);
     }
 
-    /**
-     * <accessor>
-     * To check is unit had the problems during configuring and can't be started or stopped
-     * Just for current version of Mockito
-     *
-     * @return true if runnable unit is broken
-     * @see #currentUnitState()
-     * @see UnitState#BROKEN
-     * @see ServerUnitAdapter#configure(Element)
-     * @see #cannotConfigureBecause(Exception)
-     * @deprecated
-     */
     @Deprecated
     @Override
     public boolean isBroken() {
         return RunnableServerUnit.super.isBroken();
     }
 
-    /**
-     * <accessor>
-     * To check is Engine is working (in service)
-     * Just for current version of Mockito
-     *
-     * @return true if runnable unit is started
-     * @see #currentUnitState()
-     * @see UnitState#ACTIVE
-     * @deprecated
-     */
     @Deprecated
     @Override
     public boolean isStarted() {
         return RunnableServerUnit.super.isStarted();
     }
 
-    /**
-     * <accessor>
-     * To check is Engine is stopped (out of service)
-     * Just for current version of Mockito
-     *
-     * @return true if runnable unit is stopped
-     * @see #currentUnitState()
-     * @see UnitState#PASSIVE
-     * @deprecated
-     */
     @Deprecated
     @Override
     public boolean isStopped() {
         return RunnableServerUnit.super.isStopped();
     }
 
-    /**
-     * <action>
-     * To start the runnable unit
-     * Just for current version of Mockito
-     *
-     * @throws IOException if the unit can't be started
-     * @see RunnableServerUnit#Start()
-     * @deprecated
-     */
     @Deprecated
     @Override
     public void Start() throws IOException {
@@ -206,29 +164,12 @@ public abstract class RunnableUnitAdapter extends ServerUnitAdapter implements R
     @Override
     public abstract void startUnitRunnable() throws IOException;
 
-    /**
-     * <action>
-     * To start the runnable child of the unit
-     * Just for current version of Mockito
-     *
-     * @param runnable the child of the unit to start
-     * @deprecated
-     */
     @Deprecated
     @Override
     public void startUnitChild(RunnableServerUnit runnable) {
         RunnableServerUnit.super.startUnitChild(runnable);
     }
 
-    /**
-     * <action>
-     * To stop the runnable unit
-     * Just for current version of Mockito
-     *
-     * @throws IOException if the unit can't be started
-     * @see RunnableServerUnit#Stop()
-     * @deprecated
-     */
     @Deprecated
     @Override
     public void Stop() throws IOException {
@@ -245,147 +186,54 @@ public abstract class RunnableUnitAdapter extends ServerUnitAdapter implements R
     @Override
     public abstract void stopUnitRunnable() throws IOException;
 
-    /**
-     * <action>
-     * To stop the runnable child of the unit
-     * Just for current version of Mockito
-     *
-     * @param runnable the child of the unit to stop
-     * @deprecated
-     */
     @Deprecated
     @Override
     public void stopUnitChild(RunnableServerUnit runnable) {
         RunnableServerUnit.super.stopUnitChild(runnable);
     }
 
-    /**
-     * <action>
-     * To create and dispatch the error message from the unit
-     * Just for current version of Mockito
-     *
-     * @param exception   the cause of the error
-     * @param description the description of the error
-     * @see RunnableServerUnit#dispatchError(Exception, String)
-     * @deprecated
-     */
     @Deprecated
     @Override
     public void dispatchError(Exception exception, String description) {
         RunnableServerUnit.super.dispatchError(exception, description);
     }
 
-    /**
-     * <action>
-     * To create and dispatch the error-type message from the unit
-     * Just for current version of Mockito
-     *
-     * @param description the description of the error
-     * @see #dispatchError(Exception, String)
-     * @deprecated
-     */
     @Deprecated
     @Override
     public void dispatchError(String description) {
         RunnableServerUnit.super.dispatchError(description);
     }
 
-    /**
-     * <dispatcher>
-     * To dispatch event, error, or command response from the unit
-     * This method will be called inside the activity of unit.
-     * Just for current version of Mockito
-     *
-     * @param message action message to dispatch
-     * @see UnitMessageExchange#dispatch(UnitMessage)
-     * @see UnitMessage
-     * @deprecated
-     */
     @Deprecated
     @Override
     public void dispatch(UnitMessage message) {
         RunnableServerUnit.super.dispatch(message);
     }
 
-    /**
-     * <action>
-     * Processing message in this unit
-     * Just for current version of Mockito
-     *
-     * @see UnitMessage
-     * @param message the message to process
-     * @deprecated
-     */
     @Deprecated
     @Override
     public void processUnitMessage(UnitMessage message) {
         RunnableServerUnit.super.processUnitMessage(message);
     }
 
-    /**
-     * <action>
-     * to handle the server event message
-     * Just for current version of Mockito
-     *
-     * @param message the message to handle by listener
-     * @see UnitMessage
-     * @see RunnableServerUnit#handleUnitMessage(UnitMessage)
-     * @deprecated
-     */
     @Deprecated
     @Override
     public void handleUnitMessage(UnitMessage message) {
         RunnableServerUnit.super.handleUnitMessage(message);
     }
 
-    /**
-     * <action>
-     * to notify unit's message listeners
-     * Just for current version of Mockito
-     *
-     * @param message the message to handle by listener
-     * @see UnitMessage
-     * @see RunnableServerUnit#notifyListeners(UnitMessage)
-     * @deprecated
-     */
     @Deprecated
     @Override
     public void notifyListeners(UnitMessage message) {
         RunnableServerUnit.super.notifyListeners(message);
     }
 
-    /**
-     * <action>
-     * to process unit message through the messages listener of the unit
-     * Just for current version of Mockito
-     *
-     * @param listener the listener of unit message
-     * @param message  the message to process
-     * @see UnitMessage
-     * @see UnitMessage.Listener
-     * @see RunnableServerUnit#notifyListener(UnitMessage.Listener, UnitMessage)
-     * @deprecated
-     */
     @Deprecated
     @Override
     public void notifyListener(UnitMessage.Listener listener, UnitMessage message) {
         RunnableServerUnit.super.notifyListener(listener, message);
     }
 
-
-    /**
-     * <executer>
-     * To execute command for this unit.
-     * The method will call outside the unit.
-     * If command is invalid the exception will be thrown.
-     * Just for current version of Mockito
-     *
-     * @param command command to execute
-     * @throws Exception if it cannot execute
-     * @see ServerCommandRequest
-     * @see RunnableUnitAdapter#execute(ServerCommandRequest)
-     * @deprecated
-     */
     @Deprecated
     @Override
     public void execute(ServerCommandRequest command) throws Exception {

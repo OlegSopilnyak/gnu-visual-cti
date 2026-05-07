@@ -487,11 +487,11 @@ public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPo
         if (!(licence instanceof Comment)) {
             throw new IOException("Tasks list licence is invalid.");
         }
-        final Element tasksListElement = this.tasksListConfigurationDocument.getRootElement();
-        tasksListElement.getContent().clear();
-        tasksListElement.setAttribute(TASKS_POOL_TYPE_ATTRIBUTE_NAME, tasksListPoolType);
+        final Element tasksListRootElement = this.tasksListConfigurationDocument.getRootElement();
+        tasksListRootElement.getContent().clear();
+        tasksListRootElement.setAttribute(TASKS_POOL_TYPE_ATTRIBUTE_NAME, tasksListPoolType);
         final String tasksListAbout = String.format(TASKS_LIST_ABOUT_TEMPLATE, tasksListPoolType);
-        tasksListElement.addContent(new Comment(tasksListAbout));
+        tasksListRootElement.addContent(new Comment(tasksListAbout));
         try {
             // getting instance of task pools manager
             final TaskPoolsManager poolsManager = UnitRegistry.lookup(TaskPoolsManager.class);
@@ -559,6 +559,12 @@ public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPo
         TasksPoolUnit.super.store(document, out);
     }
 
+    @Deprecated
+    @Override
+    public void execute(ServerCommandRequest command) throws Exception {
+        TasksPoolUnit.super.execute(command);
+    }
+
     /**
      * <action>
      * To start the internal runnable parts of the unit
@@ -605,20 +611,6 @@ public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPo
     }
 
     /**
-     * <executer>
-     * To execute console command for this unit.
-     * The method will call outside the unit.
-     * If command is invalid the exception will be thrown.
-     *
-     * @param command command to execute
-     * @throws Exception if it cannot execute
-     */
-    @Override
-    public void execute(ServerCommandRequest command) throws Exception {
-        TasksPoolUnit.super.execute(command);
-    }
-
-    /**
      * <action>
      * To execute GET tasks-pool command
      *
@@ -649,14 +641,14 @@ public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPo
                     return null;
                 });
                 break;
-            case GET_POOL_EDIT_TARGET:
+            case GET_POOL_TASK_INFO_TARGET:
                 // target is "edit" responding to it
                 //
                 // getting task name from request's parameter "task"
-                final String taskName = TasksPoolUnit.taskParameterAsString(command, GET_POOL_EDIT_TARGET);
+                final String taskName = TasksPoolUnit.taskParameterAsString(command, GET_POOL_TASK_INFO_TARGET);
                 // getting pool's task by name
                 final Task task = getTask(taskName)
-                        .orElseThrow(() -> new UnknownCommandException("invalid task's name [" + taskName + "]"));
+                        .orElseThrow(() -> new UnknownCommandException("Invalid get task by name [" + taskName + "]"));
                 // preparing and sending response to the command
                 respondTo(command, response -> {
                     // preparing response of the task's parameters for the task editing action
@@ -665,7 +657,6 @@ public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPo
                             .setParameter(Parameter.of(Task.ROOT_ELEMENT, task.getXML()).output())
                     ;
                 });
-
                 break;
             default:
                 throw new UnknownCommandException("Invalid GET's command target [" + target + "]");
@@ -759,7 +750,7 @@ public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPo
         if (task != null) {
             // valid task value, modifying
             respondTo(command, true,
-                    response -> response.setParameter(Parameter.of(modifyType, modify.apply(task)))
+                    response -> response.setParameter(Parameter.of(modifyType, modify.apply(task)).output())
             );
         } else {
             // invalid task value, reporting
@@ -769,7 +760,7 @@ public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPo
 
     private void commandFailed(final ServerCommandRequest command, final String reasonMessage) throws IOException {
         respondTo(command, false,
-                response -> response.setParameter(Parameter.of("reason", reasonMessage))
+                response -> response.setParameter(Parameter.of("reason", reasonMessage).output())
         );
     }
 
@@ -836,7 +827,7 @@ public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPo
     // dispatching tasks list updated event
     private void dispatchTasksModifiedEvent(final String action) {
         try {
-            final String eventMessage = action + ":tasks.list\n" + this.tasksList();
+            final String eventMessage = action + ":\n\t- tasks.list -\n" + this.tasksList();
             final UnitActionEvent event = getMessageFactory()
                     .buildFor(this, MessageType.EVENT, MessageFamilyType.STATE, "");
             dispatch(event.setDescription(eventMessage));

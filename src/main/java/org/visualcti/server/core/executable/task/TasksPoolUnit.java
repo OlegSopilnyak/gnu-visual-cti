@@ -71,7 +71,7 @@ public interface TasksPoolUnit extends RunnableServerUnit {
     String TASKS_POOL_ROOT_ELEMENT_NAME = "pool";
     // target types of GET command
     String GET_POOL_INFO_TARGET = "info";
-    String GET_POOL_EDIT_TARGET = "edit";
+    String GET_POOL_TASK_INFO_TARGET = "edit";
     // types of SET command
     String SET_DEPLOY_TASK_TYPE = "deploy";
     String SET_INSTALL_TASK_TYPE = "install";
@@ -369,9 +369,9 @@ public interface TasksPoolUnit extends RunnableServerUnit {
         // checking command to execute (is it needs response)
         ServerUnit.validateCommand(command);
         //
-        final MessageFamilyType commandType = command.getFamilyType();
+        final MessageFamilyType commandSubType = command.getFamilyType();
         // processing command request
-        switch (commandType) {
+        switch (commandSubType) {
             case GET:
                 // execute GET command
                 executePoolGet(command);
@@ -382,7 +382,7 @@ public interface TasksPoolUnit extends RunnableServerUnit {
                 break;
             default:
                 // the command isn't processed here
-                throw new UnknownCommandException(commandType + " isn't supported!");
+                throw new UnknownCommandException(commandSubType + " isn't supported!");
         }
     }
 

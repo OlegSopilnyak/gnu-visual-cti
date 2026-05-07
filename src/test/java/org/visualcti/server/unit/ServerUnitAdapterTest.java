@@ -600,7 +600,7 @@ public class ServerUnitAdapterTest {
     }
 
     @Test
-    public void shouldExecuteCommand_GetMeta() throws Exception {
+    public void shouldExecuteGetCommand_Meta() throws Exception {
         // preparing test data
         ServerCommandRequest request = serverUnitAdapter.getMessageFactory()
                 .buildFor(serverUnitAdapter, MessageType.COMMAND, MessageFamilyType.GET, "Getting meta-info");
@@ -625,7 +625,7 @@ public class ServerUnitAdapterTest {
     }
 
     @Test
-    public void shouldNotExecuteCommand_NotGet() throws Exception {
+    public void shouldNotExecuteGetCommand_NotGet() throws Exception {
         // preparing test data
         ServerCommandRequest request = serverUnitAdapter.getMessageFactory()
                 .buildFor(serverUnitAdapter, MessageType.COMMAND, MessageFamilyType.SET, "Getting meta-info");
@@ -643,19 +643,19 @@ public class ServerUnitAdapterTest {
     }
 
     @Test
-    public void shouldNotExecuteCommand_NoNeedsResponse() throws Exception {
+    public void shouldNotExecuteGetCommand_NotNeedResponse() throws Exception {
         // preparing test data
         ServerCommandRequest request = serverUnitAdapter.getMessageFactory()
                 .buildFor(serverUnitAdapter, MessageType.COMMAND, MessageFamilyType.GET, "Getting meta-info");
-        request.setNeedResponse(false).setParameter(Parameter.of("target", "meta").input());
+        request.setNeedResponse(true).setParameter(Parameter.of("target", "meta").input());
         reset(serverUnitAdapter);
 
         // acting
-        Exception e = assertThrows(Exception.class, () -> serverUnitAdapter.execute(request));
+        Exception e = assertThrows(Exception.class, () -> serverUnitAdapter.execute(request.setNeedResponse(false)));
 
         // check the behavior
         assertThat(e).isInstanceOf(UnknownCommandException.class);
-        assertThat(e.getMessage()).isEqualTo("GET isn't supported! Asynchronous execution isn't supported.");
+        assertThat(e.getMessage()).isEqualTo("Asynchronous execution isn't supported yet!");
         verify(serverUnitAdapter, never()).getMessageFactory();
         // check results
     }

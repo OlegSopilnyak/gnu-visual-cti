@@ -166,8 +166,9 @@ public interface RunnableServerUnit extends ServerUnit, Engine, UnitMessage.List
      * <action>
      * Processing message in this unit
      *
-     * @see UnitMessage
      * @param message the message to process
+     * @see UnitMessage
+     * @see #handleUnitMessage(UnitMessage)
      */
     default void processUnitMessage(UnitMessage message) {
         System.err.println("\tWarning! in the Unit " + this.getName());

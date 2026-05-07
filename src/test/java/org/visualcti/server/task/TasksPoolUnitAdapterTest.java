@@ -38,7 +38,10 @@ Fax number: 217-356-3356
 package org.visualcti.server.task;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertThrows;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
@@ -52,6 +55,9 @@ import static org.mockito.Mockito.verify;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.Consumer;
 import org.jdom.DataConversionException;
 import org.jdom.Element;
 import org.junit.After;
@@ -59,14 +65,23 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Matchers;
+import org.visualcti.server.Parameter;
 import org.visualcti.server.UnitRegistry;
 import org.visualcti.server.core.executable.task.Task;
 import org.visualcti.server.core.executable.task.TaskPoolsManager;
 import org.visualcti.server.core.executable.task.TasksPoolUnit;
+import org.visualcti.server.core.unit.RunnableServerUnit;
+import org.visualcti.server.core.unit.message.MessageFamilyType;
+import org.visualcti.server.core.unit.message.MessageType;
 import org.visualcti.server.core.unit.message.UnitMessage;
 import org.visualcti.server.core.unit.message.action.UnitActionError;
 import org.visualcti.server.core.unit.message.action.UnitActionEvent;
+import org.visualcti.server.core.unit.message.command.ServerCommandRequest;
+import org.visualcti.server.core.unit.message.command.ServerCommandResponse;
+import org.visualcti.server.core.unit.message.command.UnknownCommandException;
+import org.visualcti.util.Tools;
 
+@SuppressWarnings("unchecked")
 public class TasksPoolUnitAdapterTest {
     TasksPoolUnitAdapter tasksPool = spy(new TasksPoolUnitAdapter());
     TaskPoolsManager poolsManager;
@@ -603,6 +618,215 @@ public class TasksPoolUnitAdapterTest {
         tasksListFile.deleteOnExit();
     }
 
+    @Test
+    public void shouldExecuteStartPool() throws Exception {
+        // preparing test data
+        ServerCommandRequest request = tasksPool.getMessageFactory()
+                .buildFor(tasksPool, MessageType.COMMAND, MessageFamilyType.START, "Starting the pool");
+        assertThat(tasksPool.isStarted()).isFalse();
+        reset(tasksPool);
+
+        // acting
+        tasksPool.execute(request);
+
+        // check the behavior
+        verify(tasksPool).startUnitRunnable();
+        // check results
+        assertThat(tasksPool.isStarted()).isTrue();
+    }
+
+    @Test
+    public void shouldExecuteStopPool() throws Exception {
+        // preparing test data
+        ServerCommandRequest request = tasksPool.getMessageFactory()
+                .buildFor(tasksPool, MessageType.COMMAND, MessageFamilyType.STOP, "Stopping the pool");
+        tasksPool.currentUnitState(RunnableServerUnit.UnitState.ACTIVE);
+        reset(tasksPool);
+
+        // acting
+        tasksPool.execute(request);
+
+        // check the behavior
+        verify(tasksPool).stopUnitRunnable();
+        // check results
+        assertThat(tasksPool.isStopped()).isTrue();
+    }
+
+    @Test
+    public void shouldExecuteGetPoolInfo() throws Exception {
+        // preparing test data
+        String targetValue = "info";
+        String currentTaskName = "currentTask";
+        String tasksListNames = "task 1\ntask 2";
+        ServerCommandRequest request = tasksPool.getMessageFactory()
+                .buildFor(tasksPool, MessageType.COMMAND, MessageFamilyType.GET, "Getting the pool info");
+        tasksPool.currentUnitState(RunnableServerUnit.UnitState.ACTIVE);
+        request.setNeedResponse(true).setParameter(Parameter.of("target", targetValue).input());
+        Task currentTask = mock(Task.class);
+        doReturn(currentTaskName).when(currentTask).getName();
+        doReturn(currentTask).when(tasksPool).current();
+        doReturn(tasksListNames).when(tasksPool).tasksList();
+
+        // acting
+        tasksPool.execute(request);
+
+        // check the behavior
+        verify(tasksPool).executePoolGet(request);
+        verify(tasksPool).respondTo(eq(request), any(Consumer.class));
+        verify(tasksPool).respondTo(eq(request), eq(true), any(Consumer.class));
+        verify(tasksPool).currentUnitState();
+        verify(tasksPool).tasksList();
+        verify(tasksPool).current();
+        ArgumentCaptor<UnitMessage> captor = ArgumentCaptor.forClass(UnitMessage.class);
+        verify(tasksPool, atLeastOnce()).dispatch(captor.capture());
+        List<UnitMessage> unitMessages = captor.getAllValues();
+        // check results
+        assertThat(unitMessages).hasSize(1);
+        assertThat(unitMessages.get(0)).isInstanceOf(ServerCommandResponse.class);
+        ServerCommandResponse response = (ServerCommandResponse) unitMessages.get(0);
+        assertThat(response.getParameters().toArray()).hasSize(3);
+        assertThat(response.getParameter("current", "output").get().getValue("wrong")).isEqualTo(currentTaskName);
+        assertThat(response.getParameter("tasks.list", "output").get().getValue("wrong")).isEqualTo(tasksListNames);
+        assertThat(response.getParameter("unit.state", "output").get().getValue("wrong")).isEqualTo("active");
+    }
+
+    @Test
+    public void shouldExecuteGetPoolTaskInfo() throws Exception {
+        // preparing test data
+        String targetValue = "edit";
+        String currentTaskName = "currentTask";
+        ServerCommandRequest request = tasksPool.getMessageFactory()
+                .buildFor(tasksPool, MessageType.COMMAND, MessageFamilyType.GET, "Getting the pool info");
+        tasksPool.currentUnitState(RunnableServerUnit.UnitState.ACTIVE);
+        request.setNeedResponse(true)
+                .setParameter(Parameter.of("target", targetValue).input())
+                .setParameter(Parameter.of("task", currentTaskName).input());
+        Task currentTask = mock(Task.class);
+        Element taskXml = new Element("task");
+        doReturn(currentTaskName).when(currentTask).getName();
+        doReturn(taskXml).when(currentTask).getXML();
+        doReturn(Optional.of(currentTask)).when(tasksPool).getTask(currentTaskName);
+
+        // acting
+        tasksPool.execute(request);
+
+        // check the behavior
+        verify(tasksPool).executePoolGet(request);
+        verify(tasksPool).getTask(currentTaskName);
+        verify(tasksPool).respondTo(eq(request), any(Consumer.class));
+        verify(tasksPool).respondTo(eq(request), eq(true), any(Consumer.class));
+        verify(currentTask).getXML();
+        ArgumentCaptor<UnitMessage> captor = ArgumentCaptor.forClass(UnitMessage.class);
+        verify(tasksPool, atLeastOnce()).dispatch(captor.capture());
+        List<UnitMessage> unitMessages = captor.getAllValues();
+        // check results
+        assertThat(unitMessages).hasSize(1);
+        assertThat(unitMessages.get(0)).isInstanceOf(ServerCommandResponse.class);
+        ServerCommandResponse response = (ServerCommandResponse) unitMessages.get(0);
+        assertThat(response.getParameters().toArray()).hasSize(2);
+        assertThat(response.getParameter("edit.class", "output").get().getValue("wrong")).isEqualTo("nothing :-(");
+        assertThat(response.getParameter("task", "output").get().getValue(Tools.emptyXML)).isEqualTo(taskXml);
+    }
+
+    @Test
+    public void shouldNotExecuteGet_WrongTarget() throws Exception {
+        // preparing test data
+        String targetValue = "wrong";
+        ServerCommandRequest request = tasksPool.getMessageFactory()
+                .buildFor(tasksPool, MessageType.COMMAND, MessageFamilyType.GET, "Getting the pool info");
+        tasksPool.currentUnitState(RunnableServerUnit.UnitState.ACTIVE);
+        request.setNeedResponse(true).setParameter(Parameter.of("target", targetValue).input());
+
+        // acting
+        Exception e = assertThrows(Exception.class, () -> tasksPool.execute(request));
+
+        // check the behavior
+        verify(tasksPool).executePoolGet(request);
+        verify(tasksPool, never()).respondTo(any(ServerCommandRequest.class), any(Consumer.class));
+        // check results
+        assertThat(e).isInstanceOf(UnknownCommandException.class);
+        assertThat(e.getMessage()).isEqualTo("Invalid GET's command target [" + targetValue + "]");
+    }
+
+    @Test
+    public void shouldNotExecuteGetPoolTaskInfo_NoTaskParameter() throws Exception {
+        // preparing test data
+        String targetValue = "edit";
+        ServerCommandRequest request = tasksPool.getMessageFactory()
+                .buildFor(tasksPool, MessageType.COMMAND, MessageFamilyType.GET, "Getting the pool info");
+        tasksPool.currentUnitState(RunnableServerUnit.UnitState.ACTIVE);
+        request.setNeedResponse(true).setParameter(Parameter.of("target", targetValue).input());
+
+        // acting
+        Exception e = assertThrows(Exception.class, () -> tasksPool.execute(request));
+
+        // check the behavior
+        verify(tasksPool).executePoolGet(request);
+        verify(tasksPool, never()).getTask(anyString());
+        // check results
+        assertThat(e).isInstanceOf(UnknownCommandException.class);
+        assertThat(e.getMessage()).isEqualTo("GET isn't supported! Nothing to edit.");
+    }
+
+    @Test
+    public void shouldNotExecuteGetPoolTaskInfo_NoTaskByName() throws Exception {
+        // preparing test data
+        String targetValue = "edit";
+        String currentTaskName = "currentTask";
+        ServerCommandRequest request = tasksPool.getMessageFactory()
+                .buildFor(tasksPool, MessageType.COMMAND, MessageFamilyType.GET, "Getting the pool info");
+        tasksPool.currentUnitState(RunnableServerUnit.UnitState.ACTIVE);
+        request.setNeedResponse(true)
+                .setParameter(Parameter.of("target", targetValue).input())
+                .setParameter(Parameter.of("task", currentTaskName).input());
+
+        // acting
+        Exception e = assertThrows(Exception.class, () -> tasksPool.execute(request));
+
+        // check the behavior
+        verify(tasksPool).executePoolGet(request);
+        verify(tasksPool).getTask(currentTaskName);
+        verify(tasksPool, never()).respondTo(any(ServerCommandRequest.class), any(Consumer.class));
+        // check results
+        assertThat(e).isInstanceOf(UnknownCommandException.class);
+        assertThat(e.getMessage()).isEqualTo("Invalid get task by name [" + currentTaskName + "]");
+    }
+
+    @Test
+    public void shouldExecuteSetDeploy() throws Exception {
+        // preparing test data
+        String modifyType = "deploy";
+        ServerCommandRequest request = tasksPool.getMessageFactory()
+                .buildFor(tasksPool, MessageType.COMMAND, MessageFamilyType.SET, modifyType + "ing the task to the pool");
+        doAnswer(invocation -> null).when(tasksPool).saveTasksList();
+        tasksPool.currentUnitState(RunnableServerUnit.UnitState.ACTIVE);
+        Element taskXml = new Element("task").setAttribute("class", TestTask.class.getName());
+        request.setNeedResponse(true)
+                .setParameter(Parameter.of("type", modifyType).input())
+                .setParameter(Parameter.of("task", taskXml).input())
+        ;
+        tasksPool.addTask(new TestTask(), false);
+
+        // acting
+        tasksPool.execute(request);
+
+        // check the behavior
+        verify(tasksPool).executePoolSet(request);
+        verify(tasksPool).updateTask(any(Task.class));
+        verify(tasksPool).saveTasksList();
+        verify(tasksPool).respondTo(eq(request), eq(true), any(Consumer.class));
+        ArgumentCaptor<UnitMessage> messageArgumentCaptor = ArgumentCaptor.forClass(UnitMessage.class);
+        verify(tasksPool, atLeastOnce()).dispatch(messageArgumentCaptor.capture());
+        // check results
+        List<UnitMessage> messages = messageArgumentCaptor.getAllValues();
+        assertThat(messages).hasSize(2);
+        assertThat(messages.get(0)).isInstanceOf(UnitActionEvent.class);
+        assertThat(messages.get(1)).isInstanceOf(ServerCommandResponse.class);
+        ServerCommandResponse response = (ServerCommandResponse) messages.get(1);
+        assertThat(response.isCommandSuccess()).isTrue();
+        assertThat(response.getParameter(modifyType, "output").get().getValue(false)).isTrue();
+    }
+
     // private methods
     private TaskPoolsManager createTaskPoolsManager() throws IOException {
         String managerPath = "Tasks/Manager";
@@ -612,5 +836,24 @@ public class TasksPoolUnitAdapterTest {
         doReturn(new File(managerDirectory)).when(poolsManager).getRoot();
         UnitRegistry.register(poolsManager);
         return poolsManager;
+    }
+
+    // inner classes
+    static class TestTask extends TaskAdapter {
+
+        @Override
+        public void execute() {
+
+        }
+
+        @Override
+        public void stopExecute() {
+
+        }
+
+        @Override
+        protected void clockEvent() {
+
+        }
     }
 }

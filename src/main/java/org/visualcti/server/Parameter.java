@@ -269,7 +269,7 @@ private transient Object value;
     */
     public Parameter(String name,Element value)
     {
-        this.name=name; this.value=value.clone();this.type=XML;
+        this.name=name; this.value=value.detach();this.type=XML;
     }
     /**
     <constructor>
@@ -297,6 +297,8 @@ private transient Object value;
             return new Parameter(name, (Number) value);
         } else if (value instanceof Boolean) {
             return new Parameter(name, (Boolean) value);
+        } else if (value instanceof Element) {
+            return new Parameter(name, (Element) value);
         }
         // unacceptable value
         throw new IllegalArgumentException("unknown value type: " + value.getClass().getName());

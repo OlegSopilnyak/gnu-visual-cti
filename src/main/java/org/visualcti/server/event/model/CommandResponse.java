@@ -52,9 +52,9 @@ class CommandResponse extends CommandAdapter implements ServerCommandResponse {
 
     @Override
     public String toString() {
-        return "Command {\n" + super.toString() +
-                "\nsuccess=" + requestSuccess +
-                "\n}";
+        return "CommandResponse\n"+super.toString() +"\nresponse properties:{" +
+                "request succeed=" + requestSuccess +
+                '}';
     }
 
     /**
