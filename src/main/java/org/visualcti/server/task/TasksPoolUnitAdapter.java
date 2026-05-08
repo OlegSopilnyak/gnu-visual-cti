@@ -684,55 +684,58 @@ public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPo
                 );
                 break;
             case SET_INSTALL_TASK_TYPE:
-                final Parameter installParameter = TasksPoolUnit.taskParameter(command, commandSetType);
-                switch (installParameter.getType()) {
-                    case Parameter.STRING: {
-                        // installing task from public tasks pool
+                // installing (adding or updating) task in tasks pool
+                final Parameter taskParameter = TasksPoolUnit.taskParameter(command, commandSetType);
+                switch (taskParameter.getType()) {
+                    case Parameter.STRING:
+                        // input task as task name
+                        // installing (adding or updating) task from public tasks pool to the tasks pool directly
                         final TaskPoolsManager manager = (TaskPoolsManager) this.getOwner();
                         final TasksPoolUnit publicTaskPool = manager.publicTaskPool();
                         modifyTask(
-                                command, publicTaskPool.getTask(installParameter.getValue("????:-P")).orElse(null),
-                                commandSetType, this::addTask, "no task to install in the public pool"
+                                command, publicTaskPool.getTask(taskParameter.getValue("????:-P")).orElse(null),
+                                commandSetType, this::install, "no task to install in the public pool"
                         );
-                    }
-                    break;
-                    case Parameter.XML: {
-                        // installing(adding) task to the pool directly
+                        break;
+                    case Parameter.XML:
+                        // input task as task XML
+                        // installing(adding or updating) task to the pool directly
                         modifyTask(
-                                command, TaskMaker.restore(installParameter.getValue(Tools.emptyXML)),
-                                commandSetType, this::addTask, "invalid task to install XML");
-                    }
-                    break;
+                                command, TaskMaker.restore(taskParameter.getValue(Tools.emptyXML)),
+                                commandSetType, this::install, "invalid task to install XML");
+                        break;
                     default:
                         commandFailed(command, "invalid type of the install task input parameter");
                         break;
-
                 }
                 break;
             case SET_DELETE_TASK_TYPE:
+                // deleting the task from tasks pool
                 final String taskNameToDelete = TasksPoolUnit.taskParameterAsString(command, commandSetType);
                 modifyTask(
-                        command, this.getTask(taskNameToDelete).orElse(null),
+                        command, getTask(taskNameToDelete).orElse(null),
                         commandSetType, this::removeTask, "invalid task to delete in the pool"
                 );
                 break;
             case SET_MOVE_TASK_TYPE:
+                // moving the task inside tasks pool
                 final String taskNameToMove = TasksPoolUnit.taskParameterAsString(command, commandSetType);
                 final String moveDirection =
                         TasksPoolUnit.inputParameter(command, SET_MOVE_TASK_DIRECTION, commandSetType).getValue("????:-P");
+                final String action = SET_MOVE_TASK_TYPE + "." + moveDirection;
                 switch (moveDirection) {
                     case SET_MOVE_TASK_UP:
                         // moving task up in tasks pool
                         modifyTask(
                                 command, getTask(taskNameToMove).orElse(null),
-                                moveDirection, this::moveTaskUp, "invalid move's direction up"
+                                action, this::moveTaskUp, "invalid move's direction up"
                         );
                         break;
                     case SET_MOVE_TASK_DOWN:
                         // moving task down in tasks pool
                         modifyTask(
                                 command, getTask(taskNameToMove).orElse(null),
-                                moveDirection, this::moveTaskDown, "invalid move's direction down"
+                                action, this::moveTaskDown, "invalid move's direction down"
                         );
                         break;
                     default:
@@ -745,24 +748,6 @@ public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPo
         }
     }
 
-    private void modifyTask(final ServerCommandRequest command, final Task task, final String modifyType,
-                            final Function<Task, Boolean> modify, final String reasonMessage) throws IOException {
-        if (task != null) {
-            // valid task value, modifying
-            respondTo(command, true,
-                    response -> response.setParameter(Parameter.of(modifyType, modify.apply(task)).output())
-            );
-        } else {
-            // invalid task value, reporting
-            commandFailed(command, reasonMessage);
-        }
-    }
-
-    private void commandFailed(final ServerCommandRequest command, final String reasonMessage) throws IOException {
-        respondTo(command, false,
-                response -> response.setParameter(Parameter.of("reason", reasonMessage).output())
-        );
-    }
 
     @Deprecated
     @Override
@@ -866,5 +851,31 @@ public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPo
     // to check is task inside tasks list
     private boolean hasTaskInside(final Task task) {
         return tasksPool.stream().anyMatch(t -> Objects.equals(t.getName(), task.getName()));
+    }
+
+    // to install the task to the tasks pool depends on is it inside or not
+    private boolean install(final Task task) {
+        return hasTaskInside(task) ? updateTask(task) : addTask(task);
+    }
+
+    // making changes in tasks pool using "modify" function if the task isn't empty
+    private void modifyTask(final ServerCommandRequest command, final Task task, final String modifyType,
+                            final Function<Task, Boolean> modify, final String reasonMessage) throws IOException {
+        if (task != null) {
+            // valid task value, modifying
+            respondTo(command, true,
+                    response -> response.setParameter(Parameter.of(modifyType, modify.apply(task)).output())
+            );
+        } else {
+            // invalid task value, reporting
+            commandFailed(command, reasonMessage);
+        }
+    }
+
+    // prepare and send error message
+    private void commandFailed(final ServerCommandRequest command, final String reasonMessage) throws IOException {
+        respondTo(command, false,
+                response -> response.setParameter(Parameter.of("reason", reasonMessage).output())
+        );
     }
 }
