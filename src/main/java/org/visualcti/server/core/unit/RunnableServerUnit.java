@@ -40,7 +40,7 @@ package org.visualcti.server.core.unit;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.function.Consumer;
+import java.util.stream.Stream;
 import org.jdom.Element;
 import org.visualcti.server.core.executable.Engine;
 import org.visualcti.server.core.unit.message.MessageFamilyType;
@@ -369,9 +369,10 @@ public interface RunnableServerUnit extends ServerUnit, Engine, UnitMessage.List
      * @throws IOException if the unit can't be started
      * @see #isBroken()
      * @see #isStarted()
+     * @see #canStartUnit()
      * @see #startUnitRunnable()
+     * @see #runnableChildren()
      * @see #startUnitChild(RunnableServerUnit)
-     * @see #doForUnitChildren(ServerUnit, Consumer)
      * @see #currentUnitState(UnitState)
      * @see UnitMessageFactory#buildFor(ServerUnit, MessageType, MessageFamilyType, String)
      * @see UnitMessageExchange#dispatch(UnitMessage)
@@ -382,17 +383,29 @@ public interface RunnableServerUnit extends ServerUnit, Engine, UnitMessage.List
             // unit is broken or already started
             return;
         }
-        // starting internal parts of the runnable unit
-        startUnitRunnable();
-        // starting runnable children of the unit
-        doForUnitChildren(this, this::startUnitChild);
-        // setting up new runnable unit state
-        currentUnitState(UnitState.ACTIVE);
-        // dispatch unit started message
-        final String messageDescription = "Started server unit :" + getPath();
-        dispatch(getMessageFactory().buildFor(this, MessageType.EVENT, MessageFamilyType.START, messageDescription));
+        // trying to start the runnable server unit
+        if (canStartUnit()) {
+            // starting internal parts of the runnable unit
+            startUnitRunnable();
+            // starting runnable children of the unit
+            runnableChildren().forEach(this::startUnitChild);
+            // setting up new runnable unit state
+            currentUnitState(UnitState.ACTIVE);
+            // dispatch unit started message
+            final String messageDescription = "Started server unit :" + getPath();
+            dispatch(getMessageFactory().buildFor(this, MessageType.EVENT, MessageFamilyType.START, messageDescription));
+        }
     }
 
+    /**
+     * <checker>
+     * To check is unit can start according the internal state
+     *
+     * @return true if unit can start
+     */
+    default boolean canStartUnit() {
+        return true;
+    }
     /**
      * <action>
      * To start the internal runnable parts of the unit
@@ -428,8 +441,8 @@ public interface RunnableServerUnit extends ServerUnit, Engine, UnitMessage.List
      * @throws IOException if the unit can't be started
      * @see #isBroken()
      * @see #isStopped()
+     * @see #runnableChildren()
      * @see #stopUnitRunnable()
-     * @see #doForUnitChildren(ServerUnit, Consumer)
      * @see #currentUnitState(UnitState)
      * @see UnitMessageFactory#buildFor(ServerUnit, MessageType, MessageFamilyType, String)
      * @see UnitMessageExchange#dispatch(UnitMessage)
@@ -443,7 +456,7 @@ public interface RunnableServerUnit extends ServerUnit, Engine, UnitMessage.List
         // stopping internal parts of the runnable unit
         stopUnitRunnable();
         // stopping runnable children of the unit
-        doForUnitChildren(this, this::stopUnitChild);
+        runnableChildren().forEach(this::stopUnitChild);
         // setting up new runnable unit state
         currentUnitState(UnitState.PASSIVE);
         // dispatch unit started message
@@ -501,6 +514,16 @@ public interface RunnableServerUnit extends ServerUnit, Engine, UnitMessage.List
         }
     }
 
+    /**
+     * <accessor>
+     * To get the stream of runnable unit's children
+     *
+     * @return runnable units stream
+     */
+    default Stream<RunnableServerUnit> runnableChildren() {
+        return children().filter(RunnableServerUnit.class::isInstance).map(RunnableServerUnit.class::cast);
+    }
+
 
     /**
      * <action>
@@ -511,16 +534,5 @@ public interface RunnableServerUnit extends ServerUnit, Engine, UnitMessage.List
      */
     default void dispatchError(String description) {
         dispatchError(null, description);
-    }
-
-    /**
-     * <action>
-     * To do action for all children of the unit
-     *
-     * @param unit   the unit to do action for it's children
-     * @param action action to apply for each unit's child (if it's runnable)
-     */
-    static void doForUnitChildren(final ServerUnit unit, final Consumer<? super RunnableServerUnit> action) {
-        unit.children().filter(RunnableServerUnit.class::isInstance).map(RunnableServerUnit.class::cast).forEach(action);
     }
 }

@@ -40,7 +40,7 @@ package org.visualcti.server.core.unit.message.command;
 import java.io.OutputStream;
 import org.jdom.Element;
 import org.visualcti.server.Parameter;
-import org.visualcti.server.core.XmlAware;
+import org.visualcti.core.XmlAware;
 import org.visualcti.server.core.unit.message.MessageType;
 import org.visualcti.server.core.unit.message.UnitMessage;
 

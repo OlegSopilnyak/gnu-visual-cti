@@ -62,8 +62,8 @@ import org.jdom.Document;
 import org.jdom.Element;
 import org.jdom.output.XMLOutputter;
 import org.visualcti.server.UnitRegistry;
-import org.visualcti.server.core.ConfigurationParameter;
-import org.visualcti.server.core.XmlAware;
+import org.visualcti.core.ConfigurationParameter;
+import org.visualcti.core.XmlAware;
 import org.visualcti.server.core.unit.ServerUnit;
 import org.visualcti.server.core.unit.message.UnitMessage;
 import org.visualcti.server.core.unit.message.UnitMessageFactory;
@@ -400,16 +400,11 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
      * @see #getXML()
      */
     protected void prepareUnitXML(Element rootElement) {
-        if (!isEmpty(iconBodyPath)) {
+        if (isEmptyString.negate().test(iconBodyPath)) {
             rootElement.addContent(ConfigurationParameter.of(UNIT_ICON_ATTRIBUTE, iconBodyPath).getXml());
         }
     }
 
-    @Deprecated
-    @Override
-    public boolean isEmpty(String value) {
-        return XmlAware.super.isEmpty(value);
-    }
 
     /**
      * <converter>
@@ -482,7 +477,7 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
         }
         // check builder method name
         final String unitBuilderMethodName = this.getUnitBuilderMethodName();
-        if (isEmpty(unitBuilderMethodName)) {
+        if (isEmptyString.test(unitBuilderMethodName)) {
             // removing unit builder method xml attribute from the builder XML
             builder.removeAttribute(UNIT_BUILDER_METHOD_ATTRIBUTE);
         } else if (!unitBuilderMethodName.equals(builder.getAttributeValue(UNIT_BUILDER_METHOD_ATTRIBUTE))) {
@@ -622,7 +617,7 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
      */
     @Override
     public void setOwner(ServerUnit owner) throws IOException {
-        final String unitName = getName();
+        final String unitName = isEmptyString.test(unitPath) ? getName() : unitPath;
         // unregistering unit from the registry
         UnitRegistry.unRegister(this);
         // unit detached from the units  registry
@@ -635,6 +630,8 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
         } else {
             // preparing new value of unit path
             this.unitPath = owner.getPath() + "/" + unitName;
+            // before registering unit
+            beforeRegisterUnit();
             // registering unit with new value of the path
             UnitRegistry.register(this);
             this.owner = owner;
@@ -743,12 +740,26 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
             setXML(configuration);
             // saving successful configuration to the unit's field
             this.unitConfiguration = configuration;
+            // before registering unit
+            beforeRegisterUnit();
             // registering unit in the registry
             UnitRegistry.register(this);
         } catch (IOException | DataConversionException e) {
             // delegate exception processing to children
             cannotConfigureBecause(e);
         }
+    }
+
+    /**
+     * <action>
+     * To do something before register unit in the units registry
+     *
+     * @see #configure(Element)
+     * @see #setOwner(ServerUnit)
+     */
+    protected void beforeRegisterUnit() {
+        // doing noting here
+        // can be overridden further
     }
 
     /**
@@ -762,9 +773,15 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
         // ignore exception on this level
     }
 
-    // private methods
-    // to update XML configuration of the unit
-    private boolean updatedUnitConfiguration() {
+    /**
+     * <config>
+     * to update XML configuration of the unit after children branches change
+     *
+     * @return true if update is successful
+     * @see #add(ServerUnit)
+     * @see #remove(ServerUnit)
+     */
+    protected boolean updatedUnitConfiguration() {
         // loaded configuration is not actual after units tree activity
         this.unitConfiguration = null;
         // rebuilding and storing configuration as JDOM element
@@ -772,6 +789,8 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
         return true;
     }
 
+
+    // private methods
     // building server unit main classes part
 
     /**

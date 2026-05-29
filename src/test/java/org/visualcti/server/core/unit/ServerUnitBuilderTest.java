@@ -43,7 +43,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import org.jdom.Element;
 import org.junit.Test;
-import org.visualcti.server.core.ConfigurationParameter;
+import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.server.unit.ServerUnitAdapter;
 
 public class ServerUnitBuilderTest {

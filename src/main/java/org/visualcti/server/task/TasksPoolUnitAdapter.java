@@ -84,7 +84,7 @@ import org.visualcti.util.Tools;
  * @see Task
  * @see TasksPoolUnit
  */
-public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPoolUnit {
+public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPoolUnit {
     // The list of tasks in the pool
     private volatile List<Task> tasksPool = Collections.emptyList();
     // XML-Document of the list of tasks in the pool
@@ -95,7 +95,9 @@ public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPo
                     .addContent(new Comment(TASKS_LIST_ABOUT_TEMPLATE))
     ));
     // predicate checks is task valid
-    private final Predicate<Task> validTask = task -> task != null && !isEmpty(task.getName());
+    private final Predicate<Task> nonNullTask = Objects::nonNull;
+    private final Predicate<Task> taskHasValidName = task -> isEmptyString.negate().test(task.getName());
+    private final Predicate<Task> validTask = nonNullTask.and(taskHasValidName);
     // working ring of the tasks (used in the in-service engine state)
     private final LinkedList<Task> inServiceTasksRing = new LinkedList<>();
     // locker for started tasks ring
@@ -218,7 +220,7 @@ public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPo
      */
     @Override
     public String getType() {
-        return getPoolType().getType() + "/tasks/pool";
+        return "[tasks pool]";
     }
 
     /**
@@ -456,10 +458,10 @@ public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPo
         return unitConfiguration;
     }
 
+    @Deprecated
     @Override
     public void setXML(Element xml) throws IOException, DataConversionException, NumberFormatException, NullPointerException {
         TasksPoolUnit.super.setXML(xml);
-        this.unitPath = this.getName();
     }
 
     /**
@@ -504,11 +506,15 @@ public class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPo
                         // adding restored tasks to the tasks pool
                         .forEach(task -> addTask(task, false))
                 ;
+                // preparing unit path before
+                if (isEmptyString.test(this.unitPath)) {
+                    this.unitPath = getName();
+                }
                 // adding tasks pool to the pools manager
                 poolsManager.add(this);
             }
         } catch (ServerUnitException e) {
-            throw new IOException("Wrong manager in registry", e);
+            throw new IOException("Wrong tasks manager in registry", e);
         }
     }
 

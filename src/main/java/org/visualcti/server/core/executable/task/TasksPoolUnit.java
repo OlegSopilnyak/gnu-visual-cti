@@ -54,7 +54,7 @@ import org.visualcti.util.Tools;
 /**
  * <p>Title: Visual CTI Java Telephony Server</p>
  * <p>Description: VisualCTI Applications Server,<br>
- * The parent of the tasks' pool (CTI-applications)</p>
+ * UnitFacade: The parent of the tasks' pool (CTI-applications)</p>
  * <p>Copyright: Copyright (c) 2002 Prominic Technologies, Inc. & Prominic Ukraine Co.</p>
  * <p>Company: Prominic Ukraine Co.</p>
  *
@@ -62,7 +62,6 @@ import org.visualcti.util.Tools;
  * @version 3.01
  */
 public interface TasksPoolUnit extends RunnableServerUnit {
-
     String TASKS_POOL_TYPE_ATTRIBUTE_NAME = "type";
     String TASKS_POOL_NAME_ATTRIBUTE_NAME = "name";
     String TASKS_POOL_EXTERNAL_FILE_ATTRIBUTE_NAME = "file";
@@ -180,7 +179,7 @@ public interface TasksPoolUnit extends RunnableServerUnit {
      */
     @Override
     default String getName() {
-        return isEmpty(getPoolGroup()) ? getPoolName() : getPoolGroup() + "/" + getPoolName();
+        return isEmptyString.test(getPoolGroup()) ? getPoolName() : getPoolGroup() + "/" + getPoolName();
     }
 
     /**
@@ -306,14 +305,14 @@ public interface TasksPoolUnit extends RunnableServerUnit {
         // here we updateTask unit from element of main server configuration
         setPoolType(PoolType.of(xml.getAttributeValue(TASKS_POOL_TYPE_ATTRIBUTE_NAME)));
         final String combinedPoolName = xml.getAttributeValue(TASKS_POOL_NAME_ATTRIBUTE_NAME);
-        if (isEmpty(combinedPoolName)) {
+        if (isEmptyString.test(combinedPoolName)) {
             // empty value of pool name
             throw new IOException("Pool name is empty");
         }
         // resolving pool-name from XML
         final String[] nameParts = combinedPoolName.split("/");
         if (nameParts.length > 1) {
-            setPoolGroup(nameParts[1]).setPoolName(nameParts[0])
+            setPoolGroup(nameParts[0]).setPoolName(nameParts[1])
                     .setPoolFile(xml.getAttributeValue(TASKS_POOL_EXTERNAL_FILE_ATTRIBUTE_NAME));
         } else {
             setPoolName(nameParts[0])

@@ -35,40 +35,14 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.server.core.unit;
+package org.visualcti.server.core;
 
-import org.jdom.Element;
+import org.visualcti.server.core.unit.RunnableServerUnit;
 
 /**
- * <singleton>
- * <builder>
- * Implementation: The builder of the instance of the server unit, unsing XML Element from scratch
+ * The root unit of the application
  *
- * @see ServerUnit.Builder#build(Element, Class)
- * @see org.visualcti.core.XmlAware#setXML(Element)
+ * @see RunnableServerUnit
  */
-public final class ServerUnitBuilder implements ServerUnit.Builder<ServerUnit> {
-    // one instance of builder in the class-loader
-    private static volatile ServerUnitBuilder instance;
-
-    /**
-     * <accessor>
-     * To get the instance of server unit builder
-     *
-     * @return the instance
-     */
-    public static ServerUnitBuilder getInstance() {
-        if (instance != null) {
-            return instance;
-        }
-        synchronized (ServerUnitBuilder.class) {
-            if (instance == null) {
-                instance = new ServerUnitBuilder();
-            }
-        }
-        return instance;
-    }
-
-    private ServerUnitBuilder() {
-    }
+public interface ApplicationServer extends RunnableServerUnit {
 }

@@ -35,40 +35,67 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.server.core.unit;
+package org.visualcti.server.core.system;
 
-import org.jdom.Element;
+import org.visualcti.core.XmlAware;
+import org.visualcti.server.core.unit.RunnableServerUnit;
 
 /**
- * <singleton>
- * <builder>
- * Implementation: The builder of the instance of the server unit, unsing XML Element from scratch
+ * <SubSystem>
+ * The sub-system of the application server
  *
- * @see ServerUnit.Builder#build(Element, Class)
- * @see org.visualcti.core.XmlAware#setXML(Element)
+ * @see XmlAware
  */
-public final class ServerUnitBuilder implements ServerUnit.Builder<ServerUnit> {
-    // one instance of builder in the class-loader
-    private static volatile ServerUnitBuilder instance;
+public interface SubSystem extends XmlAware {
+    // the name of tasks sub-system
+    String TASKS_SUB_SYSTEM = "Tasks";
+    // the root element name of the manager definition
+    String MANAGER_ROOT_ELEMENT = "Manager";
 
     /**
      * <accessor>
-     * To get the instance of server unit builder
+     * To get the name of the root element name in XML result
      *
-     * @return the instance
+     * @return the name of root element
+     * @see XmlAware#getXML()
      */
-    public static ServerUnitBuilder getInstance() {
-        if (instance != null) {
-            return instance;
-        }
-        synchronized (ServerUnitBuilder.class) {
-            if (instance == null) {
-                instance = new ServerUnitBuilder();
-            }
-        }
-        return instance;
+    @Override
+    default String getRootElementName() {
+        return "system";
     }
 
-    private ServerUnitBuilder() {
+    /**
+     * <accessor>
+     * To get the name of the system's element name in the XML
+     *
+     * @return the name of element inside root one
+     * @see #getRootElementName()
+     *
+     */
+    String getSystemElementName();
+
+    /**
+     * <accessor>
+     * To get the reference to main sub-system manager unit
+     *
+     * @return instance of the manager
+     * @see Manager
+     */
+    Manager getSystemManager();
+
+    /**
+     * <SystemManager>
+     * The sub-system's main manager unit to register in the server (root) unit
+     *
+     * @see RunnableServerUnit
+     */
+    interface Manager extends RunnableServerUnit {
+        /**
+         * <accessor>
+         * To get the name of sub-system manage is belong to
+         *
+         * @return sub-system name
+         */
+        String getSystemName();
     }
 }

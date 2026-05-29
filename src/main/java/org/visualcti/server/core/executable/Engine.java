@@ -38,7 +38,7 @@ Fax number: 217-356-3356
 package org.visualcti.server.core.executable;
 
 import java.io.IOException;
-import org.visualcti.server.core.XmlAware;
+import org.visualcti.core.XmlAware;
 import org.visualcti.server.core.unit.message.MessageFamilyType;
 import org.visualcti.server.core.unit.message.MessageType;
 import org.visualcti.server.core.unit.message.action.UnitActionEvent;

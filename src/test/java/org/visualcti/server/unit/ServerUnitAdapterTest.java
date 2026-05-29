@@ -66,7 +66,7 @@ import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.visualcti.server.Parameter;
 import org.visualcti.server.UnitRegistry;
-import org.visualcti.server.core.ConfigurationParameter;
+import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.server.core.unit.ServerUnit;
 import org.visualcti.server.core.unit.message.MessageFamilyType;
 import org.visualcti.server.core.unit.message.MessageType;
@@ -445,11 +445,10 @@ public class ServerUnitAdapterTest {
         serverUnitAdapter.setOwner(null);
 
         // check the behavior
-        verify(serverUnitAdapter).getName();
         verify(serverUnitAdapter).removeAll();
         // check results
         assertThat(serverUnitAdapter.getOwner()).isNull();
-        assertThat(serverUnitAdapter.unitPath).isEqualTo(serverUnitAdapter.getName());
+        assertThat(serverUnitAdapter.unitPath).isEqualTo("Owner/" + serverUnitAdapter.getName());
     }
 
     @Test

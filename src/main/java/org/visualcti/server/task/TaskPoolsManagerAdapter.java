@@ -39,15 +39,19 @@ package org.visualcti.server.task;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Predicate;
 import org.jdom.DataConversionException;
 import org.jdom.Element;
+import org.visualcti.core.ConfigurationParameter;
+import org.visualcti.server.UnitRegistry;
 import org.visualcti.server.core.executable.task.TaskPoolsManager;
 import org.visualcti.server.core.executable.task.TasksPoolUnit;
+import org.visualcti.server.core.unit.ServerUnit;
 import org.visualcti.server.unit.RunnableUnitAdapter;
 import org.visualcti.util.Tools;
 
@@ -57,13 +61,17 @@ import org.visualcti.util.Tools;
  *
  * @see TaskPoolsManager
  */
-public class TaskPoolsManagerAdapter extends RunnableUnitAdapter implements TaskPoolsManager {
+public abstract class TaskPoolsManagerAdapter extends RunnableUnitAdapter implements TaskPoolsManager {
+    // the name of tasks' parameter
+    private static final String TASKS_DIRECTORY_PARAMETER = "directory";
+    // testing is parameter unit's icon
+    private static final Predicate<ConfigurationParameter> isTasksDirectoryParameter =
+            parameter -> TASKS_DIRECTORY_PARAMETER.equals(parameter.getName());
     // current state of the engine
     private transient volatile State state = State.OUT_OF_SERVICE;
     // the reference in FileSystem to the tasks directory
+    private transient String rootDirectoryName = null;
     private transient File rootDirectory = new File("./TASKS");
-    // the storage of the task pools under manager's control
-    private final Map<String, TasksPoolUnit> poolStore = new HashMap<>(100);
     // the lock to protect pool storage
     private final Lock poolLock = new ReentrantLock();
 
@@ -81,6 +89,61 @@ public class TaskPoolsManagerAdapter extends RunnableUnitAdapter implements Task
     }
 
     /**
+     * <mutator>
+     * To change the value of the root tasks pool files directory
+     * For tests purposes only
+     *
+     * @param rootDirectoryName nwe value
+     */
+    public void setRootDirectoryName(String rootDirectoryName) {
+        this.rootDirectoryName = rootDirectoryName;
+        this.rootDirectory = new File(rootDirectoryName);
+    }
+
+    /**
+     * <mutator>
+     * to add child to the server unit composite units tree<BR/>
+     * set up the owner for the child unit current unit
+     *
+     * @param unit the unit to add
+     * @return true if it's succeeded
+     * @see ServerUnit#add(ServerUnit)
+     * @see TasksPoolUnit
+     */
+    @Override
+    public boolean add(ServerUnit unit) {
+        return safeAction(() ->
+                unit instanceof TasksPoolUnit && super.add(unit) ? (TasksPoolUnit) unit : null
+        ) != null;
+    }
+
+    /**
+     * <mutator>
+     * To detach the tasks pool from the manager
+     *
+     * @param name    the name of tasks pool
+     * @param factory the name of factory-owner group name of the task pool
+     * @return detached pool instance
+     */
+    @Override
+    public TasksPoolUnit detachTaskPool(String name, String factory) {
+        return safeAction(() -> findTaskPoolBy(name, factory).map(gotPool -> {
+                    // unregistering detached pool from th registry
+                    UnitRegistry.unRegister(gotPool);
+                    try {
+                        // stopping detached pool
+                        gotPool.Stop();
+                    } catch (IOException e) {
+                        dispatchError(e, "Cannot stop detached task pool: " + name);
+                        return null;
+                    }
+                    // removing detached pool from unit's tree branches
+                    return super.remove(gotPool) ? gotPool : null;
+                }).orElse(null)
+        );
+    }
+
+    /**
      * <accessor>
      * get access to public TaskPool(all tasks pool)
      *
@@ -89,10 +152,7 @@ public class TaskPoolsManagerAdapter extends RunnableUnitAdapter implements Task
      */
     @Override
     public TasksPoolUnit publicTaskPool() {
-        final Callable<TasksPoolUnit> action = () -> poolStore.values().stream()
-                .filter(TasksPoolUnit::isPublic)
-                .findFirst().orElse(null);
-        return safeAction(action);
+        return safeAction(TaskPoolsManager.super::publicTaskPool);
     }
 
     /**
@@ -102,22 +162,53 @@ public class TaskPoolsManagerAdapter extends RunnableUnitAdapter implements Task
      * @param name    the name of tasks pool
      * @param factory the factory-owner group name of the task pool
      * @return local pool instance
+     * @see #findTaskPoolBy(String, String)
+     * @see #createTaskPool(String, String)
      */
     @Override
     public TasksPoolUnit getTaskPool(String name, String factory) {
-        return safeAction(() -> getOrCreateTaskPool(name, factory));
+        return safeAction(() -> {
+            // found a task pool is attached to the manager, returning it
+            return findTaskPoolBy(name, factory)
+                    // task pool is not attached to the manager, creating it
+                    .orElseGet(() -> {
+                        final TasksPoolUnit createdPool = createTaskPool(name, factory);
+                        // NPE will be thrown if pool creation was failed
+                        Tools.print("Created tasks pool :" + createdPool.getName());
+                        // attach created pool to the manager as a unit branch
+                        return super.add(createdPool) ? createdPool : null;
+                    });
+        });
     }
 
     /**
-     * <converter>
-     * To represent entity as an XML element
+     * <builder>
+     * To build new instance of the local tasks pool
      *
-     * @return entity's XML
+     * @param name    the name of the tasks channel
+     * @param factory the name of factory(group) of the tasks channel
+     * @return built not registered instance
+     * @see #getTaskPool(String, String)
+     */
+    protected abstract TasksPoolUnit createTaskPool(String name, String factory);
+
+    /**
+     * <converter>
+     * To represent the parameters of unit as an XML element
+     * Here managed the icon of the server unit
+     *
+     * @param rootElement building from unit XML Element
      * @see Element
+     * @see org.visualcti.server.unit.ServerUnitAdapter#getXML()
      */
     @Override
-    public Element getXML() {
-        return null;
+    protected void prepareUnitXML(Element rootElement) {
+        super.prepareUnitXML(rootElement);
+        if (isEmptyString.negate().test(rootDirectoryName)) {
+            rootElement.addContent(
+                    ConfigurationParameter.of(TASKS_DIRECTORY_PARAMETER, rootDirectoryName).getXml()
+            );
+        }
     }
 
     /**
@@ -133,26 +224,42 @@ public class TaskPoolsManagerAdapter extends RunnableUnitAdapter implements Task
      */
     @Override
     public void setXML(Element xml) throws IOException, DataConversionException, NumberFormatException, NullPointerException {
-
+        super.setXML(xml);
+        if (isEmptyString.test(rootDirectoryName)) {
+            throw new IOException("Wrong tasks directory name parameter.");
+        }
     }
 
     /**
-     * <accessor>
-     * To get current state value
+     * <converter>
+     * <applier>
+     * To apply configuration parameter of the server unit
      *
-     * @return the current state ID of the engine
+     * @param parameter the unit's parameter to apply
+     * @see ConfigurationParameter
+     * @see org.visualcti.server.unit.ServerUnitAdapter#processParameter(ConfigurationParameter)
      */
+    @Override
+    protected void applyUnitParameter(ConfigurationParameter parameter) {
+        if (isTasksDirectoryParameter.test(parameter)) {
+            // found tasks directory parameter
+            final String tasksDirectoryName = parameter.getValue();
+            final File tasksDirectory = new File(tasksDirectoryName);
+            if (tasksDirectory.exists() && tasksDirectory.isDirectory()) {
+                // directory exists and is a directory FS entry
+                this.rootDirectory = tasksDirectory;
+                this.rootDirectoryName = tasksDirectoryName;
+            }
+        }
+    }
+
+    @Deprecated
     @Override
     public short getState() {
         return state.getCode();
     }
 
-    /**
-     * <mutator>
-     * To set up the new state value
-     *
-     * @param state new state ID of the engine
-     */
+    @Deprecated
     @Override
     public void setState(short state) {
         this.state = State.of(state);
@@ -166,7 +273,7 @@ public class TaskPoolsManagerAdapter extends RunnableUnitAdapter implements Task
      */
     @Override
     public String getName() {
-        return "TaskPoolsManager";
+        return "Tasks Manager";
     }
 
     /**
@@ -177,10 +284,11 @@ public class TaskPoolsManagerAdapter extends RunnableUnitAdapter implements Task
      */
     @Override
     public String getType() {
-        return "manager";
+        return "[manager]";
     }
 
     // private methods
+    // to do children manipulation in safest way
     private TasksPoolUnit safeAction(final Callable<TasksPoolUnit> action) {
         poolLock.lock();
         try {
@@ -193,34 +301,11 @@ public class TaskPoolsManagerAdapter extends RunnableUnitAdapter implements Task
         }
     }
 
-    // to get or create tasks pool by name and factory
-    private TasksPoolUnit getOrCreateTaskPool(String name, String factory) {
-        TasksPoolUnit pool = poolStore.get(poolKey(SYSTEM_GROUP, name));
-        if (pool != null) {
-            // tasks pool is not attached to any server tasks channel
-            return pool;
-        } else {
-            // tasks pool is attached to some server tasks channel
-            return poolStore.computeIfAbsent(poolKey(factory, name), key -> {
-                // creating new tasks pool
-                final TasksPoolUnit poolUnit = createTaskPool(name, factory);
-                // NPE will be thrown if pool creation was failed
-                Tools.print("Created tasks pool :" + poolUnit.getName());
-                // add created pool to the units composite
-                super.add(poolUnit);
-                // returns valid tasks pool
-                return poolUnit;
-            });
-        }
-    }
-
-    // creating new tasks pool
-    private TasksPoolUnit createTaskPool(String name, String factory) {
-        return null;
-    }
-
-    private static String poolKey(String name, String factory) {
-        return factory + "/" + name;
+    // to get the task pool, added to the manager, in not safe way by name and factory name (group)
+    private Optional<TasksPoolUnit> findTaskPoolBy(String name, String factory) {
+        final Predicate<TasksPoolUnit> condition = pool ->
+                Objects.equals(pool.getPoolName(), name) && Objects.equals(pool.getPoolGroup(), factory);
+        return TaskPoolsManager.super.taskPoolStreamBy(condition).findFirst();
     }
 
     /**
@@ -228,10 +313,9 @@ public class TaskPoolsManagerAdapter extends RunnableUnitAdapter implements Task
      * To start the internal runnable parts of the unit
      * Should be implemented in the children classes
      *
-     * @throws IOException if them can't be started
      */
     @Override
-    public void startUnitRunnable() throws IOException {
+    public void startUnitRunnable() {
 
     }
 
@@ -240,10 +324,9 @@ public class TaskPoolsManagerAdapter extends RunnableUnitAdapter implements Task
      * To stop the internal runnable parts of the unit
      * Should be implemented in the children classes
      *
-     * @throws IOException if them can't be stopped
      */
     @Override
-    public void stopUnitRunnable() throws IOException {
+    public void stopUnitRunnable() {
 
     }
 }

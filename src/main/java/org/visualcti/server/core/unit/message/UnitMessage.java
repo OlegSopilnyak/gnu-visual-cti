@@ -46,7 +46,7 @@ import org.jdom.Attribute;
 import org.jdom.DataConversionException;
 import org.jdom.Element;
 import org.visualcti.server.Parameter;
-import org.visualcti.server.core.XmlAware;
+import org.visualcti.core.XmlAware;
 import org.visualcti.util.Tools;
 
 /**

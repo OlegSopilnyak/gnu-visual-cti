@@ -42,6 +42,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.stream.Stream;
 import org.jdom.Element;
 import org.visualcti.server.core.unit.RunnableServerUnit;
 import org.visualcti.server.core.unit.message.UnitMessage;
@@ -152,6 +153,18 @@ public abstract class RunnableUnitAdapter extends ServerUnitAdapter implements R
     @Override
     public void Start() throws IOException {
         RunnableServerUnit.super.Start();
+    }
+
+    @Deprecated
+    @Override
+    public boolean canStartUnit() {
+        return RunnableServerUnit.super.canStartUnit();
+    }
+
+    @Deprecated
+    @Override
+    public Stream<RunnableServerUnit> runnableChildren() {
+        return RunnableServerUnit.super.runnableChildren();
     }
 
     /**

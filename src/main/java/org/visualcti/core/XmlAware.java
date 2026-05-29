@@ -35,7 +35,7 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.server.core;
+package org.visualcti.core;
 
 import static org.visualcti.util.Tools.CRLF;
 
@@ -70,6 +70,7 @@ public interface XmlAware extends Serializable {
      * @param value string to test
      * @return true if value is empty
      */
+    @Deprecated
     default boolean isEmpty(String value) {
         return value == null || value.trim().isEmpty();
     }

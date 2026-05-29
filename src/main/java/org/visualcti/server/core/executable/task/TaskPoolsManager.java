@@ -38,17 +38,19 @@ Fax number: 217-356-3356
 package org.visualcti.server.core.executable.task;
 
 import java.io.File;
+import java.util.function.Predicate;
+import java.util.stream.Stream;
 import org.visualcti.server.core.unit.RunnableServerUnit;
 
 /**
  * <manager>
- * The manager of task pools
+ * UnitFacade: The parent of the tasks manager (CTI-applications)
  *
  * @see RunnableServerUnit
  */
 public interface TaskPoolsManager extends RunnableServerUnit {
-    // factory-owner group name of the task pool (by default)
-    String SYSTEM_GROUP = "System";
+    // predicate to check is manager's pool public
+    Predicate<TasksPoolUnit> isPublicPool = TasksPoolUnit::isPublic;
 
     /**
      * <accessor>
@@ -66,8 +68,41 @@ public interface TaskPoolsManager extends RunnableServerUnit {
      *
      * @return public pool instance
      * @see TasksPoolUnit
+     * @see #isPublicPool
+     * @see #taskPoolStreamBy(Predicate)
      */
-    TasksPoolUnit publicTaskPool();
+    default TasksPoolUnit publicTaskPool() {
+        return taskPoolStreamBy(isPublicPool).findFirst().orElse(null);
+    }
+
+    /**
+     * <accessor>
+     * get access to local TaskPool stream
+     *
+     * @return local task pools stream
+     * @see TasksPoolUnit
+     * @see Stream
+     * @see #isPublicPool
+     * @see #taskPoolStreamBy(Predicate)
+     */
+    default Stream<TasksPoolUnit> localTaskPoolStream() {
+        return taskPoolStreamBy(isPublicPool.negate());
+    }
+
+    /**
+     * <accessor>
+     * To get access to manager's TaskPool stream by condition
+     *
+     * @return task pools stream
+     * @see TasksPoolUnit
+     * @see Stream
+     * @see Predicate
+     */
+    default Stream<TasksPoolUnit> taskPoolStreamBy(Predicate<TasksPoolUnit> condition) {
+        return children()
+                .filter(TasksPoolUnit.class::isInstance).map(TasksPoolUnit.class::cast)
+                .filter(condition);
+    }
 
     /**
      * <accessor>
@@ -78,4 +113,14 @@ public interface TaskPoolsManager extends RunnableServerUnit {
      * @return local pool instance
      */
     TasksPoolUnit getTaskPool(String name, String factory);
+
+    /**
+     * <mutator>
+     * To detach the tasks pool from the manager
+     *
+     * @param name    the name of tasks pool
+     * @param factory the name of factory-owner group name of the task pool
+     * @return detached pool instance
+     */
+    TasksPoolUnit detachTaskPool(String name, String factory);
 }

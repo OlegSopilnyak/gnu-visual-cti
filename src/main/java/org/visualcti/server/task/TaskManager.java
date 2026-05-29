@@ -50,6 +50,7 @@ import org.visualcti.server.core.unit.message.command.UnknownCommandException;
 <manager>
 The manager of tasks (implementation)
 */
+@Deprecated
 public final class TaskManager
                     extends
                         groupUnitAdapter

@@ -35,40 +35,36 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.server.core.unit;
+package org.visualcti.server.system;
 
-import org.jdom.Element;
+import org.visualcti.server.core.system.SubSystem;
+import org.visualcti.server.unit.RunnableUnitAdapter;
 
 /**
- * <singleton>
- * <builder>
- * Implementation: The builder of the instance of the server unit, unsing XML Element from scratch
+ * <SubSystem>
+ * The sub-system unit of the application server
  *
- * @see ServerUnit.Builder#build(Element, Class)
- * @see org.visualcti.core.XmlAware#setXML(Element)
+ * @see SubSystem
+ * @see RunnableUnitAdapter
  */
-public final class ServerUnitBuilder implements ServerUnit.Builder<ServerUnit> {
-    // one instance of builder in the class-loader
-    private static volatile ServerUnitBuilder instance;
+public abstract class ServerSystemAdapter extends RunnableUnitAdapter implements SubSystem {
+    /**
+     * <accessor>
+     * To get Type of unit as string (service, manager, subsystem, etc.)
+     *
+     * @return the value
+     */
+    @Override
+    public String getType() {
+        return "SubSystem";
+    }
 
     /**
      * <accessor>
-     * To get the instance of server unit builder
+     * To get Name of the unit to show in UI
      *
-     * @return the instance
+     * @return the value
      */
-    public static ServerUnitBuilder getInstance() {
-        if (instance != null) {
-            return instance;
-        }
-        synchronized (ServerUnitBuilder.class) {
-            if (instance == null) {
-                instance = new ServerUnitBuilder();
-            }
-        }
-        return instance;
-    }
-
-    private ServerUnitBuilder() {
-    }
+    @Override
+    public abstract String getName();
 }

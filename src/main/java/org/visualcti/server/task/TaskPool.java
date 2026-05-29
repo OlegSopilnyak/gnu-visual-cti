@@ -52,6 +52,7 @@ import org.visualcti.util.Tools;
 <pool>
 The pool of tasks associated with some name (device, or public)
 */
+@Deprecated
 public final class TaskPool
                     extends
                         serverUnitAdapter

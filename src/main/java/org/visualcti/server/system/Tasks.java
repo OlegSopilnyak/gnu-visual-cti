@@ -47,6 +47,7 @@ import org.visualcti.server.task.Manager;
 /**
 Class for made the Tasks system
 */
+@Deprecated
 public final class Tasks
 {
     public static final void adjustPools(List validNames)
