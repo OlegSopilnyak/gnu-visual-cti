@@ -38,7 +38,10 @@ Fax number: 217-356-3356
 package org.visualcti.server.task;
 
 //import static org.junit.Assert.*;
+
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
@@ -46,14 +49,17 @@ import static org.mockito.Mockito.verify;
 import java.io.IOException;
 import org.junit.Before;
 import org.junit.Test;
+import org.visualcti.server.core.executable.task.TaskPoolsManager;
 import org.visualcti.server.core.executable.task.TasksPoolUnit;
 
 public class TaskPoolsManagerAdapterTest {
-    TaskPoolsManagerAdapter manager = spy(new TheManager());
+    TaskPoolsManagerAdapter manager;
 
     @Before
-    public void setUp() throws Exception {
+    public void setUp() {
+        manager = spy(new TheManager());
     }
+
 
     @Test
     public void shouldAddCreatedTasksPool() throws IOException {
@@ -74,10 +80,29 @@ public class TaskPoolsManagerAdapterTest {
     }
 
     @Test
+    public void shouldNotAddCreatedTasksPool_PoolExists() throws IOException {
+        // preparing test data
+        String poolName = "pool2";
+        String poolGroup = "poolGroup2";
+        TasksPoolUnit poolUnit = spy(manager.createTaskPool(poolName, poolGroup));
+        manager.add(poolUnit);
+        assertThat(manager.children().anyMatch(child -> child == poolUnit)).isTrue();
+        reset(manager, poolUnit);
+
+        // acting
+        manager.add(poolUnit);
+
+        // check the behavior
+        verify(manager).isChild(poolUnit);
+        verify(poolUnit, never()).setOwner(any(TaskPoolsManager.class));
+        verify(manager, never()).addBranch(any(TasksPoolUnit.class));
+    }
+
+    @Test
     public void shouldDetachTaskPool() throws IOException {
         // preparing test data
-        String poolName = "pool1";
-        String poolGroup = "poolGroup1";
+        String poolName = "pool3";
+        String poolGroup = "poolGroup3";
         TasksPoolUnit poolUnit = spy(manager.createTaskPool(poolName, poolGroup));
         manager.add(poolUnit);
         assertThat(manager.children().count()).isNotZero();
@@ -87,7 +112,12 @@ public class TaskPoolsManagerAdapterTest {
         TasksPoolUnit detached = manager.detachTaskPool(poolName, poolGroup);
 
         // check the behavior
+        verify(manager).isChild(poolUnit);
         verify(poolUnit).Stop();
+        verify(manager).remove(poolUnit);
+        verify(poolUnit).setOwner(null);
+        verify(manager).removeBranch(poolUnit);
+        verify(poolUnit).close();
         // check results
         assertThat(detached).isSameAs(poolUnit);
         assertThat(manager.children().count()).isZero();

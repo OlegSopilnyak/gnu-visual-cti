@@ -44,8 +44,7 @@ import org.visualcti.server.core.unit.RunnableServerUnit;
 
 /**
  * <manager>
- * UnitFacade: The parent of the tasks manager (CTI-applications)
- *
+ * UnitFacade: The parent of the tasks manager
  * @see RunnableServerUnit
  */
 public interface TaskPoolsManager extends RunnableServerUnit {

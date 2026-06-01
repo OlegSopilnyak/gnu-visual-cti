@@ -87,18 +87,19 @@ import org.visualcti.util.Tools;
 
 @SuppressWarnings("unchecked")
 public class TasksPoolUnitAdapterTest {
-    TasksPoolUnitAdapter tasksPool = spy(new TasksPoolUnitAdapter(){});
+    TasksPoolUnitAdapter tasksPool;
     TaskPoolsManager poolsManager;
 
     @Before
     public void setUp() throws Exception {
         poolsManager = createTaskPoolsManager();
+        tasksPool = spy(new TasksPoolUnitAdapter(){});
     }
 
     @After
     public void tearDown() throws Exception {
-        UnitRegistry.unRegister(poolsManager);
         tasksPool.Stop();
+        UnitRegistry.clear();
     }
 
     @Test

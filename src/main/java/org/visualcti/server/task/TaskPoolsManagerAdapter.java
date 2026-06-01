@@ -131,7 +131,7 @@ public abstract class TaskPoolsManagerAdapter extends RunnableUnitAdapter implem
                         // stopping the detached pool before
                         gotPool.Stop();
                         // removing detached pool from unit's tree branches
-                        return super.remove(gotPool) ? gotPool : null;
+                        return remove(gotPool) ? gotPool : null;
                     } catch (IOException e) {
                         dispatchError(e, "Cannot stop detached task pool: " + name);
                         return null;

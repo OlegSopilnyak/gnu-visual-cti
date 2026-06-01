@@ -88,15 +88,16 @@ public final class UnitRegistry {
     public static void register(ServerUnit unit) throws IOException {
         final String path = unit.getPath();
         if (path == null) {
-            throw new IOException("Unit have invalid path");
-        } else try {
-            try {
-                if (lookup(path, ServerUnit.class) != null) {
+            throw new IOException("Unit has an invalid path");
+        }
+        // looking for target unit by unit-path
+        try {
+            safeAction(() -> {
+                if (units.get(path) != null) {
                     throw new IOException("Path [" + path + "] already registered");
                 }
-            } catch (NoSuchUnitException e) {
-                safeAction(() -> units.put(path, unit));
-            }
+                return units.put(path, unit);
+            });
         } catch (ServerUnitException e) {
             throw new IOException("Path [" + path + "] invalid", e);
         }
@@ -227,6 +228,21 @@ public final class UnitRegistry {
             );
         } catch (ServerUnitException e) {
             return new String[0];
+        }
+    }
+
+    /**
+     * <cleaner>
+     * To clean the registry
+     */
+    public static void clear() {
+        try {
+            safeAction(() -> {
+                units.clear();
+                return null;
+            });
+        } catch (ServerUnitException e) {
+            e.printStackTrace(Tools.err);
         }
     }
 
