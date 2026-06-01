@@ -37,6 +37,7 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.core.unit;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -73,8 +74,9 @@ import org.visualcti.util.Tools;
  * @see UnitBasics
  * @see UnitsComposite
  * @see UnitMessageExchange
+ * @see Closeable
  */
-public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBasics {
+public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBasics, Closeable {
     String UNIT_TYPE_PACKAGE = "package";
     String UNIT_TYPE_CLASS = "class";
     String UNIT_TYPE_EXTENDS_CLASS = "extends";
@@ -328,6 +330,8 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
                 unit.setOwner(null);
                 // removing child from unit's tree
                 removeBranch(unit);
+                // closing detached unit
+                unit.close();
             } catch (IOException e) {
                 e.printStackTrace(Tools.err);
             }

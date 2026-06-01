@@ -188,11 +188,7 @@ public class TasksSubSystem implements SubSystem {
          */
         @Override
         protected TasksPoolUnit createTaskPool(String name, String factory) {
-            final TasksPoolUnit poolUnit = new TasksSubSystem.PoolServerUnit();
-            poolUnit.setPoolName(name);
-            poolUnit.setPoolGroup(factory);
-            poolUnit.setPoolType(TasksPoolUnit.PoolType.LOCAL);
-            poolUnit.setPoolFile(name+".tasks.pool");
+            final TasksPoolUnit poolUnit = new TasksSubSystem.PoolServerUnit().localPoolFor(name, factory);
             try {
                 poolUnit.loadTasksList();
             } catch (IOException e) {
@@ -234,6 +230,17 @@ public class TasksSubSystem implements SubSystem {
             // keeping loaded configuration Element as is after changed branches
             return true;
         }
+
+        /**
+         * <action>
+         * Closing the server unit, releasing attached resources and restoring original unitPath
+         *
+         * @see #unitPath
+         */
+        @Override
+        public void close() {
+            this.beforeRegisterUnit();
+        }
     }
 
     // implementation of sub-system's tasks pool, builder feature of server unit isn't used
@@ -243,67 +250,5 @@ public class TasksSubSystem implements SubSystem {
             // doing nothing, keeps original XML
             // Here we don't use builder stuff of the server unit
         }
-
     }
-
-    // tasks pool refection
-//    private static class PoolReflection implements XmlAware {
-//        // the type of the pool
-//        private String type;
-//        // the name of the pool (<factory>/local name)
-//        private String name;
-//        // the tasks file
-//        private String file;
-//
-//        private boolean isPublic() {
-//            return TasksPoolUnit.PoolType.PUBLIC.getType().equals(type);
-//        }
-//
-//        private boolean isLocal() {
-//            return !isPublic();
-//        }
-//
-//        public PoolReflection(Element element) throws IOException {
-//            setXML(element);
-//        }
-//
-//        /**
-//         * <converter>
-//         * To represent entity as an XML element
-//         *
-//         * @return entity's XML
-//         * @see Element
-//         */
-//        @Override
-//        public Element getXML() {
-//            return new Element(TASKS_POOL_ROOT_ELEMENT_NAME)
-//                    .setAttribute(TASKS_POOL_TYPE_ATTRIBUTE_NAME, type)
-//                    .setAttribute(TASKS_POOL_NAME_ATTRIBUTE_NAME, name)
-//                    .setAttribute(TASKS_POOL_EXTERNAL_FILE_ATTRIBUTE_NAME, file);
-//        }
-//
-//        /**
-//         * <converter>
-//         * To update the entity's fields from XML
-//         *
-//         * @param xml possible entity's XML
-//         * @throws IOException if root element is wrong
-//         * @see Element
-//         */
-//        @Override
-//        public void setXML(Element xml) throws IOException, NumberFormatException, NullPointerException {
-//            final String rootName = xml.getName();
-//            if (!TASKS_POOL_ROOT_ELEMENT_NAME.equals(rootName)) {
-//                throw new IOException("Wrong root element name [" + rootName + "]");
-//            }
-//            this.type = validAttribute(xml, TASKS_POOL_TYPE_ATTRIBUTE_NAME);
-//            this.name = validAttribute(xml, TASKS_POOL_NAME_ATTRIBUTE_NAME);
-//            this.file = validAttribute(xml, TASKS_POOL_EXTERNAL_FILE_ATTRIBUTE_NAME);
-//        }
-//
-//        private static String validAttribute(Element element, String attributeName) throws IOException {
-//            return Optional.ofNullable(element.getAttributeValue(attributeName))
-//                    .orElseThrow(() -> new IOException("Wrong value of attribute [" + attributeName + "]"));
-//        }
-//    }
 }

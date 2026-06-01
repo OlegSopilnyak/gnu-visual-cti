@@ -752,6 +752,18 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
 
     /**
      * <action>
+     * Closing the server unit, releasing attached resources and restoring original unitPath
+     *
+     * @throws IOException if an I/O error occurs
+     * @see #unitPath
+     */
+    @Override
+    public void close() throws IOException {
+        // doing nothing here
+    }
+
+    /**
+     * <action>
      * To do something before register unit in the units registry
      *
      * @see #configure(Element)

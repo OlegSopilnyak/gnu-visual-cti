@@ -66,7 +66,7 @@ public interface TasksPoolUnit extends RunnableServerUnit {
     String TASKS_POOL_NAME_ATTRIBUTE_NAME = "name";
     String TASKS_POOL_EXTERNAL_FILE_ATTRIBUTE_NAME = "file";
     String TASKS_LIST_ROOT_ELEMENT_NAME = "TasksPool";
-    String TASKS_LIST_ABOUT_TEMPLATE = "The tasks pool for [%s]";
+    String TASKS_LIST_ABOUT_TEMPLATE = " The tasks pool for [%s] ";
     String TASKS_POOL_ROOT_ELEMENT_NAME = "pool";
     // target types of GET command
     String GET_POOL_INFO_TARGET = "info";
@@ -114,44 +114,12 @@ public interface TasksPoolUnit extends RunnableServerUnit {
     PoolType getPoolType();
 
     /**
-     * <mutator>
-     * To set up the type of task-pool
-     *
-     * @param poolType new value of task-pool type
-     * @return reference to the pool
-     * @see PoolType
-     * @see #setXML(Element)
-     */
-    TasksPoolUnit setPoolType(PoolType poolType);
-
-    /**
-     * <accessor>
-     * To get the type of task-pool is public flag
-     *
-     * @return true if pool is public
-     * @see PoolType#PUBLIC
-     */
-    default boolean isPublic() {
-        return getPoolType() == PoolType.PUBLIC;
-    }
-
-    /**
      * <accessor>
      * To get the group name of the pool
      *
      * @return group name of the pool
      */
     String getPoolGroup();
-
-    /**
-     * <mutator>
-     * To set up the group name of the pool
-     *
-     * @param group new value of pool's group
-     * @return reference to tasks pool
-     * @see #setXML(Element)
-     */
-    TasksPoolUnit setPoolGroup(String group);
 
     /**
      * <accessor>
@@ -162,14 +130,15 @@ public interface TasksPoolUnit extends RunnableServerUnit {
     String getPoolName();
 
     /**
-     * <mutator>
-     * To set up the name of the pool
+     * <accessor>
+     * To check is the pool is public (library)
      *
-     * @param name new value of pool's group
-     * @return reference to tasks pool
-     * @see #setXML(Element)
+     * @return true if the pool is public
+     * @see PoolType#PUBLIC
      */
-    TasksPoolUnit setPoolName(String name);
+    default boolean isPublic() {
+        return getPoolType() == PoolType.PUBLIC;
+    }
 
     /**
      * <accessor>
@@ -183,14 +152,14 @@ public interface TasksPoolUnit extends RunnableServerUnit {
     }
 
     /**
-     * <mutator>
-     * To set up the tasks list file name of the pool
+     * To adjust the parameters of the pool before pool's tasks list operations
      *
-     * @param poolFile new value of pool's file name
-     * @return reference to tasks pool
-     * @see #setXML(Element)
+     * @param name the name of the pool
+     * @param factory the name of factory(group) of the pool
+     * @param poolType the type of the pool
+     * @return adjusted pool's instance
      */
-    TasksPoolUnit setPoolFile(String poolFile);
+    TasksPoolUnit applyFor(String name, String factory, PoolType poolType);
 
     /**
      * <accessor>
@@ -303,7 +272,11 @@ public interface TasksPoolUnit extends RunnableServerUnit {
     @Override
     default void setXML(Element xml) throws IOException, DataConversionException, NumberFormatException, NullPointerException {
         // here we updateTask unit from element of main server configuration
-        setPoolType(PoolType.of(xml.getAttributeValue(TASKS_POOL_TYPE_ATTRIBUTE_NAME)));
+        final PoolType poolType = PoolType.of(xml.getAttributeValue(TASKS_POOL_TYPE_ATTRIBUTE_NAME));
+        if (poolType == null) {
+            // wrong pool type in XML
+            throw new IOException("Wrong pool type");
+        }
         final String combinedPoolName = xml.getAttributeValue(TASKS_POOL_NAME_ATTRIBUTE_NAME);
         if (isEmptyString.test(combinedPoolName)) {
             // empty value of pool name
@@ -311,13 +284,18 @@ public interface TasksPoolUnit extends RunnableServerUnit {
         }
         // resolving pool-name from XML
         final String[] nameParts = combinedPoolName.split("/");
+        final String poolName;
+        String poolGroup = null;
         if (nameParts.length > 1) {
-            setPoolGroup(nameParts[0]).setPoolName(nameParts[1])
-                    .setPoolFile(xml.getAttributeValue(TASKS_POOL_EXTERNAL_FILE_ATTRIBUTE_NAME));
+            poolGroup = nameParts[0];
+            poolName = nameParts[1];
         } else {
-            setPoolName(nameParts[0])
-                    .setPoolFile(xml.getAttributeValue(TASKS_POOL_EXTERNAL_FILE_ATTRIBUTE_NAME));
+            poolName = nameParts[0];
         }
+        // adjusting pool from input XML
+        applyFor(poolName, poolGroup, poolType);
+        // assign the name of the tasks list external file
+        applyTasksFile(xml.getAttributeValue(TASKS_POOL_EXTERNAL_FILE_ATTRIBUTE_NAME));
         // loading tasks list of the pool from the external pool-file
         loadTasksList();
     }
@@ -334,12 +312,30 @@ public interface TasksPoolUnit extends RunnableServerUnit {
     void loadTasksList() throws IOException, NumberFormatException, NullPointerException;
 
     /**
+     * <mutator>
+     * To set up the tasks list file name of the pool
+     *
+     * @param poolFile new value of pool's file name
+     * @see #setXML(Element)
+     */
+    void applyTasksFile(String poolFile);
+
+    /**
      * <tasks-keeper>
      * To save tasks list to the external XML file
      *
      * @throws IOException             if something went wrong
      */
     void saveTasksList() throws IOException;
+
+
+    /**
+     * <tasks-keeper>
+     * To load exists tasks list or create and save the new one
+     *
+     * @throws IOException             if something went wrong
+     */
+    void loadOrCreateTasksList() throws IOException, NumberFormatException, NullPointerException;
 
     /**
      * <executer>

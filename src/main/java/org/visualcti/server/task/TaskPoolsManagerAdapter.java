@@ -48,7 +48,6 @@ import java.util.function.Predicate;
 import org.jdom.DataConversionException;
 import org.jdom.Element;
 import org.visualcti.core.ConfigurationParameter;
-import org.visualcti.server.UnitRegistry;
 import org.visualcti.server.core.executable.task.TaskPoolsManager;
 import org.visualcti.server.core.executable.task.TasksPoolUnit;
 import org.visualcti.server.core.unit.ServerUnit;
@@ -57,7 +56,7 @@ import org.visualcti.util.Tools;
 
 /**
  * <manager>
- * Implementation: The manager of task pools
+ * Implementation: The manager of available task pools
  *
  * @see TaskPoolsManager
  */
@@ -128,17 +127,15 @@ public abstract class TaskPoolsManagerAdapter extends RunnableUnitAdapter implem
     @Override
     public TasksPoolUnit detachTaskPool(String name, String factory) {
         return safeAction(() -> findTaskPoolBy(name, factory).map(gotPool -> {
-                    // unregistering detached pool from th registry
-                    UnitRegistry.unRegister(gotPool);
                     try {
-                        // stopping detached pool
+                        // stopping the detached pool before
                         gotPool.Stop();
+                        // removing detached pool from unit's tree branches
+                        return super.remove(gotPool) ? gotPool : null;
                     } catch (IOException e) {
                         dispatchError(e, "Cannot stop detached task pool: " + name);
                         return null;
                     }
-                    // removing detached pool from unit's tree branches
-                    return super.remove(gotPool) ? gotPool : null;
                 }).orElse(null)
         );
     }
@@ -308,25 +305,4 @@ public abstract class TaskPoolsManagerAdapter extends RunnableUnitAdapter implem
         return TaskPoolsManager.super.taskPoolStreamBy(condition).findFirst();
     }
 
-    /**
-     * <action>
-     * To start the internal runnable parts of the unit
-     * Should be implemented in the children classes
-     *
-     */
-    @Override
-    public void startUnitRunnable() {
-
-    }
-
-    /**
-     * <action>
-     * To stop the internal runnable parts of the unit
-     * Should be implemented in the children classes
-     *
-     */
-    @Override
-    public void stopUnitRunnable() {
-
-    }
 }

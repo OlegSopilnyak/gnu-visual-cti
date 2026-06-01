@@ -53,13 +53,16 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 import org.jdom.DataConversionException;
+import org.jdom.Document;
 import org.jdom.Element;
 import org.junit.After;
 import org.junit.Before;
@@ -101,8 +104,7 @@ public class TasksPoolUnitAdapterTest {
     @Test
     public void shouldGetName_WithGroup() {
         // preparing test data
-        tasksPool.setPoolGroup("group");
-        tasksPool.setPoolName("name");
+        tasksPool.localPoolFor("name", "group");
 
         // acting
         String name = tasksPool.getName();
@@ -117,7 +119,7 @@ public class TasksPoolUnitAdapterTest {
     @Test
     public void shouldGetName_WithoutGroup() {
         // preparing test data
-        tasksPool.setPoolName("name");
+        tasksPool.localPoolFor("name", null);
 
         // acting
         String name = tasksPool.getName();
@@ -571,7 +573,81 @@ public class TasksPoolUnitAdapterTest {
     }
 
     @Test
-    public void shouldLoadTasksList_ExistsFile() throws IOException, DataConversionException {
+    public void shouldLoadTaskList() throws IOException {
+        // preparing test data
+        String poolName = "public";
+        tasksPool.localPoolFor(poolName, null);
+
+        // acting
+        tasksPool.loadTasksList();
+
+        // check the behavior
+        ArgumentCaptor<InputStream> loadCaptor = ArgumentCaptor.forClass(InputStream.class);
+        verify(tasksPool).restoreDocumentFrom(loadCaptor.capture());
+        verify(tasksPool).prepareXmlDocument(loadCaptor.getValue());
+        verify(tasksPool, times(3)).addTask(any(Task.class), Matchers.eq(false));
+        verify(poolsManager).add(tasksPool);
+        // check results
+        assertThat(tasksPool.tasks()).hasSize(3);
+    }
+
+    @Test
+    public void shouldNotLoadTaskList_WrongPoolName() throws IOException {
+        // preparing test data
+        String poolName = "library";
+        tasksPool.localPoolFor(poolName, null);
+
+        // acting
+        Exception e = assertThrows(Exception.class, () -> tasksPool.loadTasksList());
+
+        // check the behavior
+        verify(tasksPool, never()).restoreDocumentFrom(any(InputStream.class));
+        // check results
+        assertThat(e).isInstanceOf(FileNotFoundException.class);
+        assertThat(tasksPool.tasks()).isEmpty();
+    }
+
+    @Test
+    public void shouldLoadExistsTasksListFile() throws IOException {
+        // preparing test data
+        String poolName = "public";
+        tasksPool.localPoolFor(poolName, null);
+
+        // acting
+        tasksPool.loadOrCreateTasksList();
+
+        // check the behavior
+        ArgumentCaptor<InputStream> loadCaptor = ArgumentCaptor.forClass(InputStream.class);
+        verify(tasksPool).restoreDocumentFrom(loadCaptor.capture());
+        verify(tasksPool).prepareXmlDocument(loadCaptor.getValue());
+        verify(tasksPool, times(3)).addTask(any(Task.class), Matchers.eq(false));
+        // check results
+        assertThat(tasksPool.tasks()).hasSize(3);
+
+    }
+
+    @Test
+    public void shouldCreateNewTasksListFile() throws IOException {
+        // preparing test data
+        String poolName = "library";
+        tasksPool.localPoolFor(poolName, null);
+
+        // acting
+        tasksPool.loadOrCreateTasksList();
+
+        // check the behavior
+        verify(tasksPool).store(any(Document.class), any(OutputStream.class));
+        // check results
+        assertThat(tasksPool.tasks()).isEmpty();
+        String poolFile = poolName+".tasks.pool";
+        final File tasksListFile = new File(poolsManager.getRoot(), poolFile);
+        assertThat(tasksListFile.exists()).isTrue();
+        tasksListFile.delete();
+
+    }
+
+    @Test
+    public void shouldConfigureLoadingTasksList_ExistsFile() throws IOException, DataConversionException {
         // preparing test data
         String poolType = "public";
         String poolName = "public";
@@ -599,19 +675,16 @@ public class TasksPoolUnitAdapterTest {
     @Test
     public void shouldSaveTaskList_TemporalFile() throws IOException {
         // preparing test data
-        String poolType = "public";
-        String poolName = "public";
-        String poolFileName = "public.tasks.pool";
+        tasksPool.configure(new Element("pool")
+                .setAttribute("type", "public")
+                .setAttribute("name", "public")
+                .setAttribute("file", "public.tasks.pool")
+        );
         String temporalFileName = "temporal.tasks.pool";
-        TasksPoolUnit tasksPoolUnit = tasksPool;
-        Element poolXml = new Element("pool")
-                .setAttribute("type", poolType).setAttribute("name", poolName).setAttribute("file", poolFileName);
-        tasksPoolUnit.configure(poolXml);
-
+        tasksPool.applyTasksFile(temporalFileName);
 
         // acting
-        tasksPoolUnit.setPoolFile(temporalFileName);
-        tasksPoolUnit.saveTasksList();
+        tasksPool.saveTasksList();
 
         // check results
         File tasksListFile = new File(poolsManager.getRoot(), temporalFileName);
@@ -622,6 +695,11 @@ public class TasksPoolUnitAdapterTest {
     @Test
     public void shouldExecuteStartPool() throws Exception {
         // preparing test data
+        Task task = mock(Task.class);
+        doReturn("test-1").when(task).getName();
+        doReturn(new Element("task")).when(task).getXML();
+        doReturn(task).when(task).clone();
+        tasksPool.addTask(task, false);
         ServerCommandRequest request = tasksPool.getMessageFactory()
                 .buildFor(tasksPool, MessageType.COMMAND, MessageFamilyType.START, "Starting the pool");
         assertThat(tasksPool.isStarted()).isFalse();
@@ -631,9 +709,29 @@ public class TasksPoolUnitAdapterTest {
         tasksPool.execute(request);
 
         // check the behavior
+        verify(tasksPool).canStartUnit();
         verify(tasksPool).startUnitRunnable();
         // check results
         assertThat(tasksPool.isStarted()).isTrue();
+        assertThat(tasksPool.current()).isSameAs(task);
+    }
+
+    @Test
+    public void shouldNotExecuteStartPool_EmptyTasksList() throws Exception {
+        // preparing test data
+        ServerCommandRequest request = tasksPool.getMessageFactory()
+                .buildFor(tasksPool, MessageType.COMMAND, MessageFamilyType.START, "Starting the pool");
+        assertThat(tasksPool.isStarted()).isFalse();
+        reset(tasksPool);
+
+        // acting
+        tasksPool.execute(request);
+
+        // check the behavior
+        verify(tasksPool).canStartUnit();
+        verify(tasksPool, never()).startUnitRunnable();
+        // check results
+        assertThat(tasksPool.isStarted()).isFalse();
     }
 
     @Test
@@ -651,6 +749,7 @@ public class TasksPoolUnitAdapterTest {
         verify(tasksPool).stopUnitRunnable();
         // check results
         assertThat(tasksPool.isStopped()).isTrue();
+        assertThat(tasksPool.current()).isNull();
     }
 
     @Test

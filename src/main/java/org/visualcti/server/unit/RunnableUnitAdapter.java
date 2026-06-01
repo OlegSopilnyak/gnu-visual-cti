@@ -167,15 +167,11 @@ public abstract class RunnableUnitAdapter extends ServerUnitAdapter implements R
         return RunnableServerUnit.super.runnableChildren();
     }
 
-    /**
-     * <action>
-     * To start the internal runnable parts of the unit
-     * Should be implemented in the children classes
-     *
-     * @throws IOException if them can't be started
-     */
+    @Deprecated
     @Override
-    public abstract void startUnitRunnable() throws IOException;
+    public void startUnitRunnable() {
+
+    }
 
     @Deprecated
     @Override
@@ -189,15 +185,11 @@ public abstract class RunnableUnitAdapter extends ServerUnitAdapter implements R
         RunnableServerUnit.super.Stop();
     }
 
-    /**
-     * <action>
-     * To stop the internal runnable parts of the unit
-     * Should be implemented in the children classes
-     *
-     * @throws IOException if them can't be stopped
-     */
+    @Deprecated
     @Override
-    public abstract void stopUnitRunnable() throws IOException;
+    public void stopUnitRunnable() {
+
+    }
 
     @Deprecated
     @Override

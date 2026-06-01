@@ -113,6 +113,40 @@ public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implement
     // the name of file of the pool's XML
     private String poolFile;
 
+    /**
+     * To apply parameters for pool creation flow
+     *
+     * @param name the name of the task pool (hardware channel name)
+     * @param factory hardware factory of the channel name
+     * @return adjusted by parameters instance
+     * @see #applyFor(String, String, PoolType)
+     */
+    public TasksPoolUnit localPoolFor(String name, String factory) {
+        return applyFor(name, factory, PoolType.LOCAL);
+    }
+
+    /**
+     * To adjust the parameters of the pool before pool's tasks list operations
+     *
+     * @param name     the name of the pool
+     * @param factory  the name of factory(group) of the pool
+     * @param poolType the type of the pool
+     * @return adjusted pool's instance
+     */
+    @Override
+    public TasksPoolUnit applyFor(String name, String factory, PoolType poolType) {
+        // adjusting basic pool's parameters
+        this.poolName = name;
+        this.poolGroup = factory;
+        this.poolType = poolType;
+        this.poolFile = name + ".tasks.pool";
+        // adjusting tasks-list xml document for further serialization/deserialization
+        adjustingTaskListXml();
+        // returns adjusted pool's instance
+        return this;
+    }
+
+
     @Deprecated
     @Override
     public boolean isPublic() {
@@ -132,20 +166,6 @@ public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implement
     }
 
     /**
-     * <mutator>
-     * To set moveTaskUp the type of task-pool
-     *
-     * @param poolType new value of task-pool type
-     * @return reference to the pool
-     * @see PoolType
-     */
-    @Override
-    public TasksPoolUnit setPoolType(PoolType poolType) {
-        this.poolType = poolType;
-        return this;
-    }
-
-    /**
      * <accessor>
      * To get the name of the pool
      *
@@ -154,19 +174,6 @@ public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implement
     @Override
     public String getPoolName() {
         return poolName;
-    }
-
-    /**
-     * <mutator>
-     * To set moveTaskUp the name of the pool
-     *
-     * @param poolName new value of pool's group
-     * @return reference to tasks pool
-     */
-    @Override
-    public TasksPoolUnit setPoolName(String poolName) {
-        this.poolName = poolName;
-        return this;
     }
 
     /**
@@ -180,19 +187,6 @@ public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implement
         return poolGroup;
     }
 
-    /**
-     * <mutator>
-     * To set moveTaskUp the group name of the pool
-     *
-     * @param group new value of pool's group
-     * @return reference to tasks pool
-     */
-    @Override
-    public TasksPoolUnit setPoolGroup(String group) {
-        this.poolGroup = group;
-        return this;
-    }
-
     @Deprecated
     @Override
     public String getName() {
@@ -204,12 +198,12 @@ public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implement
      * To set moveTaskUp the tasks list file name of the pool
      *
      * @param poolFile new value of pool's file name
-     * @return reference to tasks pool
      */
     @Override
-    public TasksPoolUnit setPoolFile(String poolFile) {
-        this.poolFile = poolFile;
-        return this;
+    public void applyTasksFile(String poolFile) {
+        if (isEmptyString.negate().test(poolFile) || !Objects.equals(poolFile, this.poolFile)) {
+            this.poolFile = poolFile;
+        }
     }
 
     /**
@@ -471,53 +465,33 @@ public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implement
      * @throws IOException           if something went wrong
      * @throws NumberFormatException if something went wrong
      * @throws NullPointerException  if something went wrong
-     * @see #setPoolFile(String)
      * @see #setXML(Element)
      * @see Element
-     * @see java.io.InputStream
+     * @see ServerUnitException
+     * @see #checkTaskListXml()
+     * @see #adjustingTaskListXml()
+     * @see #loadTasksList(File)
+     * @see TaskPoolsManager#add(ServerUnit)
      */
-    @SuppressWarnings("unchecked")
     @Override
     public void loadTasksList() throws IOException, NumberFormatException, NullPointerException {
-        // preparing tasks list configuration xml-document
-        final String tasksListPoolType = this.poolType.getType();
-        final List<?> rootContent = this.tasksListConfigurationDocument.getContent();
-        if (rootContent == null || rootContent.size() < 2) {
-            throw new IOException("Tasks list configuration document is invalid.");
-        }
-        final Object licence = rootContent.get(0);
-        if (!(licence instanceof Comment)) {
-            throw new IOException("Tasks list licence is invalid.");
-        }
-        final Element tasksListRootElement = this.tasksListConfigurationDocument.getRootElement();
-        tasksListRootElement.getContent().clear();
-        tasksListRootElement.setAttribute(TASKS_POOL_TYPE_ATTRIBUTE_NAME, tasksListPoolType);
-        final String tasksListAbout = String.format(TASKS_LIST_ABOUT_TEMPLATE, tasksListPoolType);
-        tasksListRootElement.addContent(new Comment(tasksListAbout));
+        // to check task-list-xml document integrity
+        checkTaskListXml();
+        // preparing root element of the task list XML document
+        adjustingTaskListXml();
+        // loading task list and add pool to the pools manager
         try {
-            // getting instance of task pools manager
+            // getting instance of task pool manager
             final TaskPoolsManager poolsManager = UnitRegistry.lookup(TaskPoolsManager.class);
             // preparing tasks-list external file
-            final File tasksListFile = new File(poolsManager.getRoot(), this.poolFile);
-            // loading tasks-list xml and restore the tasks
-            try (final FileInputStream in = new FileInputStream(tasksListFile)) {
-                final List<Element> xmlsList = restoreDocumentFrom(in).getRootElement().getChildren(Task.ROOT_ELEMENT);
-                xmlsList.stream().map(TaskMaker::restore).filter(Objects::nonNull)
-                        // adding restored tasks to the tasks pool
-                        .forEach(task -> addTask(task, false))
-                ;
-                // preparing unit path before
-                if (isEmptyString.test(this.unitPath)) {
-                    this.unitPath = getName();
-                }
-                // adding tasks pool to the pools manager
-                poolsManager.add(this);
-            }
+            // loading tasks-list XML from tasks-list-file and restore the tasks
+            loadTasksList(new File(poolsManager.getRoot(), this.poolFile));
+            // adding task pool to the pool manager
+            poolsManager.add(this);
         } catch (ServerUnitException e) {
             throw new IOException("Wrong tasks manager in registry", e);
         }
     }
-
     /**
      * <tasks-keeper>
      * To save tasks list to the external XML file
@@ -532,9 +506,40 @@ public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implement
             final TaskPoolsManager poolsManager = UnitRegistry.lookup(TaskPoolsManager.class);
             // preparing tasks-list external file
             final File tasksListFile = new File(poolsManager.getRoot(), this.poolFile);
-            // saving tasks to the external file
+            // saving tasks list to the external file
             try (final FileOutputStream out = new FileOutputStream(tasksListFile)) {
                 store(this.tasksListConfigurationDocument, out);
+            }
+        } catch (ServerUnitException e) {
+            throw new IOException("Wrong manager in registry", e);
+        }
+    }
+
+    /**
+     * <tasks-keeper>
+     * To load exists tasks list or create and save the new one
+     *
+     * @throws IOException if something went wrong
+     */
+    @Override
+    public void loadOrCreateTasksList() throws IOException, NumberFormatException, NullPointerException {
+        try {
+            // getting instance of task pools manager
+            final TaskPoolsManager poolsManager = UnitRegistry.lookup(TaskPoolsManager.class);
+            // preparing tasks-list external file
+            final File tasksListFile = new File(poolsManager.getRoot(), this.poolFile);
+            if (tasksListFile.exists()) {
+                // tasks list file exists just load it
+                loadTasksList(tasksListFile);
+            } else {
+                // creating empty tasks list xml document
+                adjustingTaskListXml();
+                // saving tasks list to the external file
+                try (final FileOutputStream out = new FileOutputStream(tasksListFile)) {
+                    store(this.tasksListConfigurationDocument, out);
+                }
+                // preparing the unit path for first time
+                this.unitPath = getName();
             }
         } catch (ServerUnitException e) {
             throw new IOException("Wrong manager in registry", e);
@@ -569,6 +574,18 @@ public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implement
     @Override
     public void execute(ServerCommandRequest command) throws Exception {
         TasksPoolUnit.super.execute(command);
+    }
+
+    /**
+     * <checker>
+     * To check is unit can start according the internal state
+     * Task Pool cannot start if tasks list is empty
+     *
+     * @return true if tasks list isn't empty
+     */
+    @Override
+    public boolean canStartUnit() {
+        return !tasksPool.isEmpty();
     }
 
     /**
@@ -683,75 +700,36 @@ public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implement
         final String commandSetType = ServerUnit.typeValueOf(command);
         switch (commandSetType) {
             case SET_DEPLOY_TASK_TYPE:
-                // deploying (updating) task in tasks pool
-                modifyTask(
-                        command, TaskMaker.restore(TasksPoolUnit.taskParameterAsXml(command, commandSetType)),
-                        commandSetType, this::updateTask, "invalid task to deploy XML"
-                );
+                // deploying (updating) task in tasks list
+                deployingTask(command);
                 break;
             case SET_INSTALL_TASK_TYPE:
-                // installing (adding or updating) task in tasks pool
-                final Parameter taskParameter = TasksPoolUnit.taskParameter(command, commandSetType);
-                switch (taskParameter.getType()) {
-                    case Parameter.STRING:
-                        // input task as task name
-                        // installing (adding or updating) task from public tasks pool to the tasks pool directly
-                        final TaskPoolsManager manager = (TaskPoolsManager) this.getOwner();
-                        final TasksPoolUnit publicTaskPool = manager.publicTaskPool();
-                        modifyTask(
-                                command, publicTaskPool.getTask(taskParameter.getValue("????:-P")).orElse(null),
-                                commandSetType, this::install, "no task to install in the public pool"
-                        );
-                        break;
-                    case Parameter.XML:
-                        // input task as task XML
-                        // installing(adding or updating) task to the pool directly
-                        modifyTask(
-                                command, TaskMaker.restore(taskParameter.getValue(Tools.emptyXML)),
-                                commandSetType, this::install, "invalid task to install XML");
-                        break;
-                    default:
-                        commandFailed(command, "invalid type of the install task input parameter");
-                        break;
-                }
+                // installing (adding or updating) task in tasks list
+                installingTask(command);
                 break;
             case SET_DELETE_TASK_TYPE:
-                // deleting the task from tasks pool
-                final String taskNameToDelete = TasksPoolUnit.taskParameterAsString(command, commandSetType);
-                modifyTask(
-                        command, getTask(taskNameToDelete).orElse(null),
-                        commandSetType, this::removeTask, "invalid task to delete in the pool"
-                );
+                // deleting the task from tasks list
+                deletingTask(command);
                 break;
             case SET_MOVE_TASK_TYPE:
-                // moving the task inside tasks pool
-                final String taskNameToMove = TasksPoolUnit.taskParameterAsString(command, commandSetType);
-                final String moveDirection =
-                        TasksPoolUnit.inputParameter(command, SET_MOVE_TASK_DIRECTION, commandSetType).getValue("????:-P");
-                final String action = SET_MOVE_TASK_TYPE + "." + moveDirection;
-                switch (moveDirection) {
-                    case SET_MOVE_TASK_UP:
-                        // moving task up in tasks pool
-                        modifyTask(
-                                command, getTask(taskNameToMove).orElse(null),
-                                action, this::moveTaskUp, "invalid move's direction up"
-                        );
-                        break;
-                    case SET_MOVE_TASK_DOWN:
-                        // moving task down in tasks pool
-                        modifyTask(
-                                command, getTask(taskNameToMove).orElse(null),
-                                action, this::moveTaskDown, "invalid move's direction down"
-                        );
-                        break;
-                    default:
-                        // unknown moving task direction
-                        throw new UnknownCommandException("invalid move's direction " + moveDirection);
-                }
+                // moving the task inside tasks list
+                movingTask(command);
                 break;
             default:
                 throw new UnknownCommandException("Invalid SET's command type [" + commandSetType + "]");
         }
+    }
+
+    /**
+     * <action>
+     * Closing the server unit, releasing attached resources and restoring original unitPath
+     *
+     * @throws IOException if an I/O error occurs
+     * @see #unitPath
+     */
+    @Override
+    public void close() throws IOException {
+        this.unitPath = getName();
     }
 
 
@@ -762,6 +740,54 @@ public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implement
     }
 
     // private methods
+
+    // to check task-list-xml document integrity
+    private void checkTaskListXml() throws IOException {
+        // checking the task-list-xml document integrity
+        final List<?> taskListDocumentContent = this.tasksListConfigurationDocument.getContent();
+        if (taskListDocumentContent == null || taskListDocumentContent.size() < 2) {
+            throw new IOException("Tasks list configuration document is invalid.");
+        }
+        // checking the task-list-xml document license
+        if (!(taskListDocumentContent.get(0) instanceof Comment)) {
+            throw new IOException("Tasks list licence is invalid.");
+        }
+        // checking the task-list-xml document root element properties
+        final Element taskListXml = this.tasksListConfigurationDocument.getRootElement();
+        if(taskListXml == null || !TASKS_LIST_ROOT_ELEMENT_NAME.equals(taskListXml.getName())) {
+            throw new IOException("Wrong tasks list root element name.");
+        }
+    }
+
+    // preparing root element of the task list XML document
+    private void adjustingTaskListXml() {
+        final Element tasksListRootElement = new Element(TASKS_LIST_ROOT_ELEMENT_NAME);
+        final String tasksListPoolType = this.poolType.getType();
+        tasksListRootElement.setAttribute(TASKS_POOL_TYPE_ATTRIBUTE_NAME, tasksListPoolType);
+        tasksListRootElement.addContent(new Comment(String.format(TASKS_LIST_ABOUT_TEMPLATE, this.poolName)));
+        // adjusting XML document of the task-list
+        this.tasksListConfigurationDocument.detachRootElement().detach();
+        this.tasksListConfigurationDocument.setRootElement(tasksListRootElement);
+    }
+
+    // loading tasks-list xml and restore the tasks
+    @SuppressWarnings("unchecked")
+    private void loadTasksList(final File tasksListFile) throws IOException {
+        try (final FileInputStream in = new FileInputStream(tasksListFile)) {
+            final List<Element> xmlsList = restoreDocumentFrom(in).getRootElement().getChildren(Task.ROOT_ELEMENT);
+            xmlsList.stream().map(TaskMaker::restore)
+                    // only tasks restored successfully
+                    .filter(Objects::nonNull)
+                    // adding restored tasks to the tasks pool
+                    .forEach(task -> addTask(task, false))
+            ;
+            // preparing unit path before register
+            if (isEmptyString.test(this.unitPath)) {
+                this.unitPath = getName();
+            }
+        }
+    }
+
     // to get the task from the top of tasks ring's list and move it to the bottom of the one
     private Task topTask() {
         if (inServiceTasksRing.isEmpty()) {
@@ -882,6 +908,81 @@ public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implement
     private void commandFailed(final ServerCommandRequest command, final String reasonMessage) throws IOException {
         respondTo(command, false,
                 response -> response.setParameter(Parameter.of("reason", reasonMessage).output())
+        );
+    }
+
+    // moving the task inside tasks list
+    private void movingTask(ServerCommandRequest command) throws UnknownCommandException, IOException {
+        final String commandSetType = SET_DELETE_TASK_TYPE;
+        final String taskNameToMove = TasksPoolUnit.taskParameterAsString(command, commandSetType);
+        final String moveDirection =
+                TasksPoolUnit.inputParameter(command, SET_MOVE_TASK_DIRECTION, commandSetType).getValue("????:-P");
+        final String action = SET_MOVE_TASK_TYPE + "." + moveDirection;
+        switch (moveDirection) {
+            case SET_MOVE_TASK_UP:
+                // moving task up in tasks pool
+                modifyTask(
+                        command, getTask(taskNameToMove).orElse(null),
+                        action, this::moveTaskUp, "invalid move's direction up"
+                );
+                break;
+            case SET_MOVE_TASK_DOWN:
+                // moving task down in tasks pool
+                modifyTask(
+                        command, getTask(taskNameToMove).orElse(null),
+                        action, this::moveTaskDown, "invalid move's direction down"
+                );
+                break;
+            default:
+                // unknown moving task direction
+                throw new UnknownCommandException("invalid move's direction " + moveDirection);
+        }
+    }
+
+    // deleting the task from tasks list
+    private void deletingTask(ServerCommandRequest command) throws UnknownCommandException, IOException {
+        final String commandSetType = SET_DELETE_TASK_TYPE;
+        final String taskNameToDelete = TasksPoolUnit.taskParameterAsString(command, commandSetType);
+        modifyTask(
+                command, getTask(taskNameToDelete).orElse(null),
+                commandSetType, this::removeTask, "invalid task to delete in the pool"
+        );
+    }
+
+    // installing (adding or updating) task in tasks pool
+    private void installingTask(ServerCommandRequest command) throws UnknownCommandException, IOException {
+        final String commandSetType = SET_INSTALL_TASK_TYPE;
+        final Parameter taskParameter = TasksPoolUnit.taskParameter(command, commandSetType);
+        switch (taskParameter.getType()) {
+            case Parameter.STRING:
+                // input task as task name
+                // installing (adding or updating) task from public tasks pool to the tasks pool directly
+                final TaskPoolsManager manager = (TaskPoolsManager) this.getOwner();
+                final TasksPoolUnit publicTaskPool = manager.publicTaskPool();
+                modifyTask(
+                        command, publicTaskPool.getTask(taskParameter.getValue("????:-P")).orElse(null),
+                        commandSetType, this::install, "no task to install in the public pool"
+                );
+                break;
+            case Parameter.XML:
+                // input task as task XML
+                // installing(adding or updating) task to the pool directly
+                modifyTask(
+                        command, TaskMaker.restore(taskParameter.getValue(Tools.emptyXML)),
+                        commandSetType, this::install, "invalid task to install XML");
+                break;
+            default:
+                commandFailed(command, "invalid type of the install task input parameter");
+                break;
+        }
+    }
+
+    // deploying (updating) task in tasks pool
+    private void deployingTask(ServerCommandRequest command) throws IOException, UnknownCommandException {
+        final String commandSetType = SET_DEPLOY_TASK_TYPE;
+        modifyTask(
+                command, TaskMaker.restore(TasksPoolUnit.taskParameterAsXml(command, commandSetType)),
+                commandSetType, this::updateTask, "invalid task to deploy XML"
         );
     }
 }

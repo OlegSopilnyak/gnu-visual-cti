@@ -752,15 +752,5 @@ public class RunnableUnitAdapterTest {
         public String getName() {
             return "RunnableUnitAdapter";
         }
-
-        @Override
-        public void startUnitRunnable() {
-
-        }
-
-        @Override
-        public void stopUnitRunnable() {
-
-        }
     }
 }
