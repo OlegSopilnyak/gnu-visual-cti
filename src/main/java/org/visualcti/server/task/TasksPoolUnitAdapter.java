@@ -648,44 +648,16 @@ public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implement
         switch (target) {
             case GET_POOL_INFO_TARGET:
                 // target is "info" responding to it
-                safeForTasksRing(() -> {
-                    respondTo(command, response -> {
-                        // returning common pool's parameters
-                        response.setParameter(Parameter.of("unit.state", currentUnitState().toString()).output())
-                                .setParameter(Parameter.of("tasks.list", tasksList()).output())
-                        ;
-                        // getting current task in the running pool
-                        final Task task = this.current();
-                        if (task != null) {
-                            response.setParameter(Parameter.of("current", task.getName()).output());
-                        }
-                    });
-                    // return doesn't matter
-                    return null;
-                });
+                responsePoolSimpleInfo(command);
                 break;
             case GET_POOL_TASK_INFO_TARGET:
                 // target is "edit" responding to it
-                //
-                // getting task name from request's parameter "task"
-                final String taskName = TasksPoolUnit.taskParameterAsString(command, GET_POOL_TASK_INFO_TARGET);
-                // getting pool's task by name
-                final Task task = getTask(taskName)
-                        .orElseThrow(() -> new UnknownCommandException("Invalid get task by name [" + taskName + "]"));
-                // preparing and sending response to the command
-                respondTo(command, response -> {
-                    // preparing response of the task's parameters for the task editing action
-                    response
-                            .setParameter(Parameter.of("edit.class", "nothing :-(").output())
-                            .setParameter(Parameter.of(Task.ROOT_ELEMENT, task.getXML()).output())
-                    ;
-                });
+                responsePoolXmlInfo(command);
                 break;
             default:
                 throw new UnknownCommandException("Invalid GET's command target [" + target + "]");
         }
     }
-
 
     /**
      * <action>
@@ -909,6 +881,42 @@ public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implement
         respondTo(command, false,
                 response -> response.setParameter(Parameter.of("reason", reasonMessage).output())
         );
+    }
+
+    // getting pool info for target "edit"
+    private void responsePoolXmlInfo(ServerCommandRequest command) throws UnknownCommandException, IOException {
+        // getting task name from request's parameter "task"
+        final String taskName = TasksPoolUnit.taskParameterAsString(command, GET_POOL_TASK_INFO_TARGET);
+        // getting pool's task by name
+        final Task task = getTask(taskName)
+                .orElseThrow(() -> new UnknownCommandException("Invalid get task by name [" + taskName + "]"));
+        // preparing and sending response to the command
+        respondTo(command, response -> {
+            // preparing response of the task's parameters for the task editing action
+            response
+                    .setParameter(Parameter.of("edit.class", "nothing :-(").output())
+                    .setParameter(Parameter.of(Task.ROOT_ELEMENT, task.getXML()).output())
+            ;
+        });
+    }
+
+    // getting pool info for target "info"
+    private void responsePoolSimpleInfo(ServerCommandRequest command) {
+        safeForTasksRing(() -> {
+            respondTo(command, response -> {
+                // returning common pool's parameters
+                response.setParameter(Parameter.of("unit.state", currentUnitState().toString()).output())
+                        .setParameter(Parameter.of("tasks.list", tasksList()).output())
+                ;
+                // getting current task in the running pool
+                final Task task = this.current();
+                if (task != null) {
+                    response.setParameter(Parameter.of("current", task.getName()).output());
+                }
+            });
+            // return doesn't matter
+            return null;
+        });
     }
 
     // moving the task inside tasks list

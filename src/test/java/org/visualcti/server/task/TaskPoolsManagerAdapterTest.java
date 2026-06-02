@@ -37,16 +37,16 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.task;
 
-//import static org.junit.Assert.*;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import java.io.IOException;
+import java.util.function.Predicate;
 import org.junit.Before;
 import org.junit.Test;
 import org.visualcti.server.core.executable.task.TaskPoolsManager;
@@ -112,6 +112,10 @@ public class TaskPoolsManagerAdapterTest {
         TasksPoolUnit detached = manager.detachTaskPool(poolName, poolGroup);
 
         // check the behavior
+        verify(manager).taskPoolStreamBy(any(Predicate.class));
+        verify(poolUnit).close();
+        verify(poolUnit, times(2)).getPoolName();
+        verify(poolUnit, times(3)).getPoolGroup();
         verify(manager).isChild(poolUnit);
         verify(poolUnit).Stop();
         verify(manager).remove(poolUnit);
@@ -124,11 +128,110 @@ public class TaskPoolsManagerAdapterTest {
     }
 
     @Test
-    public void publicTaskPool() {
+    public void shouldNotDetachTaskPool_NoPools() throws IOException {
+        // preparing test data
+        String poolName = "pool4";
+        String poolGroup = "poolGroup4";
+
+        // acting
+        TasksPoolUnit detached = manager.detachTaskPool(poolName, poolGroup);
+
+        // check the behavior
+        verify(manager).taskPoolStreamBy(any(Predicate.class));
+        verify(manager, never()).isChild(any(TasksPoolUnit.class));
+        // check results
+        assertThat(detached).isNull();
     }
 
     @Test
-    public void getTaskPool() {
+    public void shouldGetPublicTaskPool() {
+        // preparing test data
+        String poolName = "pool5";
+        String poolGroup = "poolGroup5";
+        TasksPoolUnit poolUnit = spy(manager.createTaskPool("poolName", "poolGroup"));
+        poolUnit.applyFor(poolName, poolGroup, TasksPoolUnit.PoolType.PUBLIC);
+        manager.add(poolUnit);
+        assertThat(manager.children().count()).isNotZero();
+        reset(poolUnit, manager);
+
+        // acting
+        TasksPoolUnit publicPool = manager.publicTaskPool();
+
+        // check the behavior
+        verify(manager).taskPoolStreamBy(any(Predicate.class));
+        verify(poolUnit).isPublic();
+        // check results
+        assertThat(publicPool).isSameAs(poolUnit);
+    }
+
+    @Test
+    public void shouldNotGetPublicTaskPool_NoPublicPools() throws IOException {
+        // preparing test data
+        String poolName = "pool6";
+        String poolGroup = "poolGroup6";
+        TasksPoolUnit poolUnit = spy(manager.createTaskPool(poolName, poolGroup));
+        manager.add(poolUnit);
+        assertThat(manager.children().count()).isNotZero();
+        reset(poolUnit, manager);
+
+        // acting
+        TasksPoolUnit publicPool = manager.publicTaskPool();
+
+        // check the behavior
+        verify(manager).taskPoolStreamBy(any(Predicate.class));
+        verify(poolUnit).isPublic();
+        // check results
+        assertThat(publicPool).isNull();
+    }
+
+    @Test
+    public void shouldGetTaskPool() {
+        // preparing test data
+        String poolName = "pool7";
+        String poolGroup = "poolGroup7";
+        TasksPoolUnit poolUnit = spy(manager.createTaskPool(poolName, poolGroup));
+        manager.add(poolUnit);
+        assertThat(manager.children().count()).isNotZero();
+        reset(poolUnit, manager);
+
+        // acting
+        TasksPoolUnit taskPool = manager.getTaskPool(poolName, poolGroup);
+
+        // check the behavior
+        verify(manager).taskPoolStreamBy(any(Predicate.class));
+        verify(poolUnit).getPoolName();
+        verify(poolUnit).getPoolGroup();
+        // check results
+        assertThat(taskPool).isSameAs(poolUnit);
+    }
+
+    @Test
+    public void shouldNotGetTaskPool_CreateOne() {
+        // preparing test data
+        String poolName = "pool8";
+        String anotherPoolName = "poolName";
+        String poolGroup = "poolGroup8";
+        TasksPoolUnit poolUnit = spy(manager.createTaskPool(poolName, poolGroup));
+        manager.add(poolUnit);
+        assertThat(manager.children().count()).isNotZero();
+        reset(poolUnit, manager);
+
+        // acting
+        TasksPoolUnit taskPool = manager.getTaskPool(anotherPoolName, poolGroup);
+
+        // check the behavior
+        verify(manager).taskPoolStreamBy(any(Predicate.class));
+        verify(poolUnit).getPoolName();
+        verify(poolUnit, never()).getPoolGroup();
+        verify(manager).createTaskPool(anotherPoolName, poolGroup);
+        verify(manager).isChild(taskPool);
+        verify(manager).getPath();
+        verify(manager).addBranch(taskPool);
+        // check results
+        assertThat(taskPool).isNotSameAs(poolUnit);
+        assertThat(taskPool.getPoolName()).isEqualTo(anotherPoolName);
+        assertThat(taskPool.getPoolGroup()).isEqualTo(poolGroup);
+        assertThat(taskPool.getOwner()).isSameAs(manager);
     }
 
     @Test

@@ -45,6 +45,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Predicate;
+import java.util.stream.Stream;
 import org.jdom.DataConversionException;
 import org.jdom.Element;
 import org.visualcti.core.ConfigurationParameter;
@@ -122,16 +123,18 @@ public abstract class TaskPoolsManagerAdapter extends RunnableUnitAdapter implem
      *
      * @param name    the name of tasks pool
      * @param factory the name of factory-owner group name of the task pool
-     * @return detached pool instance
+     * @return detached pool instance or null if didn't
      */
     @Override
     public TasksPoolUnit detachTaskPool(String name, String factory) {
-        return safeAction(() -> findTaskPoolBy(name, factory).map(gotPool -> {
+        return safeAction(() -> findTaskPoolBy(name, factory).map(pool -> {
                     try {
                         // stopping the detached pool before
-                        gotPool.Stop();
+                        pool.Stop();
                         // removing detached pool from unit's tree branches
-                        return remove(gotPool) ? gotPool : null;
+                        remove(pool);
+                        // returns detached and closed pool unit
+                        return pool;
                     } catch (IOException e) {
                         dispatchError(e, "Cannot stop detached task pool: " + name);
                         return null;
@@ -178,14 +181,27 @@ public abstract class TaskPoolsManagerAdapter extends RunnableUnitAdapter implem
         });
     }
 
+    @Deprecated
+    @Override
+    public Stream<TasksPoolUnit> taskPoolStreamBy(Predicate<TasksPoolUnit> condition) {
+        return TaskPoolsManager.super.taskPoolStreamBy(condition);
+    }
+
+    @Deprecated
+    @Override
+    public Stream<TasksPoolUnit> localTaskPoolStream() {
+        return TaskPoolsManager.super.localTaskPoolStream();
+    }
+
     /**
      * <builder>
      * To build new instance of the local tasks pool
      *
      * @param name    the name of the tasks channel
      * @param factory the name of factory(group) of the tasks channel
-     * @return built not registered instance
+     * @return built not registered instance or null if failed
      * @see #getTaskPool(String, String)
+     * @see TasksPoolUnit
      */
     protected abstract TasksPoolUnit createTaskPool(String name, String factory);
 
@@ -302,7 +318,7 @@ public abstract class TaskPoolsManagerAdapter extends RunnableUnitAdapter implem
     private Optional<TasksPoolUnit> findTaskPoolBy(String name, String factory) {
         final Predicate<TasksPoolUnit> condition = pool ->
                 Objects.equals(pool.getPoolName(), name) && Objects.equals(pool.getPoolGroup(), factory);
-        return TaskPoolsManager.super.taskPoolStreamBy(condition).findFirst();
+        return this.taskPoolStreamBy(condition).findFirst();
     }
 
 }
