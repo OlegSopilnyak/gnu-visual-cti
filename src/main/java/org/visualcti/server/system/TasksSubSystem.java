@@ -185,12 +185,14 @@ public class TasksSubSystem implements SubSystem {
          * @param name    the name of the tasks channel
          * @param factory the name of factory(group) of the tasks channel
          * @return built not registered instance
+         * @see TasksPoolUnit#applyFor(String, String, TasksPoolUnit.PoolType)
+         * @see TasksPoolUnit#loadOrCreateTasksList()
          */
         @Override
         protected TasksPoolUnit createTaskPool(String name, String factory) {
-            final TasksPoolUnit poolUnit = new TasksSubSystem.PoolServerUnit().localPoolFor(name, factory);
+            final TasksPoolUnit poolUnit = new TasksSubSystem.PoolServerUnit().applyFor(name, factory, TasksPoolUnit.PoolType.LOCAL);
             try {
-                poolUnit.loadTasksList();
+                poolUnit.loadOrCreateTasksList();
             } catch (IOException e) {
                 return null;
             }

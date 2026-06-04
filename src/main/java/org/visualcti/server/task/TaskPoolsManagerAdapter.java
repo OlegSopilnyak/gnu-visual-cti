@@ -300,6 +300,19 @@ public abstract class TaskPoolsManagerAdapter extends RunnableUnitAdapter implem
         return "[manager]";
     }
 
+
+    /**
+     * <checker>
+     * To check is unit can start according the internal state
+     *
+     * @return true if unit can start
+     */
+    @Override
+    public boolean canStartUnit() {
+        // getting any child pool
+        return taskPoolStreamBy(pool -> true).findAny().isPresent();
+    }
+
     // private methods
     // to do children manipulation in safest way
     private TasksPoolUnit safeAction(final Callable<TasksPoolUnit> action) {

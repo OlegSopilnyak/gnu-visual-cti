@@ -623,6 +623,10 @@ public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implement
     @Override
     public void stopUnitRunnable() {
         safeForTasksRing(() -> {
+                    // stopping current task execution
+                    if (currentTask != null) {
+                        currentTask.stopExecute();
+                    }
                     // to clean the tasks ring
                     inServiceTasksRing.clear();
                     // set moveTaskUp current-task as null
@@ -640,6 +644,9 @@ public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implement
      * @param command GET command to execute
      * @throws UnknownCommandException if command target is unknown
      * @throws IOException             if response preparing went wrong
+     * @see TasksPoolUnit#execute(ServerCommandRequest)
+     * @see #responsePoolSimpleInfo(ServerCommandRequest)
+     * @see #responsePoolXmlInfo(ServerCommandRequest)
      */
     @Override
     public void executePoolGet(ServerCommandRequest command) throws UnknownCommandException, IOException {
@@ -666,6 +673,10 @@ public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implement
      * @param command SET command to execute
      * @throws UnknownCommandException if command target is unknown
      * @throws IOException             if response preparing went wrong
+     * @see #deployingTask(ServerCommandRequest)
+     * @see #installingTask(ServerCommandRequest)
+     * @see #deletingTask(ServerCommandRequest)
+     * @see #movingTask(ServerCommandRequest)
      */
     @Override
     public void executePoolSet(ServerCommandRequest command) throws UnknownCommandException, IOException {
@@ -858,7 +869,7 @@ public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implement
     }
 
     // to install the task to the tasks pool depends on is it inside or not
-    private boolean install(final Task task) {
+    private boolean installing(final Task task) {
         return hasTaskInside(task) ? updateTask(task) : addTask(task);
     }
 
@@ -969,7 +980,7 @@ public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implement
                 final TasksPoolUnit publicTaskPool = manager.publicTaskPool();
                 modifyTask(
                         command, publicTaskPool.getTask(taskParameter.getValue("????:-P")).orElse(null),
-                        commandSetType, this::install, "no task to install in the public pool"
+                        commandSetType, this::installing, "no task to install in the public pool"
                 );
                 break;
             case Parameter.XML:
@@ -977,7 +988,7 @@ public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implement
                 // installing(adding or updating) task to the pool directly
                 modifyTask(
                         command, TaskMaker.restore(taskParameter.getValue(Tools.emptyXML)),
-                        commandSetType, this::install, "invalid task to install XML");
+                        commandSetType, this::installing, "invalid task to install XML");
                 break;
             default:
                 commandFailed(command, "invalid type of the install task input parameter");

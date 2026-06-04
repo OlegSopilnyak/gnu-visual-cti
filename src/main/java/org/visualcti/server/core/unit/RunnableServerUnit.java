@@ -392,7 +392,7 @@ public interface RunnableServerUnit extends ServerUnit, Engine, UnitMessage.List
             // setting up new runnable unit state
             currentUnitState(UnitState.ACTIVE);
             // dispatch unit started message
-            final String messageDescription = "Started server unit :" + getPath();
+            final String messageDescription = "Started server unit with name (" + getName() +") and type " + getType();
             dispatch(getMessageFactory().buildFor(this, MessageType.EVENT, MessageFamilyType.START, messageDescription));
         }
     }
@@ -410,9 +410,8 @@ public interface RunnableServerUnit extends ServerUnit, Engine, UnitMessage.List
      * <action>
      * To start the internal runnable parts of the unit
      *
-     * @throws IOException if them can't be started
      */
-    default void startUnitRunnable() throws IOException {
+    default void startUnitRunnable() {
         // do nothing by default for internal running
     }
 
@@ -460,7 +459,7 @@ public interface RunnableServerUnit extends ServerUnit, Engine, UnitMessage.List
         // setting up new runnable unit state
         currentUnitState(UnitState.PASSIVE);
         // dispatch unit started message
-        final String messageDescription = "Stopped server unit :" + getPath();
+        final String messageDescription = "Stopped server unit with name (" + getName() +") and type " + getType();
         dispatch(getMessageFactory().buildFor(this, MessageType.EVENT, MessageFamilyType.STOP, messageDescription));
     }
 
@@ -468,9 +467,8 @@ public interface RunnableServerUnit extends ServerUnit, Engine, UnitMessage.List
      * <action>
      * To stop the internal runnable parts of the unit
      *
-     * @throws IOException if them can't be stopped
      */
-    default void stopUnitRunnable() throws IOException {
+    default void stopUnitRunnable() {
         // do nothing by default for internal running
     }
 

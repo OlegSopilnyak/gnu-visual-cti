@@ -349,6 +349,8 @@ public interface TasksPoolUnit extends RunnableServerUnit {
      * @see ServerCommandRequest#getFamilyType()
      * @see #Start()
      * @see #Stop()
+     * @see #executePoolGet(ServerCommandRequest)
+     * @see #executePoolSet(ServerCommandRequest)
      */
     @Override
     default void execute(ServerCommandRequest command) throws Exception {
@@ -368,11 +370,11 @@ public interface TasksPoolUnit extends RunnableServerUnit {
         // processing command request
         switch (commandSubType) {
             case GET:
-                // execute GET command
+                // execute getting pool data command
                 executePoolGet(command);
                 break;
             case SET:
-                // execute SET command
+                // execute updating pool data command
                 executePoolSet(command);
                 break;
             default:
@@ -388,6 +390,7 @@ public interface TasksPoolUnit extends RunnableServerUnit {
      * @param command GET command to execute
      * @throws UnknownCommandException if command target is unknown
      * @throws IOException if response preparing went wrong
+     * @see ServerCommandRequest
      */
     void executePoolGet(ServerCommandRequest command) throws UnknownCommandException, IOException;
 
@@ -398,6 +401,7 @@ public interface TasksPoolUnit extends RunnableServerUnit {
      * @param command SET command to execute
      * @throws UnknownCommandException if command target is unknown
      * @throws IOException if response preparing went wrong
+     * @see ServerCommandRequest
      */
     void executePoolSet(ServerCommandRequest command) throws UnknownCommandException, IOException;
 
