@@ -94,7 +94,7 @@ public final class UnitRegistry {
         try {
             safeAction(() -> {
                 if (units.get(path) != null) {
-                    throw new IOException("Path [" + path + "] already registered");
+                    throw new IOException("Unit with path [" + path + "] is registered already.");
                 }
                 return units.put(path, unit);
             });
@@ -127,11 +127,16 @@ public final class UnitRegistry {
      */
     public static void unRegister(ServerUnit unit) {
         try {
-            safeAction(() -> units.remove(unit.getPath()));
+            safeAction(() -> {
+                final Object detached = units.remove(unit.getPath());
+                if (detached instanceof ServerUnit) {
+                    ((ServerUnit) detached).close();
+                }
+                return detached;
+            });
         } catch (NullPointerException | ServerUnitException e) {
             // do nothing (simple operation never throws)
         }
-//System.out.println("[UnitRegistry] unRegister "+unit);
     }
 
     /**

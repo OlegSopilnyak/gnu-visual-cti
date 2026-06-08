@@ -488,6 +488,8 @@ public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implement
             loadTasksList(new File(poolsManager.getRoot(), this.poolFile));
             // adding task pool to the pool manager
             poolsManager.add(this);
+            // compensation after add to the pools manager
+            UnitRegistry.unRegister(this);
         } catch (ServerUnitException e) {
             throw new IOException("Wrong tasks manager in registry", e);
         }
@@ -712,6 +714,7 @@ public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implement
      */
     @Override
     public void close() throws IOException {
+        this.owner = null;
         this.unitPath = getName();
     }
 

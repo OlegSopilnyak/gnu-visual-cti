@@ -39,10 +39,9 @@ Fax number: 217-356-3356
 <VisualCTI>
   <Server date="dd MMMM yyyy HH:mm:ss.SSS">
     <!--Base interface of any Server's parts-->
-    <base package="org.visualcti.server">serverUnit</base>
+    <base package="org.visualcti.server.core.unit">ServerUnit</base>
     <!--Properties of main RMI registry-->
     <rmi port="2888" start="true">local RMI Registry properties</rmi>
-    <!--Services system of VisualCTI server-->
     <system>
       <Services>
         <!--Base components of any service-->
@@ -105,7 +104,8 @@ Fax number: 217-356-3356
               <MessageHeader package="org.visualcti.server.message" extends="javax.jms.Message">MessageHeader</MessageHeader>
             </message>
             <!--Factory for make, send, receive e-mail messages-->
-            <factory name="EMAIL" package="org.visualcti.server.message.email" class="Factory" extends="org.visualcti.server.message.MessageFactory" persistent="work/persistent.messages">E-Mail
+            <factory name="EMAIL" package="org.visualcti.server.message.email" class="Factory" extends="org.visualcti.server.message.MessageFactory" persistent="work/persistent.messages">
+              E-Mail
               <!-- Define protocols for factory -->
               <protocol in="POP3,IMAP" out="SMTP" />
             </factory>
@@ -127,10 +127,10 @@ Fax number: 217-356-3356
           <parameter name="device count" type="number" value="4" />
           <parameter name="device prefix" type="string" value="stub_" />
         </factory>
-<!--        <factory package="org.visualcti.server.hardware.provider.dialogic" class="Factory" extends="org.visualcti.server.hardware.deviceFactory">-->
-<!--          <parameter name="vendor" type="string" value="Dialogic" />-->
-<!--          <parameter name="url" type="string" value="file:./dialogic.configuration.xml" />-->
-<!--        </factory>-->
+        <!--        <factory package="org.visualcti.server.hardware.provider.dialogic" class="Factory" extends="org.visualcti.server.hardware.deviceFactory">-->
+        <!--          <parameter name="vendor" type="string" value="Dialogic" />-->
+        <!--          <parameter name="url" type="string" value="file:./dialogic.configuration.xml" />-->
+        <!--        </factory>-->
       </Hardware>
     </system>
     <system>

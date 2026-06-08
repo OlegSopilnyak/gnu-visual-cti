@@ -45,10 +45,13 @@ import org.jdom.Comment;
 import org.jdom.DataConversionException;
 import org.jdom.Element;
 import org.visualcti.core.XmlAware;
+import org.visualcti.server.UnitRegistry;
 import org.visualcti.server.core.executable.task.TasksPoolUnit;
 import org.visualcti.server.core.system.SubSystem;
+import org.visualcti.server.core.unit.ApplicationServerUnit;
 import org.visualcti.server.task.TaskPoolsManagerAdapter;
 import org.visualcti.server.task.TasksPoolUnitAdapter;
+import org.visualcti.util.Tools;
 
 /**
  * <SubSystem>
@@ -60,8 +63,18 @@ public class TasksSubSystem implements SubSystem {
     private static final String TASKS_MANAGER_ROOT_ELEMENT_NAME = "Manager";
     private static final String TASKS_MANAGER_UNIT_NAME = "Tasks Manager";
     private final MainTaskManager manager = new MainTaskManager();
-//    private final List<PoolReflection> localTaskPools = new LinkedList<>();
-//    private PoolReflection publicTasksPool;
+
+    /**
+     * <accessor>
+     * To get the reference to main sub-system manager unit
+     *
+     * @return instance of the manager
+     * @see Manager
+     */
+    @Override
+    public Manager getSystemManager() {
+        return manager;
+    }
 
     /**
      * <converter>
@@ -114,26 +127,25 @@ public class TasksSubSystem implements SubSystem {
         if (managerElement == null) {
             throw new IOException("Wrong root element of [" + MANAGER_ROOT_ELEMENT + "]");
         }
-        // building manager's instance from xml and register it
-        this.manager.configure(managerElement);
+        Tools.out.print(">> " + TASKS_SUB_SYSTEM);
+        Tools.out.print(": manager .");
+        Tools.out.flush();
+        // configuring built manager's instance from xml and register it
+        manager.configure(managerElement);
         //
         // building task pools units
         final List<Element> poolElements = systemElement.getChildren(TASKS_POOL_ROOT_ELEMENT_NAME);
-        for(final Element poolElement : poolElements) {
-            // preparing tasks pool server unit
-//            final TasksPoolUnit poolUnit = new PoolServerUnit();
+        Tools.out.print(" : pools .");
+        Tools.out.flush();
+        for (final Element poolElement : poolElements) {
             // preparing tasks pool server unit and attach it to the manager
             new PoolServerUnit().configure(poolElement);
-//            // preparing tasks pool reference
-//            final PoolReflection reflection = new PoolReflection(poolElement);
-//            if (reflection.isPublic()) {
-//                // public pool storing to sub-system's field
-//                publicTasksPool = reflection;
-//            } else {
-//                // local pool storing adding to sub-system's field
-//                localTaskPools.add(reflection);
-//            }
+            // printing the dot after successful pool's configuration
+            Tools.out.print(".");
+            Tools.out.flush();
         }
+        // all task-pools are configured well
+        Tools.print("Done!");
     }
 
     /**
@@ -149,54 +161,12 @@ public class TasksSubSystem implements SubSystem {
         return TASKS_SUB_SYSTEM;
     }
 
-    /**
-     * <accessor>
-     * To get the reference to main sub-system manager unit
-     *
-     * @return instance of the manager
-     * @see Manager
-     */
-    @Override
-    public Manager getSystemManager() {
-        return manager;
-    }
-
-//    public List<PoolReflection> getTaskPools() {
-//        return localTaskPools;
-//    }
-//
-//    public PoolReflection getPublicTasksPool() {
-//        return publicTasksPool;
-//    }
-
     // inner classes
     // implementation of sub-system's tasks manager, builder feature of server unit isn't used
     private static class MainTaskManager extends TaskPoolsManagerAdapter implements Manager {
-
         @Override
         public String getName() {
             return TASKS_MANAGER_UNIT_NAME;
-        }
-
-        /**
-         * <builder>
-         * To build local tasks pool
-         *
-         * @param name    the name of the tasks channel
-         * @param factory the name of factory(group) of the tasks channel
-         * @return built not registered instance
-         * @see TasksPoolUnit#applyFor(String, String, TasksPoolUnit.PoolType)
-         * @see TasksPoolUnit#loadOrCreateTasksList()
-         */
-        @Override
-        protected TasksPoolUnit createTaskPool(String name, String factory) {
-            final TasksPoolUnit poolUnit = new TasksSubSystem.PoolServerUnit().applyFor(name, factory, TasksPoolUnit.PoolType.LOCAL);
-            try {
-                poolUnit.loadOrCreateTasksList();
-            } catch (IOException e) {
-                return null;
-            }
-            return poolUnit;
         }
 
         @Override
@@ -212,6 +182,33 @@ public class TasksSubSystem implements SubSystem {
         @Override
         public String getSystemName() {
             return TASKS_SUB_SYSTEM;
+        }
+
+        @Override
+        public void connectTo(final ApplicationServerUnit server) throws IOException {
+            // unregistering manager from the registry
+            UnitRegistry.unRegister(this);
+            // attach manager to the server for correct unit-messages processing
+            // UnitRegistry.register(this) doing under the hood
+            this.setOwner(server);
+        }
+
+        @Override
+        public void close() {
+            this.owner = null;
+            this.unitPath = getSystemName();
+        }
+
+        @Override
+        protected TasksPoolUnit createTaskPool(String name, String factory) {
+            final TasksPoolUnit poolUnit = new TasksSubSystem.PoolServerUnit().localPoolFor(name, factory);
+            try {
+                poolUnit.loadOrCreateTasksList();
+            } catch (IOException e) {
+                dispatchError(e, "Could not load or create tasks list");
+                return null;
+            }
+            return poolUnit;
         }
 
         @Override
@@ -231,17 +228,6 @@ public class TasksSubSystem implements SubSystem {
         protected boolean updatedUnitConfiguration() {
             // keeping loaded configuration Element as is after changed branches
             return true;
-        }
-
-        /**
-         * <action>
-         * Closing the server unit, releasing attached resources and restoring original unitPath
-         *
-         * @see #unitPath
-         */
-        @Override
-        public void close() {
-            this.beforeRegisterUnit();
         }
     }
 

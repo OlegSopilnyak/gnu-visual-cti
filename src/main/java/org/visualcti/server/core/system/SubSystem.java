@@ -37,7 +37,9 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.core.system;
 
+import java.io.IOException;
 import org.visualcti.core.XmlAware;
+import org.visualcti.server.core.unit.ApplicationServerUnit;
 import org.visualcti.server.core.unit.RunnableServerUnit;
 
 /**
@@ -47,8 +49,11 @@ import org.visualcti.server.core.unit.RunnableServerUnit;
  * @see XmlAware
  */
 public interface SubSystem extends XmlAware {
+    String SYSTEM_ROOT_ELEMENT_NAME = "system";
     // the name of tasks sub-system
     String TASKS_SUB_SYSTEM = "Tasks";
+    String SERVICES_SUB_SYSTEM = "Services";
+    String HARDWARE_SUB_SYSTEM = "Hardware";
     // the root element name of the manager definition
     String MANAGER_ROOT_ELEMENT = "Manager";
 
@@ -61,7 +66,7 @@ public interface SubSystem extends XmlAware {
      */
     @Override
     default String getRootElementName() {
-        return "system";
+        return SYSTEM_ROOT_ELEMENT_NAME;
     }
 
     /**
@@ -97,5 +102,14 @@ public interface SubSystem extends XmlAware {
          * @return sub-system name
          */
         String getSystemName();
+
+        /**
+         * <connect>
+         * To connect the manager to the applications server
+         *
+         * @param server instance to connect
+         * @throws IOException if the manager can't connect
+         */
+        void connectTo(ApplicationServerUnit server) throws IOException;
     }
 }

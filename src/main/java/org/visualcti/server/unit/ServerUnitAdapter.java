@@ -617,26 +617,22 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
      */
     @Override
     public void setOwner(ServerUnit owner) throws IOException {
-        final String unitName = isEmptyString.test(unitPath) ? getName() : unitPath;
         // unregistering unit from the registry
         UnitRegistry.unRegister(this);
         // unit detached from the units  registry
         if (owner == null) {
-            // unit kept detached from the registry
-            this.owner = null;
-            this.unitPath = unitName;
             // removing unit's tree branches as well
             this.removeAll();
         } else {
             // preparing new value of unit path
-            this.unitPath = owner.getPath() + "/" + unitName;
+            this.unitPath = owner.getPath() + "/" + this.unitPath;
             // before registering unit
             beforeRegisterUnit();
             // registering unit with new value of the path
             UnitRegistry.register(this);
             this.owner = owner;
             // updating unit paths for unit's branches
-            updateChildrenUnitOwner(owner);
+            updateChildrenUnitOwner();
         }
     }
 
@@ -868,9 +864,7 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
     /**
      * @see #setOwner(ServerUnit)
      */
-    private void updateChildrenUnitOwner(ServerUnit owner) throws IOException {
-        // assign new value of the unit-owner
-        this.owner = owner;
+    private void updateChildrenUnitOwner() throws IOException {
         // iterating tree's branches, changing the unit-owner
         for (final ServerUnit branch : branches) {
             branch.setOwner(this);
