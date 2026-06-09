@@ -37,18 +37,74 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertThrows;
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.rmi.server.ExportException;
+import java.util.stream.Stream;
 import org.jdom.DataConversionException;
+import org.junit.After;
 import org.junit.Test;
+import org.visualcti.server.core.system.SubSystem;
 
 public class ApplicationServerAdapterTest {
 
     ApplicationServerAdapter application = spy(new ApplicationServerAdapter());
 
+    @After
+    public void tearDown() throws Exception {
+        UnitRegistry.clear();
+        application.close();
+    }
+
     @Test
-    public void serverParts() {
+    public void shouldInitializeServer() throws Exception {
+        // preparing test data
+
+        // acting
+        application.initialize();
+
+        // check the behavior
+        verify(application).loadServerXml();
+        // check results
+        assertThat(application.isBroken()).isFalse();
+    }
+
+    @Test
+    public void shouldNotInitializeServer_RmiRegistryDetected() throws Exception {
+        // preparing test data
+        application.initialize();
+        reset(application);
+
+        // acting
+        Throwable e = assertThrows(Throwable.class, () -> application.initialize());
+
+        // check the behavior
+        verify(application).loadServerXml();
+        // check results
+        assertThat(application.isBroken()).isTrue();
+        assertThat(e).isInstanceOf(InternalError.class);
+        assertThat(e.getMessage()).isEqualTo("Another copy of VisualCTI Server is detected");
+        assertThat(e.getCause()).isInstanceOf(ExportException.class);
+        assertThat(e.getCause().getMessage()).isEqualTo("internal error: ObjID already in use");
+    }
+
+    @Test
+    public void shouldGetServerParts() throws Exception {
+        // preparing test data
+        application.initialize();
+
+        // acting
+        Stream<SubSystem>partsStream = application.serverParts();
+
+        // check results
+        assertThat(partsStream.count()).isNotZero();
     }
 
     @Test
@@ -58,7 +114,10 @@ public class ApplicationServerAdapterTest {
         // acting
         application.loadServerXml();
 
+        // check the behavior
+        verify(application).prepareXmlDocument(any(InputStream.class));
         // check results
+        assertThat(application.serverParts().count()).isNotZero();
     }
 
     @Test

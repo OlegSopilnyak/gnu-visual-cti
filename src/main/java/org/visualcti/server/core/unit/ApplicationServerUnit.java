@@ -63,6 +63,7 @@ public interface ApplicationServerUnit extends RunnableServerUnit {
     int SERVER_RMI_PORT_DEFAULT_VALUE = 2888;
     String SERVER_RMI_STARTUP_ATTRIBUTE_NAME = "start";
     boolean SERVER_RMI_STARTUP_DEFAULT_VALUE = false;
+    String SERVER_UNIT_PATH_IN_REGISTRY = "{Server}";
 
     /**
      * <accessor>
@@ -84,17 +85,6 @@ public interface ApplicationServerUnit extends RunnableServerUnit {
     @Override
     default String getType() {
         return "[kernel]";
-    }
-
-    /**
-     * <accessor>
-     * To get Path to unit instance in repository
-     *
-     * @return the value
-     */
-    @Override
-    default String getPath() {
-        return "{Server}";
     }
 
     /**

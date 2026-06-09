@@ -630,6 +630,7 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
             beforeRegisterUnit();
             // registering unit with new value of the path
             UnitRegistry.register(this);
+            // assigning the owner of the server unit
             this.owner = owner;
             // updating unit paths for unit's branches
             updateChildrenUnitOwner();

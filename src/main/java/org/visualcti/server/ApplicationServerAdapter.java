@@ -39,6 +39,7 @@ package org.visualcti.server;
 
 import static org.visualcti.server.core.system.SubSystem.SYSTEM_ROOT_ELEMENT_NAME;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -46,6 +47,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.rmi.server.UnicastRemoteObject;
 import java.text.DateFormat;
 import java.text.Format;
 import java.text.SimpleDateFormat;
@@ -78,9 +80,11 @@ import org.visualcti.util.Tools;
 public class ApplicationServerAdapter extends RunnableUnitAdapter implements ApplicationServerUnit {
     private final Lock subSystemLock = new ReentrantLock();
     // the configuration for RMI
-    private final rmiConfiguration rmi = new rmiConfiguration();
+    private final transient RmiConfig rmi = new RmiConfig();
+    // the server configuration file
+    private File serverConfigFile = CONFIGURATION_XML_FILE;
     // the registry of RMI
-    private Registry localRegistry;
+    private transient Registry localRegistry;
     // the container of server's sub-systems
     private final Map<String, SubSystem> system = new ConcurrentHashMap<>();
     // XML-Document of the server's configuration
@@ -89,6 +93,22 @@ public class ApplicationServerAdapter extends RunnableUnitAdapter implements App
     private final Element serverConfigurationElement = serverConfigurationDocument.getRootElement().getChild(SERVER_ROOT_ELEMENT_NAME);
     // The format of DateTime using for to String transformation
     private Format dateTimeFormat = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT);
+
+    /**
+     * <action>
+     * Closing the server unit, releasing attached resources and restoring original unitPath
+     *
+     * @throws IOException if an I/O error occurs
+     * @see #unitPath
+     */
+    @Override
+    public void close() throws IOException {
+        if (localRegistry != null) {
+            UnicastRemoteObject.unexportObject(localRegistry,true);
+            localRegistry = null;
+        }
+        system.clear();
+    }
 
     /**
      * <accessor>
@@ -103,27 +123,20 @@ public class ApplicationServerAdapter extends RunnableUnitAdapter implements App
     }
 
     /**
-     * <accessor>
-     * To get Path to unit instance in the units repository
-     *
-     * @return the value
-     */
-    @Override
-    public String getPath() {
-        return ApplicationServerUnit.super.getPath();
-    }
-
-    /**
      * <initializer>
      * To initialize the server and prepare all parts for starting
      *
      * @throws Exception if something went wrong
      */
     public void initialize() throws Exception {
+        // initializing server core stuff
+        initializeCore();
         // loading configuration from config-file
         loadServerXml();
         // launching rmi registry
         exposeRmiRegistry();
+        // setup server's unit-path to the root unit
+        this.unitPath = SERVER_UNIT_PATH_IN_REGISTRY;
         // registering server as server-unit in the units registry
         UnitRegistry.register(this);
     }
@@ -145,11 +158,11 @@ public class ApplicationServerAdapter extends RunnableUnitAdapter implements App
      *
      * @throws IOException if something went wrong
      * @throws DataConversionException if something went wrong with XML stuff
-     * @see ApplicationServerUnit#CONFIGURATION_XML_FILE
+     * @see #serverConfigFile
      */
     @Override
     public void loadServerXml() throws IOException, DataConversionException {
-        try(final FileInputStream in = new FileInputStream(CONFIGURATION_XML_FILE)) {
+        try(final FileInputStream in = new FileInputStream(serverConfigFile)) {
             // to check and prepare loaded server root xml-element
             final Element serverXml = loadAndCheckConfigurationXmlDocument(prepareXmlDocument(in));
             boolean needToSave = false;
@@ -175,10 +188,11 @@ public class ApplicationServerAdapter extends RunnableUnitAdapter implements App
      * To save server configuration to the external XML file
      *
      * @throws IOException if something went wrong
+     * @see #serverConfigFile
      */
     @Override
     public void saveServerXml() throws IOException {
-        try(final FileOutputStream out = new FileOutputStream(CONFIGURATION_XML_FILE)) {
+        try(final FileOutputStream out = new FileOutputStream(serverConfigFile)) {
             store(serverConfigurationDocument, out);
         }
     }
@@ -190,17 +204,27 @@ public class ApplicationServerAdapter extends RunnableUnitAdapter implements App
     }
 
     // inner classes
-    private static class rmiConfiguration {
+    private static class RmiConfig {
         int port;
         boolean startup;
 
-        public rmiConfiguration() {
+        public RmiConfig() {
             this.port = SERVER_RMI_PORT_DEFAULT_VALUE;
             this.startup = SERVER_RMI_STARTUP_DEFAULT_VALUE;
         }
     }
 
     // private methods
+    // initializing server core stuff
+    private void initializeCore() {
+        // cleaning server units registry
+        UnitRegistry.clear();
+        // setup server's unit-path to the root unit
+        this.unitPath = "/";
+        // removing systems from server configuration XML document
+        this.serverConfigurationElement.removeChildren(SYSTEM_ROOT_ELEMENT_NAME);
+    }
+
     // to load and configure server's sub-systems
     @SuppressWarnings("unchecked")
     private boolean configureServerSystems(final Element serverXml) throws IOException, DataConversionException {
@@ -368,11 +392,13 @@ public class ApplicationServerAdapter extends RunnableUnitAdapter implements App
             try {
                 localRegistry = LocateRegistry.createRegistry(rmi.port);
             } catch(java.rmi.server.ExportException e) {
+                this.unitState = UnitState.BROKEN;
                 e.printStackTrace(Tools.err);
                 // detected another copy of RMI Registry server
                 Tools.error("Only one copy of running Server is Valid\nThis copy will be stopped.)");
                 throw new InternalError("Another copy of VisualCTI Server is detected", e);
             } catch (java.rmi.RemoteException e) {
+                this.unitState = UnitState.BROKEN;
                 Tools.error("Application RMI make failed " + e.getMessage());
                 throw new InternalError("Create registry invalid", e);
             }
