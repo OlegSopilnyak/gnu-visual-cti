@@ -40,6 +40,9 @@ package org.visualcti.server;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
@@ -47,11 +50,17 @@ import static org.mockito.Mockito.verify;
 import java.io.IOException;
 import java.io.InputStream;
 import java.rmi.server.ExportException;
+import java.util.Collection;
 import java.util.stream.Stream;
 import org.jdom.DataConversionException;
 import org.junit.After;
 import org.junit.Test;
 import org.visualcti.server.core.system.SubSystem;
+import org.visualcti.server.core.unit.RunnableServerUnit;
+import org.visualcti.server.core.unit.message.MessageFamilyType;
+import org.visualcti.server.core.unit.message.MessageType;
+import org.visualcti.server.core.unit.message.UnitMessage;
+import org.visualcti.server.core.unit.message.command.ServerCommandRequest;
 
 public class ApplicationServerAdapterTest {
 
@@ -122,66 +131,269 @@ public class ApplicationServerAdapterTest {
 
     @Test
     public void saveServerXml() {
+        // TODO implement it or remove it
     }
 
     @Test
-    public void handleUnitMessage() {
+    public void shouldGetListeners() throws Exception {
+        // preparing test data
+        application.initialize();
+
+        // acting
+        Collection<UnitMessage.Listener> listeners = application.listeners();
+
+        // check the behavior
+        // check results
+        assertThat(listeners).hasSize(1).contains(application);
     }
 
     @Test
-    public void start() {
+    public void shouldNotifyListener() {
+        // preparing test data
+        UnitMessage.Listener listener = mock(UnitMessage.Listener.class);
+        application.addUnitMessageListener(listener);
+        UnitMessage message = mock(UnitMessage.class);
+
+        // acting
+        application.notifyListener(listener, message);
+
+        // check the behavior
+        verify(listener).handleUnitMessage(message);
     }
 
     @Test
-    public void stop() {
+    public void shouldNotifyListeners() throws Exception {
+        // preparing test data
+        application.initialize();
+        UnitMessage.Listener listener = mock(UnitMessage.Listener.class);
+        application.addUnitMessageListener(listener);
+        UnitMessage message = mock(UnitMessage.class);
+
+        // acting
+        application.notifyListeners(message);
+
+        // check the behavior
+        verify(application).notifyListener(listener, message);
+        verify(application).processUnitMessage(message);
     }
 
     @Test
-    public void startingEngine() {
+    public void shouldAddUnitMessageListener() {
+        // preparing test data
+        UnitMessage.Listener listener = mock(UnitMessage.Listener.class);
+        assertThat(application.listeners()).isEmpty();
+
+        // acting
+        application.addUnitMessageListener(listener);
+
+        // check results
+        assertThat(application.listeners()).contains(listener);
     }
 
     @Test
-    public void stoppingEngine() {
+    public void shouldNotAddUnitMessageListener_Duplication() {
+        // preparing test data
+        UnitMessage.Listener listener = mock(UnitMessage.Listener.class);
+        assertThat(application.listeners()).isEmpty();
+        application.addUnitMessageListener(listener);
+        reset(application);
+
+        // acting
+        application.addUnitMessageListener(listener);
+
+        // check results
+        assertThat(application.listeners()).hasSize(1);
     }
 
     @Test
-    public void execute() {
+    public void shouldRemoveUnitMessageListener() {
+        // preparing test data
+        UnitMessage.Listener listener = mock(UnitMessage.Listener.class);
+        application.addUnitMessageListener(listener);
+        assertThat(application.listeners()).contains(listener);
+        reset(application);
+
+        // acting
+        application.removeUnitMessageListener(listener);
+
+        // check results
+        assertThat(application.listeners()).isEmpty();
+    }
+
+    @Test
+    public void shouldHandleUnitMessage() throws Exception {
+        // preparing test data
+        application.initialize();
+        UnitMessage.Listener listener = mock(UnitMessage.Listener.class);
+        application.addUnitMessageListener(listener);
+        UnitMessage message = mock(UnitMessage.class);
+
+        // acting
+        application.handleUnitMessage(message);
+
+        // check the behavior
+        verify(application).notifyListeners(message);
+        verify(application).processUnitMessage(message);
+        verify(application).notifyListener(listener, message);
+        verify(listener).handleUnitMessage(message);
+        // check results
+    }
+
+    @Test
+    public void shouldStartServer() throws Exception {
+        // preparing test data
+        application.initialize();
+        assertThat(application.isStarted()).isFalse();
+        assertThat(application.isStopped()).isTrue();
+        reset(application);
+
+        // acting
+        application.Start();
+
+        // check the behavior
+        verify(application).isBroken();
+        verify(application).isStarted();
+        verify(application).canStartUnit();
+        verify(application).startUnitRunnable();
+        verify(application).runnableChildren();
+        verify(application).currentUnitState(RunnableServerUnit.UnitState.ACTIVE);
+        verify(application).getMessageFactory();
+        verify(application, atLeastOnce()).dispatch(any(UnitMessage.class));
+        // check results
+        assertThat(application.isStarted()).isTrue();
+        assertThat(application.isStopped()).isFalse();
+    }
+
+    @Test
+    public void shouldCanStartApplicationServerUnit() throws Exception {
+        // preparing test data
+        application.initialize();
+
+        // acting
+        boolean canStart = application.canStartUnit();
+
+        // check results
+        assertThat(canStart).isTrue();
+    }
+
+    @Test
+    public void shouldCantStartApplicationServerUnit_NoSubSystemToStart() throws Exception {
+        // preparing test data
+        application.initialize();
+        doReturn(Stream.empty()).when(application).serverParts();
+
+        // acting
+        boolean canStart = application.canStartUnit();
+
+        // check results
+        assertThat(canStart).isFalse();
+    }
+
+    @Test
+    public void shouldStartServerSystems() throws Exception {
+        // preparing test data
+        application.initialize();
+//        int children = application.serverParts().map(SubSystem::getSystemManager)
+//                .map(unit -> unit.runnableChildren().count()).map(Long::intValue)
+//                .reduce(0, Integer::sum);
+        application.serverParts().forEach(sys -> assertThat(sys.getSystemManager().isStarted()).isFalse());
+        reset(application);
+
+        // acting
+        application.startUnitRunnable();
+
+        // check the behavior
+        verify(application, atLeastOnce()).startUnitChild(any(RunnableServerUnit.class));
+        verify(application, atLeastOnce()).dispatch(any(UnitMessage.class));
+        // check results
+        application.serverParts().forEach(sys -> assertThat(sys.getSystemManager().isStarted()).isTrue());
+    }
+
+    @Test
+    public void shouldStopServer() throws Exception {
+        // preparing test data
+        application.initialize();
+        application.Start();
+        assertThat(application.isStarted()).isTrue();
+        assertThat(application.isStopped()).isFalse();
+        reset(application);
+
+        // acting
+        application.Stop();
+
+        // check the behavior
+        verify(application).isBroken();
+        verify(application).isStopped();
+        verify(application).stopUnitRunnable();
+        verify(application).runnableChildren();
+        verify(application).currentUnitState(RunnableServerUnit.UnitState.PASSIVE);
+        verify(application).getMessageFactory();
+        verify(application, atLeastOnce()).dispatch(any(UnitMessage.class));
+        // check results
+        assertThat(application.isStarted()).isFalse();
+        assertThat(application.isStopped()).isTrue();
+    }
+
+    @Test
+    public void shouldStopServerSystems() throws Exception {
+        // preparing test data
+        application.initialize();
+        application.Start();
+        application.serverParts().forEach(sys -> assertThat(sys.getSystemManager().isStarted()).isTrue());
+        reset(application);
+
+        // acting
+        application.stopUnitRunnable();
+
+        // check the behavior
+        verify(application, atLeastOnce()).stopUnitChild(any(RunnableServerUnit.class));
+        verify(application, atLeastOnce()).dispatch(any(UnitMessage.class));
+        // check results
+        application.serverParts().forEach(sys -> assertThat(sys.getSystemManager().isStarted()).isFalse());
+    }
+
+    @Test
+    public void shouldDontDoStartingEngine_FromEngineStart() {
+        // preparing test data
+
+        // acting
+        Exception e = assertThrows(Exception.class, () -> application.startingEngine());
+
+        // check results
+        assertThat(e).isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    @Test
+    public void shouldDontDoStoppingEngine_FromEngineStop() {
+        // preparing test data
+
+        // acting
+        Exception e = assertThrows(Exception.class, () -> application.stoppingEngine());
+
+        // check results
+        assertThat(e).isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    @Test
+    public void shouldExecuteStartCommand() throws Exception {
+        // preparing test data
+        application.initialize();
+        ServerCommandRequest startCommand = application.getMessageFactory()
+                .buildFor(application, MessageType.COMMAND, MessageFamilyType.START, "Start server");
+        reset(application);
+
+        // acting
+        application.execute(startCommand);
+
+        // check the behavior
+        verify(application).Start();
+        verify(application).startUnitRunnable();
+        // check results
+        assertThat(application.isStarted()).isTrue();
     }
 
     @Test
     public void dispatch() {
-    }
-
-    @Test
-    public void processUnitMessage() {
-    }
-
-    @Test
-    public void testHandleUnitMessage() {
-    }
-
-    @Test
-    public void notifyListeners() {
-    }
-
-    @Test
-    public void notifyListener() {
-    }
-
-    @Test
-    public void listeners() {
-    }
-
-    @Test
-    public void addUnitMessageListener() {
-    }
-
-    @Test
-    public void removeUnitMessageListener() {
-    }
-
-    @Test
-    public void canStartUnit() {
     }
 
     @Test
@@ -190,10 +402,6 @@ public class ApplicationServerAdapterTest {
 
     @Test
     public void setXML() {
-    }
-
-    @Test
-    public void validateCommand() {
     }
 
     @Test

@@ -52,7 +52,10 @@ import org.visualcti.server.task.TaskPool;
 
 /**
 Main class of VisualCTI Server
+
+ @deprecated
 */
+@Deprecated
 public final class Server extends serverUnitAdapter
 {
     /** Constructor */

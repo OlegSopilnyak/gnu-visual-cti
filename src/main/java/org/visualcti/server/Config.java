@@ -44,7 +44,10 @@ import org.visualcti.util.Tools;
 import org.jdom.*;
 /**
 Class for process XML config
+
+ @deprecated
 */
+@Deprecated
 public class Config
 {
 /**

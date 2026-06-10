@@ -109,6 +109,17 @@ public interface ApplicationServerUnit extends RunnableServerUnit {
     Stream<SubSystem> serverParts();
 
     /**
+     * <checker>
+     * To check is unit can start according the internal state
+     *
+     * @return true if unit can start
+     */
+    @Override
+    default boolean canStartUnit() {
+        return serverParts().findAny().isPresent();
+    }
+
+    /**
      * <server-configuration-keeper>
      * To load server configuration from the external XML file
      *

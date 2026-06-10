@@ -51,6 +51,7 @@ import org.visualcti.server.core.unit.message.action.UnitActionError;
 import org.visualcti.server.core.unit.message.command.ServerCommandRequest;
 import org.visualcti.server.core.unit.message.command.UnknownCommandException;
 import org.visualcti.server.core.unit.part.UnitMessageExchange;
+import org.visualcti.util.Tools;
 
 /**
  * <singleton>
@@ -84,8 +85,8 @@ public interface RunnableServerUnit extends ServerUnit, Engine, UnitMessage.List
         public static UnitState of(Object state) {
             return state instanceof UnitState ? (UnitState) state :
                     Arrays.stream(UnitState.values())
-                    .filter(unitState -> unitState.state.equalsIgnoreCase((String) state))
-                    .findFirst().orElse(null);
+                            .filter(unitState -> unitState.state.equalsIgnoreCase((String) state))
+                            .findFirst().orElse(null);
         }
 
         @Override
@@ -171,8 +172,8 @@ public interface RunnableServerUnit extends ServerUnit, Engine, UnitMessage.List
      * @see #handleUnitMessage(UnitMessage)
      */
     default void processUnitMessage(UnitMessage message) {
-        System.err.println("\tWarning! in the Unit " + this.getName());
-        System.err.println("\tUnprocessed message [" + message + "]\n\tThe message will be lost...");
+        Tools.error("\tWarning! in the Unit " + this.getName());
+        Tools.error("\tUnprocessed message [" + message + "]\n\tThe message will be lost...");
     }
 
     /**
@@ -225,7 +226,7 @@ public interface RunnableServerUnit extends ServerUnit, Engine, UnitMessage.List
      * to process unit message through the messages listener of the unit
      *
      * @param listener the listener of unit message
-     * @param message the message to process
+     * @param message  the message to process
      * @see #notifyListeners(UnitMessage)
      * @see UnitMessage
      * @see UnitMessage.Listener
@@ -367,6 +368,7 @@ public interface RunnableServerUnit extends ServerUnit, Engine, UnitMessage.List
      * To start the runnable unit
      *
      * @throws IOException if the unit can't be started
+     * @see Engine#Start()
      * @see #isBroken()
      * @see #isStarted()
      * @see #canStartUnit()
@@ -392,7 +394,7 @@ public interface RunnableServerUnit extends ServerUnit, Engine, UnitMessage.List
             // setting up new runnable unit state
             currentUnitState(UnitState.ACTIVE);
             // dispatch unit started message
-            final String messageDescription = "Started server unit with name (" + getName() +") and type " + getType();
+            final String messageDescription = "Started server unit with name (" + getName() + ") and type " + getType();
             dispatch(getMessageFactory().buildFor(this, MessageType.EVENT, MessageFamilyType.START, messageDescription));
         }
     }
@@ -406,10 +408,12 @@ public interface RunnableServerUnit extends ServerUnit, Engine, UnitMessage.List
     default boolean canStartUnit() {
         return true;
     }
+
     /**
      * <action>
      * To start the internal runnable parts of the unit
      *
+     * @see #Start()
      */
     default void startUnitRunnable() {
         // do nothing by default for internal running
@@ -459,7 +463,7 @@ public interface RunnableServerUnit extends ServerUnit, Engine, UnitMessage.List
         // setting up new runnable unit state
         currentUnitState(UnitState.PASSIVE);
         // dispatch unit started message
-        final String messageDescription = "Stopped server unit with name (" + getName() +") and type " + getType();
+        final String messageDescription = "Stopped server unit with name (" + getName() + ") and type " + getType();
         dispatch(getMessageFactory().buildFor(this, MessageType.EVENT, MessageFamilyType.STOP, messageDescription));
     }
 
@@ -467,6 +471,7 @@ public interface RunnableServerUnit extends ServerUnit, Engine, UnitMessage.List
      * <action>
      * To stop the internal runnable parts of the unit
      *
+     * @see #Stop()
      */
     default void stopUnitRunnable() {
         // do nothing by default for internal running

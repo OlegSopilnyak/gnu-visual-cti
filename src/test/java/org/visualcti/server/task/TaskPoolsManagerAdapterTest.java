@@ -144,15 +144,14 @@ public class TaskPoolsManagerAdapterTest {
 
         // check the behavior
         verify(manager).taskPoolStreamBy(any(Predicate.class));
-        verify(poolUnit).close();
-        verify(poolUnit, times(2)).getPoolName();
-        verify(poolUnit, times(3)).getPoolGroup();
+        verify(poolUnit, times(2)).close();
+        verify(poolUnit, times(3)).getPoolName();
+        verify(poolUnit, times(5)).getPoolGroup();
         verify(manager).isChild(poolUnit);
         verify(poolUnit).Stop();
         verify(manager).remove(poolUnit);
         verify(poolUnit).setOwner(null);
         verify(manager).removeBranch(poolUnit);
-        verify(poolUnit).close();
         // check results
         assertThat(detached).isSameAs(poolUnit);
         assertThat(manager.children().count()).isZero();
@@ -197,7 +196,7 @@ public class TaskPoolsManagerAdapterTest {
     }
 
     @Test
-    public void shouldNotGetPublicTaskPool_NoPublicPools() throws IOException {
+    public void shouldNotGetPublicTaskPool_NoPublicPools() {
         // preparing test data
         String poolName = "pool6";
         String poolGroup = "poolGroup6";
@@ -299,7 +298,7 @@ public class TaskPoolsManagerAdapterTest {
         String poolName = "dxxxB1C1";
         String poolGroup = "poolGroup10";
         File poolFile = new File(manager.getRoot(), poolName + ".tasks.pool");
-        assertThat(poolFile.exists()).isTrue();
+        assertThat(poolFile).exists();
         reset(manager);
 
         // acting
@@ -320,7 +319,7 @@ public class TaskPoolsManagerAdapterTest {
     }
 
     @Test
-    public void shouldNotCreateTaskPool_WrongPoolName() throws IOException {
+    public void shouldNotCreateTaskPool_WrongPoolName() {
         // preparing test data
         String poolName = "dxxx??C1";
         String poolGroup = "poolGroup11";
@@ -364,7 +363,7 @@ public class TaskPoolsManagerAdapterTest {
                 .setAttribute("type", "string")
                 .setAttribute("value", rootDirectory);
         Element xml = new Element("TasksManager").addContent(parameterXml);
-        assertThat(manager.getRoot().getName()).isEqualTo("tasks");
+        assertThat(manager.getRoot()).hasName("tasks");
 
         // acting
         manager.setXML(xml);
@@ -375,7 +374,7 @@ public class TaskPoolsManagerAdapterTest {
         verify(manager).applyUnitParameter(parameterCaptor.capture());
         ConfigurationParameter parameter = parameterCaptor.getValue();
         // check results
-        assertThat(manager.getRoot().getName()).isEqualTo(rootDirectory);
+        assertThat(manager.getRoot()).hasName(rootDirectory);
         String managerRootDirectory = parameter.getValue();
         assertThat(managerRootDirectory).isEqualTo(rootDirectory);
         assertThat(manager.getRoot()).isEqualTo(rootDirectoryFile);
@@ -391,7 +390,7 @@ public class TaskPoolsManagerAdapterTest {
                 .setAttribute("type", "string")
                 .setAttribute("value", rootDirectory);
         Element xml = new Element("TasksManager").addContent(parameterXml);
-        assertThat(manager.getRoot().getName()).isEqualTo("tasks");
+        assertThat(manager.getRoot()).hasName("tasks");
 
         // acting
         manager.setXML(xml);
@@ -401,7 +400,7 @@ public class TaskPoolsManagerAdapterTest {
         verify(manager).applyUnitParameter(parameterCaptor.capture());
         ConfigurationParameter parameter = parameterCaptor.getValue();
         // check results
-        assertThat(manager.getRoot().getName()).isEqualTo("tasks");
+        assertThat(manager.getRoot()).hasName("tasks");
         String managerRootDirectory = parameter.getValue();
         assertThat(managerRootDirectory).isEqualTo(rootDirectory);
         assertThat(xml.getChild("builder")).isNotNull();
@@ -416,7 +415,7 @@ public class TaskPoolsManagerAdapterTest {
             rootDirectoryFile.mkdir();
         }
         ConfigurationParameter parameter = ConfigurationParameter.of("directory", rootDirectory);
-        assertThat(manager.getRoot().getName()).isEqualTo("tasks");
+        assertThat(manager.getRoot()).hasName("tasks");
 
         // acting
         manager.applyUnitParameter(parameter);
@@ -424,7 +423,7 @@ public class TaskPoolsManagerAdapterTest {
         // check the behavior
         rootDirectoryFile.delete();
         // check results
-        assertThat(manager.getRoot().getName()).isEqualTo(rootDirectory);
+        assertThat(manager.getRoot()).hasName(rootDirectory);
     }
 
     @Test
@@ -432,13 +431,13 @@ public class TaskPoolsManagerAdapterTest {
         // preparing test data
         String rootDirectory = "root-directory";
         ConfigurationParameter parameter = ConfigurationParameter.of("directory", rootDirectory);
-        assertThat(manager.getRoot().getName()).isEqualTo("tasks");
+        assertThat(manager.getRoot()).hasName("tasks");
 
         // acting
         manager.applyUnitParameter(parameter);
 
         // check results
-        assertThat(manager.getRoot().getName()).isEqualTo("tasks");
+        assertThat(manager.getRoot()).hasName("tasks");
     }
 
     @Test
@@ -477,7 +476,7 @@ public class TaskPoolsManagerAdapterTest {
         assertThat(manager.isStarted()).isTrue();
         assertThat(poolUnit.isStarted()).isTrue();
         List<UnitMessage> dispatched = managerMessageCaptor.getAllValues();
-        assertThat(dispatched.size()).isEqualTo(2);
+        assertThat(dispatched).hasSize(2);
         // dispatched from pool's dispatch to the owner
         assertThat(dispatched.get(0).getUnitPath()).isEqualTo(poolUnit.getPath());
         assertThat(dispatched.get(1).getUnitPath()).isEqualTo(manager.getPath());
@@ -568,7 +567,7 @@ public class TaskPoolsManagerAdapterTest {
         assertThat(manager.isStopped()).isTrue();
         assertThat(poolUnit.isStopped()).isTrue();
         List<UnitMessage> dispatched = managerMessageCaptor.getAllValues();
-        assertThat(dispatched.size()).isEqualTo(2);
+        assertThat(dispatched).hasSize(2);
         // dispatched from pool's dispatch to the owner
         assertThat(dispatched.get(0).getUnitPath()).isEqualTo(poolUnit.getPath());
         assertThat(dispatched.get(1).getUnitPath()).isEqualTo(manager.getPath());
@@ -726,7 +725,7 @@ public class TaskPoolsManagerAdapterTest {
     //private methods
     private void checkTasksListFileFor(String poolName) {
         File poolFile = new File(manager.getRoot(), poolName + ".tasks.pool");
-        assertThat(poolFile.exists()).isTrue();
+        assertThat(poolFile).exists();
         poolFile.deleteOnExit();
     }
 }

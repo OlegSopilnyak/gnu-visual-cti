@@ -56,6 +56,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -66,7 +67,9 @@ import org.jdom.Document;
 import org.jdom.Element;
 import org.visualcti.server.core.system.SubSystem;
 import org.visualcti.server.core.unit.ApplicationServerUnit;
+import org.visualcti.server.core.unit.RunnableServerUnit;
 import org.visualcti.server.core.unit.ServerUnit;
+import org.visualcti.server.core.unit.message.UnitMessage;
 import org.visualcti.server.system.TasksSubSystem;
 import org.visualcti.server.unit.RunnableUnitAdapter;
 import org.visualcti.util.Tools;
@@ -94,6 +97,18 @@ public class ApplicationServerAdapter extends RunnableUnitAdapter implements App
     // The format of DateTime using for to String transformation
     private Format dateTimeFormat = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT);
 
+    @Deprecated
+    @Override
+    public String getName() {
+        return ApplicationServerUnit.super.getName();
+    }
+
+    @Deprecated
+    @Override
+    public String getType() {
+        return ApplicationServerUnit.super.getType();
+    }
+
     /**
      * <action>
      * Closing the server unit, releasing attached resources and restoring original unitPath
@@ -103,11 +118,39 @@ public class ApplicationServerAdapter extends RunnableUnitAdapter implements App
      */
     @Override
     public void close() throws IOException {
+        this.unitPath = SERVER_UNIT_PATH_IN_REGISTRY;
         if (localRegistry != null) {
             UnicastRemoteObject.unexportObject(localRegistry,true);
             localRegistry = null;
         }
+        removeUnitMessageListener(this);
         system.clear();
+    }
+
+    /**
+     * To change the server's configuration file
+     * Using only for tests purposes
+     *
+     * @param serverConfigFile new file value
+     * @see #loadServerXml()
+     * @see #saveServerXml()
+     */
+    public void setServerConfigFile(File serverConfigFile) {
+        this.serverConfigFile = serverConfigFile;
+    }
+
+
+    /**
+     * <action>
+     * Processing message in this unit
+     *
+     * @param message the message to process
+     * @see UnitMessage
+     * @see #handleUnitMessage(UnitMessage)
+     */
+    @Override
+    public void processUnitMessage(UnitMessage message) {
+        Tools.print("\tProcessing message [" + message + "]\n\tThe message will be lost...");
     }
 
     /**
@@ -137,8 +180,50 @@ public class ApplicationServerAdapter extends RunnableUnitAdapter implements App
         exposeRmiRegistry();
         // setup server's unit-path to the root unit
         this.unitPath = SERVER_UNIT_PATH_IN_REGISTRY;
+        // adding as server unit message listener
+        addUnitMessageListener(this);
         // registering server as server-unit in the units registry
         UnitRegistry.register(this);
+    }
+
+    @Deprecated
+    @Override
+    public boolean canStartUnit() {
+        return ApplicationServerUnit.super.canStartUnit();
+    }
+
+    /**
+     * <action>
+     * To start the internal runnable parts of the unit
+     * Starting server's sub-systems
+     *
+     * @see RunnableServerUnit#Start()
+     * @see RunnableServerUnit#startUnitChild(RunnableServerUnit)
+     * @see SubSystem#getSystemManager()
+     */
+    @Override
+    public void startUnitRunnable() {
+        safeServerSystemsAction(() -> system.values().stream()
+                .peek(subSystem -> startUnitChild(subSystem.getSystemManager()))
+                .reduce((first, second) -> second).orElse(null)
+        );
+    }
+
+    /**
+     * <action>
+     * To stop the internal runnable parts of the unit
+     * Stopping server's sub-systems
+     *
+     * @see RunnableServerUnit#Stop()
+     * @see RunnableServerUnit#stopUnitChild(RunnableServerUnit)
+     * @see SubSystem#getSystemManager()
+     */
+    @Override
+    public void stopUnitRunnable() {
+        safeServerSystemsAction(() -> system.values().stream()
+                .peek(subSystem -> stopUnitChild(subSystem.getSystemManager()))
+                .reduce((first, second) -> second).orElse(null)
+        );
     }
 
     /**
@@ -220,7 +305,7 @@ public class ApplicationServerAdapter extends RunnableUnitAdapter implements App
         // cleaning server units registry
         UnitRegistry.clear();
         // setup server's unit-path to the root unit
-        this.unitPath = "/";
+        this.unitPath = "";
         // removing systems from server configuration XML document
         this.serverConfigurationElement.removeChildren(SYSTEM_ROOT_ELEMENT_NAME);
     }
@@ -261,9 +346,17 @@ public class ApplicationServerAdapter extends RunnableUnitAdapter implements App
 
     // to get subsystem by its name
     private SubSystem getSubSystem(String subSystemName) {
+        return safeServerSystemsAction(() -> system.computeIfAbsent(subSystemName, this::createSubSystem));
+    }
+
+    // to do action with protected server systems container
+    private SubSystem safeServerSystemsAction(final Callable<SubSystem> action) {
         subSystemLock.lock();
         try {
-            return system.computeIfAbsent(subSystemName, this::createSubSystem);
+            return action.call();
+        } catch (Exception e) {
+            dispatchError(e, "Error while calling server action!");
+            return null;
         } finally {
             subSystemLock.unlock();
         }

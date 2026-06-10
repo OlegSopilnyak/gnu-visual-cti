@@ -42,6 +42,9 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Stream;
 import org.jdom.Element;
 import org.visualcti.server.core.unit.RunnableServerUnit;
@@ -64,6 +67,8 @@ import org.visualcti.server.core.unit.message.command.ServerCommandRequest;
 public abstract class RunnableUnitAdapter extends ServerUnitAdapter implements RunnableServerUnit {
     // the listeners of unit messages
     private Collection<UnitMessage.Listener> listeners = Collections.emptyList();
+    // the lock for listeners
+    private final Lock listenersLock = new ReentrantLock();
     // The current state of the unit
     protected UnitState unitState = UnitState.PASSIVE;
 
@@ -98,7 +103,7 @@ public abstract class RunnableUnitAdapter extends ServerUnitAdapter implements R
      */
     @Override
     public Collection<UnitMessage.Listener> listeners() {
-        return listeners;
+        return safeListenersAction(() -> listeners);
     }
 
     /**
@@ -110,10 +115,16 @@ public abstract class RunnableUnitAdapter extends ServerUnitAdapter implements R
      */
     @Override
     public void addUnitMessageListener(UnitMessage.Listener listener) {
-        final List<UnitMessage.Listener> listeners = new LinkedList<>(this.listeners);
-        listeners.add(listener);
-        // safe updating of listeners list
-        this.listeners = Collections.unmodifiableList(listeners);
+        safeListenersAction(() -> {
+            final List<UnitMessage.Listener> tempListeners = new LinkedList<>(this.listeners);
+            if (tempListeners.stream().noneMatch(lsnr -> listener == lsnr)) {
+                // adding not exists listener
+                tempListeners.add(listener);
+                // safe updating of listeners list
+                this.listeners = Collections.unmodifiableList(tempListeners);
+            }
+            return listeners;
+        });
     }
 
     /**
@@ -125,10 +136,16 @@ public abstract class RunnableUnitAdapter extends ServerUnitAdapter implements R
      */
     @Override
     public void removeUnitMessageListener(UnitMessage.Listener listener) {
-        final List<UnitMessage.Listener> listeners = new LinkedList<>(this.listeners);
-        listeners.remove(listener);
-        // safe updating of listeners list
-        this.listeners = Collections.unmodifiableList(listeners);
+        safeListenersAction(() -> {
+            final List<UnitMessage.Listener> tempListeners = new LinkedList<>(this.listeners);
+            if (tempListeners.stream().anyMatch(lsnr -> listener == lsnr)) {
+                // removing exists listener
+                tempListeners.remove(listener);
+                // safe updating of listeners list
+                this.listeners = Collections.unmodifiableList(tempListeners);
+            }
+            return listeners;
+        });
     }
 
     @Deprecated
@@ -153,6 +170,12 @@ public abstract class RunnableUnitAdapter extends ServerUnitAdapter implements R
     @Override
     public void Start() throws IOException {
         RunnableServerUnit.super.Start();
+    }
+
+    @Deprecated
+    @Override
+    public void startingEngine() throws IOException {
+        RunnableServerUnit.super.startingEngine();
     }
 
     @Deprecated
@@ -183,6 +206,12 @@ public abstract class RunnableUnitAdapter extends ServerUnitAdapter implements R
     @Override
     public void Stop() throws IOException {
         RunnableServerUnit.super.Stop();
+    }
+
+    @Deprecated
+    @Override
+    public void stoppingEngine() throws IOException {
+        RunnableServerUnit.super.stoppingEngine();
     }
 
     @Deprecated
@@ -227,10 +256,24 @@ public abstract class RunnableUnitAdapter extends ServerUnitAdapter implements R
         RunnableServerUnit.super.handleUnitMessage(message);
     }
 
-    @Deprecated
+
+    /**
+     * <action>
+     * to notify unit's message listeners
+     *
+     * @param message the message to handle by listener
+     * @see #handleUnitMessage(UnitMessage)
+     * @see UnitMessage
+     * @see #listeners()
+     * @see #processUnitMessage(UnitMessage)
+     * @see #notifyListener(UnitMessage.Listener, UnitMessage)
+     */
     @Override
     public void notifyListeners(UnitMessage message) {
-        RunnableServerUnit.super.notifyListeners(message);
+        safeListenersAction(() -> {
+            RunnableServerUnit.super.notifyListeners(message);
+            return listeners;
+        });
     }
 
     @Deprecated
@@ -261,5 +304,19 @@ public abstract class RunnableUnitAdapter extends ServerUnitAdapter implements R
         unitState = UnitState.BROKEN;
         // dispatching malfunction cause to the event-listeners
         dispatchError(e, "Cannot restore server unit :" + getName());
+    }
+
+    // private methods
+    // to do action with protected messages listeners container
+    private Collection<UnitMessage.Listener> safeListenersAction(final Callable<Collection<UnitMessage.Listener>> action) {
+        listenersLock.lock();
+        try {
+            return action.call();
+        } catch (Exception e) {
+            dispatchError(e, "Error while calling messages listeners action!");
+            return Collections.emptySet();
+        } finally {
+            listenersLock.unlock();
+        }
     }
 }
