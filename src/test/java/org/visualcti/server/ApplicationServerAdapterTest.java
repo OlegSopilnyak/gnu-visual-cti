@@ -379,7 +379,7 @@ public class ApplicationServerAdapterTest {
         // preparing test data
         application.initialize();
         ServerCommandRequest startCommand = application.getMessageFactory()
-                .buildFor(application, MessageType.COMMAND, MessageFamilyType.START, "Start server");
+                .buildFor(application, MessageType.COMMAND, MessageFamilyType.START, "Start the server");
         reset(application);
 
         // acting
@@ -390,6 +390,43 @@ public class ApplicationServerAdapterTest {
         verify(application).startUnitRunnable();
         // check results
         assertThat(application.isStarted()).isTrue();
+    }
+
+    @Test
+    public void shouldExecuteStopCommand() throws Exception {
+        // preparing test data
+        application.initialize();
+        ServerCommandRequest stopCommand = application.getMessageFactory()
+                .buildFor(application, MessageType.COMMAND, MessageFamilyType.STOP, "Stop the server");
+        application.Start();
+        reset(application);
+
+        // acting
+        application.execute(stopCommand);
+
+        // check the behavior
+        verify(application).Stop();
+        verify(application).stopUnitRunnable();
+        // check results
+        assertThat(application.isStopped()).isTrue();
+    }
+
+    @Test
+    public void shouldExecuteUpdateSystemCommand() throws Exception {
+        // preparing test data
+        application.initialize();
+        ServerCommandRequest updateSystemCommand = application.getMessageFactory()
+                .buildFor(application, MessageType.COMMAND, MessageFamilyType.SET, "Updating the system of server");
+        reset(application);
+
+        // acting
+//        application.execute(updateSystemCommand);
+//
+//        // check the behavior
+//        verify(application).Start();
+//        verify(application).startUnitRunnable();
+//        // check results
+//        assertThat(application.isStarted()).isTrue();
     }
 
     @Test

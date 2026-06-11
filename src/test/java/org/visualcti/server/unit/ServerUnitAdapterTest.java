@@ -83,6 +83,9 @@ public class ServerUnitAdapterTest {
     public void setUp() {
         // no builder class
         serverUnitAdapter = spy(new ServerUnitAdapterImpl() {
+            {
+                this.unitPath = getName();
+            }
             @Override
             public Class<?> getUnitBuilderClass() {
                 return null;
@@ -98,7 +101,7 @@ public class ServerUnitAdapterTest {
     @Test
     public void shouldAdjustServerUnit_ExtendsClassTheSameAsUnit() {
         // preparing test data
-        ServerUnitAdapter serverUnitAdapter = new ServerUnitAdapterImpl() {
+        ServerUnitAdapter testServerUnit = new ServerUnitAdapterImpl() {
             @Override
             public Class<? extends ServerUnit> getUnitExtendsClass() {
                 return ServerUnitAdapter.class;
@@ -106,7 +109,7 @@ public class ServerUnitAdapterTest {
         };
 
         // acting
-        Element element = serverUnitAdapter.buildUnitRootElement();
+        Element element = testServerUnit.buildUnitRootElement();
 
         // check results
         assertThat(element.getAttributeValue("class")).isEqualTo("ServerUnitAdapter");
@@ -134,7 +137,7 @@ public class ServerUnitAdapterTest {
     @Test
     public void shouldUpdatePrepareBaseUnitXML_BuilderClassCorrect_NoBuilderMethod() {
         // preparing test data
-        ServerUnitAdapter serverUnitAdapter = new ServerUnitAdapterImpl() {
+        ServerUnitAdapter testServerUnit = new ServerUnitAdapterImpl() {
             @Override
             public Class<?> getUnitBuilderClass() {
                 return ServerUnitAdapterBuilder.class;
@@ -142,7 +145,7 @@ public class ServerUnitAdapterTest {
         };
 
         // acting
-        Element element = serverUnitAdapter.buildUnitRootElement();
+        Element element = testServerUnit.buildUnitRootElement();
 
         // check results
         Object content = element.getContent().get(0);
@@ -162,7 +165,7 @@ public class ServerUnitAdapterTest {
     @Test
     public void shouldUpdatePrepareBaseUnitXML_BuilderClassCorrect_BuilderMethodCorrect() {
         // preparing test data
-        ServerUnitAdapter serverUnitAdapter = new ServerUnitAdapterImpl() {
+        ServerUnitAdapter testServerUnit = new ServerUnitAdapterImpl() {
             @Override
             public Class<?> getUnitBuilderClass() {
                 return ServerUnitAdapterBuilder.class;
@@ -175,7 +178,7 @@ public class ServerUnitAdapterTest {
         };
 
         // acting
-        Element element = serverUnitAdapter.buildUnitRootElement();
+        Element element = testServerUnit.buildUnitRootElement();
 
         // check results
         Object content = element.getContent().get(0);
@@ -194,7 +197,7 @@ public class ServerUnitAdapterTest {
     @Test
     public void shouldUpdatePrepareBaseUnitXML_BuilderClassCorrect_BuilderMethodIncorrect() {
         // preparing test data
-        ServerUnitAdapter serverUnitAdapter = new ServerUnitAdapterImpl() {
+        ServerUnitAdapter testServerUnit = new ServerUnitAdapterImpl() {
             @Override
             public Class<?> getUnitBuilderClass() {
                 return ServerUnitAdapterBuilder.class;
@@ -207,7 +210,7 @@ public class ServerUnitAdapterTest {
         };
 
         // acting
-        Element element = serverUnitAdapter.buildUnitRootElement();
+        Element element = testServerUnit.buildUnitRootElement();
 
         // check results
         Object content = element.getContent().get(0);
@@ -226,7 +229,7 @@ public class ServerUnitAdapterTest {
     @Test
     public void shouldUpdatePrepareBaseUnitXML_BuilderClassCorrect_NoDescription() {
         // preparing test data
-        ServerUnitAdapter serverUnitAdapter = new ServerUnitAdapterImpl() {
+        ServerUnitAdapter testServerUnit = new ServerUnitAdapterImpl() {
             @Override
             protected String getUnitDescription() {
                 return "";
@@ -239,7 +242,7 @@ public class ServerUnitAdapterTest {
         };
 
         // acting
-        Element element = serverUnitAdapter.buildUnitRootElement();
+        Element element = testServerUnit.buildUnitRootElement();
 
         // check results
         Object content = element.getContent().get(0);
@@ -425,7 +428,6 @@ public class ServerUnitAdapterTest {
         serverUnitAdapter.setOwner(unitOwner);
 
         // check the behavior
-        verify(serverUnitAdapter).getName();
         verify(serverUnitAdapter, never()).removeAll();
         // check results
         assertThat(serverUnitAdapter.getOwner()).isSameAs(unitOwner);

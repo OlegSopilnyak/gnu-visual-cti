@@ -121,6 +121,7 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
                 : builderElement
                 ;
     };
+    public static final String UNIT_PATH_DELIMITER = "/";
     //
     // main properties of the unit
     // loaded or built unit XML element
@@ -132,7 +133,7 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
     // The path to unit instance in repository
     protected String unitPath = "";
     // The to the owner of this unit
-    protected ServerUnit owner;
+    protected transient ServerUnit owner;
     // the branches of server units tree
     private final Collection<ServerUnit> branches = new ArrayList<>();
     // the properties of the unit
@@ -621,11 +622,13 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
         UnitRegistry.unRegister(this);
         // unit detached from the units  registry
         if (owner == null) {
+            // detaching the owner from the server unit
+            this.owner = null;
             // removing unit's tree branches as well
             this.removeAll();
         } else {
             // preparing new value of unit path
-            this.unitPath = owner.getPath() + "/" + this.unitPath;
+            this.unitPath = owner.getPath() + UNIT_PATH_DELIMITER + this.unitPath;
             // before registering unit
             beforeRegisterUnit();
             // registering unit with new value of the path

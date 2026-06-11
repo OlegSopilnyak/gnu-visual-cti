@@ -93,6 +93,24 @@ public interface UnitMessageFactory {
 
     /**
      * <builder>
+     * To build or get the instance of an action message
+     *
+     * @param serverUnitPath the unit path
+     * @param type the type of the message
+     * @param familyType the concrete type of message family
+     * @param description the description of built message
+     * @return built or got instance of the unit action message
+     * @param <T>  concrete type of built message
+     * @throws IOException if it cannot build the message
+     * @see ServerUnit
+     * @see UnitMessage
+     * @see MessageType
+     * @see MessageFamilyType
+     */
+    <T extends UnitMessage> T buildFor(String serverUnitPath, MessageType type, MessageFamilyType familyType, String description) throws IOException ;
+
+    /**
+     * <builder>
      * To build the instance of command's response to the request
      *
      * @param request the request the response is building for
