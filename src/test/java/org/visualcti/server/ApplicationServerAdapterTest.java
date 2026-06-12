@@ -469,7 +469,7 @@ public class ApplicationServerAdapterTest {
         application.execute(updateSystemCommand);
 
         // check the behavior
-        verify(application).setupServerStuff(updateSystemCommand);
+        verify(application).manageServerStuff(updateSystemCommand);
         verify(application).updateSeverSystemXml(tasksXml);
         verify(application).saveServerXml();
         verify(application).successfulResponseTo(eq(updateSystemCommand), any(Consumer.class));
@@ -513,7 +513,7 @@ public class ApplicationServerAdapterTest {
         Exception e = assertThrows(Exception.class, () -> application.execute(updateSystemCommand));
 
         // check the behavior
-        verify(application).setupServerStuff(updateSystemCommand);
+        verify(application).manageServerStuff(updateSystemCommand);
         verify(application, never()).updateSeverSystemXml(tasksXml);
         // check results
         assertThat(e).isInstanceOf(UnknownCommandException.class);
@@ -545,7 +545,7 @@ public class ApplicationServerAdapterTest {
         application.execute(updateSystemCommand);
 
         // check the behavior
-        verify(application).setupServerStuff(updateSystemCommand);
+        verify(application).manageServerStuff(updateSystemCommand);
         verify(application, never()).updateSeverSystemXml(tasksXml);
         ArgumentCaptor<Exception>  exceptionCaptor = ArgumentCaptor.forClass(Exception.class);
         verify(application).failedResponseTo(eq(updateSystemCommand),anyString(), exceptionCaptor.capture());
@@ -594,7 +594,7 @@ public class ApplicationServerAdapterTest {
         application.execute(updateSystemCommand);
 
         // check the behavior
-        verify(application).setupServerStuff(updateSystemCommand);
+        verify(application).manageServerStuff(updateSystemCommand);
         verify(application, never()).updateSeverSystemXml(tasksXml);
         ArgumentCaptor<Exception>  exceptionCaptor = ArgumentCaptor.forClass(Exception.class);
         verify(application).failedResponseTo(eq(updateSystemCommand),anyString(), exceptionCaptor.capture());
@@ -617,6 +617,37 @@ public class ApplicationServerAdapterTest {
         assertThat(response.getMessageType()).isSameAs(MessageType.RESPONSE);
         assertThat(response.getFamilyType()).isSameAs(MessageFamilyType.SET);
         assertThat(response.getUnitPath()).isEqualTo("{Server}");
+    }
+
+    @Test
+    public void shouldExecuteShutdownSystemCommand() throws Exception {
+        // preparing test data
+        application.initialize();
+        ServerCommandRequest shutdownSystemCommand = application.getMessageFactory()
+                .buildFor(application, MessageType.COMMAND, MessageFamilyType.SET, "Shutting down the server");
+        shutdownSystemCommand.setNeedResponse(true)
+                .setParameter(Parameter.of("type", "shutdown-server"))
+        ;
+        reset(application);
+
+        // acting
+        application.execute(shutdownSystemCommand);
+
+        // check the behavior
+        verify(application).stopAndExitServer();
+        verify(application).Stop();
+        verify(application).successfulResponseTo(eq(shutdownSystemCommand), any(Consumer.class));
+        verify(application).respondTo(eq(shutdownSystemCommand), eq(true), any(Consumer.class));
+        verify(application).getMessageFactory();
+        ArgumentCaptor<UnitMessage>  messageCaptor = ArgumentCaptor.forClass(UnitMessage.class);
+        verify(application).dispatch(messageCaptor.capture());
+        // check results
+        UnitMessage message = messageCaptor.getValue();
+        assertThat(message).isInstanceOf(ServerCommandResponse.class);
+        ServerCommandResponse response = (ServerCommandResponse) message;
+        assertThat(response.isCommandSuccess()).isTrue();
+        assertThat(response.getCorrelationID()).isEqualTo(shutdownSystemCommand.getCorrelationID());
+        assertThat(response.getDescription()).isEqualTo(shutdownSystemCommand.getDescription());
     }
 
     @Test

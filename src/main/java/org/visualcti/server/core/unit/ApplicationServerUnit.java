@@ -76,6 +76,7 @@ public interface ApplicationServerUnit extends RunnableServerUnit {
     String SERVER_UNIT_PATH_IN_REGISTRY = "{Server}";
     // types of SET application command
     String UPDATE_CONFIGURATION_SET_TYPE = "update-server-configuration";
+    String SHUTDOWN_SERVER_SET_TYPE = "shutdown-server";
     String SERVER_SYSTEM_PARAMETER_NAME = "system";
 
     /**
@@ -143,7 +144,7 @@ public interface ApplicationServerUnit extends RunnableServerUnit {
      * @see RunnableServerUnit#execute(ServerCommandRequest)
      * @see ServerCommandRequest#getFamilyType()
      * @see MessageFamilyType#SET
-     * @see #setupServerStuff(ServerCommandRequest)
+     * @see #manageServerStuff(ServerCommandRequest)
      */
     @Override
     default void execute(ServerCommandRequest command) throws Exception {
@@ -160,8 +161,8 @@ public interface ApplicationServerUnit extends RunnableServerUnit {
         final MessageFamilyType commandType = command.getFamilyType();
         // processing command request
         if (commandType == MessageFamilyType.SET) {
-            // updating the server
-            setupServerStuff(command);
+            // managing the server's stuff
+            manageServerStuff(command);
         } else {
             // the command isn't processed here
             throw new UnknownCommandException(commandType + " isn't supported!");
@@ -170,12 +171,14 @@ public interface ApplicationServerUnit extends RunnableServerUnit {
 
     /**
      * <command-executor>
-     * To update the parts of the server
+     * To manage the parts of the server
      *
      * @see #updateSeverSystemXml(Element)
      * @see #UPDATE_CONFIGURATION_SET_TYPE
+     * @see #stopAndExitServer()
+     * @see #SHUTDOWN_SERVER_SET_TYPE
      */
-    default void setupServerStuff(ServerCommandRequest command) throws UnknownCommandException, IOException {
+    default void manageServerStuff(ServerCommandRequest command) throws UnknownCommandException, IOException {
         final String commandSetType = ServerUnit.typeValueOf(command);
         switch (commandSetType) {
             case UPDATE_CONFIGURATION_SET_TYPE:
@@ -191,20 +194,35 @@ public interface ApplicationServerUnit extends RunnableServerUnit {
                     failedResponseTo(command, reasonMessage, e);
                 }
                 break;
+            case SHUTDOWN_SERVER_SET_TYPE:
+                // stopping and leaving the server
+                stopAndExitServer();
+                // send successful response to the command
+                successfulResponseTo(command, COMMAND_NOT_NEEDED_RESPONSE);
+                break;
             default:
                 throw new UnknownCommandException("Invalid SET's command type [" + commandSetType + "]");
         }
     }
 
     /**
-     * <server-updater>
+     * <server-manager>
      * To update system in server's xml-document and save changes
      *
      * @param systemXml new value of server's system-xml
      * @throws IOException if it cannot update
-     * @see #setupServerStuff(ServerCommandRequest)
+     * @see #manageServerStuff(ServerCommandRequest)
      */
     void updateSeverSystemXml(Element systemXml) throws IOException;
+
+    /**
+     * <server-manager>
+     * To stop running server and exit the application
+     *
+     * @throws IOException if it cannot stop and exit
+     * @see #manageServerStuff(ServerCommandRequest)
+     */
+    void stopAndExitServer() throws IOException;
 
     /**
      * <server-configuration-keeper>

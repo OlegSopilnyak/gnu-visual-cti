@@ -238,8 +238,8 @@ public class ApplicationServerAdapter extends RunnableUnitAdapter implements App
 
     @Deprecated
     @Override
-    public void setupServerStuff(ServerCommandRequest command) throws UnknownCommandException, IOException {
-        ApplicationServerUnit.super.setupServerStuff(command);
+    public void manageServerStuff(ServerCommandRequest command) throws UnknownCommandException, IOException {
+        ApplicationServerUnit.super.manageServerStuff(command);
     }
 
     /**
@@ -248,7 +248,7 @@ public class ApplicationServerAdapter extends RunnableUnitAdapter implements App
      *
      * @param systemXml new value of server's system-xml
      * @throws IOException if it cannot update
-     * @see #setupServerStuff(ServerCommandRequest)
+     * @see #manageServerStuff(ServerCommandRequest)
      */
     @SuppressWarnings("unchecked")
     @Override
@@ -271,6 +271,31 @@ public class ApplicationServerAdapter extends RunnableUnitAdapter implements App
         }
         // saving updated configuration
         saveServerXml();
+    }
+
+    /**
+     * <server-manager>
+     * To stop running server and exit the application
+     *
+     * @throws IOException if it cannot stop and exit
+     * @see #manageServerStuff(ServerCommandRequest)
+     */
+    @Override
+    public void stopAndExitServer() throws IOException {
+        Stop();
+        // TODO uncomment it for production
+        /*
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            Tools.print("\tShutting down server...");
+            try {
+                Thread.sleep(5000);
+                Tools.print("\t=== Bye Java ===");
+            } catch (InterruptedException e) {
+                // doing noting
+            }
+        }));
+        new Thread(() -> Runtime.getRuntime().exit(0)).start();
+         */
     }
 
     /**
