@@ -92,16 +92,17 @@ public class TasksSubSystem implements SubSystem {
         final Element tasksElement = new Element(TASKS_SUB_SYSTEM);
         systemElement.addContent(tasksElement);
         tasksElement.addContent(new Comment(" The manager of tasks pools "));
-        tasksElement.addContent(manager.getXML());
+        tasksElement.addContent((Element) manager.getXML().clone());
         final TasksPoolUnit publicTasksPool = manager.publicTaskPool();
         if (publicTasksPool != null) {
             // public pool adding
             tasksElement.addContent(new Comment(" Pool of public tasks "));
-            tasksElement.addContent(publicTasksPool.getXML());
+            tasksElement.addContent((Element)publicTasksPool.getXML().clone());
         }
         // local pools adding
         tasksElement.addContent(new Comment(" Pool of concrete device's tasks "));
-        manager.localTaskPoolStream().forEach(poolUnit -> tasksElement.addContent(poolUnit.getXML()));
+        manager.localTaskPoolStream()
+                .forEach(poolUnit -> tasksElement.addContent((Element)poolUnit.getXML().clone()));
         return systemElement;
     }
 

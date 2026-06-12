@@ -62,7 +62,6 @@ import org.visualcti.server.core.unit.message.MessageFamilyType;
 import org.visualcti.server.core.unit.message.MessageType;
 import org.visualcti.server.core.unit.message.UnitMessage;
 import org.visualcti.server.core.unit.message.command.ServerCommandRequest;
-import org.visualcti.util.Tools;
 
 public class ApplicationServerAdapterTest {
 
@@ -422,6 +421,10 @@ public class ApplicationServerAdapterTest {
     public void shouldExecuteUpdateSystemCommand() throws Exception {
         // preparing test data
         application.initialize();
+        SubSystem tasks = application.serverParts()
+                .filter(sys -> sys.getSystemElementName().equals("Tasks")).findFirst()
+                .orElse(null);
+        assertThat(tasks).isNotNull();
         File appCongiFile = new File("./conf/VisualCTI.test.server.xml");
         assertThat(appCongiFile).doesNotExist();
         application.setServerConfigFile(appCongiFile);
@@ -429,7 +432,7 @@ public class ApplicationServerAdapterTest {
                 .buildFor(application, MessageType.COMMAND, MessageFamilyType.SET, "Updating the system of server");
         updateSystemCommand.setNeedResponse(true)
                 .setParameter(Parameter.of("type", "update-server-configuration"))
-                .setParameter(Parameter.of("system", Tools.emptyXML))
+                .setParameter(Parameter.of("system", tasks.getXML()))
                 ;
         reset(application);
 
@@ -441,6 +444,8 @@ public class ApplicationServerAdapterTest {
 //        verify(application).startUnitRunnable();
 //        // check results
 //        assertThat(application.isStarted()).isTrue();
+        assertThat(appCongiFile).exists();
+        assertThat(appCongiFile.delete()).isTrue();
     }
 
     @Test
