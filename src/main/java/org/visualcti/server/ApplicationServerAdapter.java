@@ -60,6 +60,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.jdom.Comment;
 import org.jdom.DataConversionException;
@@ -70,6 +71,8 @@ import org.visualcti.server.core.unit.ApplicationServerUnit;
 import org.visualcti.server.core.unit.RunnableServerUnit;
 import org.visualcti.server.core.unit.ServerUnit;
 import org.visualcti.server.core.unit.message.UnitMessage;
+import org.visualcti.server.core.unit.message.command.ServerCommandRequest;
+import org.visualcti.server.core.unit.message.command.UnknownCommandException;
 import org.visualcti.server.system.TasksSubSystem;
 import org.visualcti.server.unit.RunnableUnitAdapter;
 import org.visualcti.util.Tools;
@@ -169,9 +172,10 @@ public class ApplicationServerAdapter extends RunnableUnitAdapter implements App
      * <initializer>
      * To initialize the server and prepare all parts for starting
      *
-     * @throws Exception if something went wrong
+     * @throws IOException if something went wrong
+     * @throws DataConversionException if something went wrong with xml-configuration processing
      */
-    public void initialize() throws Exception {
+    public void initialize() throws IOException, DataConversionException {
         // initializing server core stuff
         initializeCore();
         // loading configuration from config-file
@@ -224,6 +228,49 @@ public class ApplicationServerAdapter extends RunnableUnitAdapter implements App
                 .peek(subSystem -> stopUnitChild(subSystem.getSystemManager()))
                 .reduce((first, second) -> second).orElse(null)
         );
+    }
+
+    @Deprecated
+    @Override
+    public void execute(ServerCommandRequest command) throws Exception {
+        ApplicationServerUnit.super.execute(command);
+    }
+
+    @Deprecated
+    @Override
+    public void setupServerStuff(ServerCommandRequest command) throws UnknownCommandException, IOException {
+        ApplicationServerUnit.super.setupServerStuff(command);
+    }
+
+    /**
+     * <server-updater>
+     * To update system in server's xml-document and save changes
+     *
+     * @param systemXml new value of server's system-xml
+     * @throws IOException if it cannot update
+     * @see #setupServerStuff(ServerCommandRequest)
+     */
+    @SuppressWarnings("unchecked")
+    @Override
+    public void updateSeverSystem(final Element systemXml) throws IOException {
+        // getting sub-system to update name
+        final String subSystemToUpdateName = ApplicationServerUnit.serverSystemName(systemXml);
+        if (isEmptyString.test(subSystemToUpdateName)) {
+            throw new IOException("Empty subsystem name.");
+        }
+        // copying the server system elements to temporary container
+        final List<Element> systems = (List<Element>) serverConfigurationElement.getChildren(SYSTEM_ROOT_ELEMENT_NAME)
+                .stream().map(sys -> ((Element) sys).clone()).collect(Collectors.toList());
+        // removing system entries from the configuration root element
+        serverConfigurationElement.removeChildren(SYSTEM_ROOT_ELEMENT_NAME);
+        // repairing system entries in the configuration root element
+        for (final Element xml : systems) {
+            final Element serverSystemXml =
+                    subSystemToUpdateName.equals(ApplicationServerUnit.serverSystemName(xml)) ? systemXml : xml;
+            serverConfigurationElement.addContent(serverSystemXml);
+        }
+        // saving updated configuration
+        saveServerXml();
     }
 
     /**
@@ -414,8 +461,9 @@ public class ApplicationServerAdapter extends RunnableUnitAdapter implements App
     }
 
     // checking the server configuration-xml document
-    private Element validServerRootElement(final Document configurationDocument,
-                                           final List<?> configurationDocumentContent) throws IOException {
+    private Element validServerRootElement(
+            final Document configurationDocument, final List<?> configurationDocumentContent
+    ) throws IOException {
         // checking the configuration-xml document license
         if (!(configurationDocumentContent.get(0) instanceof Comment)) {
             throw new IOException("VisualCTI configuration licence is invalid.");
@@ -495,7 +543,7 @@ public class ApplicationServerAdapter extends RunnableUnitAdapter implements App
                 Tools.error("Application RMI make failed " + e.getMessage());
                 throw new InternalError("Create registry invalid", e);
             }
-            Tools.print("Server's RMI Registry has been initialized.");
+            Tools.print("Server's RMI Registry has been initialized just now.");
         }
     }
 }

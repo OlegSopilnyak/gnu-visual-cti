@@ -137,7 +137,7 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
     // the branches of server units tree
     private final Collection<ServerUnit> branches = new ArrayList<>();
     // the properties of the unit
-    private Map<String, Object> properties = new ConcurrentHashMap<>();
+    private transient Map<String, Object> properties = new ConcurrentHashMap<>();
 
     /**
      * Compares the argument to the receiver, and answers true
@@ -200,8 +200,14 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
 
     @Deprecated
     @Override
-    public void respondTo(ServerCommandRequest command, Consumer<ServerCommandResponse> beforeDispatch) throws IOException {
-        ServerUnit.super.respondTo(command, beforeDispatch);
+    public void successfulResponseTo(ServerCommandRequest command, Consumer<ServerCommandResponse> beforeDispatch) throws IOException {
+        ServerUnit.super.successfulResponseTo(command, beforeDispatch);
+    }
+
+    @Deprecated
+    @Override
+    public void failedResponseTo(ServerCommandRequest command, String reason, Exception exception) throws IOException {
+        ServerUnit.super.failedResponseTo(command, reason, exception);
     }
 
     @Deprecated

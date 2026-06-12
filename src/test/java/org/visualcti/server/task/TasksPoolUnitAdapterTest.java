@@ -114,7 +114,7 @@ public class TasksPoolUnitAdapterTest {
         verify(tasksPool, times(2)).getPoolGroup();
         verify(tasksPool).getPoolName();
         // check results
-        assertThat("group/name").isEqualTo(name);
+        assertThat(name).isEqualTo("group/name");
     }
 
     @Test
@@ -129,7 +129,7 @@ public class TasksPoolUnitAdapterTest {
         verify(tasksPool).getPoolGroup();
         verify(tasksPool).getPoolName();
         // check results
-        assertThat("name").isEqualTo(name);
+        assertThat(name).isEqualTo("name");
     }
 
     @Test
@@ -642,7 +642,7 @@ public class TasksPoolUnitAdapterTest {
         assertThat(tasksPool.tasks()).isEmpty();
         String poolFile = poolName+".tasks.pool";
         final File tasksListFile = new File(poolsManager.getRoot(), poolFile);
-        assertThat(tasksListFile.exists()).isTrue();
+        assertThat(tasksListFile).exists();
         tasksListFile.delete();
 
     }
@@ -773,7 +773,7 @@ public class TasksPoolUnitAdapterTest {
 
         // check the behavior
         verify(tasksPool).executePoolGet(request);
-        verify(tasksPool).respondTo(eq(request), any(Consumer.class));
+        verify(tasksPool).successfulResponseTo(eq(request), any(Consumer.class));
         verify(tasksPool).respondTo(eq(request), eq(true), any(Consumer.class));
         verify(tasksPool).currentUnitState();
         verify(tasksPool).tasksList();
@@ -814,7 +814,7 @@ public class TasksPoolUnitAdapterTest {
         // check the behavior
         verify(tasksPool).executePoolGet(request);
         verify(tasksPool).getTask(currentTaskName);
-        verify(tasksPool).respondTo(eq(request), any(Consumer.class));
+        verify(tasksPool).successfulResponseTo(eq(request), any(Consumer.class));
         verify(tasksPool).respondTo(eq(request), eq(true), any(Consumer.class));
         verify(currentTask).getXML();
         ArgumentCaptor<UnitMessage> captor = ArgumentCaptor.forClass(UnitMessage.class);
@@ -843,7 +843,7 @@ public class TasksPoolUnitAdapterTest {
 
         // check the behavior
         verify(tasksPool).executePoolGet(request);
-        verify(tasksPool, never()).respondTo(any(ServerCommandRequest.class), any(Consumer.class));
+        verify(tasksPool, never()).successfulResponseTo(any(ServerCommandRequest.class), any(Consumer.class));
         // check results
         assertThat(e).isInstanceOf(UnknownCommandException.class);
         assertThat(e.getMessage()).isEqualTo("Invalid GET's command target [" + targetValue + "]");
@@ -887,7 +887,7 @@ public class TasksPoolUnitAdapterTest {
         // check the behavior
         verify(tasksPool).executePoolGet(request);
         verify(tasksPool).getTask(currentTaskName);
-        verify(tasksPool, never()).respondTo(any(ServerCommandRequest.class), any(Consumer.class));
+        verify(tasksPool, never()).successfulResponseTo(any(ServerCommandRequest.class), any(Consumer.class));
         // check results
         assertThat(e).isInstanceOf(UnknownCommandException.class);
         assertThat(e.getMessage()).isEqualTo("Invalid get task by name [" + currentTaskName + "]");
@@ -998,7 +998,7 @@ public class TasksPoolUnitAdapterTest {
                 .setParameter(Parameter.of("task", taskXml).input())
         ;
         doAnswer(invocation -> null).when(tasksPool).saveTasksList();
-        assertThat(tasksPool.tasks()).hasSize(0);
+        assertThat(tasksPool.tasks()).isEmpty();
 
         // acting
         tasksPool.execute(request);
@@ -1449,11 +1449,11 @@ public class TasksPoolUnitAdapterTest {
     private TaskPoolsManager createTaskPoolsManager() throws IOException {
         String managerPath = "Tasks/Manager";
         String managerDirectory = "work/tasks";
-        TaskPoolsManager poolsManager = mock(TaskPoolsManager.class);
-        doReturn(managerPath).when(poolsManager).getPath();
-        doReturn(new File(managerDirectory)).when(poolsManager).getRoot();
-        UnitRegistry.register(poolsManager);
-        return poolsManager;
+        TaskPoolsManager mockedPoolsManager = mock(TaskPoolsManager.class);
+        doReturn(managerPath).when(mockedPoolsManager).getPath();
+        doReturn(new File(managerDirectory)).when(mockedPoolsManager).getRoot();
+        UnitRegistry.register(mockedPoolsManager);
+        return mockedPoolsManager;
     }
 
     private void addTestTask(int i) {
@@ -1470,17 +1470,17 @@ public class TasksPoolUnitAdapterTest {
 
         @Override
         public void execute() {
-
+            // it's testing task
         }
 
         @Override
         public void stopExecute() {
-
+            // it's testing task
         }
 
         @Override
         protected void clockEvent() {
-
+            // it's testing task
         }
     }
 }

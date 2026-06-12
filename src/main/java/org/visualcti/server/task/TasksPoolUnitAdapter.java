@@ -86,7 +86,7 @@ import org.visualcti.util.Tools;
  */
 public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPoolUnit {
     // The list of tasks in the pool
-    private volatile List<Task> tasksPool = Collections.emptyList();
+    private transient volatile List<Task> tasksPool = Collections.emptyList();
     // XML-Document of the list of tasks in the pool
     private final Document tasksListConfigurationDocument = new Document().setContent(Arrays.asList(
             new Comment(Tools.getLicenceHeader()),
@@ -95,9 +95,9 @@ public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implement
                     .addContent(new Comment(TASKS_LIST_ABOUT_TEMPLATE))
     ));
     // predicate checks is task valid
-    private final Predicate<Task> nonNullTask = Objects::nonNull;
-    private final Predicate<Task> taskHasValidName = task -> isEmptyString.negate().test(task.getName());
-    private final Predicate<Task> validTask = nonNullTask.and(taskHasValidName);
+    private static final Predicate<Task> nonNullTask = Objects::nonNull;
+    private static final Predicate<Task> taskHasValidName = task -> isEmptyString.negate().test(task.getName());
+    private static final Predicate<Task> validTask = nonNullTask.and(taskHasValidName);
     // working ring of the tasks (used in the in-service engine state)
     private final LinkedList<Task> inServiceTasksRing = new LinkedList<>();
     // locker for started tasks ring
@@ -893,7 +893,7 @@ public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implement
     // prepare and send error message
     private void commandFailed(final ServerCommandRequest command, final String reasonMessage) throws IOException {
         respondTo(command, false,
-                response -> response.setParameter(Parameter.of("reason", reasonMessage).output())
+                response -> response.setParameter(Parameter.of(COMMAND_FAILED_REASON, reasonMessage).output())
         );
     }
 
@@ -905,7 +905,7 @@ public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implement
         final Task task = getTask(taskName)
                 .orElseThrow(() -> new UnknownCommandException("Invalid get task by name [" + taskName + "]"));
         // preparing and sending response to the command
-        respondTo(command, response -> {
+        successfulResponseTo(command, response -> {
             // preparing response of the task's parameters for the task editing action
             response
                     .setParameter(Parameter.of("edit.class", "nothing :-(").output())
@@ -917,7 +917,7 @@ public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implement
     // getting pool info for target "info"
     private void responsePoolSimpleInfo(ServerCommandRequest command) {
         safeForTasksRing(() -> {
-            respondTo(command, response -> {
+            successfulResponseTo(command, response -> {
                 // returning common pool's parameters
                 response.setParameter(Parameter.of("unit.state", currentUnitState().toString()).output())
                         .setParameter(Parameter.of("tasks.list", tasksList()).output())

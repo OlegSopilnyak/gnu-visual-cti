@@ -282,6 +282,7 @@ private transient Object value;
     /**
      <builder>
      To make the parameter from parameter name and value (String value)
+
      @param name the name of the parameter
      @param value the value of the parameter as a string
      @return built parameter instance
@@ -413,7 +414,6 @@ private transient Object value;
                 break;
         }
         xml.setText( buffer.toString() );
-        //xml.setAttribute(new Attribute("value",buffer.toString()));
         return xml;
     }
     /**
@@ -426,42 +426,42 @@ private transient Object value;
         // to solve the attributes
         this.name = xml.getAttributeValue("name");
         this.type = xml.getAttributeValue("type");
-        String text = xml.getText();
-        String value = xml.getAttributeValue("value");
+        String xmlText = xml.getText();
+        String xmlAttributeValue = xml.getAttributeValue("value");
         // to solve the value by type
         if ( XML.equals(this.type)  ) {
           String root = xml.getAttributeValue("root");
           if (root != null) {
-            Element XML = xml.getChild( root );
-            this.value = XML != null ? (Element)XML.clone():null;
+            Element rootXml = xml.getChild( root );
+            this.value = rootXml != null ? (Element)rootXml.clone():null;
           }
         }
         else
         if ( STRING.equals(this.type)  ) {
-          if ( value == null ) this.value = text;
-          else this.value = value;
+          if ( xmlAttributeValue == null ) this.value = xmlText;
+          else this.value = xmlAttributeValue;
         }
         else
         if ( NUMBER.equals(this.type)  ) {
-          if ( value == null) this.value = new Double(text);
-          else this.value = new Double(value);
+          if ( xmlAttributeValue == null) this.value = new Double(xmlText);
+          else this.value = new Double(xmlAttributeValue);
         }
         else
         if ( DATE.equals(this.type)    ) {
-          if ( value == null ) this.value = new Date(Long.parseLong(text));
-          else this.value = new Date(Long.parseLong(value));
+          if ( xmlAttributeValue == null ) this.value = new Date(Long.parseLong(xmlText));
+          else this.value = new Date(Long.parseLong(xmlAttributeValue));
         }
         else
         if ( BOOLEAN.equals(this.type) ) {
-          if ( value == null ) this.value = Boolean.valueOf(text);
-          else this.value = Boolean.valueOf(value);
+          if ( xmlAttributeValue == null ) this.value = Boolean.valueOf(xmlText);
+          else this.value = Boolean.valueOf(xmlAttributeValue);
         }
         else
         if ( RAWDATA.equals(this.type) ) {
-            this.value = value == null ? Base64.decode(text) : Base64.decode(value);
+            this.value = xmlAttributeValue == null ? Base64.decode(xmlText) : Base64.decode(xmlAttributeValue);
         }
         // unknown type, type is STRING
-        else {this.type = STRING;        this.value = text;}
+        else {this.type = STRING;        this.value = xmlText;}
         // to solve the direction
         this.direction = xml.getAttributeValue("direction");
         // if direction not defined, in XML, parameter is input

@@ -37,11 +37,21 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.core.unit;
 
+import static org.visualcti.server.core.system.SubSystem.SYSTEM_ROOT_ELEMENT_NAME;
+
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
+import java.util.Objects;
 import java.util.stream.Stream;
 import org.jdom.DataConversionException;
+import org.jdom.Element;
+import org.visualcti.server.Parameter;
 import org.visualcti.server.core.system.SubSystem;
+import org.visualcti.server.core.unit.message.MessageFamilyType;
+import org.visualcti.server.core.unit.message.command.ServerCommandRequest;
+import org.visualcti.server.core.unit.message.command.UnknownCommandException;
+import org.visualcti.util.Tools;
 
 /**
  * Facade: The root unit of the application
@@ -64,6 +74,9 @@ public interface ApplicationServerUnit extends RunnableServerUnit {
     String SERVER_RMI_STARTUP_ATTRIBUTE_NAME = "start";
     boolean SERVER_RMI_STARTUP_DEFAULT_VALUE = false;
     String SERVER_UNIT_PATH_IN_REGISTRY = "{Server}";
+    // types of SET application command
+    String UPDATE_CONFIGURATION_SET_TYPE = "update-server-configuration";
+    String SERVER_SYSTEM_PARAMETER_NAME = "system";
 
     /**
      * <accessor>
@@ -120,6 +133,80 @@ public interface ApplicationServerUnit extends RunnableServerUnit {
     }
 
     /**
+     * <command-executor>
+     * To execute command for the server.
+     * The method will call outside the unit.
+     * If command is invalid the exception will be thrown.
+     *
+     * @param command command to execute
+     * @throws Exception if it cannot execute
+     * @see RunnableServerUnit#execute(ServerCommandRequest)
+     * @see ServerCommandRequest#getFamilyType()
+     * @see MessageFamilyType#SET
+     * @see #setupServerStuff(ServerCommandRequest)
+     */
+    @Override
+    default void execute(ServerCommandRequest command) throws Exception {
+        try {
+            // trying to execute the command in the parent unit
+            RunnableServerUnit.super.execute(command);
+            // the command has been done there.
+            // no needs to process it further.
+            return;
+        } catch (UnknownCommandException e) {
+            // doing nothing just trying to execute command further
+        }
+        //
+        final MessageFamilyType commandType = command.getFamilyType();
+        // processing command request
+        if (commandType == MessageFamilyType.SET) {
+            // updating the server
+            setupServerStuff(command);
+        } else {
+            // the command isn't processed here
+            throw new UnknownCommandException(commandType + " isn't supported!");
+        }
+    }
+
+    /**
+     * <command-executor>
+     * To update the parts of the server
+     *
+     * @see #updateSeverSystem(Element)
+     * @see #UPDATE_CONFIGURATION_SET_TYPE
+     */
+    default void setupServerStuff(ServerCommandRequest command) throws UnknownCommandException, IOException {
+        final String commandSetType = ServerUnit.typeValueOf(command);
+        switch (commandSetType) {
+            case UPDATE_CONFIGURATION_SET_TYPE:
+                final Element systemXml = systemAsXml(command, commandSetType);
+                try {
+                    // updating the server system in configuration xml file
+                    updateSeverSystem(systemXml);
+                    // send successful response to the command
+                    successfulResponseTo(command, COMMAND_NOT_NEEDED_RESPONSE);
+                } catch (IOException e) {
+                    // detected the exception
+                    final String reasonMessage = "Failed to update server configuration!";
+                    failedResponseTo(command, reasonMessage, e);
+                }
+                break;
+            default:
+                throw new UnknownCommandException("Invalid SET's command type [" + commandSetType + "]");
+        }
+    }
+
+    /**
+     * <server-updater>
+     * To update system in server's xml-document and save changes
+     *
+     * @param systemXml new value of server's system-xml
+     * @throws IOException if it cannot update
+     * @see #setupServerStuff(ServerCommandRequest)
+     */
+    void updateSeverSystem(Element systemXml) throws IOException;
+
+    /**
      * <server-configuration-keeper>
      * To load server configuration from the external XML file
      *
@@ -134,4 +221,39 @@ public interface ApplicationServerUnit extends RunnableServerUnit {
      * @throws IOException             if something went wrong
      */
     void saveServerXml() throws IOException;
+
+    /**
+     * <accessor>
+     * To get sub-system name from the xml-element
+     *
+     * @param xml element to get the name from
+     * @return the value
+     * @throws IOException if xml-element isn't correct
+     */
+    @SuppressWarnings("unchecked")
+    static String serverSystemName(final Element xml) throws IOException {
+        if (!Objects.equals(SYSTEM_ROOT_ELEMENT_NAME, xml.getName())) {
+            throw new IOException("Expected element with name: " + SYSTEM_ROOT_ELEMENT_NAME);
+        }
+        final List<Element> children = xml.getChildren();
+        if (children.size() != 1) {
+            throw new IOException("Expected exactly 1 child element");
+        }
+        // getting sub-system to update name
+        return children.get(0).getName();
+    }
+
+    // private methods
+    static Element systemAsXml(
+            final ServerCommandRequest command, final String actionName
+    ) throws UnknownCommandException {
+        return inputParameter(command, SERVER_SYSTEM_PARAMETER_NAME, actionName).getValue(Tools.emptyXML);
+    }
+
+    static Parameter inputParameter(
+            final ServerCommandRequest command, final String parameterName, final String actionName
+    ) throws UnknownCommandException {
+        return command.getParameter(parameterName, Parameter.INPUT_DIRECTION)
+                .orElseThrow(() -> new UnknownCommandException(command.getFamilyType() + " isn't supported! Nothing to " + actionName + "."));
+    }
 }

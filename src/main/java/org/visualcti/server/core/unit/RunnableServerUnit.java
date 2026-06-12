@@ -47,7 +47,6 @@ import org.visualcti.server.core.unit.message.MessageFamilyType;
 import org.visualcti.server.core.unit.message.MessageType;
 import org.visualcti.server.core.unit.message.UnitMessage;
 import org.visualcti.server.core.unit.message.UnitMessageFactory;
-import org.visualcti.server.core.unit.message.action.UnitActionError;
 import org.visualcti.server.core.unit.message.command.ServerCommandRequest;
 import org.visualcti.server.core.unit.message.command.UnknownCommandException;
 import org.visualcti.server.core.unit.part.UnitMessageExchange;
@@ -124,20 +123,40 @@ public interface RunnableServerUnit extends ServerUnit, Engine, UnitMessage.List
         //
         final MessageFamilyType commandType = command.getFamilyType();
         // processing command request
-        switch (commandType) {
-            case START:
-                // starting the unit
-                Start();
-                respondTo(command, COMMAND_NOT_NEEDED_RESPONSE);
-                break;
-            case STOP:
-                // stopping the unit
-                Stop();
-                respondTo(command, COMMAND_NOT_NEEDED_RESPONSE);
-                break;
-            default:
-                // the command isn't processed here
-                throw new UnknownCommandException(commandType + " isn't supported!");
+        try {
+            switch (commandType) {
+                case START:
+                    // starting the unit
+                    doStart(command, this);
+                    break;
+                case STOP:
+                    // stopping the unit
+                    doStop(command, this);
+                    break;
+                default:
+                    // the command isn't processed here
+                    throw new UnknownCommandException(commandType + " isn't supported!");
+            }
+        } catch (IOException e) {
+            failedResponseTo(command, "Cannot start unit: " + getName(), e);
+        }
+    }
+
+    static void doStart(final ServerCommandRequest request, final RunnableServerUnit unit) throws IOException {
+        try {
+            unit.Start();
+            unit.successfulResponseTo(request, COMMAND_NOT_NEEDED_RESPONSE);
+        } catch (IOException e) {
+            unit.failedResponseTo(request, "Cannot start the unit: " + unit.getName(), e);
+        }
+    }
+
+    static void doStop(final ServerCommandRequest request, final RunnableServerUnit unit) throws IOException {
+        try {
+            unit.Stop();
+            unit.successfulResponseTo(request, COMMAND_NOT_NEEDED_RESPONSE);
+        } catch (IOException e) {
+            unit.failedResponseTo(request, "Cannot stop the unit: " + unit.getName(), e);
         }
     }
 
@@ -493,31 +512,6 @@ public interface RunnableServerUnit extends ServerUnit, Engine, UnitMessage.List
     }
 
     /**
-     * <action>
-     * To create and dispatch the error-type message from the unit
-     *
-     * @param exception   the cause of the error
-     * @param description the description of the error
-     * @see UnitActionError
-     * @see UnitActionError#setNestedException(Exception)
-     * @see #getMessageFactory()
-     * @see UnitMessageFactory#buildFor(ServerUnit, MessageType, MessageFamilyType, String)
-     * @see #dispatch(UnitMessage)
-     */
-    default void dispatchError(Exception exception, String description) {
-        try {
-            final UnitActionError error = getMessageFactory()
-                    .buildFor(this, MessageType.ERROR, MessageFamilyType.ERROR, description);
-            if (exception != null) {
-                error.setNestedException(exception);
-            }
-            dispatch(error);
-        } catch (IOException ex) {
-            // doing nothing, server unit is already in broken state
-        }
-    }
-
-    /**
      * <accessor>
      * To get the stream of runnable unit's children
      *
@@ -525,17 +519,5 @@ public interface RunnableServerUnit extends ServerUnit, Engine, UnitMessage.List
      */
     default Stream<RunnableServerUnit> runnableChildren() {
         return children().filter(RunnableServerUnit.class::isInstance).map(RunnableServerUnit.class::cast);
-    }
-
-
-    /**
-     * <action>
-     * To create and dispatch the error-type message from the unit
-     *
-     * @param description the description of the error
-     * @see #dispatchError(Exception, String)
-     */
-    default void dispatchError(String description) {
-        dispatchError(null, description);
     }
 }

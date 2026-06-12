@@ -47,6 +47,7 @@ import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.rmi.server.ExportException;
@@ -61,6 +62,7 @@ import org.visualcti.server.core.unit.message.MessageFamilyType;
 import org.visualcti.server.core.unit.message.MessageType;
 import org.visualcti.server.core.unit.message.UnitMessage;
 import org.visualcti.server.core.unit.message.command.ServerCommandRequest;
+import org.visualcti.util.Tools;
 
 public class ApplicationServerAdapterTest {
 
@@ -412,15 +414,27 @@ public class ApplicationServerAdapterTest {
     }
 
     @Test
+    public void shouldUpdateSeverSystem() {
+        // TODO implement functionality test
+    }
+
+    @Test
     public void shouldExecuteUpdateSystemCommand() throws Exception {
         // preparing test data
         application.initialize();
+        File appCongiFile = new File("./conf/VisualCTI.test.server.xml");
+        assertThat(appCongiFile).doesNotExist();
+        application.setServerConfigFile(appCongiFile);
         ServerCommandRequest updateSystemCommand = application.getMessageFactory()
                 .buildFor(application, MessageType.COMMAND, MessageFamilyType.SET, "Updating the system of server");
+        updateSystemCommand.setNeedResponse(true)
+                .setParameter(Parameter.of("type", "update-server-configuration"))
+                .setParameter(Parameter.of("system", Tools.emptyXML))
+                ;
         reset(application);
 
         // acting
-//        application.execute(updateSystemCommand);
+        application.execute(updateSystemCommand);
 //
 //        // check the behavior
 //        verify(application).Start();
@@ -439,17 +453,5 @@ public class ApplicationServerAdapterTest {
 
     @Test
     public void setXML() {
-    }
-
-    @Test
-    public void respondTo() {
-    }
-
-    @Test
-    public void testRespondTo() {
-    }
-
-    @Test
-    public void testSetXML() {
     }
 }

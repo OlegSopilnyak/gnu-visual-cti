@@ -622,7 +622,7 @@ public class RunnableUnitAdapterTest {
 
         // check the behavior
         verify(runnableUnitAdapter).Start();
-        verify(runnableUnitAdapter).respondTo(eq(request), any(Consumer.class));
+        verify(runnableUnitAdapter).successfulResponseTo(eq(request), any(Consumer.class));
         ArgumentCaptor<UnitMessage> captor = ArgumentCaptor.forClass(UnitMessage.class);
         verify(runnableUnitAdapter, atLeastOnce()).dispatch(captor.capture());
         assertThat(captor.getAllValues()).hasSize(1);
@@ -644,7 +644,7 @@ public class RunnableUnitAdapterTest {
 
         // check the behavior
         verify(runnableUnitAdapter).Start();
-        verify(runnableUnitAdapter).respondTo(eq(request), any(Consumer.class));
+        verify(runnableUnitAdapter).successfulResponseTo(eq(request), any(Consumer.class));
         ArgumentCaptor<UnitMessage> captor = ArgumentCaptor.forClass(UnitMessage.class);
         verify(runnableUnitAdapter, atLeastOnce()).dispatch(captor.capture());
         List<UnitMessage> unitMessages = captor.getAllValues();
@@ -688,7 +688,7 @@ public class RunnableUnitAdapterTest {
 
         // check the behavior
         verify(runnableUnitAdapter).Stop();
-        verify(runnableUnitAdapter).respondTo(eq(request), any(Consumer.class));
+        verify(runnableUnitAdapter).successfulResponseTo(eq(request), any(Consumer.class));
         ArgumentCaptor<UnitMessage> captor = ArgumentCaptor.forClass(UnitMessage.class);
         verify(runnableUnitAdapter, atLeastOnce()).dispatch(captor.capture());
         assertThat(captor.getAllValues()).hasSize(1);
@@ -710,7 +710,7 @@ public class RunnableUnitAdapterTest {
 
         // check the behavior
         verify(runnableUnitAdapter).Stop();
-        verify(runnableUnitAdapter).respondTo(eq(request), any(Consumer.class));
+        verify(runnableUnitAdapter).successfulResponseTo(eq(request), any(Consumer.class));
         ArgumentCaptor<UnitMessage> captor = ArgumentCaptor.forClass(UnitMessage.class);
         verify(runnableUnitAdapter, atLeastOnce()).dispatch(captor.capture());
         List<UnitMessage> unitMessages = captor.getAllValues();

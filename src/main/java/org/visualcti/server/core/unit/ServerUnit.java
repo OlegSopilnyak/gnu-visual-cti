@@ -43,8 +43,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.rmi.registry.Registry;
 import java.util.Map;
-import java.util.Objects;
-import java.util.function.BiFunction;
+import java.util.function.BinaryOperator;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import org.jdom.Element;
@@ -53,6 +52,7 @@ import org.visualcti.server.core.unit.message.MessageFamilyType;
 import org.visualcti.server.core.unit.message.MessageType;
 import org.visualcti.server.core.unit.message.UnitMessage;
 import org.visualcti.server.core.unit.message.UnitMessageFactory;
+import org.visualcti.server.core.unit.message.action.UnitActionError;
 import org.visualcti.server.core.unit.message.command.ServerCommandRequest;
 import org.visualcti.server.core.unit.message.command.ServerCommandResponse;
 import org.visualcti.server.core.unit.message.command.UnknownCommandException;
@@ -85,11 +85,12 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
     // commands constants
     String COMMAND_TYPE_PARAMETER = "type";
     String COMMAND_TARGET_PARAMETER = "target";
+    String COMMAND_FAILED_REASON = "reason";
     // command's target for execute by default
     String GET_UNIT_META_TARGET = "meta";
     // predicate to test is string empty
     Predicate<String> isEmptyString = string -> string == null || string.trim().isEmpty();
-    // Consumer for command response before dispatch action in respondTo(...)
+    // the consumer for command's response before dispatch successful result in successfulResponseTo(...)
     Consumer<ServerCommandResponse> COMMAND_NOT_NEEDED_RESPONSE = response -> {
     };
 
@@ -155,13 +156,15 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
         // checking command to execute
         validateCommand(command);
         // processing the command with response
-        if (Objects.requireNonNull(command.getFamilyType()) == MessageFamilyType.GET) {// getting parameter with name "target" from the executing command
+        if (command.getFamilyType() == MessageFamilyType.GET) {
+            // getting parameter with name "target" from the executing command
             if (GET_UNIT_META_TARGET.equals(targetValueOf(command))) {
                 // target is "meta" responding to it
-                respondTo(command, response -> UnitMetaData.of(this).transferTo(response));
+                successfulResponseTo(command, response -> UnitMetaData.of(this).transferTo(response));
             } else {
-                // target isn't "meat"
-                throw new UnknownCommandException(command.getFamilyType() + " isn't supported! Wrong GET target");
+                // command's target isn't "meta"
+                final String reason = command.getFamilyType() + " isn't supported! Wrong GET's request target parameter";
+                throw new UnknownCommandException(reason);
             }
         } else {
             throw new UnknownCommandException(command.getFamilyType() + " isn't supported!");
@@ -237,8 +240,31 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
      * @see ServerCommandResponse
      * @see #respondTo(ServerCommandRequest, boolean, Consumer)
      */
-    default void respondTo(ServerCommandRequest command, Consumer<ServerCommandResponse> beforeDispatch) throws IOException {
+    default void successfulResponseTo(ServerCommandRequest command, Consumer<ServerCommandResponse> beforeDispatch) throws IOException {
         respondTo(command, true, beforeDispatch);
+    }
+
+    /**
+     * <action>
+     * Prepare and send failed response to the command request with thrown exception
+     *
+     * @param command the response for
+     * @param reason why it was wrong
+     * @param exception the exception
+     * @throws IOException if it can't send the response to the command request
+     * @see #dispatchError(Exception, String)
+     * @see ServerCommandResponse#setParameter(Parameter)
+     * @see Parameter#of(String, Object)
+     * @see #respondTo(ServerCommandRequest, boolean, Consumer)
+     */
+    default void failedResponseTo(ServerCommandRequest command, String reason, Exception exception) throws IOException {
+        // dispatch detected exception message
+        dispatchError(exception, reason);
+        // prepare command response consumer
+        final Consumer<ServerCommandResponse> failedResponseConsumer = response ->
+                response.setParameter(Parameter.of(COMMAND_FAILED_REASON, reason).output());
+        // send failed response to the command
+        respondTo(command, false, failedResponseConsumer);
     }
 
     /**
@@ -268,6 +294,42 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
             // dispatching the response to the command request
             dispatch(response.setCommandSuccess(commandSuccess));
         }
+    }
+
+    /**
+     * <action>
+     * To create and dispatch the error-type message from the unit
+     *
+     * @param exception   the cause of the error
+     * @param description the description of the error
+     * @see UnitActionError
+     * @see UnitActionError#setNestedException(Exception)
+     * @see #getMessageFactory()
+     * @see UnitMessageFactory#buildFor(ServerUnit, MessageType, MessageFamilyType, String)
+     * @see #dispatch(UnitMessage)
+     */
+    default void dispatchError(Exception exception, String description) {
+        try {
+            final UnitActionError error = getMessageFactory()
+                    .buildFor(this, MessageType.ERROR, MessageFamilyType.ERROR, description);
+            if (exception != null) {
+                error.setNestedException(exception);
+            }
+            dispatch(error);
+        } catch (IOException ex) {
+            // doing nothing, server unit is already in broken state
+        }
+    }
+
+    /**
+     * <action>
+     * To create and dispatch the error-type message from the unit
+     *
+     * @param description the description of the error
+     * @see #dispatchError(Exception, String)
+     */
+    default void dispatchError(String description) {
+        dispatchError(null, description);
     }
 //////////////// ACTIONS PART (end) ///////////////////
 
@@ -431,8 +493,9 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
      */
     interface Builder<T extends ServerUnit> {
         // function to calculate canonical java class name
-        BiFunction<String, String, String> className = (packageName, className) ->
-                className.contains(".") ? className : packageName + "." + className;
+        BinaryOperator<String> className = (packageName, classname) ->
+//        BiFunction<String, String, String> className = (packageName, className) ->
+                classname.contains(".") ? classname : packageName + "." + classname;
 
         /**
          * <builder method>

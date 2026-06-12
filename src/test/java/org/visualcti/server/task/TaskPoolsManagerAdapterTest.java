@@ -158,7 +158,7 @@ public class TaskPoolsManagerAdapterTest {
     }
 
     @Test
-    public void shouldNotDetachTaskPool_NoPools() throws IOException {
+    public void shouldNotDetachTaskPool_NoPools() {
         // preparing test data
         String poolName = "pool4";
         String poolGroup = "poolGroup4";
@@ -593,7 +593,7 @@ public class TaskPoolsManagerAdapterTest {
 
         // check the behavior
         verify(manager).Start();
-        verify(manager).respondTo(eq(request), any(Consumer.class));
+        verify(manager).successfulResponseTo(eq(request), any(Consumer.class));
         verify(manager, atLeastOnce()).dispatch(any(UnitMessage.class));
         verify(poolUnit).Start();
         // check results
@@ -620,7 +620,7 @@ public class TaskPoolsManagerAdapterTest {
 
         // check the behavior
         verify(manager).Start();
-        verify(manager).respondTo(eq(request), any(Consumer.class));
+        verify(manager).successfulResponseTo(eq(request), any(Consumer.class));
         ArgumentCaptor<UnitMessage> responseArgumentCaptor = ArgumentCaptor.forClass(UnitMessage.class);
         verify(manager, atLeastOnce()).dispatch(responseArgumentCaptor.capture());
         verify(poolUnit).Start();
@@ -656,7 +656,7 @@ public class TaskPoolsManagerAdapterTest {
 
         // check the behavior
         verify(manager).Stop();
-        verify(manager).respondTo(eq(request), any(Consumer.class));
+        verify(manager).successfulResponseTo(eq(request), any(Consumer.class));
         verify(manager, atLeastOnce()).dispatch(any(UnitMessage.class));
         verify(poolUnit).Stop();
         // check results
@@ -684,7 +684,7 @@ public class TaskPoolsManagerAdapterTest {
 
         // check the behavior
         verify(manager).Stop();
-        verify(manager).respondTo(eq(request), any(Consumer.class));
+        verify(manager).successfulResponseTo(eq(request), any(Consumer.class));
         ArgumentCaptor<UnitMessage> responseArgumentCaptor = ArgumentCaptor.forClass(UnitMessage.class);
         verify(manager, atLeastOnce()).dispatch(responseArgumentCaptor.capture());
         verify(poolUnit).Stop();
