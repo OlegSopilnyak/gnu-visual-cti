@@ -172,17 +172,17 @@ public interface ApplicationServerUnit extends RunnableServerUnit {
      * <command-executor>
      * To update the parts of the server
      *
-     * @see #updateSeverSystem(Element)
+     * @see #updateSeverSystemXml(Element)
      * @see #UPDATE_CONFIGURATION_SET_TYPE
      */
     default void setupServerStuff(ServerCommandRequest command) throws UnknownCommandException, IOException {
         final String commandSetType = ServerUnit.typeValueOf(command);
         switch (commandSetType) {
             case UPDATE_CONFIGURATION_SET_TYPE:
-                final Element systemXml = systemAsXml(command, commandSetType);
+                final Element systemXml = systemAsXmlParameter(command, commandSetType);
                 try {
                     // updating the server system in configuration xml file
-                    updateSeverSystem(systemXml);
+                    updateSeverSystemXml(systemXml);
                     // send successful response to the command
                     successfulResponseTo(command, COMMAND_NOT_NEEDED_RESPONSE);
                 } catch (IOException e) {
@@ -204,7 +204,7 @@ public interface ApplicationServerUnit extends RunnableServerUnit {
      * @throws IOException if it cannot update
      * @see #setupServerStuff(ServerCommandRequest)
      */
-    void updateSeverSystem(Element systemXml) throws IOException;
+    void updateSeverSystemXml(Element systemXml) throws IOException;
 
     /**
      * <server-configuration-keeper>
@@ -244,7 +244,7 @@ public interface ApplicationServerUnit extends RunnableServerUnit {
     }
 
     // private methods
-    static Element systemAsXml(
+    static Element systemAsXmlParameter(
             final ServerCommandRequest command, final String actionName
     ) throws UnknownCommandException {
         return inputParameter(command, SERVER_SYSTEM_PARAMETER_NAME, actionName).getValue(Tools.emptyXML);

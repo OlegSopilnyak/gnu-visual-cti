@@ -40,9 +40,12 @@ package org.visualcti.server;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
@@ -52,16 +55,23 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.rmi.server.ExportException;
 import java.util.Collection;
+import java.util.List;
+import java.util.function.Consumer;
 import java.util.stream.Stream;
 import org.jdom.DataConversionException;
+import org.jdom.Element;
 import org.junit.After;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 import org.visualcti.server.core.system.SubSystem;
 import org.visualcti.server.core.unit.RunnableServerUnit;
 import org.visualcti.server.core.unit.message.MessageFamilyType;
 import org.visualcti.server.core.unit.message.MessageType;
 import org.visualcti.server.core.unit.message.UnitMessage;
 import org.visualcti.server.core.unit.message.command.ServerCommandRequest;
+import org.visualcti.server.core.unit.message.command.ServerCommandResponse;
+import org.visualcti.server.core.unit.message.command.UnknownCommandException;
+import org.visualcti.util.Tools;
 
 public class ApplicationServerAdapterTest {
 
@@ -413,8 +423,26 @@ public class ApplicationServerAdapterTest {
     }
 
     @Test
-    public void shouldUpdateSeverSystem() {
-        // TODO implement functionality test
+    public void shouldUpdateSeverSystemXml() throws IOException, DataConversionException {
+        // preparing test data
+        application.initialize();
+        SubSystem tasks = application.serverParts()
+                .filter(sys -> sys.getSystemElementName().equals("Tasks")).findFirst()
+                .orElse(null);
+        assertThat(tasks).isNotNull();
+        File appCongiFile = new File("./conf/VisualCTI.test.server.xml");
+        assertThat(appCongiFile).doesNotExist();
+        application.setServerConfigFile(appCongiFile);
+        reset(application);
+
+        // acting
+        application.updateSeverSystemXml(tasks.getXML());
+
+        // check the behavior
+        verify(application).saveServerXml();
+        // check results
+        assertThat(appCongiFile).exists();
+        assertThat(appCongiFile.delete()).isTrue();
     }
 
     @Test
@@ -425,6 +453,7 @@ public class ApplicationServerAdapterTest {
                 .filter(sys -> sys.getSystemElementName().equals("Tasks")).findFirst()
                 .orElse(null);
         assertThat(tasks).isNotNull();
+        Element tasksXml = tasks.getXML();
         File appCongiFile = new File("./conf/VisualCTI.test.server.xml");
         assertThat(appCongiFile).doesNotExist();
         application.setServerConfigFile(appCongiFile);
@@ -432,24 +461,162 @@ public class ApplicationServerAdapterTest {
                 .buildFor(application, MessageType.COMMAND, MessageFamilyType.SET, "Updating the system of server");
         updateSystemCommand.setNeedResponse(true)
                 .setParameter(Parameter.of("type", "update-server-configuration"))
-                .setParameter(Parameter.of("system", tasks.getXML()))
-                ;
+                .setParameter(Parameter.of("system", tasksXml))
+        ;
         reset(application);
 
         // acting
         application.execute(updateSystemCommand);
-//
-//        // check the behavior
-//        verify(application).Start();
-//        verify(application).startUnitRunnable();
-//        // check results
-//        assertThat(application.isStarted()).isTrue();
+
+        // check the behavior
+        verify(application).setupServerStuff(updateSystemCommand);
+        verify(application).updateSeverSystemXml(tasksXml);
+        verify(application).saveServerXml();
+        verify(application).successfulResponseTo(eq(updateSystemCommand), any(Consumer.class));
+        verify(application).respondTo(eq(updateSystemCommand), eq(true), any(Consumer.class));
+        verify(application).getMessageFactory();
+        ArgumentCaptor<UnitMessage>  messageCaptor = ArgumentCaptor.forClass(UnitMessage.class);
+        verify(application).dispatch(messageCaptor.capture());
+        // check results
+        UnitMessage message = messageCaptor.getValue();
+        assertThat(message).isInstanceOf(ServerCommandResponse.class);
+        ServerCommandResponse response = (ServerCommandResponse) message;
+        assertThat(response.isCommandSuccess()).isTrue();
+        assertThat(response.getCorrelationID()).isEqualTo(updateSystemCommand.getCorrelationID());
+        assertThat(response.getDescription()).isEqualTo(updateSystemCommand.getDescription());
         assertThat(appCongiFile).exists();
         assertThat(appCongiFile.delete()).isTrue();
     }
 
     @Test
-    public void dispatch() {
+    public void shouldNotExecuteUpdateSystemCommand_WrongRequestTypeParameter() throws Exception {
+        // preparing test data
+        application.initialize();
+        SubSystem tasks = application.serverParts()
+                .filter(sys -> sys.getSystemElementName().equals("Tasks")).findFirst()
+                .orElse(null);
+        assertThat(tasks).isNotNull();
+        Element tasksXml = tasks.getXML();
+        File appCongiFile = new File("./conf/VisualCTI.test.server.xml");
+        assertThat(appCongiFile).doesNotExist();
+        application.setServerConfigFile(appCongiFile);
+        ServerCommandRequest updateSystemCommand = application.getMessageFactory()
+                .buildFor(application, MessageType.COMMAND, MessageFamilyType.SET, "Updating the system of server");
+        String wrongRequestType = "update-server-configuration-";
+        updateSystemCommand.setNeedResponse(true)
+                .setParameter(Parameter.of("type", wrongRequestType))
+                .setParameter(Parameter.of("system", tasksXml))
+        ;
+        reset(application);
+
+        // acting
+        Exception e = assertThrows(Exception.class, () -> application.execute(updateSystemCommand));
+
+        // check the behavior
+        verify(application).setupServerStuff(updateSystemCommand);
+        verify(application, never()).updateSeverSystemXml(tasksXml);
+        // check results
+        assertThat(e).isInstanceOf(UnknownCommandException.class);
+        assertThat(e.getMessage()).startsWith("Invalid SET's command type").contains(wrongRequestType);
+        assertThat(appCongiFile).doesNotExist();
+    }
+
+    @Test
+    public void shouldNotExecuteUpdateSystemCommand_WrongSystemXmlParameter() throws Exception {
+        // preparing test data
+        application.initialize();
+        SubSystem tasks = application.serverParts()
+                .filter(sys -> sys.getSystemElementName().equals("Tasks")).findFirst()
+                .orElse(null);
+        assertThat(tasks).isNotNull();
+        Element tasksXml = tasks.getXML();
+        File appCongiFile = new File("./conf/VisualCTI.test.server.xml");
+        assertThat(appCongiFile).doesNotExist();
+        application.setServerConfigFile(appCongiFile);
+        ServerCommandRequest updateSystemCommand = application.getMessageFactory()
+                .buildFor(application, MessageType.COMMAND, MessageFamilyType.SET, "Updating the system of server");
+        updateSystemCommand.setNeedResponse(true)
+                .setParameter(Parameter.of("type", "update-server-configuration"))
+                .setParameter(Parameter.of("system", Tools.emptyXML))
+        ;
+        reset(application);
+
+        // acting
+        application.execute(updateSystemCommand);
+
+        // check the behavior
+        verify(application).setupServerStuff(updateSystemCommand);
+        verify(application, never()).updateSeverSystemXml(tasksXml);
+        ArgumentCaptor<Exception>  exceptionCaptor = ArgumentCaptor.forClass(Exception.class);
+        verify(application).failedResponseTo(eq(updateSystemCommand),anyString(), exceptionCaptor.capture());
+        ArgumentCaptor<UnitMessage>  messageCaptor = ArgumentCaptor.forClass(UnitMessage.class);
+        verify(application, atLeastOnce()).dispatch(messageCaptor.capture());
+        // check results
+        Exception e = exceptionCaptor.getValue();
+        assertThat(e).isInstanceOf(IOException.class);
+        assertThat(e.getMessage()).isEqualTo("Expected element with name: system");
+        assertThat(appCongiFile).doesNotExist();
+        List<UnitMessage> messageList = messageCaptor.getAllValues();
+        assertThat(messageList).hasSize(2);
+        UnitMessage message = messageList.get(0);
+        assertThat(message.getMessageType()).isSameAs(MessageType.ERROR);
+        assertThat(message.getFamilyType()).isSameAs(MessageFamilyType.ERROR);
+        assertThat(message.getUnitPath()).isEqualTo("{Server}");
+        assertThat(messageList.get(1)).isInstanceOf(ServerCommandResponse.class);
+        ServerCommandResponse response = (ServerCommandResponse) messageList.get(1);
+        assertThat(response.isCommandSuccess()).isFalse();
+        assertThat(response.getMessageType()).isSameAs(MessageType.RESPONSE);
+        assertThat(response.getFamilyType()).isSameAs(MessageFamilyType.SET);
+        assertThat(response.getUnitPath()).isEqualTo("{Server}");
+    }
+
+    @Test
+    public void shouldNotExecuteUpdateSystemCommand_WrongSystemXmlParameter2() throws Exception {
+        // preparing test data
+        application.initialize();
+        SubSystem tasks = application.serverParts()
+                .filter(sys -> sys.getSystemElementName().equals("Tasks")).findFirst()
+                .orElse(null);
+        assertThat(tasks).isNotNull();
+        Element tasksXml = tasks.getXML();
+        File appCongiFile = new File("./conf/VisualCTI.test.server.xml");
+        assertThat(appCongiFile).doesNotExist();
+        application.setServerConfigFile(appCongiFile);
+        ServerCommandRequest updateSystemCommand = application.getMessageFactory()
+                .buildFor(application, MessageType.COMMAND, MessageFamilyType.SET, "Updating the system of server");
+        updateSystemCommand.setNeedResponse(true)
+                .setParameter(Parameter.of("type", "update-server-configuration"))
+                .setParameter(Parameter.of("system", new Element("system")))
+        ;
+        reset(application);
+
+        // acting
+        application.execute(updateSystemCommand);
+
+        // check the behavior
+        verify(application).setupServerStuff(updateSystemCommand);
+        verify(application, never()).updateSeverSystemXml(tasksXml);
+        ArgumentCaptor<Exception>  exceptionCaptor = ArgumentCaptor.forClass(Exception.class);
+        verify(application).failedResponseTo(eq(updateSystemCommand),anyString(), exceptionCaptor.capture());
+        ArgumentCaptor<UnitMessage>  messageCaptor = ArgumentCaptor.forClass(UnitMessage.class);
+        verify(application, atLeastOnce()).dispatch(messageCaptor.capture());
+        // check results
+        Exception e = exceptionCaptor.getValue();
+        assertThat(e).isInstanceOf(IOException.class);
+        assertThat(e.getMessage()).isEqualTo("Expected exactly 1 child element");
+        assertThat(appCongiFile).doesNotExist();
+        List<UnitMessage> messageList = messageCaptor.getAllValues();
+        assertThat(messageList).hasSize(2);
+        UnitMessage message = messageList.get(0);
+        assertThat(message.getMessageType()).isSameAs(MessageType.ERROR);
+        assertThat(message.getFamilyType()).isSameAs(MessageFamilyType.ERROR);
+        assertThat(message.getUnitPath()).isEqualTo("{Server}");
+        assertThat(messageList.get(1)).isInstanceOf(ServerCommandResponse.class);
+        ServerCommandResponse response = (ServerCommandResponse) messageList.get(1);
+        assertThat(response.isCommandSuccess()).isFalse();
+        assertThat(response.getMessageType()).isSameAs(MessageType.RESPONSE);
+        assertThat(response.getFamilyType()).isSameAs(MessageFamilyType.SET);
+        assertThat(response.getUnitPath()).isEqualTo("{Server}");
     }
 
     @Test

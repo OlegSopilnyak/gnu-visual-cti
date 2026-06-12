@@ -252,7 +252,7 @@ public class ApplicationServerAdapter extends RunnableUnitAdapter implements App
      */
     @SuppressWarnings("unchecked")
     @Override
-    public void updateSeverSystem(final Element systemXml) throws IOException {
+    public void updateSeverSystemXml(final Element systemXml) throws IOException {
         // getting sub-system to update name
         final String subSystemToUpdateName = ApplicationServerUnit.serverSystemName(systemXml);
         if (isEmptyString.test(subSystemToUpdateName)) {
