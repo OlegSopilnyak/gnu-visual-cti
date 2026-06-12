@@ -52,6 +52,7 @@ import java.text.DateFormat;
 import java.text.Format;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -283,10 +284,13 @@ public class ApplicationServerAdapter extends RunnableUnitAdapter implements App
     @Override
     public void stopAndExitServer() throws IOException {
         Stop();
-        // TODO uncomment it for production
-        /*
+        if (isUnderJUnit()) {
+            Tools.print("===== Under JUnit tests, skipping real application's shutdown =====");
+            return;
+        }
+        // shutting down the server
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            Tools.print("\tShutting down server...");
+            Tools.print("\tShutting down server in 5 secs.");
             try {
                 Thread.sleep(5000);
                 Tools.print("\t=== Bye Java ===");
@@ -295,7 +299,6 @@ public class ApplicationServerAdapter extends RunnableUnitAdapter implements App
             }
         }));
         new Thread(() -> Runtime.getRuntime().exit(0)).start();
-         */
     }
 
     /**
@@ -372,6 +375,12 @@ public class ApplicationServerAdapter extends RunnableUnitAdapter implements App
     }
 
     // private methods
+    // to check is method called from JUnit test
+    private boolean isUnderJUnit() {
+        return Arrays.stream(Thread.currentThread().getStackTrace())
+                .anyMatch(e -> e.getClassName().startsWith("org.junit."));
+    }
+
     // initializing server core stuff
     private void initializeCore() {
         // cleaning server units registry
