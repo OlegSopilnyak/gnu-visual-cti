@@ -233,6 +233,40 @@ public interface ApplicationServerUnit extends RunnableServerUnit {
     void loadServerXml() throws IOException, DataConversionException;
 
     /**
+     * <server-system-builder>
+     * To build and configure server sub-system instance from xml-configuration element
+     *
+     * @param systemElement the server's system xml-configuration element
+     * @return ready to use server sub-system instance
+     * @throws IOException if there is wrong xml-element structure
+     * @throws DataConversionException if there is xml-conversion problem
+     * @see SubSystem
+     * @see #getSubSystem(String)
+     */
+    SubSystem buildSubSystem(Element systemElement) throws IOException, DataConversionException;
+
+    /**
+     * <accessor-builder>
+     * To get or build server's sub-system instance by the name of one
+     *
+     * @param subSystemName  server sub-system name
+     * @return got or built clean instance of the server's sub-system
+     * @see #createSubSystem(String)
+     * @see #buildSubSystem(Element)
+     */
+    SubSystem getSubSystem(String subSystemName);
+
+    /**
+     * <server-system-builder>
+     * To build empty server sub-system instance by its name
+     *
+     * @param name server sub-system name
+     * @return built clean instance of the server's sub-system
+     * @see SubSystem
+     */
+    SubSystem createSubSystem(String name);
+
+    /**
      * <server-configuration-keeper>
      * To save server configuration to the external XML file
      *
@@ -247,18 +281,36 @@ public interface ApplicationServerUnit extends RunnableServerUnit {
      * @param xml element to get the name from
      * @return the value
      * @throws IOException if xml-element isn't correct
+     * @see #serverSystemElement(Element)
+     */
+    static String serverSystemName(final Element xml) throws IOException {
+        return serverSystemElement(xml).getName();
+    }
+
+    /**
+     * <accessor>
+     * To get sub-system element from the xml-element
+     *
+     * @param xml element to get the sub-system element from
+     * @return the valid sub-system element
+     * @throws IOException if xml-element isn't correct
+     * @see SubSystem#SYSTEM_ROOT_ELEMENT_NAME
      */
     @SuppressWarnings("unchecked")
-    static String serverSystemName(final Element xml) throws IOException {
+    static Element serverSystemElement(final Element xml) throws IOException {
         if (!Objects.equals(SYSTEM_ROOT_ELEMENT_NAME, xml.getName())) {
-            throw new IOException("Expected element with name: " + SYSTEM_ROOT_ELEMENT_NAME);
+            throw new IOException("Expected element with name: " + SYSTEM_ROOT_ELEMENT_NAME + " not " + xml.getName());
         }
         final List<Element> children = xml.getChildren();
         if (children.size() != 1) {
             throw new IOException("Expected exactly 1 child element");
         }
-        // getting sub-system to update name
-        return children.get(0).getName();
+        // getting sub-system element
+        final Element serverSubSystemElement = children.iterator().next();
+        if (isEmptyString.test(serverSubSystemElement.getName())) {
+            throw new IOException("SubSystem element should have the non empty name");
+        }
+        return serverSubSystemElement;
     }
 
     // private methods

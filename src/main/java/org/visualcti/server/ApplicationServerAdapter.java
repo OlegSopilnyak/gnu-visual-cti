@@ -52,7 +52,6 @@ import java.text.DateFormat;
 import java.text.Format;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -67,6 +66,7 @@ import org.jdom.Comment;
 import org.jdom.DataConversionException;
 import org.jdom.Document;
 import org.jdom.Element;
+import org.visualcti.core.XmlAware;
 import org.visualcti.server.core.system.SubSystem;
 import org.visualcti.server.core.unit.ApplicationServerUnit;
 import org.visualcti.server.core.unit.RunnableServerUnit;
@@ -284,7 +284,7 @@ public class ApplicationServerAdapter extends RunnableUnitAdapter implements App
     @Override
     public void stopAndExitServer() throws IOException {
         Stop();
-        if (isUnderJUnit()) {
+        if (ServerUnit.isUnderJUnit()) {
             Tools.print("===== Under JUnit tests, skipping real application's shutdown =====");
             return;
         }
@@ -293,7 +293,7 @@ public class ApplicationServerAdapter extends RunnableUnitAdapter implements App
             Tools.print("\tShutting down server in 5 secs.");
             try {
                 Thread.sleep(5000);
-                Tools.print("\t=== Bye Java ===");
+                Tools.print("\t=== Server work is completed ===");
             } catch (InterruptedException e) {
                 // doing noting
             }
@@ -313,6 +313,20 @@ public class ApplicationServerAdapter extends RunnableUnitAdapter implements App
     }
 
     /**
+     * <converter>
+     * To represent server as an XML element
+     *
+     * @return server's XML
+     * @see Element
+     * @see XmlAware#getXML()
+     * @see #serverConfigurationElement
+     */
+    @Override
+    public Element getXML() {
+        return this.serverConfigurationElement;
+    }
+
+    /**
      * <server-configuration-keeper>
      * To load server configuration from the external XML file
      *
@@ -323,17 +337,101 @@ public class ApplicationServerAdapter extends RunnableUnitAdapter implements App
     @Override
     public void loadServerXml() throws IOException, DataConversionException {
         try(final FileInputStream in = new FileInputStream(serverConfigFile)) {
+            // loading server configuration xml-file as Document
+            final Document serverConfigurationXmlDocument = prepareXmlDocument(in);
             // to check and prepare loaded server root xml-element
-            final Element serverXml = loadAndCheckConfigurationXmlDocument(prepareXmlDocument(in));
-            boolean needToSave = false;
-            // apply header values to initial document and server's properties
-            needToSave = applyServerHeader(serverXml);
-            // load and configure server's sub-systems
-            needToSave = configureServerSystems(serverXml) || needToSave;
-            if (needToSave) {
-                // saving updated server's configuration
-                saveServerXml();
-            }
+            final Element serverXml = loadAndCheckConfigurationXmlDocument(serverConfigurationXmlDocument);
+            // setting up server parts
+            setXML(serverXml);
+        }
+    }
+
+    /**
+     * <converter>
+     * To update the entity's fields from XML
+     *
+     * @param xml possible entity's XML
+     * @throws IOException             if something went wrong
+     * @throws DataConversionException if something went wrong
+     * @throws NumberFormatException   if something went wrong
+     * @throws NullPointerException    if something went wrong
+     * @see Element
+     * @see #configure(Element)
+     * @see #settingUpBasePart(Element)
+     * @see #settingUpMainPart(Element)
+     */
+    @Override
+    public void setXML(Element xml) throws IOException, DataConversionException, NumberFormatException, NullPointerException {
+        // apply header values to initial document and server's properties
+        boolean needToSave = applyServerHeader(xml);
+        // load and configure server's sub-systems
+        needToSave = configureServerSystems(xml) || needToSave;
+        if (needToSave) {
+            // saving updated server's configuration
+            saveServerXml();
+        }
+    }
+
+    /**
+     * <server-system-builder>
+     * To build and configure server sub-system instance from xml-configuration element
+     *
+     * @param systemElement the server's system xml-configuration element
+     * @return ready to use server sub-system instance
+     * @throws IOException if there is wrong xml-element structure
+     * @throws DataConversionException if there is xml-conversion problem
+     * @see SubSystem
+     */
+    @Override
+    public SubSystem buildSubSystem(final Element systemElement) throws IOException, DataConversionException {
+        // preparing the sub-system instance
+        final String systemName = ApplicationServerUnit.serverSystemName(systemElement);
+        Tools.print("Resolving system :" + systemName);
+        // get or create server's sub-system instance
+        final SubSystem subSystem = getSubSystem(systemName);
+        if (subSystem != null) {
+            // configuring it by XML
+            subSystem.setXML(systemElement);
+        }
+        return subSystem;
+    }
+
+    /**
+     * <accessor-builder>
+     * To get or build server's sub-system instance by the name of one
+     *
+     * @param subSystemName  server sub-system name
+     * @return got or built clean instance of the server's sub-system
+     * @see #createSubSystem(String)
+     * @see #buildSubSystem(Element)
+     */
+    public SubSystem getSubSystem(String subSystemName) {
+        return safeServerSystemsAction(() -> system.computeIfAbsent(subSystemName, this::createSubSystem));
+    }
+
+
+    /**
+     * <server-system-builder>
+     * To build empty server sub-system instance by its name
+     *
+     * @param systemName server sub-system name
+     * @return built clean instance of the server's sub-system
+     * @see SubSystem
+     */
+    @Override
+    public SubSystem createSubSystem(String systemName) {
+        switch (systemName) {
+            case SubSystem.TASKS_SUB_SYSTEM:
+                // tasks sub system creation
+                return new TasksSubSystem();
+            case SubSystem.SERVICES_SUB_SYSTEM:
+                // services sub system creation
+                return null;
+            case SubSystem.HARDWARE_SUB_SYSTEM:
+                // external channels sub system creation
+                return null;
+            default:
+                return null;
         }
     }
 
@@ -375,12 +473,6 @@ public class ApplicationServerAdapter extends RunnableUnitAdapter implements App
     }
 
     // private methods
-    // to check is method called from JUnit test
-    private boolean isUnderJUnit() {
-        return Arrays.stream(Thread.currentThread().getStackTrace())
-                .anyMatch(e -> e.getClassName().startsWith("org.junit."));
-    }
-
     // initializing server core stuff
     private void initializeCore() {
         // cleaning server units registry
@@ -395,39 +487,16 @@ public class ApplicationServerAdapter extends RunnableUnitAdapter implements App
     @SuppressWarnings("unchecked")
     private boolean configureServerSystems(final Element serverXml) throws IOException, DataConversionException {
         final List<Element> systems = serverXml.getChildren(SYSTEM_ROOT_ELEMENT_NAME);
-        for (final Element element : systems) {
-            serverConfigurationElement.addContent((Element) element.clone());
-            final SubSystem subSystem = buildSubSystem(element);
+        for (final Element systemElement : systems) {
+            final SubSystem subSystem = buildSubSystem(systemElement);
             if (subSystem != null) {
                 system.put(subSystem.getSystemElementName(), subSystem);
                 // connecting the manager with server
                 subSystem.getSystemManager().connectTo(this);
             }
+            serverConfigurationElement.addContent((Element) systemElement.clone());
         }
         return false;
-    }
-
-    // to build server's sub-system instance from XML-element
-    @SuppressWarnings("unchecked")
-    private SubSystem buildSubSystem(final Element subSystemElement) throws IOException, DataConversionException {
-        final List<Element> children = subSystemElement.getChildren();
-        if (children.size() != 1) {
-            throw new IOException("Expected exactly 1 child element");
-        }
-        // building the sub-system instance
-        final String systemName = children.get(0).getName();
-        Tools.print("Resolving system :" + systemName);
-        final SubSystem subSystem = getSubSystem(systemName);
-        if (subSystem != null) {
-            // configuring it by XML
-            subSystem.setXML(subSystemElement);
-        }
-        return subSystem;
-    }
-
-    // to get subsystem by its name
-    private SubSystem getSubSystem(String subSystemName) {
-        return safeServerSystemsAction(() -> system.computeIfAbsent(subSystemName, this::createSubSystem));
     }
 
     // to do action with protected server systems container
@@ -440,23 +509,6 @@ public class ApplicationServerAdapter extends RunnableUnitAdapter implements App
             return null;
         } finally {
             subSystemLock.unlock();
-        }
-    }
-
-    // to create subsystem by its name
-    private SubSystem createSubSystem(String systemName) {
-        switch (systemName) {
-            case SubSystem.TASKS_SUB_SYSTEM:
-                // tasks sub system creation
-                return new TasksSubSystem();
-            case SubSystem.SERVICES_SUB_SYSTEM:
-                // services sub system creation
-                return null;
-            case SubSystem.HARDWARE_SUB_SYSTEM:
-                // external channels sub system creation
-                return null;
-            default:
-                return null;
         }
     }
 
@@ -512,34 +564,37 @@ public class ApplicationServerAdapter extends RunnableUnitAdapter implements App
     }
 
     // apply header values to initial document and server's properties
-    private boolean applyServerHeader(final Element serverXml) {
-        final Element attachedServerRoot = serverConfigurationDocument.getRootElement().getChild(SERVER_ROOT_ELEMENT_NAME);
+    private boolean applyServerHeader(final Element updatedServerRoot) {
+        final Element configuredServerRoot = serverConfigurationDocument.getRootElement().getChild(SERVER_ROOT_ELEMENT_NAME);
         boolean needToSave = false;
         // dealing with date-time format
-        final String dateFormat = serverXml.getAttributeValue(SERVER_DATE_FORMAT_ATTRIBUTE_NAME);
+        final String dateFormat = updatedServerRoot.getAttributeValue(SERVER_DATE_FORMAT_ATTRIBUTE_NAME);
         if (isEmptyString.negate().test(dateFormat)) {
-            attachedServerRoot.setAttribute(SERVER_DATE_FORMAT_ATTRIBUTE_NAME, dateFormat);
+            configuredServerRoot.setAttribute(SERVER_DATE_FORMAT_ATTRIBUTE_NAME, dateFormat);
             dateTimeFormat = new SimpleDateFormat(dateFormat);
             needToSave = true;
         }
         // dealing with RMI properties
-        final Element attacedRmiElement = attachedServerRoot.getChild(SERVER_RMI_ELEMENT_NAME);
-        final Element loadedRmiElement = serverXml.getChild(SERVER_RMI_ELEMENT_NAME);
-        // dealing with RMI port value
-        needToSave = configureRmiPort(loadedRmiElement, attacedRmiElement, needToSave);
-        // dealing with RMI startup value
-        needToSave = configureRmiStartup(loadedRmiElement, attacedRmiElement, needToSave);
+        final Element updatedRmiElement = updatedServerRoot.getChild(SERVER_RMI_ELEMENT_NAME);
+        if (updatedRmiElement != null) {
+            // getting configured RMI root xml-element
+            final Element configuredRmiElement = configuredServerRoot.getChild(SERVER_RMI_ELEMENT_NAME);
+            // dealing with RMI port value
+            needToSave = configureRmiPort(updatedRmiElement, configuredRmiElement, needToSave);
+            // dealing with RMI startup value
+            needToSave = configureRmiStartup(updatedRmiElement, configuredRmiElement, needToSave);
+        }
         return needToSave;
     }
 
     // configuring the RMI port value
-    private boolean configureRmiPort(Element loadedRmiElement, Element attacedRmiElement, boolean needToSave) {
-        final String rmiPortValue = loadedRmiElement.getAttributeValue(SERVER_RMI_PORT_ATTRIBUTE_NAME);
+    private boolean configureRmiPort(Element updatedRmiElement, Element configuredRmiElement, boolean needToSave) {
+        final String rmiPortValue = updatedRmiElement.getAttributeValue(SERVER_RMI_PORT_ATTRIBUTE_NAME);
         final String defaultRmiPortValue = String.valueOf(SERVER_RMI_PORT_DEFAULT_VALUE);
         if (isEmptyString.negate().test(rmiPortValue) && !Objects.equals(rmiPortValue, defaultRmiPortValue)) {
             try {
                 rmi.port = Integer.parseInt(rmiPortValue);
-                attacedRmiElement.setAttribute(SERVER_RMI_PORT_ATTRIBUTE_NAME, rmiPortValue);
+                configuredRmiElement.setAttribute(SERVER_RMI_PORT_ATTRIBUTE_NAME, rmiPortValue);
                 needToSave = true;
             }catch (NumberFormatException e){
                 Tools.error("Invalid RMI port value.");

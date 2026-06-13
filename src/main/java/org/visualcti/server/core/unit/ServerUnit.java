@@ -42,6 +42,7 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.rmi.registry.Registry;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.function.BinaryOperator;
 import java.util.function.Consumer;
@@ -441,6 +442,11 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
      */
     void setProperties(Map<String, Object> properties);
 ///////////// PROPERTIES PART (end) //////////////
+// to check is method called from JUnit test
+static boolean isUnderJUnit() {
+    return Arrays.stream(Thread.currentThread().getStackTrace())
+            .anyMatch(e -> e.getClassName().startsWith("org.junit."));
+}
 
 ///////////// UNIT BUILDER PART (begin) //////////////
 /// BASIC UNIT CLASSES (begin) methods ///

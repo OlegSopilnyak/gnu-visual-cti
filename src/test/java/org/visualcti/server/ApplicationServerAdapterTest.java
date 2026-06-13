@@ -53,12 +53,14 @@ import static org.mockito.Mockito.verify;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.rmi.server.ExportException;
 import java.util.Collection;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 import org.jdom.DataConversionException;
+import org.jdom.Document;
 import org.jdom.Element;
 import org.junit.After;
 import org.junit.Test;
@@ -73,6 +75,7 @@ import org.visualcti.server.core.unit.message.command.ServerCommandResponse;
 import org.visualcti.server.core.unit.message.command.UnknownCommandException;
 import org.visualcti.util.Tools;
 
+@SuppressWarnings("unchecked")
 public class ApplicationServerAdapterTest {
 
     ApplicationServerAdapter application = spy(new ApplicationServerAdapter());
@@ -141,8 +144,30 @@ public class ApplicationServerAdapterTest {
     }
 
     @Test
-    public void saveServerXml() {
-        // TODO implement it or remove it
+    public void shouldSaveServerXml() throws IOException, DataConversionException {
+        // preparing test data
+        String subSystemName = "Tasks";
+        Element serverXml = new Element("Server");
+        Element tasksXml = new Element(subSystemName);
+        Element systemXml = new Element("system").addContent(tasksXml);
+        serverXml.addContent(systemXml);
+        Element managerConfigXml = new Element("parameter").setAttribute("name", "directory")
+                .setAttribute("type", "string").setAttribute("value", "work/tasks");
+        tasksXml.addContent(new Element("Manager").addContent(managerConfigXml));
+        application.setXML(serverXml);
+        File appCongiFile = new File("./conf/VisualCTI.test.server.xml");
+        assertThat(appCongiFile).doesNotExist();
+        application.setServerConfigFile(appCongiFile);
+        reset(application);
+
+        // acting
+        application.saveServerXml();
+
+        // check the behavior
+        verify(application).store(any(Document.class), any(OutputStream.class));
+        // check results
+        assertThat(appCongiFile).exists();
+        assertThat(appCongiFile.delete()).isTrue();
     }
 
     @Test
@@ -554,7 +579,7 @@ public class ApplicationServerAdapterTest {
         // check results
         Exception e = exceptionCaptor.getValue();
         assertThat(e).isInstanceOf(IOException.class);
-        assertThat(e.getMessage()).isEqualTo("Expected element with name: system");
+        assertThat(e.getMessage()).startsWith("Expected element with name: system not");
         assertThat(appCongiFile).doesNotExist();
         List<UnitMessage> messageList = messageCaptor.getAllValues();
         assertThat(messageList).hasSize(2);
@@ -651,10 +676,28 @@ public class ApplicationServerAdapterTest {
     }
 
     @Test
-    public void getXML() {
-    }
+    public void shouldSetXML() throws IOException, DataConversionException {
+        // preparing test data
+        String subSystemName = "Tasks";
+        Element serverXml = new Element("Server");
+        Element tasksXml = new Element(subSystemName);
+        Element systemXml = new Element("system").addContent(tasksXml);
+        serverXml.addContent(systemXml);
+        Element managerConfigXml = new Element("parameter").setAttribute("name", "directory")
+                .setAttribute("type", "string").setAttribute("value", "work/tasks");
+        tasksXml.addContent(new Element("Manager").addContent(managerConfigXml));
 
-    @Test
-    public void setXML() {
+        // acting
+        application.setXML(serverXml);
+
+        // check the behavior
+        ArgumentCaptor<Element> xmlElementCaptor = ArgumentCaptor.forClass(Element.class);
+        verify(application).buildSubSystem(xmlElementCaptor.capture());
+        verify(application).getSubSystem(subSystemName);
+        verify(application).createSubSystem(subSystemName);
+        // check results
+        assertThat(xmlElementCaptor.getValue()).isSameAs(systemXml);
+        assertThat(application.getSubSystem(subSystemName).getSystemElementName()).isEqualTo(subSystemName);
+        assertThat(application.getSubSystem(subSystemName).getSystemManager()).isNotNull();
     }
 }
