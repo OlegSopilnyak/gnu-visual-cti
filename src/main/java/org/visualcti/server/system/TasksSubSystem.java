@@ -48,7 +48,7 @@ import org.visualcti.core.XmlAware;
 import org.visualcti.server.UnitRegistry;
 import org.visualcti.server.core.executable.task.TasksPoolUnit;
 import org.visualcti.server.core.system.SubSystem;
-import org.visualcti.server.core.unit.ApplicationServerUnit;
+import org.visualcti.server.core.ApplicationServer;
 import org.visualcti.server.task.TaskPoolsManagerAdapter;
 import org.visualcti.server.task.TasksPoolUnitAdapter;
 import org.visualcti.util.Tools;
@@ -186,7 +186,7 @@ public class TasksSubSystem implements SubSystem {
         }
 
         @Override
-        public void connectTo(final ApplicationServerUnit server) throws IOException {
+        public void connectTo(final ApplicationServer server) throws IOException {
             // unregistering manager from the registry
             UnitRegistry.unRegister(this);
             // attach manager to the server for correct unit-messages processing
@@ -201,7 +201,7 @@ public class TasksSubSystem implements SubSystem {
         }
 
         @Override
-        protected TasksPoolUnit createTaskPool(String name, String factory) {
+        public TasksPoolUnit createTaskPool(String name, String factory) {
             final TasksPoolUnit poolUnit = new TasksSubSystem.PoolServerUnit().localPoolFor(name, factory);
             try {
                 poolUnit.loadOrCreateTasksList();

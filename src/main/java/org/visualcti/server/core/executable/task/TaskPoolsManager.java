@@ -104,6 +104,18 @@ public interface TaskPoolsManager extends RunnableServerUnit {
     }
 
     /**
+     * <builder>
+     * To build new instance of the local tasks pool
+     *
+     * @param name    the name of the tasks channel
+     * @param factory the name of factory(group) of the tasks channel
+     * @return built not registered instance or null if failed
+     * @see #getTaskPool(String, String)
+     * @see TasksPoolUnit
+     */
+    TasksPoolUnit createTaskPool(String name, String factory);
+
+    /**
      * <accessor>
      * get access to TaskPool for scheduler by CT-device name & device's factory
      *

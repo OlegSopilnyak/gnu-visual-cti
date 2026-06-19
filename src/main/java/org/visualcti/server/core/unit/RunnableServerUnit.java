@@ -250,7 +250,7 @@ public interface RunnableServerUnit extends ServerUnit, Engine, UnitMessage.List
      * @see UnitMessage
      * @see UnitMessage.Listener
      * @see UnitMessage.Listener#handleUnitMessage(UnitMessage)
-     * @see #dispatchError(Exception, String)
+     * @see #dispatchError(Throwable, String)
      * @see #removeUnitMessageListener(UnitMessage.Listener)
      */
     default void notifyListener(UnitMessage.Listener listener, UnitMessage message) {
@@ -432,9 +432,10 @@ public interface RunnableServerUnit extends ServerUnit, Engine, UnitMessage.List
      * <action>
      * To start the internal runnable parts of the unit
      *
+     * @throws IOException if something went wrong during the internal parts starting
      * @see #Start()
      */
-    default void startUnitRunnable() {
+    default void startUnitRunnable() throws IOException {
         // do nothing by default for internal running
     }
 
@@ -445,7 +446,7 @@ public interface RunnableServerUnit extends ServerUnit, Engine, UnitMessage.List
      * @param runnable the child of the unit to start
      * @see #currentUnitState(UnitState)
      * @see UnitState#BROKEN
-     * @see #dispatchError(Exception, String)
+     * @see ServerUnit#dispatchError(Throwable, String)
      */
     default void startUnitChild(RunnableServerUnit runnable) {
         try {
@@ -490,9 +491,10 @@ public interface RunnableServerUnit extends ServerUnit, Engine, UnitMessage.List
      * <action>
      * To stop the internal runnable parts of the unit
      *
+     * @throws IOException if something went wrong during the internal parts stopping
      * @see #Stop()
      */
-    default void stopUnitRunnable() {
+    default void stopUnitRunnable() throws IOException {
         // do nothing by default for internal running
     }
 

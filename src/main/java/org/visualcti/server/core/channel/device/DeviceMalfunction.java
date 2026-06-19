@@ -35,15 +35,27 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.server.hardware;
+package org.visualcti.server.core.channel.device;
+
 /**
-device may throw this, when hardware error occurred
-*/
-public class HardwareError extends Error
-{
-    public HardwareError(String mess)
-    {
-        super("Error:"+mess);
+ * channel device may throw it in case of malfunction in the cannel-device
+ *
+ * @see Device
+ */
+public class DeviceMalfunction extends Error {
+    private final transient Device device;
+    public DeviceMalfunction(Device device, String description) {
+        super("In device: " + device.getDeviceName() + " was detected malfunction: " + description);
+        this.device = device;
     }
-    public HardwareError(){super();}
+
+    /**
+     * Trying to repair broken device
+     *
+     * @return true if repaired well
+     * @see Device#repair()
+     */
+    public boolean repairMalfunction() {
+        return device.repair();
+    }
 }

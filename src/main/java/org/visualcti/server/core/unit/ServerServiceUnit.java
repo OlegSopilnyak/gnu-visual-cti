@@ -35,15 +35,49 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.server.hardware;
+package org.visualcti.server.core.unit;
+
+import java.io.IOException;
+import org.visualcti.util.Tools;
+
 /**
-device may throw this, when hardware error occurred
-*/
-public class HardwareError extends Error
-{
-    public HardwareError(String mess)
-    {
-        super("Error:"+mess);
+ * The parent of any Service of the Server
+ */
+public interface ServerServiceUnit extends RunnableServerUnit {
+    /**
+     <accessor>
+     Access to service owner
+     The one whom this service is subordinate
+     */
+    default ServerServiceUnit getServiceOwner() {
+        final ServerUnit owner = getOwner();
+        return owner instanceof ServerServiceUnit ? (ServerServiceUnit) owner : null;
     }
-    public HardwareError(){super();}
+
+    /**
+     <mutator>
+     Setting up service owner
+     The one whom this service is subordinate
+     */
+    default void setServiceOwner(ServerServiceUnit owner) {
+        try {
+            setOwner(owner);
+        } catch (IOException e) {
+            e.printStackTrace(Tools.err);
+            Tools.error("Cannot set up service owner.");
+        }
+    }
+
+    /**
+     <accessor>
+     The check, is service depends on master service
+     */
+    default boolean isDependsFrom(ServerServiceUnit master) {
+        if (this.equals(master)) return true;
+        // checking the service owners
+        for (ServerServiceUnit service = getServiceOwner(); service != null; service = service.getServiceOwner()) {
+            if (service.equals(master)) return true;
+        }
+        return false;
+    }
 }

@@ -39,7 +39,7 @@ package org.visualcti.server.core.system;
 
 import java.io.IOException;
 import org.visualcti.core.XmlAware;
-import org.visualcti.server.core.unit.ApplicationServerUnit;
+import org.visualcti.server.core.ApplicationServer;
 import org.visualcti.server.core.unit.RunnableServerUnit;
 
 /**
@@ -110,6 +110,6 @@ public interface SubSystem extends XmlAware {
          * @param server instance to connect
          * @throws IOException if the manager can't connect
          */
-        void connectTo(ApplicationServerUnit server) throws IOException;
+        void connectTo(ApplicationServer server) throws IOException;
     }
 }

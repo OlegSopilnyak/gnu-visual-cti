@@ -39,7 +39,7 @@ package org.visualcti.server.unit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertThrows;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -64,9 +64,9 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
+import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.server.Parameter;
 import org.visualcti.server.UnitRegistry;
-import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.server.core.unit.ServerUnit;
 import org.visualcti.server.core.unit.message.MessageFamilyType;
 import org.visualcti.server.core.unit.message.MessageType;
@@ -682,6 +682,7 @@ public class ServerUnitAdapterTest {
 
     private static class ServerUnitAdapterImpl extends ServerUnitAdapter {
         public ServerUnitAdapterImpl() {
+            super();
         }
 
         @Override

@@ -95,7 +95,7 @@ Fax number: 217-356-3356
         <maven-install-plugin-version>2.5.2</maven-install-plugin-version>
         <maven-shade-plugin-version>3.2.4</maven-shade-plugin-version>
         <junit.version>4.13.2</junit.version>
-        <mockito.version>1.9.5</mockito.version>
+        <mockito.version>4.5.1</mockito.version>
         <assertj.version>3.0.0</assertj.version>
     </properties>
     <dependencies>
@@ -127,7 +127,6 @@ Fax number: 217-356-3356
         <dependency>
             <groupId>javax.mail</groupId>
             <artifactId>mail</artifactId>
-<!--            <artifactId>javax.mail-api</artifactId>-->
             <version>${javax.mail.version}</version>
         </dependency>
         <!-- Source: https://mvnrepository.com/artifact/soap/soap -->
@@ -143,22 +142,9 @@ Fax number: 217-356-3356
             <scope>test</scope>
         </dependency>
 
-        <!--        <dependency>-->
-<!--            <groupId>org.junit.jupiter</groupId>-->
-<!--            <artifactId>junit-jupiter</artifactId>-->
-<!--            <version>${junit.jupiter.version}</version>-->
-<!--&lt;!&ndash;            <version>5.14.1</version>&ndash;&gt;-->
-<!--            <scope>test</scope>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>org.mockito</groupId>-->
-<!--            <artifactId>mockito-junit-jupiter</artifactId>-->
-<!--            <version>${junit.jupiter.version}</version>-->
-<!--            <scope>test</scope>-->
-<!--        </dependency>-->
         <dependency>
             <groupId>org.mockito</groupId>
-            <artifactId>mockito-all</artifactId>
+            <artifactId>mockito-core</artifactId>
             <version>${mockito.version}</version>
             <scope>test</scope>
         </dependency>

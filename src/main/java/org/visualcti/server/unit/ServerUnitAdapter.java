@@ -41,9 +41,7 @@ import static org.visualcti.server.core.unit.ServerUnit.Builder.className;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.lang.reflect.Method;
-import java.rmi.registry.Registry;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -52,23 +50,17 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiFunction;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 import org.jdom.Comment;
 import org.jdom.DataConversionException;
-import org.jdom.Document;
 import org.jdom.Element;
-import org.jdom.output.XMLOutputter;
-import org.visualcti.server.UnitRegistry;
 import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.core.XmlAware;
+import org.visualcti.server.UnitRegistry;
 import org.visualcti.server.core.unit.ServerUnit;
-import org.visualcti.server.core.unit.message.UnitMessage;
 import org.visualcti.server.core.unit.message.UnitMessageFactory;
-import org.visualcti.server.core.unit.message.command.ServerCommandRequest;
-import org.visualcti.server.core.unit.message.command.ServerCommandResponse;
 import org.visualcti.server.core.unit.part.UnitBasics;
 import org.visualcti.server.core.unit.part.UnitMessageExchange;
 import org.visualcti.server.core.unit.part.UnitsComposite;
@@ -146,13 +138,13 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
      * true only if the argument is the exact same object as the
      * receiver (==).
      *
+     * @param o Object
+     *          the object to compare with this object.
      * @return boolean
      * <code>true</code>
      * if the object is the same as this object
      * <code>false</code>
      * if it is different from this object.
-     * @param        o Object
-     * the object to compare with this object.
      * @see #hashCode
      */
     @Override
@@ -172,48 +164,12 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
      * <code>.equals</code> must answer the same value for this
      * method.
      *
-     * @return    the receiver's hash.
+     * @return the receiver's hash.
      * @see #equals
      */
     @Override
     public int hashCode() {
         return Objects.hash(iconBodyPath, getType(), getName(), getPath(), getProperties());
-    }
-
-    @Deprecated
-    @Override
-    public Registry localRegistry() {
-        return ServerUnit.super.localRegistry();
-    }
-
-    @Deprecated
-    @Override
-    public void dispatch(UnitMessage message) {
-        ServerUnit.super.dispatch(message);
-    }
-
-    @Deprecated
-    @Override
-    public void execute(ServerCommandRequest command) throws Exception {
-        ServerUnit.super.execute(command);
-    }
-
-    @Deprecated
-    @Override
-    public void successfulResponseTo(ServerCommandRequest command, Consumer<ServerCommandResponse> beforeDispatch) throws IOException {
-        ServerUnit.super.successfulResponseTo(command, beforeDispatch);
-    }
-
-    @Deprecated
-    @Override
-    public void failedResponseTo(ServerCommandRequest command, String reason, Exception exception) throws IOException {
-        ServerUnit.super.failedResponseTo(command, reason, exception);
-    }
-
-    @Deprecated
-    @Override
-    public void respondTo(ServerCommandRequest command, boolean commandSuccess, Consumer<ServerCommandResponse> beforeDispatch) throws IOException {
-        ServerUnit.super.respondTo(command, commandSuccess, beforeDispatch);
     }
 
     /**
@@ -336,30 +292,6 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
         return element;
     }
 
-    @Deprecated
-    @Override
-    public void store(OutputStream out, boolean compact) throws IOException {
-        XmlAware.super.store(out, compact);
-    }
-
-    @Deprecated
-    @Override
-    public void store(Element rootXmlElement, OutputStream out, boolean compact) throws IOException {
-        XmlAware.super.store(rootXmlElement, out, compact);
-    }
-
-    @Deprecated
-    @Override
-    public XMLOutputter documentXmlOutputter() {
-        return XmlAware.super.documentXmlOutputter();
-    }
-
-    @Deprecated
-    @Override
-    public Document prepareXmlDocument(Element xml) {
-        return XmlAware.super.prepareXmlDocument(xml);
-    }
-
     /**
      * <converter>
      * To build parameters of root XML element of the unit (for unit building)
@@ -411,7 +343,6 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
             rootElement.addContent(ConfigurationParameter.of(UNIT_ICON_ATTRIBUTE, iconBodyPath).getXml());
         }
     }
-
 
     /**
      * <converter>
@@ -498,6 +429,7 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
      * To prepare main parameters of the unit using XML Element
      *
      * @param xml the XML Element of the unit
+     * @throws IOException if something went wrong
      * @see Element
      * @see #setXML(Element)
      * @see #unitPath
@@ -505,7 +437,7 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
      * @see ConfigurationParameter#ELEMENT
      */
     @SuppressWarnings("unchecked")
-    protected void settingUpMainPart(Element xml) {
+    protected void settingUpMainPart(Element xml) throws IOException {
         // initiating unit path value
         this.unitPath = getName();
         // the container for parsed from XML parameter
@@ -626,30 +558,33 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
     public void setOwner(ServerUnit owner) throws IOException {
         // unregistering unit from the registry
         UnitRegistry.unRegister(this);
-        // unit detached from the units  registry
         if (owner == null) {
-            // detaching the owner from the server unit
-            this.owner = null;
-            // removing unit's tree branches as well
+            // removing unit's children
             this.removeAll();
-        } else {
+        } else if (isNeedRegistration()) {
             // preparing new value of unit path
             this.unitPath = owner.getPath() + UNIT_PATH_DELIMITER + this.unitPath;
             // before registering unit
             beforeRegisterUnit();
             // registering unit with new value of the path
             UnitRegistry.register(this);
-            // assigning the owner of the server unit
-            this.owner = owner;
-            // updating unit paths for unit's branches
-            updateChildrenUnitOwner();
         }
+        // assigning the owner of the server unit
+        this.owner = owner;
+        // updating unit paths for unit's branches
+        updateChildrenUnitOwner();
     }
 
-    @Deprecated
+    /**
+     * <accessor>
+     * To check is unit needs to be registered in units registry
+     *
+     * @return true if unit needed registration
+     * @see org.visualcti.server.UnitRegistry#register(ServerUnit)
+     */
     @Override
-    public boolean isChild(ServerUnit unit) {
-        return ServerUnit.super.isChild(unit);
+    public boolean isNeedRegistration() {
+        return true;
     }
 
     /**
@@ -711,12 +646,6 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
     @Override
     public void removeBranch(ServerUnit branch) {
         branches.remove(branch);
-    }
-
-    @Deprecated
-    @Override
-    public boolean removeAll() {
-        return ServerUnit.super.removeAll();
     }
 
     /**

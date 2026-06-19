@@ -35,15 +35,48 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.server.hardware;
+package org.visualcti.server.core.channel;
+
+import java.io.IOException;
+import java.io.OutputStream;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+import org.visualcti.server.core.executable.task.Task;
+import org.visualcti.server.task.Environment;
+import org.visualcti.util.Tools;
+
 /**
-device may throw this, when hardware error occurred
-*/
-public class HardwareError extends Error
-{
-    public HardwareError(String mess)
-    {
-        super("Error:"+mess);
+ * The output stream for the task
+ *
+ * @see Task#setEnv(Environment)
+ */
+abstract class TaskRunnerStream extends OutputStream {
+    // the length of CRLF string for hosted OS
+    private static final int CRLF_LENGTH = Tools.CRLF.length();
+    // lock for write operation
+    private final Lock streamLock = new ReentrantLock();
+
+    @Override
+    public void write(byte[] data, int off, int len) throws IOException {
+        streamLock.lock();
+        try {
+            // to notify the owner
+            notifyOwner(new String(data, off, len - CRLF_LENGTH));
+        }finally {
+            streamLock.unlock();
+        }
     }
-    public HardwareError(){super();}
+
+    @Override
+    public void write(int b) throws IOException {
+
+    }
+
+    /**
+     * <notify>
+     * To notify the owner of stream about printed string
+     *
+     * @param printed printed string
+     */
+    public abstract void notifyOwner(String printed);
 }

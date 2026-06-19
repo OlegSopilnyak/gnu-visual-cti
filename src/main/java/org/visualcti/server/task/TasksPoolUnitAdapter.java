@@ -41,8 +41,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -50,16 +48,13 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.jdom.Comment;
-import org.jdom.DataConversionException;
 import org.jdom.Document;
 import org.jdom.Element;
 import org.visualcti.server.Parameter;
@@ -69,10 +64,6 @@ import org.visualcti.server.core.executable.task.TaskPoolsManager;
 import org.visualcti.server.core.executable.task.TasksPoolUnit;
 import org.visualcti.server.core.unit.ServerUnit;
 import org.visualcti.server.core.unit.exception.ServerUnitException;
-import org.visualcti.server.core.unit.message.MessageFamilyType;
-import org.visualcti.server.core.unit.message.MessageType;
-import org.visualcti.server.core.unit.message.action.UnitActionError;
-import org.visualcti.server.core.unit.message.action.UnitActionEvent;
 import org.visualcti.server.core.unit.message.command.ServerCommandRequest;
 import org.visualcti.server.core.unit.message.command.UnknownCommandException;
 import org.visualcti.server.unit.RunnableUnitAdapter;
@@ -114,43 +105,16 @@ public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implement
     private String poolFile;
 
     /**
-     * To apply parameters for pool creation flow
+     * <mutator>
+     * To apply parameters for local pool creation flow
      *
-     * @param name the name of the task pool (hardware channel name)
+     * @param name    the name of the task pool (hardware channel name)
      * @param factory hardware factory of the channel name
      * @return adjusted by parameters instance
-     * @see #applyFor(String, String, PoolType)
+     * @see #applyPoolNameFor(String, String, PoolType)
      */
     public TasksPoolUnit localPoolFor(String name, String factory) {
-        return applyFor(name, factory, PoolType.LOCAL);
-    }
-
-    /**
-     * To adjust the parameters of the pool before pool's tasks list operations
-     *
-     * @param name     the name of the pool
-     * @param factory  the name of factory(group) of the pool
-     * @param poolType the type of the pool
-     * @return adjusted pool's instance
-     */
-    @Override
-    public TasksPoolUnit applyFor(String name, String factory, PoolType poolType) {
-        // adjusting basic pool's parameters
-        this.poolName = name;
-        this.poolGroup = factory;
-        this.poolType = poolType;
-        this.poolFile = name + ".tasks.pool";
-        // adjusting tasks-list xml document for further serialization/deserialization
-        adjustingTaskListXml();
-        // returns adjusted pool's instance
-        return this;
-    }
-
-
-    @Deprecated
-    @Override
-    public boolean isPublic() {
-        return TasksPoolUnit.super.isPublic();
+        return applyPoolNameFor(name, factory, PoolType.LOCAL);
     }
 
     /**
@@ -185,25 +149,6 @@ public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implement
     @Override
     public String getPoolGroup() {
         return poolGroup;
-    }
-
-    @Deprecated
-    @Override
-    public String getName() {
-        return TasksPoolUnit.super.getName();
-    }
-
-    /**
-     * <mutator>
-     * To set moveTaskUp the tasks list file name of the pool
-     *
-     * @param poolFile new value of pool's file name
-     */
-    @Override
-    public void applyTasksFile(String poolFile) {
-        if (isEmptyString.negate().test(poolFile) || !Objects.equals(poolFile, this.poolFile)) {
-            this.poolFile = poolFile;
-        }
     }
 
     /**
@@ -284,13 +229,13 @@ public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implement
     public boolean addTask(final Task task, final boolean notify) {
         if (validTask.negate().test(task)) {
             // incoming task is invalid
-            dispatchTasksError("Add:Invalid task to add");
+            dispatchError("Add:Invalid task to add");
             return false;
         }
         // to check is task in the tasks list
         if (hasTaskInside(task)) {
             // incoming task already in pool
-            dispatchTasksError("Add:Task already exists");
+            dispatchError("Add:Task already exists");
             // incoming task is in the pool already
             return false;
         }
@@ -327,13 +272,13 @@ public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implement
     public boolean updateTask(final Task task) {
         if (validTask.negate().test(task)) {
             // incoming task is invalid
-            dispatchTasksError("Update:Invalid task to update");
+            dispatchError("Update:Invalid task to update");
             return false;
         } else {
             final int taskIndex = taskIndexOf(task);
             if (taskIndex == -1) {
                 // incoming task is not in the tasks list
-                dispatchTasksError("Update:Not found task to update.");
+                dispatchError("Update:Not found task to update.");
                 return false;
             } else {
                 // substitute old task instance by the new one in the tasks list
@@ -357,13 +302,13 @@ public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implement
     public boolean removeTask(Task task) {
         if (validTask.negate().test(task)) {
             // incoming task is invalid
-            dispatchTasksError("Remove:Invalid task to remove");
+            dispatchError("Remove:Invalid task to remove");
             return false;
         }
         // to check is task isn't inside the tasks list
         if (!hasTaskInside(task)) {
             // incoming task already in pool
-            dispatchTasksError("Remove:Task isn't exists");
+            dispatchError("Remove:Task isn't exists");
             // incoming task is in the pool already
             return false;
         }
@@ -376,8 +321,7 @@ public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implement
     }
 
     /**
-     * <mutator>
-     * <order>
+     * <task-order>
      * To move task up in the tasks list.
      *
      * @param task to move up
@@ -388,17 +332,17 @@ public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implement
     public boolean moveTaskUp(Task task) {
         if (validTask.negate().test(task)) {
             // incoming task is invalid
-            dispatchTasksError("Up:Invalid task to move.");
+            dispatchError("Up:Invalid task to move.");
             return false;
         }
         final int taskIndex = taskIndexOf(task);
         if (taskIndex == -1) {
             // incoming task is not in the tasks list
-            dispatchTasksError("Up:Not found task to move.");
+            dispatchError("Up:Not found task to move.");
             return false;
         } else if (taskIndex == 0) {
             // incoming task already occupied the top of tasks list
-            dispatchTasksError("Up:The task to move is on the top.");
+            dispatchError("Up:The task to move is on the top.");
             return false;
         }
         // moving task moveTaskUp in tasks list and updateTask the tasks pool
@@ -406,7 +350,7 @@ public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implement
     }
 
     /**
-     * <order>
+     * <task-order>
      * To move task down in the tasks list.
      *
      * @param task to move down
@@ -417,27 +361,21 @@ public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implement
     public boolean moveTaskDown(final Task task) {
         if (validTask.negate().test(task)) {
             // incoming task is invalid
-            dispatchTasksError("Down:Invalid task to move");
+            dispatchError("Down:Invalid task to move");
             return false;
         }
         final int taskIndex = taskIndexOf(task);
         if (taskIndex == -1) {
             // incoming task is not in the tasks list
-            dispatchTasksError("Down:Not found task to move.");
+            dispatchError("Down:Not found task to move.");
             return false;
         } else if (taskIndex >= tasksPool.size() - 1) {
             // incoming task already occupied the top of tasks list
-            dispatchTasksError("Down:The task to move is on the bottom.");
+            dispatchError("Down:The task to move is on the bottom.");
             return false;
         }
         // moving task down in tasks list and updateTask the tasks pool
         return updateTasksList(exchangeTasks(taskIndex, 1), false, "Down");
-    }
-
-    @Deprecated
-    @Override
-    public String tasksList() {
-        return TasksPoolUnit.super.tasksList();
     }
 
     /**
@@ -452,15 +390,100 @@ public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implement
         return unitConfiguration;
     }
 
-    @Deprecated
+    /**
+     * <converter>
+     * To prepare base parameters of the unit using XML Element and correct xml if it's needed
+     * Setting up here unit's class and extends class, unit instance builder stuff as well
+     * Here we do nothing. The pool is creating from the pools manager
+     *
+     * @param xml the XML Element of the unit
+     * @see Element
+     * @see org.visualcti.server.unit.ServerUnitAdapter#settingUpBasePart(Element)
+     * @see TaskPoolsManagerAdapter#createTaskPool(String, String)
+     */
     @Override
-    public void setXML(Element xml) throws IOException, DataConversionException, NumberFormatException, NullPointerException {
-        TasksPoolUnit.super.setXML(xml);
+    protected void settingUpBasePart(Element xml) {
+        // doing nothing here
     }
 
     /**
-     * <tasks-keeper>
-     * To load tasks list from external XML file
+     * <converter>
+     * To prepare main parameters of the unit using XML Element
+     * Here we're setting up main parameters of the tasks pool and load tasks list definition
+     *
+     * @param xml the XML Element of the unit
+     * @throws IOException if something went wrong during xml-element processing
+     * @see Element
+     * @see org.visualcti.server.unit.ServerUnitAdapter#settingUpMainPart(Element)
+     * @see #applyPoolNameFor(String, String, PoolType)
+     * @see #applyTasksFile(String)
+     * @see #loadTasksList()
+     */
+    @Override
+    protected void settingUpMainPart(Element xml) throws IOException {
+        // here we updateTask unit from element of main server configuration
+        final PoolType inputPoolType = PoolType.of(xml.getAttributeValue(TASKS_POOL_TYPE_ATTRIBUTE_NAME));
+        if (inputPoolType == null) {
+            // wrong pool type in XML
+            throw new IOException("Wrong pool type");
+        }
+        // testing task pool name from xml-element
+        final String combinedPoolName = xml.getAttributeValue(TASKS_POOL_NAME_ATTRIBUTE_NAME);
+        if (isEmptyString.test(combinedPoolName)) {
+            // empty value of pool name
+            throw new IOException("Pool name is empty");
+        }
+        // resolving pool-name from XML
+        final String[] nameParts = combinedPoolName.split("/");
+        if (nameParts.length > 1) {
+            // adjusting pool name/group from combined pool's name
+            applyPoolNameFor(nameParts[1], nameParts[0], inputPoolType);
+        } else {
+            // adjusting pool name/group from combined pool's name
+            applyPoolNameFor(nameParts[0], null, inputPoolType);
+        }
+        // assign the name of the tasks list external file
+        applyTasksFile(xml.getAttributeValue(TASKS_POOL_EXTERNAL_FILE_ATTRIBUTE_NAME));
+        // loading tasks list of the pool from the external pool-file
+        loadTasksList();
+    }
+
+    /**
+     * <mutator>
+     * To adjust the parameters of the pool before pool's tasks list operations
+     *
+     * @param name     the name of the pool
+     * @param factory  the name of factory(group) of the pool
+     * @param poolType the type of the pool
+     * @return adjusted pool's instance
+     */
+    protected TasksPoolUnit applyPoolNameFor(String name, String factory, PoolType poolType) {
+        // adjusting basic pool's parameters
+        this.poolName = name;
+        this.poolGroup = factory;
+        this.poolType = poolType;
+        this.poolFile = name + ".tasks.pool";
+        // adjusting tasks-list xml document for further serialization/deserialization
+        adjustingTaskListXml();
+        // returns adjusted pool's instance
+        return this;
+    }
+
+    /**
+     * <mutator>
+     * To set moveTaskUp the tasks list file name of the pool
+     *
+     * @param poolFile new value of pool's file name
+     */
+    protected void applyTasksFile(String poolFile) {
+        if (isEmptyString.negate().test(poolFile) || !Objects.equals(poolFile, this.poolFile)) {
+            this.poolFile = poolFile;
+        }
+    }
+
+    /**
+     * <task-list-io>
+     * To load tasks list from theexternal XML file
      *
      * @throws IOException           if something went wrong
      * @throws NumberFormatException if something went wrong
@@ -494,12 +517,15 @@ public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implement
             throw new IOException("Wrong tasks manager in registry", e);
         }
     }
+
     /**
-     * <tasks-keeper>
+     * <task-list-io>
      * To save tasks list to the external XML file
      *
      * @throws IOException if something went wrong
      * @see #updateTasksList(List, boolean, String)
+     * @see TaskPoolsManager#getRoot()
+     * @see UnitRegistry#lookup(Class)
      */
     @Override
     public void saveTasksList() throws IOException {
@@ -518,10 +544,12 @@ public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implement
     }
 
     /**
-     * <tasks-keeper>
+     * <task-list-io>
      * To load exists tasks list or create and save the new one
      *
      * @throws IOException if something went wrong
+     * @see TaskPoolsManager#createTaskPool(String, String)
+     * @see UnitRegistry#lookup(Class)
      */
     @Override
     public void loadOrCreateTasksList() throws IOException, NumberFormatException, NullPointerException {
@@ -548,36 +576,6 @@ public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implement
         }
     }
 
-    @Deprecated
-    @Override
-    public Element load(InputStream in) throws IOException {
-        return TasksPoolUnit.super.load(in);
-    }
-
-    @Deprecated
-    @Override
-    public Document restoreDocumentFrom(InputStream in) throws IOException {
-        return TasksPoolUnit.super.restoreDocumentFrom(in);
-    }
-
-    @Deprecated
-    @Override
-    public Document prepareXmlDocument(InputStream in) throws IOException {
-        return TasksPoolUnit.super.prepareXmlDocument(in);
-    }
-
-    @Deprecated
-    @Override
-    public void store(Document document, OutputStream out) throws IOException {
-        TasksPoolUnit.super.store(document, out);
-    }
-
-    @Deprecated
-    @Override
-    public void execute(ServerCommandRequest command) throws Exception {
-        TasksPoolUnit.super.execute(command);
-    }
-
     /**
      * <checker>
      * To check is unit can start according the internal state
@@ -593,10 +591,11 @@ public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implement
     /**
      * <action>
      * To start the internal runnable parts of the unit
-     * Should be implemented in the children classes
+     * Moving tasks from the pool to the tasks ring
      *
      * @see TasksPoolUnit#Start()
      * @see TasksPoolUnit#startUnitRunnable()
+     * @see #topTask()
      */
     @Override
     public void startUnitRunnable() {
@@ -617,10 +616,11 @@ public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implement
     /**
      * <action>
      * To stop the internal runnable parts of the unit
-     * Should be implemented in the children classes
+     * Removing tasks from the tasks ring, stopping current task execution
      *
      * @see TasksPoolUnit#Stop()
-     * @see TasksPoolUnit#stopUnitRunnable() \
+     * @see TasksPoolUnit#stopUnitRunnable()
+     * @see Task#stopExecute()
      */
     @Override
     public void stopUnitRunnable() {
@@ -640,7 +640,7 @@ public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implement
     }
 
     /**
-     * <action>
+     * <command-action>
      * To execute GET tasks-pool command
      *
      * @param command GET command to execute
@@ -669,7 +669,7 @@ public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implement
     }
 
     /**
-     * <action>
+     * <command-action>
      * To execute SET tasks-pool command
      *
      * @param command SET command to execute
@@ -718,15 +718,7 @@ public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implement
         this.unitPath = getName();
     }
 
-
-    @Deprecated
-    @Override
-    public Optional<Task> getTask(String taskName) {
-        return TasksPoolUnit.super.getTask(taskName);
-    }
-
-    // private methods
-
+    /// // private methods
     // to check task-list-xml document integrity
     private void checkTaskListXml() throws IOException {
         // checking the task-list-xml document integrity
@@ -740,7 +732,7 @@ public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implement
         }
         // checking the task-list-xml document root element properties
         final Element taskListXml = this.tasksListConfigurationDocument.getRootElement();
-        if(taskListXml == null || !TASKS_LIST_ROOT_ELEMENT_NAME.equals(taskListXml.getName())) {
+        if (taskListXml == null || !TASKS_LIST_ROOT_ELEMENT_NAME.equals(taskListXml.getName())) {
             throw new IOException("Wrong tasks list root element name.");
         }
     }
@@ -829,28 +821,7 @@ public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implement
 
     // dispatching tasks list updated event
     private void dispatchTasksModifiedEvent(final String action) {
-        try {
-            final String eventMessage = action + ":\n\t- tasks.list -\n" + this.tasksList();
-            final UnitActionEvent event = getMessageFactory()
-                    .buildFor(this, MessageType.EVENT, MessageFamilyType.STATE, "");
-            dispatch(event.setDescription(eventMessage));
-        } catch (IOException e) {
-            e.printStackTrace(Tools.err);
-            // ignoring the exception
-        }
-    }
-
-    // dispatching tasks list updating error
-    private void dispatchTasksError(final String errorMessage) {
-        try {
-            final UnitActionError error =
-                    getMessageFactory().buildFor(this, MessageType.ERROR, MessageFamilyType.ERROR, "");
-            dispatch(error.setDescription(errorMessage));
-        } catch (IOException e) {
-            e.printStackTrace(Tools.err);
-            // ignoring the exception
-        }
-
+        dispatchEvent(action + ":\n\t- tasks.list -\n" + this.tasksList());
     }
 
     // to do action in safe, for tasks ring, way
@@ -877,16 +848,15 @@ public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implement
     }
 
     // making changes in tasks pool using "modify" function if the task isn't empty
-    private void modifyTask(final ServerCommandRequest command, final Task task, final String modifyType,
-                            final Function<Task, Boolean> modify, final String reasonMessage) throws IOException {
+    private void modifyTask(final ServerCommandRequest request, final Task task, final String modifyType,
+                            final Predicate<Task> operation, final String reasonMessage) throws IOException {
         if (task != null) {
             // valid task value, modifying
-            respondTo(command, true,
-                    response -> response.setParameter(Parameter.of(modifyType, modify.apply(task)).output())
-            );
+            final Parameter modifyResponse = Parameter.of(modifyType, operation.test(task)).output();
+            respondTo(request, true, response -> response.setParameter(modifyResponse));
         } else {
-            // invalid task value, reporting
-            commandFailed(command, reasonMessage);
+            // invalid task value parameter (null), reporting about it
+            commandFailed(request, reasonMessage);
         }
     }
 
@@ -905,13 +875,12 @@ public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implement
         final Task task = getTask(taskName)
                 .orElseThrow(() -> new UnknownCommandException("Invalid get task by name [" + taskName + "]"));
         // preparing and sending response to the command
-        successfulResponseTo(command, response -> {
-            // preparing response of the task's parameters for the task editing action
-            response
-                    .setParameter(Parameter.of("edit.class", "nothing :-(").output())
-                    .setParameter(Parameter.of(Task.ROOT_ELEMENT, task.getXML()).output())
-            ;
-        });
+        successfulResponseTo(command, response ->
+                // preparing response of the task's parameters for the task editing action
+                response
+                        .setParameter(Parameter.of("edit.class", "nothing :-(").output())
+                        .setParameter(Parameter.of(Task.ROOT_ELEMENT, task.getXML()).output())
+        );
     }
 
     // getting pool info for target "info"

@@ -37,7 +37,6 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.unit;
 
-import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -45,11 +44,9 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.stream.Stream;
 import org.jdom.Element;
 import org.visualcti.server.core.unit.RunnableServerUnit;
 import org.visualcti.server.core.unit.message.UnitMessage;
-import org.visualcti.server.core.unit.message.command.ServerCommandRequest;
 
 /**
  * <singleton>
@@ -66,7 +63,7 @@ import org.visualcti.server.core.unit.message.command.ServerCommandRequest;
  */
 public abstract class RunnableUnitAdapter extends ServerUnitAdapter implements RunnableServerUnit {
     // the listeners of unit messages
-    private Collection<UnitMessage.Listener> listeners = Collections.emptyList();
+    private transient Collection<UnitMessage.Listener> listeners = Collections.emptyList();
     // the lock for listeners
     private final Lock listenersLock = new ReentrantLock();
     // The current state of the unit
@@ -148,115 +145,6 @@ public abstract class RunnableUnitAdapter extends ServerUnitAdapter implements R
         });
     }
 
-    @Deprecated
-    @Override
-    public boolean isBroken() {
-        return RunnableServerUnit.super.isBroken();
-    }
-
-    @Deprecated
-    @Override
-    public boolean isStarted() {
-        return RunnableServerUnit.super.isStarted();
-    }
-
-    @Deprecated
-    @Override
-    public boolean isStopped() {
-        return RunnableServerUnit.super.isStopped();
-    }
-
-    @Deprecated
-    @Override
-    public void Start() throws IOException {
-        RunnableServerUnit.super.Start();
-    }
-
-    @Deprecated
-    @Override
-    public void startingEngine() throws IOException {
-        RunnableServerUnit.super.startingEngine();
-    }
-
-    @Deprecated
-    @Override
-    public boolean canStartUnit() {
-        return RunnableServerUnit.super.canStartUnit();
-    }
-
-    @Deprecated
-    @Override
-    public Stream<RunnableServerUnit> runnableChildren() {
-        return RunnableServerUnit.super.runnableChildren();
-    }
-
-    @Deprecated
-    @Override
-    public void startUnitRunnable() {
-
-    }
-
-    @Deprecated
-    @Override
-    public void startUnitChild(RunnableServerUnit runnable) {
-        RunnableServerUnit.super.startUnitChild(runnable);
-    }
-
-    @Deprecated
-    @Override
-    public void Stop() throws IOException {
-        RunnableServerUnit.super.Stop();
-    }
-
-    @Deprecated
-    @Override
-    public void stoppingEngine() throws IOException {
-        RunnableServerUnit.super.stoppingEngine();
-    }
-
-    @Deprecated
-    @Override
-    public void stopUnitRunnable() {
-
-    }
-
-    @Deprecated
-    @Override
-    public void stopUnitChild(RunnableServerUnit runnable) {
-        RunnableServerUnit.super.stopUnitChild(runnable);
-    }
-
-    @Deprecated
-    @Override
-    public void dispatchError(Exception exception, String description) {
-        RunnableServerUnit.super.dispatchError(exception, description);
-    }
-
-    @Deprecated
-    @Override
-    public void dispatchError(String description) {
-        RunnableServerUnit.super.dispatchError(description);
-    }
-
-    @Deprecated
-    @Override
-    public void dispatch(UnitMessage message) {
-        RunnableServerUnit.super.dispatch(message);
-    }
-
-    @Deprecated
-    @Override
-    public void processUnitMessage(UnitMessage message) {
-        RunnableServerUnit.super.processUnitMessage(message);
-    }
-
-    @Deprecated
-    @Override
-    public void handleUnitMessage(UnitMessage message) {
-        RunnableServerUnit.super.handleUnitMessage(message);
-    }
-
-
     /**
      * <action>
      * to notify unit's message listeners
@@ -276,18 +164,6 @@ public abstract class RunnableUnitAdapter extends ServerUnitAdapter implements R
         });
     }
 
-    @Deprecated
-    @Override
-    public void notifyListener(UnitMessage.Listener listener, UnitMessage message) {
-        RunnableServerUnit.super.notifyListener(listener, message);
-    }
-
-    @Deprecated
-    @Override
-    public void execute(ServerCommandRequest command) throws Exception {
-        RunnableServerUnit.super.execute(command);
-    }
-
     /**
      * <config>
      * <notify>
@@ -296,7 +172,7 @@ public abstract class RunnableUnitAdapter extends ServerUnitAdapter implements R
      * @param e the cause of malfunction
      * @see ServerUnitAdapter#configure(Element)
      * @see UnitState#BROKEN
-     * @see #dispatchError(Exception, String)
+     * @see #dispatchError(Throwable, String)
      */
     @Override
     protected void cannotConfigureBecause(Exception e) {

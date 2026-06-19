@@ -45,6 +45,7 @@ import org.visualcti.server.Parameter;
 import org.visualcti.server.core.unit.message.MessageFamilyType;
 import org.visualcti.server.core.unit.message.MessageType;
 import org.visualcti.server.core.unit.message.UnitMessage;
+import org.visualcti.util.Tools;
 
 /**
  * <prototype>
@@ -101,7 +102,7 @@ public interface UnitActionError extends UnitMessage {
      * @param nestedException new value of the nested error's exception
      * @return reference to the message
      */
-    UnitActionError setNestedException(Exception nestedException);
+    UnitActionError setNestedException(Throwable nestedException);
 
     /**
      * <builder>
@@ -145,7 +146,7 @@ public interface UnitActionError extends UnitMessage {
      * @see UnitActionError#getNestedException()
      */
     final class ErrorNestedException extends Exception {
-        private transient final String stack;
+        private final transient String stack;
         private transient String message = "";
 
         private void processStack() {
@@ -173,26 +174,32 @@ public interface UnitActionError extends UnitMessage {
             stack = writer.toString();
         }
 
+        @Override
         public String toString() {
             return this.stack;
         }
 
+        @Override
         public String getMessage() {
             return this.message;
         }
 
+        @Override
         public String getLocalizedMessage() {
             return getMessage();
         }
 
+        @Override
         public void printStackTrace() {
-            this.printStackTrace(System.err);
+            this.printStackTrace(Tools.err);
         }
 
+        @Override
         public synchronized void printStackTrace(final java.io.PrintStream s) {
             s.println(this.stack);
         }
 
+        @Override
         public synchronized void printStackTrace(final java.io.PrintWriter s) {
             s.println(this.stack);
         }

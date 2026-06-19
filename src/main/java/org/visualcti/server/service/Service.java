@@ -45,6 +45,7 @@ import java.io.*;
 /**
 Parent of any Service of Server
 */
+@Deprecated
 public interface Service extends 
                             serverUnit,
                             unitEventListener

@@ -43,8 +43,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
@@ -67,13 +65,12 @@ import org.jdom.DataConversionException;
 import org.jdom.Document;
 import org.jdom.Element;
 import org.visualcti.core.XmlAware;
+import org.visualcti.server.core.ApplicationServer;
 import org.visualcti.server.core.system.SubSystem;
-import org.visualcti.server.core.unit.ApplicationServerUnit;
 import org.visualcti.server.core.unit.RunnableServerUnit;
 import org.visualcti.server.core.unit.ServerUnit;
 import org.visualcti.server.core.unit.message.UnitMessage;
 import org.visualcti.server.core.unit.message.command.ServerCommandRequest;
-import org.visualcti.server.core.unit.message.command.UnknownCommandException;
 import org.visualcti.server.system.TasksSubSystem;
 import org.visualcti.server.unit.RunnableUnitAdapter;
 import org.visualcti.util.Tools;
@@ -81,10 +78,10 @@ import org.visualcti.util.Tools;
 /**
  * Facade Implementation: The root unit of the application
  *
- * @see ApplicationServerUnit
+ * @see ApplicationServer
  * @see RunnableUnitAdapter
  */
-public class ApplicationServerAdapter extends RunnableUnitAdapter implements ApplicationServerUnit {
+public class ApplicationServerAdapter extends RunnableUnitAdapter implements ApplicationServer {
     private final Lock subSystemLock = new ReentrantLock();
     // the configuration for RMI
     private final transient RmiConfig rmi = new RmiConfig();
@@ -100,18 +97,6 @@ public class ApplicationServerAdapter extends RunnableUnitAdapter implements App
     private final Element serverConfigurationElement = serverConfigurationDocument.getRootElement().getChild(SERVER_ROOT_ELEMENT_NAME);
     // The format of DateTime using for to String transformation
     private Format dateTimeFormat = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT);
-
-    @Deprecated
-    @Override
-    public String getName() {
-        return ApplicationServerUnit.super.getName();
-    }
-
-    @Deprecated
-    @Override
-    public String getType() {
-        return ApplicationServerUnit.super.getType();
-    }
 
     /**
      * <action>
@@ -191,12 +176,6 @@ public class ApplicationServerAdapter extends RunnableUnitAdapter implements App
         UnitRegistry.register(this);
     }
 
-    @Deprecated
-    @Override
-    public boolean canStartUnit() {
-        return ApplicationServerUnit.super.canStartUnit();
-    }
-
     /**
      * <action>
      * To start the internal runnable parts of the unit
@@ -231,18 +210,6 @@ public class ApplicationServerAdapter extends RunnableUnitAdapter implements App
         );
     }
 
-    @Deprecated
-    @Override
-    public void execute(ServerCommandRequest command) throws Exception {
-        ApplicationServerUnit.super.execute(command);
-    }
-
-    @Deprecated
-    @Override
-    public void manageServerStuff(ServerCommandRequest command) throws UnknownCommandException, IOException {
-        ApplicationServerUnit.super.manageServerStuff(command);
-    }
-
     /**
      * <server-updater>
      * To update system in server's xml-document and save changes
@@ -255,7 +222,7 @@ public class ApplicationServerAdapter extends RunnableUnitAdapter implements App
     @Override
     public void updateSeverSystemXml(final Element systemXml) throws IOException {
         // getting sub-system to update name
-        final String subSystemToUpdateName = ApplicationServerUnit.serverSystemName(systemXml);
+        final String subSystemToUpdateName = ApplicationServer.serverSystemName(systemXml);
         if (isEmptyString.test(subSystemToUpdateName)) {
             throw new IOException("Empty subsystem name.");
         }
@@ -267,7 +234,7 @@ public class ApplicationServerAdapter extends RunnableUnitAdapter implements App
         // repairing system entries in the configuration root element
         for (final Element xml : systems) {
             final Element serverSystemXml =
-                    subSystemToUpdateName.equals(ApplicationServerUnit.serverSystemName(xml)) ? systemXml : xml;
+                    subSystemToUpdateName.equals(ApplicationServer.serverSystemName(xml)) ? systemXml : xml;
             serverConfigurationElement.addContent(serverSystemXml);
         }
         // saving updated configuration
@@ -385,7 +352,7 @@ public class ApplicationServerAdapter extends RunnableUnitAdapter implements App
     @Override
     public SubSystem buildSubSystem(final Element systemElement) throws IOException, DataConversionException {
         // preparing the sub-system instance
-        final String systemName = ApplicationServerUnit.serverSystemName(systemElement);
+        final String systemName = ApplicationServer.serverSystemName(systemElement);
         Tools.print("Resolving system :" + systemName);
         // get or create server's sub-system instance
         final SubSystem subSystem = getSubSystem(systemName);
@@ -435,12 +402,6 @@ public class ApplicationServerAdapter extends RunnableUnitAdapter implements App
         }
     }
 
-    @Deprecated
-    @Override
-    public Document prepareXmlDocument(InputStream in) throws IOException {
-        return super.prepareXmlDocument(in);
-    }
-
     /**
      * <server-configuration-keeper>
      * To save server configuration to the external XML file
@@ -453,12 +414,6 @@ public class ApplicationServerAdapter extends RunnableUnitAdapter implements App
         try(final FileOutputStream out = new FileOutputStream(serverConfigFile)) {
             store(serverConfigurationDocument, out);
         }
-    }
-
-    @Deprecated
-    @Override
-    public void store(Document document, OutputStream out) throws IOException {
-        super.store(document, out);
     }
 
     // inner classes

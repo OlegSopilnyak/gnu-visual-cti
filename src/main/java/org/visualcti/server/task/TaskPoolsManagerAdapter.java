@@ -45,7 +45,6 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Predicate;
-import java.util.stream.Stream;
 import org.jdom.DataConversionException;
 import org.jdom.Element;
 import org.visualcti.core.ConfigurationParameter;
@@ -67,8 +66,6 @@ public abstract class TaskPoolsManagerAdapter extends RunnableUnitAdapter implem
     // testing is parameter unit's icon
     private static final Predicate<ConfigurationParameter> isTasksDirectoryParameter =
             parameter -> TASKS_DIRECTORY_PARAMETER.equals(parameter.getName());
-    // current state of the engine
-    private transient volatile State state = State.OUT_OF_SERVICE;
     // the reference in FileSystem to the tasks directory
     private transient String rootDirectoryName = null;
     private transient File rootDirectory = new File("./TASKS");
@@ -167,43 +164,19 @@ public abstract class TaskPoolsManagerAdapter extends RunnableUnitAdapter implem
      */
     @Override
     public TasksPoolUnit getTaskPool(String name, String factory) {
-        return safeAction(() -> {
-            // found a task pool is attached to the manager, returning it
-            return findTaskPoolBy(name, factory)
-                    // task pool is not attached to the manager, creating it
-                    .orElseGet(() -> {
-                        final TasksPoolUnit createdPool = createTaskPool(name, factory);
-                        // NPE will be thrown if pool creation was failed
-                        Tools.print("Created tasks pool :" + createdPool.getName());
-                        // attach created pool to the manager as a unit branch
-                        return super.add(createdPool) ? createdPool : null;
-                    });
-        });
+        return safeAction(() ->
+                findTaskPoolBy(name, factory)
+                        // found a task pool is attached to the manager, returning it
+                        .orElseGet(() -> {
+                            // task pool is not attached to the manager, creating it
+                            final TasksPoolUnit createdPool = createTaskPool(name, factory);
+                            // NPE will be thrown if pool creation was failed
+                            Tools.print("Created tasks pool :" + createdPool.getName());
+                            // attach created pool to the manager as a unit branch
+                            return super.add(createdPool) ? createdPool : null;
+                        })
+        );
     }
-
-    @Deprecated
-    @Override
-    public Stream<TasksPoolUnit> taskPoolStreamBy(Predicate<TasksPoolUnit> condition) {
-        return TaskPoolsManager.super.taskPoolStreamBy(condition);
-    }
-
-    @Deprecated
-    @Override
-    public Stream<TasksPoolUnit> localTaskPoolStream() {
-        return TaskPoolsManager.super.localTaskPoolStream();
-    }
-
-    /**
-     * <builder>
-     * To build new instance of the local tasks pool
-     *
-     * @param name    the name of the tasks channel
-     * @param factory the name of factory(group) of the tasks channel
-     * @return built not registered instance or null if failed
-     * @see #getTaskPool(String, String)
-     * @see TasksPoolUnit
-     */
-    protected abstract TasksPoolUnit createTaskPool(String name, String factory);
 
     /**
      * <converter>
@@ -264,18 +237,6 @@ public abstract class TaskPoolsManagerAdapter extends RunnableUnitAdapter implem
                 this.rootDirectoryName = tasksDirectoryName;
             }
         }
-    }
-
-    @Deprecated
-    @Override
-    public short getState() {
-        return state.getCode();
-    }
-
-    @Deprecated
-    @Override
-    public void setState(short state) {
-        this.state = State.of(state);
     }
 
     /**

@@ -39,9 +39,9 @@ package org.visualcti.server.unit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertThrows;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -208,7 +208,7 @@ public class RunnableUnitAdapterTest {
         verify(runnableUnitAdapter).startUnitChild(unit);
         verify(runnableUnitAdapter).dispatchError(any(IOException.class), anyString());
         verify(runnableUnitAdapter).currentUnitState(RunnableServerUnit.UnitState.ACTIVE);
-        verify(runnableUnitAdapter, times(2)).dispatch(any(UnitActionEvent.class));
+        verify(runnableUnitAdapter).dispatch(any(UnitActionEvent.class));
         // check results
         assertThat(runnableUnitAdapter.isStarted()).isTrue();
     }
@@ -307,7 +307,7 @@ public class RunnableUnitAdapterTest {
         verify(runnableUnitAdapter).stopUnitRunnable();
         verify(runnableUnitAdapter).stopUnitChild(unit);
         verify(runnableUnitAdapter).currentUnitState(RunnableServerUnit.UnitState.PASSIVE);
-        verify(runnableUnitAdapter, times(2)).dispatch(any(UnitActionEvent.class));
+        verify(runnableUnitAdapter).dispatch(any(UnitActionEvent.class));
         // check results
         assertThat(runnableUnitAdapter.isStopped()).isTrue();
     }

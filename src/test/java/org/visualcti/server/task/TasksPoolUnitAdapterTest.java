@@ -39,9 +39,9 @@ package org.visualcti.server.task;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertThrows;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
@@ -68,7 +68,6 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
-import org.mockito.Matchers;
 import org.visualcti.server.Parameter;
 import org.visualcti.server.UnitRegistry;
 import org.visualcti.server.core.executable.task.Task;
@@ -586,7 +585,7 @@ public class TasksPoolUnitAdapterTest {
         ArgumentCaptor<InputStream> loadCaptor = ArgumentCaptor.forClass(InputStream.class);
         verify(tasksPool).restoreDocumentFrom(loadCaptor.capture());
         verify(tasksPool).prepareXmlDocument(loadCaptor.getValue());
-        verify(tasksPool, times(3)).addTask(any(Task.class), Matchers.eq(false));
+        verify(tasksPool, times(3)).addTask(any(Task.class), eq(false));
         verify(poolsManager).add(tasksPool);
         // check results
         assertThat(tasksPool.tasks()).hasSize(3);
@@ -621,7 +620,7 @@ public class TasksPoolUnitAdapterTest {
         ArgumentCaptor<InputStream> loadCaptor = ArgumentCaptor.forClass(InputStream.class);
         verify(tasksPool).restoreDocumentFrom(loadCaptor.capture());
         verify(tasksPool).prepareXmlDocument(loadCaptor.getValue());
-        verify(tasksPool, times(3)).addTask(any(Task.class), Matchers.eq(false));
+        verify(tasksPool, times(3)).addTask(any(Task.class), eq(false));
         // check results
         assertThat(tasksPool.tasks()).hasSize(3);
 
@@ -667,7 +666,7 @@ public class TasksPoolUnitAdapterTest {
         ArgumentCaptor<InputStream> loadCaptor = ArgumentCaptor.forClass(InputStream.class);
         verify(tasksPoolUnit).restoreDocumentFrom(loadCaptor.capture());
         verify(tasksPoolUnit).prepareXmlDocument(loadCaptor.getValue());
-        verify(tasksPoolUnit, times(3)).addTask(any(Task.class), Matchers.eq(false));
+        verify(tasksPoolUnit, times(3)).addTask(any(Task.class), eq(false));
         verify(poolsManager).add(tasksPoolUnit);
         // check results
         assertThat(tasksPoolUnit.tasks()).hasSize(3);

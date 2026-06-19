@@ -38,8 +38,8 @@ Fax number: 217-356-3356
 package org.visualcti.server.task;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
@@ -73,6 +73,7 @@ import org.visualcti.server.core.unit.message.UnitMessage;
 import org.visualcti.server.core.unit.message.command.ServerCommandRequest;
 import org.visualcti.server.core.unit.message.command.ServerCommandResponse;
 
+@SuppressWarnings("unchecked")
 public class TaskPoolsManagerAdapterTest {
     TaskPoolsManagerAdapter manager;
 
@@ -178,9 +179,9 @@ public class TaskPoolsManagerAdapterTest {
         // preparing test data
         String poolName = "pool5";
         String poolGroup = "poolGroup5";
-        TasksPoolUnit poolUnit = manager.createTaskPool("poolName", "poolGroup");
+        TasksPoolUnitAdapter poolUnit = (TasksPoolUnitAdapter) manager.createTaskPool("poolName", "poolGroup");
         checkTasksListFileFor("poolName");
-        poolUnit.applyFor(poolName, poolGroup, TasksPoolUnit.PoolType.PUBLIC);
+        poolUnit.applyPoolNameFor(poolName, poolGroup, TasksPoolUnit.PoolType.PUBLIC);
         manager.add(poolUnit);
         assertThat(manager.children().count()).isNotZero();
         reset(poolUnit, manager);
@@ -275,10 +276,10 @@ public class TaskPoolsManagerAdapterTest {
         String poolGroup = "poolGroup9";
 
         // acting
-        TasksPoolUnit taskPool = manager.createTaskPool(poolName, poolGroup);
+        TasksPoolUnitAdapter taskPool = (TasksPoolUnitAdapter) manager.createTaskPool(poolName, poolGroup);
 
         // check the behavior
-        verify(taskPool).applyFor(poolName, poolGroup, TasksPoolUnit.PoolType.LOCAL);
+        verify(taskPool).applyPoolNameFor(poolName, poolGroup, TasksPoolUnit.PoolType.LOCAL);
         verify(taskPool).loadOrCreateTasksList();
         verify(manager).getRoot();
         verify(taskPool, never()).restoreDocumentFrom(any(InputStream.class));
@@ -302,10 +303,10 @@ public class TaskPoolsManagerAdapterTest {
         reset(manager);
 
         // acting
-        TasksPoolUnit taskPool = manager.createTaskPool(poolName, poolGroup);
+        TasksPoolUnitAdapter taskPool = (TasksPoolUnitAdapter) manager.createTaskPool(poolName, poolGroup);
 
         // check the behavior
-        verify(taskPool).applyFor(poolName, poolGroup, TasksPoolUnit.PoolType.LOCAL);
+        verify(taskPool).applyPoolNameFor(poolName, poolGroup, TasksPoolUnit.PoolType.LOCAL);
         verify(taskPool).loadOrCreateTasksList();
         verify(manager).getRoot();
         verify(taskPool).restoreDocumentFrom(any(InputStream.class));
@@ -708,7 +709,7 @@ public class TaskPoolsManagerAdapterTest {
         }
 
         @Override
-        protected TasksPoolUnit createTaskPool(String name, String factory) {
+        public TasksPoolUnit createTaskPool(String name, String factory) {
             TasksPoolUnitAdapter pool = spy(new TasksPoolUnitAdapter() {
             });
             pool.localPoolFor(name, factory);

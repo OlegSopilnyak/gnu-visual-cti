@@ -41,7 +41,6 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Optional;
-import org.jdom.DataConversionException;
 import org.jdom.Element;
 import org.visualcti.server.Parameter;
 import org.visualcti.server.core.unit.RunnableServerUnit;
@@ -97,7 +96,7 @@ public interface TasksPoolUnit extends RunnableServerUnit {
             return type;
         }
 
-        static PoolType of(String type) {
+        public static PoolType of(String type) {
             return Arrays.stream(PoolType.values())
                     .filter(poolType -> poolType.getType().equalsIgnoreCase(type))
                     .findFirst().orElse(null);
@@ -150,16 +149,6 @@ public interface TasksPoolUnit extends RunnableServerUnit {
     default String getName() {
         return isEmptyString.test(getPoolGroup()) ? getPoolName() : getPoolGroup() + "/" + getPoolName();
     }
-
-    /**
-     * To adjust the parameters of the pool before pool's tasks list operations
-     *
-     * @param name the name of the pool
-     * @param factory the name of factory(group) of the pool
-     * @param poolType the type of the pool
-     * @return adjusted pool's instance
-     */
-    TasksPoolUnit applyFor(String name, String factory, PoolType poolType);
 
     /**
      * <accessor>
@@ -258,49 +247,6 @@ public interface TasksPoolUnit extends RunnableServerUnit {
     }
 
     /**
-     * <converter>
-     * To updateTask the entity's fields from XML
-     *
-     * @param xml possible entity's XML
-     * @throws IOException             if something went wrong
-     * @throws DataConversionException if something went wrong
-     * @throws NumberFormatException   if something went wrong
-     * @throws NullPointerException    if something went wrong
-     * @see Element
-     * @see #configure(Element)
-     */
-    @Override
-    default void setXML(Element xml) throws IOException, DataConversionException, NumberFormatException, NullPointerException {
-        // here we updateTask unit from element of main server configuration
-        final PoolType poolType = PoolType.of(xml.getAttributeValue(TASKS_POOL_TYPE_ATTRIBUTE_NAME));
-        if (poolType == null) {
-            // wrong pool type in XML
-            throw new IOException("Wrong pool type");
-        }
-        final String combinedPoolName = xml.getAttributeValue(TASKS_POOL_NAME_ATTRIBUTE_NAME);
-        if (isEmptyString.test(combinedPoolName)) {
-            // empty value of pool name
-            throw new IOException("Pool name is empty");
-        }
-        // resolving pool-name from XML
-        final String[] nameParts = combinedPoolName.split("/");
-        final String poolName;
-        String poolGroup = null;
-        if (nameParts.length > 1) {
-            poolGroup = nameParts[0];
-            poolName = nameParts[1];
-        } else {
-            poolName = nameParts[0];
-        }
-        // adjusting pool from input XML
-        applyFor(poolName, poolGroup, poolType);
-        // assign the name of the tasks list external file
-        applyTasksFile(xml.getAttributeValue(TASKS_POOL_EXTERNAL_FILE_ATTRIBUTE_NAME));
-        // loading tasks list of the pool from the external pool-file
-        loadTasksList();
-    }
-
-    /**
      * <tasks-keeper>
      * To load tasks list from external XML file
      *
@@ -310,15 +256,6 @@ public interface TasksPoolUnit extends RunnableServerUnit {
      * @see #setXML(Element)
      */
     void loadTasksList() throws IOException, NumberFormatException, NullPointerException;
-
-    /**
-     * <mutator>
-     * To set up the tasks list file name of the pool
-     *
-     * @param poolFile new value of pool's file name
-     * @see #setXML(Element)
-     */
-    void applyTasksFile(String poolFile);
 
     /**
      * <tasks-keeper>

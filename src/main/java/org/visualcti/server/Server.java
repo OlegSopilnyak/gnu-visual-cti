@@ -174,7 +174,7 @@ public final void setHardwareManager
 <system>
 Reference to hardware manager
 */
-private org.visualcti.server.task.Manager tasks = null;
+private org.visualcti.server.task.Manager taskManager = null;
 /**
 <mutator>
 To setting up the tasks manager
@@ -184,7 +184,7 @@ public final void setTaskManager
         org.visualcti.server.task.Manager tasks
         )
 {
-    if (this.tasks == null) this.tasks=tasks;
+    if (this.taskManager == null) this.taskManager =tasks;
 }
 /**
 <system>
@@ -233,11 +233,11 @@ private org.visualcti.server.SchedulerGroup schedulers;
         }
         this.schedulers.setOwner(this);
         // to adjust the tasks pools
-        TaskPool publicPool = this.tasks.publicTaskPool();
-        this.tasks.removeChildren();
-        this.tasks.addChild(publicPool);
+        TaskPool publicPool = this.taskManager.publicTaskPool();
+        this.taskManager.removeChildren();
+        this.taskManager.addChild(publicPool);
         for(Iterator i=valid.iterator();i.hasNext();)
-          this.tasks.addChild((TaskPool)i.next());
+          this.taskManager.addChild((TaskPool)i.next());
         Tools.print(" Done");
     }
     /**
@@ -250,7 +250,7 @@ private org.visualcti.server.SchedulerGroup schedulers;
         String name = dev.getDeviceName();
         String factory = dev.getFactory().getVendor();
         // to get the device's tasks pool
-        TaskPool pool = this.tasks.getTaskPool( name, factory );
+        TaskPool pool = this.taskManager.getTaskPool( name, factory );
         valid.add( pool );
         Tools.out.print("*");Tools.out.flush();
         // to make the scheduler
@@ -363,7 +363,7 @@ private DateFormat dateFormat = DateFormat.getDateTimeInstance(DateFormat.SHORT,
             case unitCommand.START_ID:
                     this.services.Start();
                     this.hardware.Start();
-                    this.tasks.Start();
+                    this.taskManager.Start();
                     this.schedulers.Start();
                     return;
             // to stop server
@@ -371,7 +371,7 @@ private DateFormat dateFormat = DateFormat.getDateTimeInstance(DateFormat.SHORT,
                     this.services.Stop();
                     this.schedulers.Stop();
                     this.hardware.Stop();
-                    this.tasks.Stop();
+                    this.taskManager.Stop();
                     // to stop JVM normal
                     System.exit(0);
                     return;

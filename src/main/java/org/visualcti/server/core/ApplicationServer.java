@@ -35,7 +35,7 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.server.core.unit;
+package org.visualcti.server.core;
 
 import static org.visualcti.server.core.system.SubSystem.SYSTEM_ROOT_ELEMENT_NAME;
 
@@ -48,17 +48,19 @@ import org.jdom.DataConversionException;
 import org.jdom.Element;
 import org.visualcti.server.Parameter;
 import org.visualcti.server.core.system.SubSystem;
+import org.visualcti.server.core.unit.RunnableServerUnit;
+import org.visualcti.server.core.unit.ServerUnit;
 import org.visualcti.server.core.unit.message.MessageFamilyType;
 import org.visualcti.server.core.unit.message.command.ServerCommandRequest;
 import org.visualcti.server.core.unit.message.command.UnknownCommandException;
 import org.visualcti.util.Tools;
 
 /**
- * Facade: The root unit of the application
+ * Facade: The root unit of the applications server
  *
  * @see RunnableServerUnit
  */
-public interface ApplicationServerUnit extends RunnableServerUnit {
+public interface ApplicationServer extends RunnableServerUnit {
     // the file which contains primary information about application server parameters
     File CONFIGURATION_XML_FILE = new File("./conf/VisualCTI.server.xml");
     String BRAND_ROOT_ELEMENT_NAME = "VisualCTI";
@@ -74,7 +76,7 @@ public interface ApplicationServerUnit extends RunnableServerUnit {
     String SERVER_RMI_STARTUP_ATTRIBUTE_NAME = "start";
     boolean SERVER_RMI_STARTUP_DEFAULT_VALUE = false;
     String SERVER_UNIT_PATH_IN_REGISTRY = "{Server}";
-    // types of SET application command
+    // types of SET applications server command
     String UPDATE_CONFIGURATION_SET_TYPE = "update-server-configuration";
     String SHUTDOWN_SERVER_SET_TYPE = "shutdown-server";
     String SERVER_SYSTEM_PARAMETER_NAME = "system";

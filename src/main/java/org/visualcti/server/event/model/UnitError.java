@@ -97,7 +97,7 @@ class UnitError extends UnitMessageAdapter implements UnitActionError {
      * @return reference to the message
      */
     @Override
-    public UnitActionError setNestedException(Exception nestedException) {
+    public UnitActionError setNestedException(Throwable nestedException) {
         this.nestedException = nestedException instanceof ErrorNestedException
                 ? (ErrorNestedException) nestedException
                 : new ErrorNestedException(nestedException);

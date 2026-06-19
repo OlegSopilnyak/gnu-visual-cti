@@ -54,6 +54,7 @@ import org.visualcti.server.core.unit.message.MessageType;
 import org.visualcti.server.core.unit.message.UnitMessage;
 import org.visualcti.server.core.unit.message.UnitMessageFactory;
 import org.visualcti.server.core.unit.message.action.UnitActionError;
+import org.visualcti.server.core.unit.message.action.UnitActionEvent;
 import org.visualcti.server.core.unit.message.command.ServerCommandRequest;
 import org.visualcti.server.core.unit.message.command.ServerCommandResponse;
 import org.visualcti.server.core.unit.message.command.UnknownCommandException;
@@ -173,64 +174,7 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
     }
 
     /**
-     * <validator>
-     * To check the command to execute
-     * Is command needs response
-     *
-     * @param command command to validate
-     * @throws UnknownCommandException if command doesn't the response
-     * @see ServerCommandRequest#isNeedResponse()
-     * @see UnknownCommandException
-     */
-    static void validateCommand(ServerCommandRequest command) throws UnknownCommandException {
-        if (!command.isNeedResponse()) {
-            // Asynchronous execution isn't supported yet
-            throw new UnknownCommandException("Asynchronous execution isn't supported yet!");
-        }
-    }
-
-    /**
-     * <accessor>
-     * getting parameter with name "target" from the executing GET command
-     *
-     * @param command request for GET command
-     * @return the value of target parameter
-     * @throws UnknownCommandException if something wrong in target parameter
-     * @see ServerCommandRequest#getFamilyType()
-     * @see MessageFamilyType#GET
-     */
-    static String targetValueOf(ServerCommandRequest command) throws UnknownCommandException {
-        if (command.getFamilyType() == MessageFamilyType.GET) {
-            return command.getParameter(COMMAND_TARGET_PARAMETER, Parameter.INPUT_DIRECTION)
-                    .map(parameter -> parameter.getValue("invalid GET target"))
-                    .orElseThrow(() -> new UnknownCommandException(command.getFamilyType() + " isn't supported! Wrong GET target"));
-        } else {
-            throw new UnknownCommandException(command.getFamilyType() + " isn't supported!");
-        }
-    }
-
-    /**
-     * <accessor>
-     * getting parameter with name "type" from the executing SET command
-     *
-     * @param command request for SET command
-     * @return the value of target parameter
-     * @throws UnknownCommandException if something wrong in target parameter
-     * @see ServerCommandRequest#getFamilyType()
-     * @see MessageFamilyType#SET
-     */
-    static String typeValueOf(ServerCommandRequest command) throws UnknownCommandException {
-        if (command.getFamilyType() == MessageFamilyType.SET) {
-            return command.getParameter(COMMAND_TYPE_PARAMETER, Parameter.INPUT_DIRECTION)
-                    .map(parameter -> parameter.getValue("invalid SET type"))
-                    .orElseThrow(() -> new UnknownCommandException(command.getFamilyType() + " isn't supported! Wrong SET type"));
-        } else {
-            throw new UnknownCommandException(command.getFamilyType() + " isn't supported!");
-        }
-    }
-
-    /**
-     * <executer>
+     * <responser>
      * To do action before dispatching the command response
      *
      * @param command        command which requires response
@@ -246,14 +190,14 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
     }
 
     /**
-     * <action>
+     * <responser>
      * Prepare and send failed response to the command request with thrown exception
      *
-     * @param command the response for
-     * @param reason why it was wrong
+     * @param command   the response for
+     * @param reason    why it was wrong
      * @param exception the exception
      * @throws IOException if it can't send the response to the command request
-     * @see #dispatchError(Exception, String)
+     * @see #dispatchError(Throwable, String)
      * @see ServerCommandResponse#setParameter(Parameter)
      * @see Parameter#of(String, Object)
      * @see #respondTo(ServerCommandRequest, boolean, Consumer)
@@ -269,7 +213,7 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
     }
 
     /**
-     * <executer>
+     * <responser>
      * To do action before dispatching the command response
      *
      * @param command        command which requires response
@@ -299,17 +243,54 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
 
     /**
      * <action>
+     * To create and dispatch the event-type message from the unit
+     *
+     * @param eventType   type of the event
+     * @param description the description of the event
+     * @see UnitActionEvent
+     * @see #getMessageFactory()
+     * @see UnitMessageFactory#buildFor(ServerUnit, MessageType, MessageFamilyType, String)
+     * @see #dispatch(UnitMessage)
+     */
+    default void dispatchEvent(MessageFamilyType eventType, String description) {
+        try {
+            final UnitActionEvent event =
+                    getMessageFactory().buildFor(
+                            this,
+                            MessageType.EVENT,
+                            eventType == null ? MessageFamilyType.STATE : eventType,
+                            description);
+            dispatch(event);
+        } catch (IOException ex) {
+            // doing nothing, server unit is already in broken state
+        }
+    }
+
+    /**
+     * <action>
+     * To create and dispatch the event-type (state) message from the unit
+     *
+     * @param description the description of the event
+     * @see #dispatchEvent(MessageFamilyType, String)
+     * @see MessageFamilyType#STATE
+     */
+    default void dispatchEvent(String description) {
+        dispatchEvent(MessageFamilyType.STATE, description);
+    }
+
+    /**
+     * <action>
      * To create and dispatch the error-type message from the unit
      *
      * @param exception   the cause of the error
      * @param description the description of the error
      * @see UnitActionError
-     * @see UnitActionError#setNestedException(Exception)
+     * @see UnitActionError#setNestedException(Throwable)
      * @see #getMessageFactory()
      * @see UnitMessageFactory#buildFor(ServerUnit, MessageType, MessageFamilyType, String)
      * @see #dispatch(UnitMessage)
      */
-    default void dispatchError(Exception exception, String description) {
+    default void dispatchError(Throwable exception, String description) {
         try {
             final UnitActionError error = getMessageFactory()
                     .buildFor(this, MessageType.ERROR, MessageFamilyType.ERROR, description);
@@ -327,7 +308,7 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
      * To create and dispatch the error-type message from the unit
      *
      * @param description the description of the error
-     * @see #dispatchError(Exception, String)
+     * @see #dispatchError(Throwable, String)
      */
     default void dispatchError(String description) {
         dispatchError(null, description);
@@ -412,6 +393,27 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
      * @see #remove(ServerUnit)
      */
     void removeBranch(ServerUnit branch);
+
+    /**
+     * <mutator>
+     * To set new owner of this composite (null for the root unit)
+     *
+     * @param owner new value of composite's owner
+     * @throws IOException if cannot reregister unit (or children) in units registry
+     * @see ServerUnit
+     * @see org.visualcti.server.UnitRegistry#register(ServerUnit)
+     */
+    @Override
+    void setOwner(ServerUnit owner) throws IOException;
+
+    /**
+     * <accessor>
+     * To check is unit needs to be registered in units registry
+     *
+     * @return true if unit needed registration
+     * @see org.visualcti.server.UnitRegistry#register(ServerUnit)
+     */
+    boolean isNeedRegistration();
 /////////// SERVER UNIT HIERARCHY PART (end) ////////////////////
 
 ///////////// PROPERTIES PART (begin) //////////////
@@ -441,12 +443,13 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
      * @param properties server unit properties
      */
     void setProperties(Map<String, Object> properties);
-///////////// PROPERTIES PART (end) //////////////
+
+    /// ////////// PROPERTIES PART (end) //////////////
 // to check is method called from JUnit test
-static boolean isUnderJUnit() {
-    return Arrays.stream(Thread.currentThread().getStackTrace())
-            .anyMatch(e -> e.getClassName().startsWith("org.junit."));
-}
+    static boolean isUnderJUnit() {
+        return Arrays.stream(Thread.currentThread().getStackTrace())
+                .anyMatch(e -> e.getClassName().startsWith("org.junit."));
+    }
 
 ///////////// UNIT BUILDER PART (begin) //////////////
 /// BASIC UNIT CLASSES (begin) methods ///
@@ -489,8 +492,7 @@ static boolean isUnderJUnit() {
     }
 /// UNIT BUILDER CLASSES (end) methods ///
 ///
-///////////// UNIT BUILDER PART (end) //////////////
-
+/// ////////// UNIT BUILDER PART (begin) //////////////
     /**
      * <builder>
      * Function: The builder of the instance of the server unit, unsing XML Element from scratch
@@ -500,7 +502,6 @@ static boolean isUnderJUnit() {
     interface Builder<T extends ServerUnit> {
         // function to calculate canonical java class name
         BinaryOperator<String> className = (packageName, classname) ->
-//        BiFunction<String, String, String> className = (packageName, className) ->
                 classname.contains(".") ? classname : packageName + "." + classname;
 
         /**
@@ -509,6 +510,7 @@ static boolean isUnderJUnit() {
          *
          * @param configuration XML configuration of the server unit
          * @return built server unit instance
+         * @throws IOException if something wrong it te XML-document
          */
         @SuppressWarnings("unchecked")
         default T build(Element configuration) throws IOException {
@@ -529,7 +531,9 @@ static boolean isUnderJUnit() {
                 }
                 // creating the instance of server unit
                 final Element unitBuilderXML = getBuilderElement(configuration);
-                final T unit = unitBuilderXML == null ? unitClass.newInstance() : build(unitBuilderXML, unitExtendsClass);
+                final T unit = unitBuilderXML == null
+                        ? unitClass.getDeclaredConstructor().newInstance()
+                        : build(unitBuilderXML, unitExtendsClass);
                 // configuring created server unit instance
                 unit.configure(configuration);
                 // returns built and configured server unit
@@ -542,6 +546,21 @@ static boolean isUnderJUnit() {
             }
         }
 
+        /**
+         * <builder method>
+         * To build the instance of server unit using builder XML Element
+         *
+         * @param xml          builder XML-element
+         * @param extendsClass the unit-class should be extended
+         * @return built server instance
+         * @throws ClassNotFoundException    if something went wrong
+         * @throws IllegalAccessException    if something went wrong
+         * @throws InstantiationException    if something went wrong
+         * @throws NoSuchMethodException     if something went wrong
+         * @throws InvocationTargetException if something went wrong
+         * @throws IOException               if something went wrong (wrong server's type)
+         * @see #build(Element)
+         */
         @SuppressWarnings("unchecked")
         default T build(Element xml, Class<?> extendsClass) throws
                 ClassNotFoundException, IllegalAccessException, InstantiationException, NoSuchMethodException,
@@ -555,7 +574,7 @@ static boolean isUnderJUnit() {
             final T unit;
             if (isEmptyString.test(builderMethod)) {
                 // just create
-                unit = builderClass.newInstance();
+                unit = builderClass.getDeclaredConstructor().newInstance();
             } else {
                 final Method theMethod = builderClass.getMethod(builderMethod);
                 unit = (T) theMethod.invoke(builderClass);
@@ -567,9 +586,77 @@ static boolean isUnderJUnit() {
         }
     }
 
+/// ////////// UNIT BUILDER PART (end) //////////////
+
+    /////// private methods
+    /**
+     * <accessor>
+     * To get builder XML-element from unit's configuration XML-element
+     *
+     * @param configuration unit's configuration XML-element
+     * @return unit's builder XML-element
+     */
     static Element getBuilderElement(Element configuration) {
         final Element element = configuration.getChild(UNIT_BUILDER_ELEMENT_NAME);
         // for backward compatibility of old sever XML format
         return element != null ? element : configuration.getChild("parent");
     }
+
+    /**
+     * <validator>
+     * To check the command to execute
+     * Is command needs response
+     *
+     * @param command command to validate
+     * @throws UnknownCommandException if command doesn't the response
+     * @see ServerCommandRequest#isNeedResponse()
+     * @see UnknownCommandException
+     */
+    static void validateCommand(ServerCommandRequest command) throws UnknownCommandException {
+        if (!command.isNeedResponse()) {
+            // Asynchronous execution isn't supported yet
+            throw new UnknownCommandException("Asynchronous execution isn't supported yet!");
+        }
+    }
+
+    /**
+     * <accessor>
+     * getting parameter with name "target" from the executing GET command
+     *
+     * @param command request for GET command
+     * @return the value of target parameter
+     * @throws UnknownCommandException if something wrong in target parameter
+     * @see ServerCommandRequest#getFamilyType()
+     * @see MessageFamilyType#GET
+     */
+    static String targetValueOf(ServerCommandRequest command) throws UnknownCommandException {
+        if (command.getFamilyType() == MessageFamilyType.GET) {
+            return command.getParameter(COMMAND_TARGET_PARAMETER, Parameter.INPUT_DIRECTION)
+                    .map(parameter -> parameter.getValue("invalid GET target"))
+                    .orElseThrow(() -> new UnknownCommandException(command.getFamilyType() + " isn't supported! Wrong GET target"));
+        } else {
+            throw new UnknownCommandException(command.getFamilyType() + " isn't supported!");
+        }
+    }
+
+    /**
+     * <accessor>
+     * getting parameter with name "type" from the executing SET command
+     *
+     * @param command request for SET command
+     * @return the value of target parameter
+     * @throws UnknownCommandException if something wrong in target parameter
+     * @see ServerCommandRequest#getFamilyType()
+     * @see MessageFamilyType#SET
+     */
+    static String typeValueOf(ServerCommandRequest command) throws UnknownCommandException {
+        if (command.getFamilyType() == MessageFamilyType.SET) {
+            return command.getParameter(COMMAND_TYPE_PARAMETER, Parameter.INPUT_DIRECTION)
+                    .map(parameter -> parameter.getValue("invalid SET type"))
+                    .orElseThrow(() -> new UnknownCommandException(command.getFamilyType() + " isn't supported! Wrong SET type"));
+        } else {
+            throw new UnknownCommandException(command.getFamilyType() + " isn't supported!");
+        }
+    }
+
 }
