@@ -64,6 +64,8 @@ abstract class UnitMessageAdapter implements UnitMessage {
     private transient String description = "";
     // date-time, when action has happened
     private transient Date date;
+    // thread name, where the action has happened
+    private transient String threadName;
     // Path of ServerUnit in UnitRegistry
     private transient String unitPath = "Unknown";
 
@@ -141,6 +143,32 @@ abstract class UnitMessageAdapter implements UnitMessage {
     }
 
     /**
+     * <accessor>
+     * The name of Thread, where the action has happened
+     *
+     * @return the value
+     * @see Thread#currentThread()
+     * @see Thread#getName()
+     */
+    @Override
+    public String getThread() {
+        return threadName;
+    }
+
+    /**
+     * <mutator>
+     * To set up the name of Thread, where the action has happened
+     *
+     * @param threadName new value of message's name of thread
+     * @return reference to the message
+     */
+    @Override
+    public UnitMessage setThread(String threadName) {
+        this.threadName = threadName;
+        return this;
+    }
+
+    /**
      * <accesor>
      * To get access to Path of ServerUnit in UnitRegistry
      *
@@ -188,16 +216,23 @@ abstract class UnitMessageAdapter implements UnitMessage {
                 Objects.equals(familyType, that.familyType) &&
                         Objects.equals(description, that.description) &&
                         Objects.equals(date, that.date) &&
+                        Objects.equals(threadName, that.threadName) &&
                         Objects.equals(unitPath, that.unitPath);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(familyType, description, date, threadName, unitPath);
     }
 
     @Override
     public String toString() {
         return "{" +
-                "type=" + getMessageType().name() +
+                "date=" + getDate() +
+                ", thread=" + getThread() +
+                ", type=" + getMessageType().name() +
                 ", subType=" + getFamilyType().name() +
                 ", description='" + getDescription() + '\'' +
-                ", date=" + getDate() +
                 ", unitPath='" + getUnitPath() + '\'' +
                 '}';
     }
@@ -206,7 +241,7 @@ abstract class UnitMessageAdapter implements UnitMessage {
      * <check-and-update>
      * To check and update basic attribute values of the message
      *
-     * @param xml restored XML of the message
+     * @param xml  restored XML of the message
      * @param type expected type of the message
      * @throws IOException if something went wrong
      * @see Element
@@ -246,7 +281,7 @@ abstract class UnitMessageAdapter implements UnitMessage {
         final MessageFamilyType messageType = MessageFamilyType.byName(typeName);
         if (type != null && type != messageType) {
             Tools.error("Message family type '" + typeName + "' is invalid!");
-            throw new IOException("Invalid message family type ["+typeName+"]");
+            throw new IOException("Invalid message family type [" + typeName + "]");
         } else {
             setFamilyType(messageType);
         }
@@ -267,6 +302,23 @@ abstract class UnitMessageAdapter implements UnitMessage {
         final String whenTime = xml.getAttributeValue(BASE_MESSAGE_WHEN_ATTRIBUTE);
         setDate(whenTime == null || whenTime.trim().isEmpty() ? -1L : Long.parseLong(whenTime));
     }
+
+    /**
+     * <check-and-update>
+     * To restore or set up message thread name from xml
+     *
+     * @param xml restored XML of the message
+     * @see Element
+     * @see #baseMessageXML(Element)
+     * @see UnitMessage#BASE_MESSAGE_WHERE_ATTRIBUTE
+     * @see #setThread(String)
+     */
+    @Override
+    public void checkAndUpdateMessageWhere(Element xml) {
+        final String where = xml.getAttributeValue(BASE_MESSAGE_WHERE_ATTRIBUTE);
+        setThread(where == null ? Thread.currentThread().getName() : where.trim());
+    }
+
 // private methods
 
     /**

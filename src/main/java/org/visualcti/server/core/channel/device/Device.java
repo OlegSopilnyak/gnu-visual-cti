@@ -39,6 +39,7 @@ package org.visualcti.server.core.channel.device;
 
 import java.io.IOException;
 import org.visualcti.server.UnitRegistry;
+import org.visualcti.server.core.channel.ChannelTaskRunner;
 import org.visualcti.server.core.executable.task.Task;
 import org.visualcti.server.core.unit.ServerUnit;
 import org.visualcti.server.task.Environment;
@@ -52,6 +53,9 @@ import org.visualcti.server.task.Environment;
  * @see ServerUnit
  */
 public interface Device extends ServerUnit {
+    // the value of type the server unit
+    String UNIT_TYPE = "[channel-device]";
+
     /**
      * <accessor>
      * To get reference to the channel-devices factory, the owner of this channel-device
@@ -112,7 +116,7 @@ public interface Device extends ServerUnit {
      */
     @Override
     default String getType() {
-        return "channel-device";
+        return UNIT_TYPE;
     }
 
     /**
@@ -120,7 +124,7 @@ public interface Device extends ServerUnit {
      * To get the Name of the device to use it the task runner
      *
      * @return the value
-     * @see org.visualcti.server.core.channel.TaskRunner
+     * @see ChannelTaskRunner
      */
     String getDeviceName();
 

@@ -37,6 +37,8 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.core.unit.message;
 
+import static org.visualcti.server.core.unit.ServerUnit.isEmptyString;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -70,6 +72,7 @@ public interface UnitMessage extends XmlAware, Cloneable {
     String BASE_MESSAGE_FAMILY_TYPE_ATTRIBUTE = "action";
     String BASE_MESSAGE_TYPE_ATTRIBUTE = "type";
     String BASE_MESSAGE_WHEN_ATTRIBUTE = "date";
+    String BASE_MESSAGE_WHERE_ATTRIBUTE = "thread";
     String BASE_MESSAGE_CORRELATION_ID_ATTRIBUTE = "correlation-id";
     String BASE_MESSAGE_UNIT_PATH_ATTRIBUTE = "unitPath";
 
@@ -150,6 +153,25 @@ public interface UnitMessage extends XmlAware, Cloneable {
     UnitMessage setDate(long dateTime);
 
     /**
+     * <accessor>
+     * The name of Thread, where the action has happened
+     *
+     * @return the value
+     * @see Thread#currentThread()
+     * @see Thread#getName()
+     */
+    String getThread();
+
+    /**
+     * <mutator>
+     * To set up the name of Thread, where the action has happened
+     *
+     * @param threadName new value of message's name of thread
+     * @return reference to the message
+     */
+    UnitMessage setThread(String threadName);
+
+    /**
      * <accesor>
      * To get access to Path of ServerUnit in UnitRegistry
      *
@@ -176,11 +198,12 @@ public interface UnitMessage extends XmlAware, Cloneable {
      * @see UnitMessage#ROOT_ELEMENT_NAME
      * @see UnitMessage#DESCRIPTION_PARAMETER_NAME
      * @see XmlAware#store(OutputStream)
+     * @see org.visualcti.server.core.unit.ServerUnit#isEmptyString
      */
     @Override
     default Element getXML() {
         final Element baseMessageXML = new Element(ROOT_ELEMENT_NAME).addContent(baseMessageXML());
-        if (!"".equals(getDescription())) {
+        if (isEmptyString.negate().test(getDescription())) {
             baseMessageXML.addContent(Parameter.of(DESCRIPTION_PARAMETER_NAME, getDescription()).input().getXML());
         }
         return baseMessageXML;
@@ -212,7 +235,7 @@ public interface UnitMessage extends XmlAware, Cloneable {
             try {
                 final Parameter parameter = Parameter.restore(parameterXml);
                 if (parameter != null) {
-                    // to set up message's parameter
+                    // setting up parameter of the message
                     setupMessageParameter(parameter);
                 }
             } catch (Exception e) {
@@ -224,7 +247,7 @@ public interface UnitMessage extends XmlAware, Cloneable {
 
     /**
      * <converter>
-     * setting up message's parameter
+     * setting up parameter of the message
      *
      * @param parameter of the message
      * @see #setXML(Element)
@@ -270,6 +293,8 @@ public interface UnitMessage extends XmlAware, Cloneable {
      * @see UnitMessage#getMessageType()
      * @see UnitMessage#BASE_MESSAGE_WHEN_ATTRIBUTE
      * @see UnitMessage#getDate()
+     * @see UnitMessage#BASE_MESSAGE_WHERE_ATTRIBUTE
+     * @see UnitMessage#getThread()
      * @see UnitMessage#BASE_MESSAGE_UNIT_PATH_ATTRIBUTE
      * @see UnitMessage#getUnitPath()
      * @see UnitMessage#BASE_MESSAGE_CORRELATION_ID_ATTRIBUTE
@@ -279,6 +304,7 @@ public interface UnitMessage extends XmlAware, Cloneable {
         xml.setAttribute(messageAttribute(BASE_MESSAGE_FAMILY_TYPE_ATTRIBUTE, getFamilyType()));
         xml.setAttribute(messageAttribute(BASE_MESSAGE_TYPE_ATTRIBUTE, getMessageType()));
         xml.setAttribute(messageAttribute(BASE_MESSAGE_WHEN_ATTRIBUTE, getDate()));
+        xml.setAttribute(messageAttribute(BASE_MESSAGE_WHERE_ATTRIBUTE, getThread()));
         xml.setAttribute(messageAttribute(BASE_MESSAGE_CORRELATION_ID_ATTRIBUTE, "_"));
         xml.setAttribute(messageAttribute(BASE_MESSAGE_UNIT_PATH_ATTRIBUTE, getUnitPath()));
         return xml;
@@ -327,6 +353,7 @@ public interface UnitMessage extends XmlAware, Cloneable {
         checkAndUpdateMessageType(xml, getFamilyType());
         // updating the rest property values of the message from the XML element
         checkAndUpdateMessageWhen(xml);
+        checkAndUpdateMessageWhere(xml);
         setUnitPath(xml.getAttributeValue(BASE_MESSAGE_UNIT_PATH_ATTRIBUTE));
 
     }
@@ -372,6 +399,18 @@ public interface UnitMessage extends XmlAware, Cloneable {
      * @see #setDate(long)
      */
     void checkAndUpdateMessageWhen(final Element xml);
+
+    /**
+     * <check-and-update>
+     * To restore or set up message thread name from xml
+     *
+     * @param xml restored XML of the message
+     * @see Element
+     * @see #baseMessageXML(Element)
+     * @see UnitMessage#BASE_MESSAGE_WHERE_ATTRIBUTE
+     * @see #setThread(String)
+     */
+    void checkAndUpdateMessageWhere(final Element xml);
 
     /**
      * <listener>

@@ -40,9 +40,9 @@ import java.io.*;
 import java.util.*;
 /**
  * <environment>
- * The environment for Server's tasks
+ * The environment for Server's tasks execution
  * */
-public final class Environment
+public class Environment
 {
 /**
  * <pool>

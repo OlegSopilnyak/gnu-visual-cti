@@ -576,18 +576,6 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
     }
 
     /**
-     * <accessor>
-     * To check is unit needs to be registered in units registry
-     *
-     * @return true if unit needed registration
-     * @see org.visualcti.server.UnitRegistry#register(ServerUnit)
-     */
-    @Override
-    public boolean isNeedRegistration() {
-        return true;
-    }
-
-    /**
      * <mutator>
      * to add child to the server unit composite units tree<BR/>
      * set up the owner for the child unit current unit

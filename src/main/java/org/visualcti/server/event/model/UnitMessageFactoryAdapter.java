@@ -155,8 +155,9 @@ public interface UnitMessageFactoryAdapter extends UnitMessageFactory {
     default <T extends UnitMessage> T buildFor(String serverUnitPath, MessageType type, MessageFamilyType familyType, String description) throws IOException {
         final T result = build(type);
         result
-                .setDate(System.currentTimeMillis()).setUnitPath(serverUnitPath)
-                .setFamilyType(familyType).setDescription(description);
+                .setFamilyType(familyType)
+                .setDate(System.currentTimeMillis()).setThread(Thread.currentThread().getName())
+                .setUnitPath(serverUnitPath).setDescription(description);
         if (result instanceof ServerCommandRequest) {
             ((ServerCommandRequest) result).setCorrelationID(UUID.randomUUID().toString());
         }
@@ -179,6 +180,8 @@ public interface UnitMessageFactoryAdapter extends UnitMessageFactory {
     default ServerCommandResponse responseTo(ServerCommandRequest request) throws IOException {
         // building the response
         final ServerCommandResponse response = build(MessageType.RESPONSE);
+        // assigning common message parameters
+        response.setDate(System.currentTimeMillis()).setThread(Thread.currentThread().getName());
         // adjust response's instance as the response to the command request
         return response.of(request);
     }

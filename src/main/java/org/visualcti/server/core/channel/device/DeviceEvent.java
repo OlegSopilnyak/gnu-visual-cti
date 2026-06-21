@@ -37,79 +37,79 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.core.channel.device;
 
-import java.util.Optional;
-import java.util.stream.Stream;
-import org.visualcti.server.core.unit.RunnableServerUnit;
+import java.util.Map;
 
 /**
- * The Factory of the Devices: The factory of the channel-devices
+ * The event from the channel-device side
  *
  * @see Device
- * @see RunnableServerUnit
+ * @see Factory
  */
-public interface Factory extends RunnableServerUnit {
-    // The name of root XML's Element
-    String ELEMENT = "factory";
-    // the value of type the server unit
-    String UNIT_TYPE = "[channel-devices-board]";
+public interface DeviceEvent {
+    /**
+     * <accessor>
+     * to get the type of event occurred for the device
+     *
+     * @return the value
+     * @see Type
+     */
+    Type getEventType();
 
     /**
      * <accessor>
-     * get access to factory's vendor name
+     * to get the name of device, where the event has occurred
+     *
+     * @return the value
+     * @see Device#getName()
+     */
+    String getDeviceName();
+
+    /**
+     * <accessor>
+     * get access to event device's vendor name
      *
      * @return vendor's name
+     * @see Factory#getVendor()
      */
     String getVendor();
 
     /**
      * <accessor>
-     * get access to factory's version
+     * get access to the event's description
      *
-     * @return the version
+     * @return event's description
      */
-    String getVersion();
+    String getDescription();
 
     /**
      * <accessor>
-     * To get the Name of the unit to show in UI
+     * get access to the event's options
      *
-     * @return the value
-     * @see #getVendor()
+     * @return the options of the event
      */
-    @Override
-    default String getName() {
-        return "provider/" + getVendor();
+    Map<String, Object> getOptions();
+
+    /**
+     * The types of device's events
+     */
+    enum Type {
+        // received signal from device about incoming activity (incoming call, HTTP request, incoming message, etc.)
+        INCOMING,
+        // detected malfunction during device working activity
+        MALFUNCTION
     }
 
     /**
-     * <accessor>
-     * To get the Type of unit as string (service, manager, subsystem, etc.)
-     *
-     * @return the value
+     * The listener of the channel device events
      */
-    @Override
-    default String getType() {
-        return UNIT_TYPE;
-    }
-
-    /**
-     * <producer>
-     * To make the stream of devices.
-     *
-     * @return the stream of devices
-     */
-    default Stream<Device> devices() {
-        return children().filter(Device.class::isInstance).map(Device.class::cast);
-    }
-
-    /**
-     * <aceessor>
-     * to get the device instance by the name
-     *
-     * @param name the name of device in the factory
-     * @return the device or empty, if device with name is not in the factory
-     */
-    default Optional<Device> getDevice(String name) {
-        return devices().filter(d -> d.getName().equals(name)).findFirst();
+    interface Listener {
+        /**
+         * <action>
+         * Whether the given event is accepted by this listener.
+         *
+         * @param event the fired Event
+         * @return true if the event accepted for the processing
+         */
+        boolean accept(DeviceEvent event);
     }
 }

@@ -38,26 +38,46 @@ Fax number: 217-356-3356
 package org.visualcti.server.core.channel;
 
 import java.io.IOException;
+import java.util.Objects;
+import java.util.concurrent.locks.Lock;
 import java.util.function.UnaryOperator;
 import org.visualcti.server.UnitRegistry;
 import org.visualcti.server.core.channel.device.Device;
+import org.visualcti.server.core.channel.device.DeviceEvent;
 import org.visualcti.server.core.channel.device.DeviceMalfunction;
 import org.visualcti.server.core.executable.task.Task;
 import org.visualcti.server.core.executable.task.TasksPoolUnit;
 import org.visualcti.server.core.unit.RunnableServerUnit;
 import org.visualcti.server.core.unit.ServerUnit;
 import org.visualcti.server.task.Environment;
+import org.visualcti.server.unit.ServerUnitAdapter;
 
 /**
  * Tasks Runner: entity to run task from tasks-pool for particular channel-device
  */
-public interface TaskRunner extends RunnableServerUnit {
+public interface ChannelTaskRunner extends RunnableServerUnit, DeviceEvent.Listener {
+    // the value of type the server unit
+    String UNIT_TYPE = "[channel-task-runner]";
     // the name of channel-device in the task's environment
     String ENVIRONMENT_PART_DEVICE_NAME = "channel <:current device:>";
     // the name of runner's environment part, standard task's output
     String ENVIRONMENT_PART_TASK_STANDARD_OUTPUT = "stdout";
     // the name of runner's environment part, error task's output
     String ENVIRONMENT_PART_TASK_ERROR_OUTPUT = "stderr";
+    String ENVIRONMENT_PART_TASK_TIMER = "timer";
+    // preparing task state function
+    UnaryOperator<String> runnerTaskState = currentTaskName -> String.format("current%n%s%n", currentTaskName);
+
+    /**
+     * <accessor>
+     * To get access to the group of tasks runners
+     *
+     * @return the value
+     * @see TaskRunnerGroup
+     */
+    default TaskRunnerGroup getGroup() {
+        return getOwner() instanceof TaskRunnerGroup ? (TaskRunnerGroup) getOwner() : null;
+    }
 
     /**
      * <accessor>
@@ -65,7 +85,7 @@ public interface TaskRunner extends RunnableServerUnit {
      *
      * @return the value
      * @see Environment
-     * @see org.visualcti.server.core.executable.task.Task#setEnv(Environment)
+     * @see Task#setEnv(Environment)
      */
     Environment getEnvironment();
 
@@ -74,8 +94,7 @@ public interface TaskRunner extends RunnableServerUnit {
      * To get access to the tasks pool associated with the channel
      *
      * @return the value
-     * @see Environment
-     * @see org.visualcti.server.core.executable.task.Task#setEnv(Environment)
+     * @see TasksPoolUnit
      */
     TasksPoolUnit getTasksPool();
 
@@ -89,10 +108,19 @@ public interface TaskRunner extends RunnableServerUnit {
     Channel getChannel();
 
     /**
+     * <lock>
+     * To get access to channel's exclusive access lock for task execution
+     *
+     * @return the value
+     */
+    Lock getExclusiveAccessLock();
+
+    /**
      * <accessor>
      * To get Name of the unit to show in UI
      *
      * @return the value
+     * @see Channel#getName()
      */
     @Override
     default String getName() {
@@ -101,10 +129,21 @@ public interface TaskRunner extends RunnableServerUnit {
 
     /**
      * <accessor>
+     * To get Type of unit
+     *
+     * @return the value
+     */
+    default String getType() {
+        return UNIT_TYPE;
+    }
+
+    /**
+     * <accessor>
      * To check is unit needs to be registered in units registry
      *
      * @return true if unit needed registration
      * @see UnitRegistry#register(ServerUnit)
+     * @see ServerUnitAdapter#setOwner(ServerUnit)
      */
     @Override
     default boolean isNeedRegistration() {
@@ -120,9 +159,14 @@ public interface TaskRunner extends RunnableServerUnit {
      */
     @Override
     default void startUnitRunnable() throws IOException {
+        // opening channel device if it didn't open yet
+        if (!getChannel().getDevice().isOpened()) {
+            // opening the device
+            getChannel().getDevice().open();
+        }
         // starting tasks pool
         getTasksPool().Start();
-        // preparing runner's environment
+        // preparing environment for executing task
         prepareEnvironment(this);
     }
 
@@ -135,10 +179,60 @@ public interface TaskRunner extends RunnableServerUnit {
      */
     @Override
     default void stopUnitRunnable() throws IOException {
+        // closing channel device if it did open yet
+        if (getChannel().getDevice().isOpened()) {
+            // closing the device
+            getChannel().getDevice().close();
+        }
         // stopping tasks pool
         getTasksPool().Stop();
-        // clearing runner's environment
+        // cleaning runner's environment
         getEnvironment().clear();
+    }
+
+    /**
+     * <action>
+     * Whether the given event is accepted by this listener.
+     *
+     * @param event the fired Event
+     * @return true if the event accepted for the processing
+     */
+    @Override
+    default boolean accept(DeviceEvent event) {
+        final Device device = getChannel().getDevice();
+        if (!eventCompliesDevice(event, device) || !isStarted()) {
+            // event not for the channel-device or runner isn't started
+            return false;
+        }
+        switch (event.getEventType()) {
+            case INCOMING:
+                if (getChannel().isBusy()) {
+                    // the channel is busy to accept incoming event
+                    return false;
+                }
+                // launching the task in separate thread
+                getGroup().getExecutor().execute(() -> launchTask(this));
+                break;
+            case MALFUNCTION:
+                // detected channel device malfunction, notify about it
+                dispatchError(event.getDescription());
+                try {
+                    // trying to repair the device
+                    device.terminate();
+                    if (!device.repair()) {
+                        // stopping broken task runner
+                        Stop();
+                    }
+                } catch (IOException e) {
+                    dispatchError(e,"Cannot repair broken device.");
+                }
+                break;
+            default:
+                dispatchError("Unknown event type: " + event.getEventType());
+                return false;
+        }
+        // event is accepted by task runner
+        return true;
     }
 
     /**
@@ -159,11 +253,15 @@ public interface TaskRunner extends RunnableServerUnit {
             Stop();
             return;
         }
-        // to get the channel-device instance for the task's run
+        // locking the access to the runner instance
+        getExclusiveAccessLock().lock();
+        // to get the channel-device instance for the task's execution
         try (final Device channelDevice = getChannel().getDevice()) {
             channelDevice.open();
             // attaching the task to the tasks runner
-            attachTask(this, taskToRun);
+            attachTask(taskToRun);
+            // unlocking the access to the runner instance
+            getExclusiveAccessLock().unlock();
             // starting task's execution
             taskToRun.execute();
         } catch (DeviceMalfunction malfunction) {
@@ -175,37 +273,69 @@ public interface TaskRunner extends RunnableServerUnit {
                 Stop();
             }
         } finally {
+            // unlocking the access to execution sequence
+            getExclusiveAccessLock().unlock();
             // detaching the task from the tasks runner
-            detachTask(this, taskToRun);
+            detachTask(taskToRun);
         }
     }
 
-    /// // private methods
-    UnaryOperator<String> runnerTaskState = currentTaskName -> String.format("current%n%s%n", currentTaskName);
-
-    // to attach task before execution
-    static void attachTask(TaskRunner runner, Task task) throws IOException {
+    /**
+     * <action>
+     * To attach task to the runner before execution one
+     *
+     * @param task the task to execute
+     */
+    default void attachTask(Task task) {
         // to get runner task's environment
-        final Environment environment = runner.getEnvironment();
+        final Environment environment = getEnvironment();
         // to prepare the runtime environment for the task
-//        environment.setPart( "timer",     group.getTimer()    );
+        environment.setPart(ENVIRONMENT_PART_TASK_TIMER, getGroup().getTimer());
 //        environment.setPart( "database",  group.getDatabase() );
 //        environment.setPart( "messenger", group.getMessenger());
         // attaching configured environment to the task to execute
         task.setEnv(environment);
         // sending notification about task's attachment to the runner
-        runner.dispatchEvent(runnerTaskState.apply(task.getName()));
+        dispatchEvent(runnerTaskState.apply(task.getName()));
+        // adjust the channel state
+        getChannel().beforeStart(task);
     }
 
-    // to detach task after execution
-    static void detachTask(TaskRunner runner, Task task) {
+    /**
+     * <action>
+     * To detach task from the runner after execution one
+     *
+     * @param task the executed task
+     */
+    default void detachTask(Task task) {
         // cleaning the environment from the executed task
         task.setEnv(null);
         // sending notification about task's detachment from the runner
-        runner.dispatchEvent(runnerTaskState.apply(" "));
+        dispatchEvent(runnerTaskState.apply(" "));
+        // adjust the channel state
+        getChannel().afterStop(task);
     }
 
-    static void prepareEnvironment(TaskRunner runner) {
+
+    /// // private methods
+    // running channel task
+    static void launchTask(ChannelTaskRunner runner) {
+        try {
+            runner.dispatchEvent("Starting channel task on the runner:" + runner.getName());
+            runner.runChannelTask();
+        } catch (IOException e) {
+            runner.dispatchError(e,"Cannot start channel task on the runner:" + runner.getName());
+        }
+    }
+
+    // to check is event complies with the device
+    static boolean eventCompliesDevice(DeviceEvent event, Device device) {
+        return Objects.equals(event.getDeviceName(), device.getName())
+                && Objects.equals(event.getVendor(), device.getFactory().getVendor());
+    }
+
+    // preparing the environment during the runner start
+    static void prepareEnvironment(ChannelTaskRunner runner) {
         // to get runner task's environment
         final Environment environment = runner.getEnvironment();
         environment.clear();

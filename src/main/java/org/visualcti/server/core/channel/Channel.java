@@ -52,6 +52,9 @@ import org.visualcti.server.task.Environment;
  * @see ServerUnit
  */
 public interface Channel extends ServerUnit {
+    // the value of type the server unit
+    String UNIT_TYPE = "[channel]";
+
     /**
      * <accessor>
      * To get the device of the channel
@@ -84,6 +87,39 @@ public interface Channel extends ServerUnit {
     }
 
     /**
+     * <action>
+     * Before start task execution on the channel
+     *
+     * @param task task which is going to be executed
+     * @see #isBusy()
+     */
+    default void beforeStart(Task task) {
+        throw new UnsupportedOperationException("Please implement me!");
+    }
+
+    /**
+     * <action>
+     * After stop task execution on the channel
+     *
+     * @param task task which was executed
+     * @see #isBusy()
+     */
+    default void afterStop(Task task) {
+        throw new UnsupportedOperationException("Please implement me!");
+    }
+
+    /**
+     * <accessor>
+     * To check is channel busy to accept incoming device event
+     *
+     * @return true if channel is busy
+     */
+    default boolean isBusy() {
+        // by default channel support multiple usage
+        return false;
+    }
+
+    /**
      * <accessor>
      * To get the Type of unit as string (service, manager, subsystem, etc.)
      *
@@ -91,7 +127,7 @@ public interface Channel extends ServerUnit {
      */
     @Override
     default String getType() {
-        return "channel";
+        return UNIT_TYPE;
     }
 
     /**

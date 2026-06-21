@@ -413,7 +413,9 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
      * @return true if unit needed registration
      * @see org.visualcti.server.UnitRegistry#register(ServerUnit)
      */
-    boolean isNeedRegistration();
+    default boolean isNeedRegistration() {
+        return true;
+    }
 /////////// SERVER UNIT HIERARCHY PART (end) ////////////////////
 
 ///////////// PROPERTIES PART (begin) //////////////
