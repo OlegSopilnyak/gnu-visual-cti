@@ -199,14 +199,22 @@ public interface ChannelTaskRunner extends RunnableServerUnit, DeviceEvent.Liste
      */
     @Override
     default boolean accept(DeviceEvent event) {
-        final Device device = getChannel().getDevice();
-        if (!eventCompliesDevice(event, device) || !isStarted()) {
+        final Channel channel = getChannel();
+        final Device device = channel.getDevice();
+        if (isStarted() && eventCompliesDevice(event, device)) {
+            // runner state and event are good, checking event type
+            if (event.getEventType() == null) {
+                // wrong device event type
+                return false;
+            }
+        } else {
             // event not for the channel-device or runner isn't started
             return false;
         }
+        // doing according the device event type
         switch (event.getEventType()) {
             case INCOMING:
-                if (getChannel().isBusy()) {
+                if (channel.isBusy()) {
                     // the channel is busy to accept incoming event
                     return false;
                 }
@@ -254,14 +262,16 @@ public interface ChannelTaskRunner extends RunnableServerUnit, DeviceEvent.Liste
             return;
         }
         // locking the access to the runner instance
-        getExclusiveAccessLock().lock();
+        Lock lock = getExclusiveAccessLock();
+        lock.lock();
         // to get the channel-device instance for the task's execution
         try (final Device channelDevice = getChannel().getDevice()) {
             channelDevice.open();
             // attaching the task to the tasks runner
             attachTask(taskToRun);
             // unlocking the access to the runner instance
-            getExclusiveAccessLock().unlock();
+            lock.unlock();
+            lock = null;
             // starting task's execution
             taskToRun.execute();
         } catch (DeviceMalfunction malfunction) {
@@ -274,7 +284,9 @@ public interface ChannelTaskRunner extends RunnableServerUnit, DeviceEvent.Liste
             }
         } finally {
             // unlocking the access to execution sequence
-            getExclusiveAccessLock().unlock();
+            if (lock != null) {
+                lock.unlock();
+            }
             // detaching the task from the tasks runner
             detachTask(taskToRun);
         }
