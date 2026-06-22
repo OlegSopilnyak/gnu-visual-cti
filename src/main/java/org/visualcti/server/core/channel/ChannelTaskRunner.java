@@ -56,6 +56,8 @@ import org.visualcti.server.unit.ServerUnitAdapter;
  * Tasks Runner: entity to run task from tasks-pool for particular channel-device
  */
 public interface ChannelTaskRunner extends RunnableServerUnit, DeviceEvent.Listener {
+    String ROOT_ELEMENT_NAME = "ChannelTaskRunner";
+    String SERVER_UNIT_DESCRIPTION = "The runner of task for particular channel-device";
     // the value of type the server unit
     String UNIT_TYPE = "[channel-task-runner]";
     // the name of channel-device in the task's environment
@@ -203,44 +205,12 @@ public interface ChannelTaskRunner extends RunnableServerUnit, DeviceEvent.Liste
         final Device device = channel.getDevice();
         if (isStarted() && eventCompliesDevice(event, device)) {
             // runner state and event are good, checking event type
-            if (event.getEventType() == null) {
-                // wrong device event type
-                return false;
-            }
+            return event.getEventType() != null;
         } else {
             // event not for the channel-device or runner isn't started
             return false;
         }
-        // doing according the device event type
-        switch (event.getEventType()) {
-            case INCOMING:
-                if (channel.isBusy()) {
-                    // the channel is busy to accept incoming event
-                    return false;
-                }
-                // launching the task in separate thread
-                getGroup().getExecutor().execute(() -> launchTask(this));
-                break;
-            case MALFUNCTION:
-                // detected channel device malfunction, notify about it
-                dispatchError(event.getDescription());
-                try {
-                    // trying to repair the device
-                    device.terminate();
-                    if (!device.repair()) {
-                        // stopping broken task runner
-                        Stop();
-                    }
-                } catch (IOException e) {
-                    dispatchError(e,"Cannot repair broken device.");
-                }
-                break;
-            default:
-                dispatchError("Unknown event type: " + event.getEventType());
-                return false;
-        }
         // event is accepted by task runner
-        return true;
     }
 
     /**
@@ -276,12 +246,7 @@ public interface ChannelTaskRunner extends RunnableServerUnit, DeviceEvent.Liste
             taskToRun.execute();
         } catch (DeviceMalfunction malfunction) {
             // detected channel device malfunction, notify about it
-            dispatchError(malfunction, "Error in the channel-device.");
-            // trying to repair broken channel-device
-            if (!malfunction.repairMalfunction()) {
-                // the device is broken so stopping the task-runner
-                Stop();
-            }
+            deviceMalfunctionInTask(malfunction, taskToRun);
         } finally {
             // unlocking the access to execution sequence
             if (lock != null) {
@@ -291,6 +256,18 @@ public interface ChannelTaskRunner extends RunnableServerUnit, DeviceEvent.Liste
             detachTask(taskToRun);
         }
     }
+
+    /**
+     * <error-hanler>
+     * To handle channel-device malfunction during the task execution
+     *
+     * @param malfunction the value
+     * @param runningTask running task
+     * @throws IOException if something went wrong
+     * @see DeviceMalfunction
+     * @see Task
+     */
+    void deviceMalfunctionInTask(DeviceMalfunction malfunction, Task runningTask) throws IOException;
 
     /**
      * <action>
@@ -328,18 +305,18 @@ public interface ChannelTaskRunner extends RunnableServerUnit, DeviceEvent.Liste
         getChannel().afterStop(task);
     }
 
-
-    /// // private methods
-    // running channel task
-    static void launchTask(ChannelTaskRunner runner) {
-        try {
-            runner.dispatchEvent("Starting channel task on the runner:" + runner.getName());
-            runner.runChannelTask();
-        } catch (IOException e) {
-            runner.dispatchError(e,"Cannot start channel task on the runner:" + runner.getName());
-        }
+    /**
+     * <accessor>
+     * To get the parent class of the main class of the unit
+     *
+     * @see #getUnitClass()
+     */
+    @Override
+    default Class<? extends ServerUnit> getUnitExtendsClass() {
+        return ChannelTaskRunner.class;
     }
 
+    /// // private methods
     // to check is event complies with the device
     static boolean eventCompliesDevice(DeviceEvent event, Device device) {
         return Objects.equals(event.getDeviceName(), device.getName())

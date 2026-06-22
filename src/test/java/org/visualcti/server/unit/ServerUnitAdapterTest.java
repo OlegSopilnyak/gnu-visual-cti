@@ -285,7 +285,7 @@ public class ServerUnitAdapterTest {
         verify(unit).buildUnitRootElement();
         verify(unit).getUnitDescription();
         verify(unit).prepareBaseUnitXML(element);
-        verify(unit).prepareUnitXML(element);
+        verify(unit).prepareUnitParametersXML(element);
         // check results
         final BufferedReader reader;
         try (ByteArrayOutputStream output = new ByteArrayOutputStream()) {

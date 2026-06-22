@@ -42,11 +42,18 @@ import java.util.Objects;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import org.jdom.Element;
+import org.visualcti.core.XmlAware;
 import org.visualcti.server.core.channel.Channel;
 import org.visualcti.server.core.channel.ChannelTaskRunner;
+import org.visualcti.server.core.channel.device.Device;
+import org.visualcti.server.core.channel.device.DeviceEvent;
+import org.visualcti.server.core.channel.device.DeviceMalfunction;
+import org.visualcti.server.core.executable.task.Task;
 import org.visualcti.server.core.executable.task.TasksPoolUnit;
+import org.visualcti.server.core.unit.ServerUnit;
 import org.visualcti.server.task.Environment;
 import org.visualcti.server.unit.RunnableUnitAdapter;
+import org.visualcti.server.unit.ServerUnitAdapter;
 
 /**
  * Adapter: entity to run task from tasks-pool for particular channel-device
@@ -127,6 +134,53 @@ public class ChannelTaskRunnerAdapter extends RunnableUnitAdapter implements Cha
     }
 
     /**
+     * <accessor>
+     * To get the name of the root element name in XML result
+     *
+     * @return the name of root element
+     * @see XmlAware#getRootElementName()
+     */
+    @Override
+    public String getRootElementName() {
+        return ROOT_ELEMENT_NAME;
+    }
+
+    /**
+     * <accessor>
+     * To get the parent class of the main class of the unit
+     *
+     * @return the instance of class which extends server unit main class
+     * @see ServerUnit#getUnitExtendsClass()
+     */
+    @Override
+    public Class<? extends ServerUnit> getUnitExtendsClass() {
+        return ChannelTaskRunner.class;
+    }
+
+    /**
+     * <accessor>
+     * To get description of the unit
+     *
+     * @see ServerUnitAdapter#getUnitDescription()
+     */
+    @Override
+    protected String getUnitDescription() {
+        return SERVER_UNIT_DESCRIPTION;
+    }
+
+    /**
+     * <accessor>
+     * To get main class of the unit
+     *
+     * @return class-implementation of base server unit type
+     * @see ServerUnit#getUnitClass()
+     */
+    @Override
+    public Class<? extends ServerUnit> getUnitClass() {
+        return ChannelTaskRunnerAdapter.class;
+    }
+
+    /**
      * <converter>
      * To prepare base parameters of the unit using XML Element and correct xml if it's needed
      * Here we don't use builder feature of the server unit so doing nothing from XML-element
@@ -155,4 +209,104 @@ public class ChannelTaskRunnerAdapter extends RunnableUnitAdapter implements Cha
     protected void settingUpMainPart(Element xml) throws IOException {
         // doing nothing, keeps original XML
     }
+
+    /**
+     * <action>
+     * Whether the given event is accepted by this listener.
+     *
+     * @param event the fired Event
+     * @return true if the event accepted for the processing
+     * @see ChannelTaskRunner#accept(DeviceEvent)
+     * @see DeviceEvent
+     * @see Channel
+     */
+    @Override
+    public boolean accept(DeviceEvent event) {
+        if (!ChannelTaskRunner.super.accept(event)) {
+            dispatchError("Rejected invalid event: " + event);
+            return false;
+        }
+        // runner is started well and received correct event
+        // doing according the device event type
+        switch (event.getEventType()) {
+            case INCOMING:
+                if (channel.isBusy()) {
+                    // the channel is busy to accept incoming event
+                    return false;
+                }
+                // launching the task in separate thread
+                getGroup().getExecutor().execute(this::launchChannelTask);
+                break;
+            case MALFUNCTION:
+                // detected channel device malfunction event, notify about it
+                dispatchError(event.getDescription());
+                // terminating current task because of device's malfunction
+                tasksPool.current().stopExecute();
+                // trying to repair the broken device
+                final Device device = channel.getDevice();
+                try {
+                    // terminate current device activity
+                    device.terminate();
+                    // repairing terminated device
+                    if (!device.repair()) {
+                        // the device repairing is failed
+                        // stopping runner and mark it as broken
+                        breakTheRunner();
+                    }
+                } catch (IOException e) {
+                    dispatchError(e, "Cannot repair broken device.");
+                }
+                break;
+            default:
+                dispatchError("Unknown event type: " + event.getEventType());
+                return false;
+        }
+        // event is accepted by task runner
+        return true;
+    }
+
+
+    /**
+     * <error-hanler>
+     * To handle channel-device malfunction during the task execution
+     *
+     * @param malfunction the value
+     * @param runningTask running task
+     * @throws IOException if something went wrong
+     * @see DeviceMalfunction#repairMalfunction()
+     * @see Task#stopExecute()
+     * @see #Stop()
+     */
+    @Override
+    public void deviceMalfunctionInTask(DeviceMalfunction malfunction, Task runningTask) throws IOException {
+        dispatchError(malfunction, "Error in the channel-device of task: " + runningTask.getName());
+        // trying to repair broken channel-device
+        if (!malfunction.repairMalfunction()) {
+            // stopping current task execution
+            runningTask.stopExecute();
+            // stopping runner and mark it as broken
+            breakTheRunner();
+        }
+    }
+
+    /// / private methods
+    // stopping runner and mark it as broken
+    private void breakTheRunner() throws IOException {
+        // the runner's device is broken so stopping the runner
+        Stop();
+        // mark runner as broken server unit
+        unitState = UnitState.BROKEN;
+    }
+
+    // running channel task
+    private void launchChannelTask() {
+        try {
+            dispatchEvent("Starting channel task on the runner:" + getName());
+            // running the channel task
+            runChannelTask();
+        } catch (IOException e) {
+            dispatchError(e, "Cannot start channel task on the runner:" + getName());
+        }
+    }
+
 }

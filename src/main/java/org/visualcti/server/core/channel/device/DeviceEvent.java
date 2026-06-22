@@ -96,7 +96,9 @@ public interface DeviceEvent {
         // received signal from device about incoming activity (incoming call, HTTP request, incoming message, etc.)
         INCOMING,
         // detected malfunction during device working activity
-        MALFUNCTION
+        MALFUNCTION,
+        // channel-device specific event
+        DEVICE_SPECIFIC
     }
 
     /**

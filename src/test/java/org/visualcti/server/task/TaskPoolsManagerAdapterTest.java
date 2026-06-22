@@ -335,14 +335,14 @@ public class TaskPoolsManagerAdapterTest {
     }
 
     @Test
-    public void shouldPrepareUnitXML() {
+    public void shouldPrepareUnitParametersXML() {
         // preparing test data
         String rootDirectory = "root-directory";
         Element xml = new Element("TasksManager");
         manager.setRootDirectoryName(rootDirectory);
 
         // acting
-        manager.prepareUnitXML(xml);
+        manager.prepareUnitParametersXML(xml);
 
         // check results
         assertThat(xml.getChild("parameter")).isNotNull();
@@ -357,7 +357,7 @@ public class TaskPoolsManagerAdapterTest {
         String rootDirectory = "root-directory";
         File rootDirectoryFile = new File(rootDirectory);
         if (!rootDirectoryFile.exists()) {
-            rootDirectoryFile.mkdir();
+            assertThat(rootDirectoryFile.mkdir()).isTrue();
         }
         Element parameterXml = new Element("parameter")
                 .setAttribute("name", "directory")
@@ -370,7 +370,7 @@ public class TaskPoolsManagerAdapterTest {
         manager.setXML(xml);
 
         // check the behavior
-        rootDirectoryFile.delete();
+        assertThat(rootDirectoryFile.delete()).isTrue();
         ArgumentCaptor<ConfigurationParameter> parameterCaptor = ArgumentCaptor.forClass(ConfigurationParameter.class);
         verify(manager).applyUnitParameter(parameterCaptor.capture());
         ConfigurationParameter parameter = parameterCaptor.getValue();
@@ -413,7 +413,7 @@ public class TaskPoolsManagerAdapterTest {
         String rootDirectory = "root-directory";
         File rootDirectoryFile = new File(rootDirectory);
         if (!rootDirectoryFile.exists()) {
-            rootDirectoryFile.mkdir();
+            assertThat(rootDirectoryFile.mkdir()).isTrue();
         }
         ConfigurationParameter parameter = ConfigurationParameter.of("directory", rootDirectory);
         assertThat(manager.getRoot()).hasName("tasks");
@@ -422,7 +422,7 @@ public class TaskPoolsManagerAdapterTest {
         manager.applyUnitParameter(parameter);
 
         // check the behavior
-        rootDirectoryFile.delete();
+        assertThat(rootDirectoryFile.delete()).isTrue();
         // check results
         assertThat(manager.getRoot()).hasName(rootDirectory);
     }

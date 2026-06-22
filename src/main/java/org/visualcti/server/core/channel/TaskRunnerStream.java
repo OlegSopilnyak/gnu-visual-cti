@@ -50,7 +50,7 @@ import org.visualcti.util.Tools;
  *
  * @see Task#setEnv(Environment)
  */
-abstract class TaskRunnerStream extends OutputStream {
+public abstract class TaskRunnerStream extends OutputStream {
     // the length of CRLF string for hosted OS
     private static final int CRLF_LENGTH = Tools.CRLF.length();
     // lock for write operation

@@ -65,7 +65,7 @@ abstract class UnitMessageAdapter implements UnitMessage {
     // date-time, when action has happened
     private transient Date date;
     // thread name, where the action has happened
-    private transient String threadName;
+    private transient String threadName = "";
     // Path of ServerUnit in UnitRegistry
     private transient String unitPath = "Unknown";
 

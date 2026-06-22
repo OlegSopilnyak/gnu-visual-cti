@@ -126,7 +126,9 @@ public interface Device extends ServerUnit {
      * @return the value
      * @see ChannelTaskRunner
      */
-    String getDeviceName();
+    default String getDeviceName() {
+        return getFactory().getVendor() + "/"+ getName();
+    }
 
     /**
      * <accessor>

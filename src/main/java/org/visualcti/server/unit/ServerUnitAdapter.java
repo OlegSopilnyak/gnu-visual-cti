@@ -288,7 +288,7 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
         // preparing XML for base part of the unit
         prepareBaseUnitXML(element);
         // preparing XML for the parameters and other parts of unit
-        prepareUnitXML(element);
+        prepareUnitParametersXML(element);
         return element;
     }
 
@@ -338,7 +338,7 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
      * @see Element
      * @see #getXML()
      */
-    protected void prepareUnitXML(Element rootElement) {
+    protected void prepareUnitParametersXML(Element rootElement) {
         if (isEmptyString.negate().test(iconBodyPath)) {
             rootElement.addContent(ConfigurationParameter.of(UNIT_ICON_ATTRIBUTE, iconBodyPath).getXml());
         }

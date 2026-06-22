@@ -97,6 +97,9 @@ public interface Factory extends RunnableServerUnit {
      * To make the stream of devices.
      *
      * @return the stream of devices
+     * @see Device
+     * @see Stream
+     * @see RunnableServerUnit#children()
      */
     default Stream<Device> devices() {
         return children().filter(Device.class::isInstance).map(Device.class::cast);
@@ -108,8 +111,34 @@ public interface Factory extends RunnableServerUnit {
      *
      * @param name the name of device in the factory
      * @return the device or empty, if device with name is not in the factory
+     * @see #devices()
+     * @see Device
+     * @see Optional
      */
     default Optional<Device> getDevice(String name) {
         return devices().filter(d -> d.getName().equals(name)).findFirst();
     }
+
+    /**
+     * <mutator>
+     * To add device events listener for particular device's events
+     *
+     * @param deviceName the name of device to listen events from
+     * @param listener   the listener instance
+     * @see DeviceEvent.Listener
+     * @see Device#getName()
+     */
+    void addDeviceEventListenerFor(String deviceName, DeviceEvent.Listener listener);
+
+
+    /**
+     * <mutator>
+     * To remove device events listener for particular device's events
+     *
+     * @param deviceName the name of device to listen events from
+     * @param listener   the listener instance
+     * @see DeviceEvent.Listener
+     * @see Device#getName()
+     */
+    void removeDeviceEventListenerFor(String deviceName, DeviceEvent.Listener listener);
 }

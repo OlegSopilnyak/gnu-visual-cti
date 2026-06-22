@@ -53,14 +53,14 @@ private final HashMap env = new HashMap();
    * <mutator>
    * To clear all parts of the environment
    */
-  public final void clear(){this.env.clear();}
+  public void clear(){this.env.clear();}
   /**
    * <mutator>
    * To setup the environment's part
    * @param name the name of environment's part
    * @param part the part of the environment
    */
-  public final void setPart(String name, Object part)
+  public void setPart(String name, Object part)
   {
     if ( name != null && part != null) this.env.put(name.toLowerCase(),part);
   }

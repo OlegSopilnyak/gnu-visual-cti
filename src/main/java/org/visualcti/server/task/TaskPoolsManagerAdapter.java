@@ -185,15 +185,14 @@ public abstract class TaskPoolsManagerAdapter extends RunnableUnitAdapter implem
      *
      * @param rootElement building from unit XML Element
      * @see Element
-     * @see org.visualcti.server.unit.ServerUnitAdapter#getXML()
+     * @see org.visualcti.server.unit.ServerUnitAdapter#prepareUnitParametersXML(Element)
      */
     @Override
-    protected void prepareUnitXML(Element rootElement) {
-        super.prepareUnitXML(rootElement);
+    protected void prepareUnitParametersXML(Element rootElement) {
+        super.prepareUnitParametersXML(rootElement);
+        // add root directory parameter
         if (isEmptyString.negate().test(rootDirectoryName)) {
-            rootElement.addContent(
-                    ConfigurationParameter.of(TASKS_DIRECTORY_PARAMETER, rootDirectoryName).getXml()
-            );
+            rootElement.addContent(ConfigurationParameter.of(TASKS_DIRECTORY_PARAMETER, rootDirectoryName).getXml());
         }
     }
 
@@ -272,6 +271,17 @@ public abstract class TaskPoolsManagerAdapter extends RunnableUnitAdapter implem
     public boolean canStartUnit() {
         // getting any child pool
         return taskPoolStreamBy(pool -> true).findAny().isPresent();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        return super.equals(o) &&
+                Objects.equals(rootDirectoryName, ((TaskPoolsManagerAdapter)o).rootDirectoryName);
+    }
+
+    @Override
+    public int hashCode() {
+        return 31 * super.hashCode() + (rootDirectoryName == null ? 0 : rootDirectoryName.hashCode());
     }
 
     // private methods

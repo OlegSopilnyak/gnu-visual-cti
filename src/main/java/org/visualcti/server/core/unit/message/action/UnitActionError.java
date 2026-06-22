@@ -39,8 +39,9 @@ package org.visualcti.server.core.unit.message.action;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.Collections;
+import java.util.List;
 import java.util.StringTokenizer;
-import org.jdom.Element;
 import org.visualcti.server.Parameter;
 import org.visualcti.server.core.unit.message.MessageFamilyType;
 import org.visualcti.server.core.unit.message.MessageType;
@@ -105,25 +106,17 @@ public interface UnitActionError extends UnitMessage {
     UnitActionError setNestedException(Throwable nestedException);
 
     /**
-     * <builder>
-     * To make the base part of the Unit Action Message XML
+     * <accessor>
+     * To get parameters list of the message
      *
-     * @return base part of the message XML
-     * @see Element
-     * @see UnitMessage#baseMessageXML()
-     * @see UnitActionError#EXCEPTION_PARAMETER_NAME
-     * @see UnitActionError#getNestedException()
-     * @see ErrorNestedException#toString()
+     * @return parameters list
      */
     @Override
-    default Element baseMessageXML() {
-        final Element baseMessageXML = UnitMessage.super.baseMessageXML();
+    default List<Parameter> getMessageParameters() {
         final Exception nestedException = getNestedException();
-        if (nestedException != null) {
-            final Parameter parameter = new Parameter(EXCEPTION_PARAMETER_NAME, nestedException.toString());
-            baseMessageXML.addContent(parameter.input().getXML());
-        }
-        return baseMessageXML;
+        return nestedException != null
+                ? Collections.singletonList(Parameter.of(EXCEPTION_PARAMETER_NAME, nestedException.toString()).input())
+                : Collections.emptyList();
     }
 
     /**

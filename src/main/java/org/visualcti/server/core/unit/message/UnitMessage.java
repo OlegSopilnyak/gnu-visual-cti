@@ -42,6 +42,7 @@ import static org.visualcti.server.core.unit.ServerUnit.isEmptyString;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import org.jdom.Attribute;
@@ -202,11 +203,23 @@ public interface UnitMessage extends XmlAware, Cloneable {
      */
     @Override
     default Element getXML() {
-        final Element baseMessageXML = new Element(ROOT_ELEMENT_NAME).addContent(baseMessageXML());
+        final Element messageXML = new Element(ROOT_ELEMENT_NAME).addContent(baseMessageXML());
         if (isEmptyString.negate().test(getDescription())) {
-            baseMessageXML.addContent(Parameter.of(DESCRIPTION_PARAMETER_NAME, getDescription()).input().getXML());
+            messageXML.addContent(Parameter.of(DESCRIPTION_PARAMETER_NAME, getDescription()).input().getXML());
         }
-        return baseMessageXML;
+        // adding extra message's parameters
+        getMessageParameters().forEach(parameter -> messageXML.addContent(parameter.getXML()));
+        return messageXML;
+    }
+
+    /**
+     * <accessor>
+     * To get parameters list of the message
+     *
+     * @return parameters list
+     */
+    default List<Parameter> getMessageParameters() {
+        return Collections.emptyList();
     }
 
     /**

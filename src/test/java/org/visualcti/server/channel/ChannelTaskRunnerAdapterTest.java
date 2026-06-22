@@ -39,6 +39,8 @@ package org.visualcti.server.channel;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doCallRealMethod;
@@ -47,14 +49,18 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import java.io.IOException;
 import java.util.concurrent.Executor;
+import org.jdom.DataConversionException;
+import org.jdom.Element;
 import org.junit.Before;
 import org.junit.Test;
 import org.visualcti.server.core.channel.Channel;
 import org.visualcti.server.core.channel.TaskRunnerGroup;
+import org.visualcti.server.core.channel.TaskRunnerStream;
 import org.visualcti.server.core.channel.device.Device;
 import org.visualcti.server.core.channel.device.DeviceEvent;
 import org.visualcti.server.core.channel.device.Factory;
@@ -85,6 +91,7 @@ public class ChannelTaskRunnerAdapterTest {
         tasksPoolUnit = mock(TasksPoolUnit.class);
         task = mock(Task.class);
         doReturn(task).when(tasksPoolUnit).next();
+        doReturn(task).when(tasksPoolUnit).current();
         runner = spy(new ChannelTaskRunnerAdapter(environment, channel, tasksPoolUnit));
         group = mock(TaskRunnerGroup.class);
         runner.setOwner(group);
@@ -143,6 +150,42 @@ public class ChannelTaskRunnerAdapterTest {
     }
 
     @Test
+    public void shouldAcceptMalfunctionDeviceEvent() throws IOException {
+        // preparing test data
+        DeviceEvent.Type deviceEventType = DeviceEvent.Type.MALFUNCTION;
+        String deviceName = "broken-device-name";
+        String deviceFactoryName = "broken-device-factory-name";
+        String eventDescription = "broken-device-description";
+        doReturn(deviceName).when(device).getName();
+        doReturn(deviceFactoryName).when(factory).getVendor();
+        // event
+        DeviceEvent event = mock(DeviceEvent.class);
+        doReturn(deviceName).when(event).getDeviceName();
+        doReturn(deviceFactoryName).when(event).getVendor();
+        doReturn(deviceEventType).when(event).getEventType();
+        doReturn(eventDescription).when(event).getDescription();
+        // starting runner
+        runner.Start();
+        verify(tasksPoolUnit).Start();
+        reset(runner);
+
+        // acting
+        boolean accepted = runner.accept(event);
+
+        // check the behavior
+        verify(runner, atLeastOnce()).isStarted();
+        verify(runner, atLeastOnce()).getChannel();
+        verify(channel, atLeastOnce()).getDevice();
+        verify(runner).dispatchError(eventDescription);
+        verify(device).terminate();
+        verify(device).repair();
+        verify(runner).Stop();
+        // check results
+        assertThat(accepted).isTrue();
+        assertThat(runner.isBroken()).isTrue();
+    }
+
+    @Test
     public void shouldNotAcceptAnyDeviceEvent_RunnerNotStarted() throws IOException {
         // preparing test data
         String deviceName = "device-name";
@@ -168,22 +211,226 @@ public class ChannelTaskRunnerAdapterTest {
     }
 
     @Test
-    public void runChannelTask() {
+    public void shouldNotAcceptIncomingDeviceEvent_ChannelIsBusy() throws IOException {
+        // preparing test data
+        DeviceEvent.Type deviceEventType = DeviceEvent.Type.INCOMING;
+        String deviceName = "device-name";
+        String deviceFactoryName = "device-factory-name";
+        doReturn(deviceName).when(device).getName();
+        doReturn(deviceFactoryName).when(factory).getVendor();
+        // event
+        DeviceEvent event = mock(DeviceEvent.class);
+        doReturn(deviceName).when(event).getDeviceName();
+        doReturn(deviceFactoryName).when(event).getVendor();
+        doReturn(deviceEventType).when(event).getEventType();
+        // starting runner
+        runner.Start();
+        verify(tasksPoolUnit).Start();
+        reset(runner);
+        doReturn(true).when(channel).isBusy();
+
+        // acting
+        boolean accepted = runner.accept(event);
+
+        // check the behavior
+        verify(runner, atLeastOnce()).isStarted();
+        verify(runner, atLeastOnce()).getChannel();
+        verify(channel, atLeastOnce()).getDevice();
+        verify(channel).isBusy();
+        verify(runner, never()).getGroup();
+        // check results
+        assertThat(accepted).isFalse();
     }
 
     @Test
-    public void attachTask() {
+    public void shouldNotAcceptDeviceEvent_WrongEventType() throws IOException {
+        // preparing test data
+        DeviceEvent.Type deviceEventType = DeviceEvent.Type.DEVICE_SPECIFIC;
+        String deviceName = "device-name";
+        String deviceFactoryName = "device-factory-name";
+        doReturn(deviceName).when(device).getName();
+        doReturn(deviceFactoryName).when(factory).getVendor();
+        // event
+        DeviceEvent event = mock(DeviceEvent.class);
+        doReturn(deviceName).when(event).getDeviceName();
+        doReturn(deviceFactoryName).when(event).getVendor();
+        doReturn(deviceEventType).when(event).getEventType();
+        // starting runner
+        runner.Start();
+        verify(tasksPoolUnit).Start();
+        reset(runner);
+
+        // acting
+        boolean accepted = runner.accept(event);
+
+        // check the behavior
+        verify(runner).isStarted();
+        verify(runner).getChannel();
+        verify(channel, atLeastOnce()).getDevice();
+        verify(channel, never()).isBusy();
+        verify(runner).dispatchError(anyString());
+        // check results
+        assertThat(accepted).isFalse();
     }
 
     @Test
-    public void detachTask() {
+    public void shouldRunChannelTask() throws IOException {
+        // preparing test data
+        // starting runner
+        runner.Start();
+        verify(tasksPoolUnit).Start();
+        reset(runner, device);
+
+        // acting
+        runner.runChannelTask();
+
+        // check the behavior
+        verify(runner).isStarted();
+        verify(tasksPoolUnit).next();
+        verify(runner, never()).Stop();
+        verify(runner).getExclusiveAccessLock();
+        verify(runner, times(3)).getChannel();
+        verify(channel, times(5)).getDevice();
+        verify(device).open();
+        verify(runner).attachTask(task);
+        verify(task).execute();
+        verify(runner).detachTask(task);
     }
 
     @Test
-    public void eventCompliesDevice() {
+    public void shouldNotRunChannelTask_RunnerIsNotStarted() throws IOException {
+        // preparing test data
+
+        // acting
+        runner.runChannelTask();
+
+        // check the behavior
+        verify(runner).isStarted();
+        verify(tasksPoolUnit, never()).next();
     }
 
     @Test
-    public void setXML() {
+    public void shouldAttachTask() {
+        // preparing test data
+        Task taskToAttach = mock(Task.class);
+
+        // acting
+        runner.attachTask(taskToAttach);
+
+        // check the behavior
+        verify(runner).getEnvironment();
+        verify(runner).getGroup();
+        verify(taskToAttach).setEnv(environment);
+        verify(taskToAttach).getName();
+        verify(runner).dispatchEvent(anyString());
+        verify(channel).beforeStart(taskToAttach);
+    }
+
+    @Test
+    public void shouldDetachTask() {
+        // preparing test data
+        Task taskToDetach = mock(Task.class);
+
+        // acting
+        runner.detachTask(taskToDetach);
+
+        // check the behavior
+        verify(taskToDetach).setEnv(null);
+        verify(runner).dispatchEvent(anyString());
+        verify(channel).afterStop(taskToDetach);
+    }
+
+    @Test
+    public void shouldStartUnitRunnable() throws IOException {
+        // preparing test data
+        String deviceName = "device-name";
+        String deviceFactoryVendorName = "vendor-name";
+        String channelDeviceName = "/channel/device/" + deviceFactoryVendorName + "/" + deviceName;
+        doReturn(deviceName).when(device).getName();
+        doReturn(deviceFactoryVendorName).when(factory).getVendor();
+        doCallRealMethod().when(device).getDeviceName();
+
+        // acting
+        runner.startUnitRunnable();
+
+        // check the behavior
+        verify(runner, times(3)).getChannel();
+        verify(channel, times(3)).getDevice();
+        verify(device).isOpened();
+        verify(device).open();
+        verify(tasksPoolUnit).Start();
+        // check default environment building sequence
+        verify(runner).getEnvironment();
+        verify(environment).clear();
+        verify(device).getDeviceName();
+        verify(factory).getVendor();
+        verify(device).getName();
+        verify(environment).setPart(anyString(), eq(channelDeviceName));
+        verify(environment).setPart(channelDeviceName, device);
+        verify(environment, times(2)).setPart(anyString(), any(TaskRunnerStream.class));
+    }
+
+    @Test
+    public void shouldStopUnitRunnable_ChannelDeviceOpened() throws IOException {
+        // preparing test data
+        doReturn(true).when(device).isOpened();
+
+        // acting
+        runner.stopUnitRunnable();
+
+        // check the behavior
+        verify(runner, times(2)).getChannel();
+        verify(channel, times(2)).getDevice();
+        verify(device).isOpened();
+        verify(device).close();
+        verify(tasksPoolUnit).Stop();
+        verify(runner).getEnvironment();
+        verify(environment).clear();
+    }
+
+    @Test
+    public void shouldStopUnitRunnable_ChannelDeviceIsNotOpened() throws IOException {
+        // preparing test data
+
+        // acting
+        runner.stopUnitRunnable();
+
+        // check the behavior
+        verify(runner).getChannel();
+        verify(channel).getDevice();
+        verify(device).isOpened();
+        verify(device, never()).close();
+        verify(tasksPoolUnit).Stop();
+        verify(runner).getEnvironment();
+        verify(environment).clear();
+    }
+
+    @Test
+    public void shouldSetXML() throws IOException, DataConversionException {
+        // preparing test data
+        Element element = new Element("xml");
+
+        // acting
+        runner.setXML(element);
+
+        // check the behavior
+        verify(runner).settingUpBasePart(element);
+        verify(runner).settingUpMainPart(element);
+    }
+
+    @Test
+    public void shouldGetXML() {
+        // preparing test data
+        String service = "ChannelTaskRunner";
+
+        // acting
+        Element xml = runner.getXML();
+
+        // check the behavior
+        // check results
+        assertThat(xml).isNotNull();
+        assertThat(xml.getName()).isEqualTo(service);
+        assertThat(xml.getAttributeValue("class")).contains(service);
+        assertThat(xml.getAttributeValue("extends")).endsWith(service);
     }
 }
