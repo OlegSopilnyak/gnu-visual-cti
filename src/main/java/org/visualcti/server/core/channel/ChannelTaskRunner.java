@@ -75,10 +75,10 @@ public interface ChannelTaskRunner extends RunnableServerUnit, DeviceEvent.Liste
      * To get access to the group of tasks runners
      *
      * @return the value
-     * @see TaskRunnerGroup
+     * @see ChannelTasksRuntime
      */
-    default TaskRunnerGroup getGroup() {
-        return getOwner() instanceof TaskRunnerGroup ? (TaskRunnerGroup) getOwner() : null;
+    default ChannelTasksRuntime getGroup() {
+        return getOwner() instanceof ChannelTasksRuntime ? (ChannelTasksRuntime) getOwner() : null;
     }
 
     /**
@@ -161,11 +161,15 @@ public interface ChannelTaskRunner extends RunnableServerUnit, DeviceEvent.Liste
      */
     @Override
     default void startUnitRunnable() throws IOException {
+        // getting channel device instance
+        final Device device = getChannel().getDevice();
         // opening channel device if it didn't open yet
-        if (!getChannel().getDevice().isOpened()) {
-            // opening the device
-            getChannel().getDevice().open();
+        if (!device.isOpened()) {
+            // opening the device just for check availability
+            device.open();
         }
+        // closing the device after opening check
+        device.close();
         // starting tasks pool
         getTasksPool().Start();
         // preparing environment for executing task
@@ -181,10 +185,12 @@ public interface ChannelTaskRunner extends RunnableServerUnit, DeviceEvent.Liste
      */
     @Override
     default void stopUnitRunnable() throws IOException {
+        // getting channel device instance
+        final Device device = getChannel().getDevice();
         // closing channel device if it did open yet
-        if (getChannel().getDevice().isOpened()) {
+        if (device.isOpened()) {
             // closing the device
-            getChannel().getDevice().close();
+            device.close();
         }
         // stopping tasks pool
         getTasksPool().Stop();
@@ -336,14 +342,14 @@ public interface ChannelTaskRunner extends RunnableServerUnit, DeviceEvent.Liste
         // prepare task's output streams
         final TaskRunnerStream stdout = new TaskRunnerStream() {
             @Override
-            public void notifyOwner(String printed) {
-                runner.dispatchEvent(printed);
+            public void notifyOwner(String stringToPrint) {
+                runner.dispatchEvent(stringToPrint);
             }
         };
         final TaskRunnerStream stderr = new TaskRunnerStream() {
             @Override
-            public void notifyOwner(String printed) {
-                runner.dispatchError(printed);
+            public void notifyOwner(String stringToPrint) {
+                runner.dispatchError(stringToPrint);
             }
         };
         // put them to the environment as parts of it

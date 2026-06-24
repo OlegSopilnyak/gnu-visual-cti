@@ -58,7 +58,7 @@ import org.visualcti.server.unit.ServerUnitAdapter;
 /**
  * Adapter: entity to run task from tasks-pool for particular channel-device
  */
-public class ChannelTaskRunnerAdapter extends RunnableUnitAdapter implements ChannelTaskRunner {
+abstract class ChannelTaskRunnerAdapter extends RunnableUnitAdapter implements ChannelTaskRunner {
     private final transient Environment environment;
     private final transient Channel channel;
     private final transient TasksPoolUnit tasksPool;
@@ -68,7 +68,24 @@ public class ChannelTaskRunnerAdapter extends RunnableUnitAdapter implements Cha
         this.environment = environment;
         this.channel = channel;
         this.tasksPool = tasksPool;
-        exclusiveAccessLock = new ReentrantLock(true);
+        this.exclusiveAccessLock = new ReentrantLock(true);
+        this.unitPath = defaultUnitPath();
+    }
+
+    protected String defaultUnitPath() {
+        return "Runner/" + channel.getDeviceVendor() + "/" + channel.getName();
+    }
+
+    /**
+     * <action>
+     * Closing the server unit, releasing attached resources and restoring original unitPath
+     *
+     * @throws IOException if an I/O error occurs
+     * @see #unitPath
+     */
+    @Override
+    public void close() throws IOException {
+        this.unitPath = defaultUnitPath();
     }
 
     @Override
@@ -251,7 +268,7 @@ public class ChannelTaskRunnerAdapter extends RunnableUnitAdapter implements Cha
                     if (!device.repair()) {
                         // the device repairing is failed
                         // stopping runner and mark it as broken
-                        breakTheRunner();
+                        breakTheRunnerServerUnit();
                     }
                 } catch (IOException e) {
                     dispatchError(e, "Cannot repair broken device.");
@@ -285,13 +302,13 @@ public class ChannelTaskRunnerAdapter extends RunnableUnitAdapter implements Cha
             // stopping current task execution
             runningTask.stopExecute();
             // stopping runner and mark it as broken
-            breakTheRunner();
+            breakTheRunnerServerUnit();
         }
     }
 
     /// / private methods
     // stopping runner and mark it as broken
-    private void breakTheRunner() throws IOException {
+    private void breakTheRunnerServerUnit() throws IOException {
         // the runner's device is broken so stopping the runner
         Stop();
         // mark runner as broken server unit

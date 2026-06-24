@@ -39,16 +39,48 @@ package org.visualcti.server.core.channel;
 
 import java.util.Timer;
 import java.util.concurrent.Executor;
+import java.util.stream.Stream;
 import org.visualcti.server.core.unit.RunnableServerUnit;
+import org.visualcti.server.core.unit.ServerUnit;
+import org.visualcti.server.core.unit.exception.ServerUnitException;
 
 /**
  * Tasks Runners Group: container of the tasks runners for particular channel-device
  *
  * @see ChannelTaskRunner
  */
-public interface TaskRunnerGroup extends RunnableServerUnit {
+public interface ChannelTasksRuntime extends RunnableServerUnit {
+    String ROOT_ELEMENT_NAME = "ChannelTasksRuntime";
+    String SERVER_UNIT_DESCRIPTION = "The runtime of the server to manage channel-devices";
+    // the value of the server unit name
+    String UNIT_NAME = "Server Runtime";
+    // the value of type of the server unit
+    String UNIT_TYPE = "[server-runtime-environment]";
+    // the value of the server unit path in the registry
+    String UNIT_PATH = "Runtime";
     // the timer for tasks
     Timer timer = new Timer(true);
+
+    /**
+     * <accessor>
+     * To get Type of unit
+     *
+     * @return the value
+     */
+    default String getType() {
+        return UNIT_TYPE;
+    }
+
+    /**
+     * <accessor>
+     * To get Path to unit instance in repository
+     *
+     * @return the value
+     */
+    @Override
+    default String getPath() {
+        return UNIT_PATH;
+    }
 
     /**
      * <accessor>
@@ -63,6 +95,29 @@ public interface TaskRunnerGroup extends RunnableServerUnit {
     }
 
     /**
+     * <mutator>
+     * To add task runner for the channel
+     *
+     * @param channel the instance to add
+     * @return true if it's succeeded
+     * @throws ServerUnitException if it cannot find task pools manager in the registry
+     * @see Channel
+     */
+    boolean addRunnerFor(Channel channel) throws ServerUnitException;
+
+    /**
+     * <accessor>
+     * To get access to group's children as task runners
+     *
+     * @return group's runners stream
+     * @see RunnableServerUnit#runnableChildren()
+     * @see ChannelTaskRunner
+     */
+    default Stream<ChannelTaskRunner> runners() {
+        return runnableChildren().filter(ChannelTaskRunner.class::isInstance).map(ChannelTaskRunner.class::cast);
+    }
+
+    /**
      * <accessor>
      * To get access to the executor
      *
@@ -71,4 +126,22 @@ public interface TaskRunnerGroup extends RunnableServerUnit {
      * @see Executor#execute(Runnable)
      */
     Executor getExecutor();
+
+    /**
+     * <mutator>
+     * To add child to the server unit composite units tree
+     *
+     * @param unit the unit instance to add
+     * @return true if it's succeeded
+     * @see ChannelTaskRunner
+     * @see RunnableServerUnit#add(ServerUnit)
+     */
+    @Override
+    default boolean add(ServerUnit unit) {
+        if (unit instanceof ChannelTaskRunner) {
+            return RunnableServerUnit.super.add(unit);
+        } else {
+            return false;
+        }
+    }
 }

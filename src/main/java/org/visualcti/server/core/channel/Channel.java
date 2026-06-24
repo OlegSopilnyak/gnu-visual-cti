@@ -39,6 +39,8 @@ package org.visualcti.server.core.channel;
 
 import org.visualcti.server.UnitRegistry;
 import org.visualcti.server.core.channel.device.Device;
+import org.visualcti.server.core.channel.device.DeviceEvent;
+import org.visualcti.server.core.channel.device.Factory;
 import org.visualcti.server.core.executable.task.Task;
 import org.visualcti.server.core.unit.ServerUnit;
 import org.visualcti.server.task.Environment;
@@ -62,6 +64,16 @@ public interface Channel extends ServerUnit {
      * @return channel-device instance associated with the channel
      */
     Device getDevice();
+
+    /**
+     * <accessor>
+     * To get the device's factory of the channel
+     *
+     * @return device factory instance associated with the channel's device
+     */
+    default Factory getDeviceFactory() {
+        return getDevice().getFactory();
+    }
 
     /**
      * <accessor>
@@ -132,14 +144,54 @@ public interface Channel extends ServerUnit {
 
     /**
      * <accessor>
-     * To get the Name of the unit to show in UI
+     * To get the Name of the channel using cannel device's name
      *
      * @return the value
+     * @see ServerUnit#getName()
+     * @see #getDevice()
      * @see Device#getName()
      */
     @Override
     default String getName() {
         return getDevice().getName();
+    }
+
+    /**
+     * <accessor>
+     * To get the Name of the channel device factory vendor
+     *
+     * @return the value
+     * @see Device#getFactory()
+     * @see Factory#getVendor()
+     * @see #getDeviceFactory()
+     */
+    default String getDeviceVendor() {
+        return getDeviceFactory().getVendor();
+    }
+
+    /**
+     * <mutator>
+     * To add device events listener for particular device's events
+     *
+     * @param listener   the listener instance
+     * @see DeviceEvent.Listener
+     * @see Device#getName()
+     */
+    default void addDeviceEventListenerFor(DeviceEvent.Listener listener) {
+        getDeviceFactory().addDeviceEventListenerFor(getDevice().getName(), listener);
+    }
+
+
+    /**
+     * <mutator>
+     * To remove device events listener for particular device's events
+     *
+     * @param listener   the listener instance
+     * @see DeviceEvent.Listener
+     * @see Device#getName()
+     */
+    default void removeDeviceEventListenerFor(DeviceEvent.Listener listener) {
+        getDeviceFactory().removeDeviceEventListenerFor(getDevice().getName(), listener);
     }
 
     /**
