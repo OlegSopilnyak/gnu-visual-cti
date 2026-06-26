@@ -39,6 +39,7 @@ package org.visualcti.server.core.channel.device;
 
 import java.util.Optional;
 import java.util.stream.Stream;
+import org.visualcti.server.core.channel.Channel;
 import org.visualcti.server.core.unit.RunnableServerUnit;
 
 /**
@@ -104,6 +105,15 @@ public interface Factory extends RunnableServerUnit {
     default Stream<Device> devices() {
         return children().filter(Device.class::isInstance).map(Device.class::cast);
     }
+
+    /**
+     * <aceessor>
+     * to get the array of available factory's channels
+     *
+     * @return the array of available channels
+     * @see Channel
+     */
+    Channel[] channels();
 
     /**
      * <aceessor>

@@ -43,18 +43,14 @@ import org.visualcti.server.core.channel.device.DeviceEvent;
 import org.visualcti.server.core.channel.device.Factory;
 import org.visualcti.server.core.executable.task.Task;
 import org.visualcti.server.core.unit.ServerUnit;
-import org.visualcti.server.task.Environment;
 
 /**
  * The Channel: The channel through device of which task is communicating with external world
  *
- * @see Task#setEnv(Environment)
- * @see Environment#setPart(String, Object)
- * @see Environment#getPart(String, Class)
  * @see ServerUnit
  */
 public interface Channel extends ServerUnit {
-    // the value of type the server unit
+    // the value of type of the server unit
     String UNIT_TYPE = "[channel]";
 
     /**

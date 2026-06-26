@@ -461,7 +461,7 @@ public interface RunnableServerUnit extends ServerUnit, Engine, UnitMessage.List
      * <action>
      * To stop the runnable unit
      *
-     * @throws IOException if the unit can't be started
+     * @throws IOException if the unit can't be stopped
      * @see #isBroken()
      * @see #isStopped()
      * @see #runnableChildren()

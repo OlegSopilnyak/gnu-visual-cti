@@ -38,7 +38,14 @@ Fax number: 217-356-3356
 package org.visualcti.server.channel;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import org.jdom.Element;
@@ -62,16 +69,36 @@ abstract class ChannelTaskRunnerAdapter extends RunnableUnitAdapter implements C
     private final transient Environment environment;
     private final transient Channel channel;
     private final transient TasksPoolUnit tasksPool;
+    private final transient Map<String, Integer> executingTasks;
     private final transient Lock exclusiveAccessLock;
+    private transient ScheduledExecutorService nextRunnerStepExecutor;
 
     protected ChannelTaskRunnerAdapter(Environment environment, Channel channel, TasksPoolUnit tasksPool) {
         this.environment = environment;
         this.channel = channel;
         this.tasksPool = tasksPool;
+        // the counter of tasks in executing state at the moment
+        executingTasks = new ConcurrentHashMap<>();
         this.exclusiveAccessLock = new ReentrantLock(true);
         this.unitPath = defaultUnitPath();
     }
 
+    /**
+     * To get access to next step executor
+     *
+     * @return the value
+     */
+    Executor getNextRunnerStepExecutor() {
+        return nextRunnerStepExecutor;
+    }
+
+    /**
+     * <builder>
+     * To build default unit's path
+     *
+     * @return the value
+     * @see org.visualcti.server.UnitRegistry#register(ServerUnit)
+     */
     protected String defaultUnitPath() {
         return "Runner/" + channel.getDeviceVendor() + "/" + channel.getName();
     }
@@ -86,6 +113,10 @@ abstract class ChannelTaskRunnerAdapter extends RunnableUnitAdapter implements C
     @Override
     public void close() throws IOException {
         this.unitPath = defaultUnitPath();
+        if (this.nextRunnerStepExecutor != null) {
+            this.nextRunnerStepExecutor.shutdownNow();
+            this.nextRunnerStepExecutor = null;
+        }
     }
 
     @Override
@@ -238,7 +269,7 @@ abstract class ChannelTaskRunnerAdapter extends RunnableUnitAdapter implements C
      * @see Channel
      */
     @Override
-    public boolean accept(DeviceEvent event) {
+    public boolean accept(final DeviceEvent event) {
         if (!ChannelTaskRunner.super.accept(event)) {
             dispatchError("Rejected invalid event: " + event);
             return false;
@@ -268,7 +299,7 @@ abstract class ChannelTaskRunnerAdapter extends RunnableUnitAdapter implements C
                     if (!device.repair()) {
                         // the device repairing is failed
                         // stopping runner and mark it as broken
-                        breakTheRunnerServerUnit();
+                        stopBrokenDeviceRunner();
                     }
                 } catch (IOException e) {
                     dispatchError(e, "Cannot repair broken device.");
@@ -282,6 +313,43 @@ abstract class ChannelTaskRunnerAdapter extends RunnableUnitAdapter implements C
         return true;
     }
 
+    /**
+     * <action>
+     * To attach task to the runner before execution one
+     *
+     * @param task the task to execute
+     */
+    @Override
+    public void attachTask(Task task) {
+        ChannelTaskRunner.super.attachTask(task);
+        // incrementing particular task counter
+        executingTasks.compute(task.getName(), (name, counter) -> counter == null ? 1 : counter + 1);
+    }
+
+    /**
+     * <action>
+     * To detach task from the runner after execution one
+     *
+     * @param task the executed task
+     */
+    @Override
+    public void detachTask(Task task) {
+        ChannelTaskRunner.super.detachTask(task);
+        // decrementing particular task counter
+        executingTasks.compute(task.getName(), (name, counter) -> counter == null ? 0 : counter - 1);
+    }
+
+    /**
+     * <accessor>
+     * To get the quantity of tasks executing in the channel runner now
+     *
+     * @return how many tasks are executing now
+     * @see #attachTask(Task)
+     * @see #detachTask(Task)
+     */
+    public int executingTaskCount() {
+        return executingTasks.values().stream().mapToInt(Integer::intValue).sum();
+    }
 
     /**
      * <error-hanler>
@@ -302,13 +370,107 @@ abstract class ChannelTaskRunnerAdapter extends RunnableUnitAdapter implements C
             // stopping current task execution
             runningTask.stopExecute();
             // stopping runner and mark it as broken
-            breakTheRunnerServerUnit();
+            stopBrokenDeviceRunner();
+        }
+    }
+
+    /**
+     * <action>
+     * To start the channel's tasks runner
+     *
+     * @throws IOException if the unit can't be started
+     * @see org.visualcti.server.core.unit.RunnableServerUnit#Start()
+     */
+    @Override
+    public void Start() throws IOException {
+        super.Start();
+        // prepare next step iteration executor
+        this.nextRunnerStepExecutor = Executors.newSingleThreadScheduledExecutor();
+        // run the first step
+        nextRunnerStep();
+    }
+
+    /**
+     * <action>
+     * To stop the channel's tasks runner
+     *
+     * @throws IOException if the unit can't be stopped
+     */
+    @Override
+    public void Stop() throws IOException {
+        super.Stop();
+        // stopping the next step iteration executor
+        if (this.nextRunnerStepExecutor != null) {
+            this.nextRunnerStepExecutor.shutdownNow();
+            this.nextRunnerStepExecutor = null;
+        }
+    }
+
+    /**
+     * <action>
+     * To run the task from tasks pool
+     *
+     * @throws IOException if it cannot run task properly
+     * @see ChannelTaskRunner#runChannelTask()
+     */
+    @Override
+    public void runChannelTask() throws IOException {
+        ChannelTaskRunner.super.runChannelTask();
+        // running next runner's iteration
+        nextRunnerStep();
+    }
+
+    /// / inner classes
+    // class event to push runner's next iteration without hardware's device event
+    private static class NextIterationEvent implements DeviceEvent {
+        private final Device device;
+
+        private NextIterationEvent(Device device) {
+            this.device = device;
+        }
+
+        @Override
+        public Type getEventType() {
+            return Type.INCOMING;
+        }
+
+        @Override
+        public String getDeviceName() {
+            return device.getName();
+        }
+
+        @Override
+        public String getVendor() {
+            return device.getFactory().getVendor();
+        }
+
+        @Override
+        public String getDescription() {
+            return "Start Next Iteration Task";
+        }
+
+        @Override
+        public Map<String, Object> getOptions() {
+            return Collections.emptyMap();
         }
     }
 
     /// / private methods
-    // stopping runner and mark it as broken
-    private void breakTheRunnerServerUnit() throws IOException {
+    // to launch runner's next iteration, works like the steps loop
+    private void nextRunnerStep() {
+        if (!isStarted() || executingTaskCount() != 0) {
+            // channel task runner isn't started or there is working task there
+            return;
+        }
+        // pushing next iteration event to the runner in 0.5 second
+        dispatchEvent("Pushing the next iteration event");
+        nextRunnerStepExecutor.schedule(() ->
+                this.accept(new NextIterationEvent(channel.getDevice())), 500, TimeUnit.MILLISECONDS
+        );
+    }
+
+    // stopping runner and mark it as a broken unit
+    private void stopBrokenDeviceRunner() throws IOException {
         // the runner's device is broken so stopping the runner
         Stop();
         // mark runner as broken server unit
@@ -325,5 +487,4 @@ abstract class ChannelTaskRunnerAdapter extends RunnableUnitAdapter implements C
             dispatchError(e, "Cannot start channel task on the runner:" + getName());
         }
     }
-
 }

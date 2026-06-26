@@ -97,6 +97,7 @@ Fax number: 217-356-3356
         <junit.version>4.13.2</junit.version>
         <mockito.version>4.5.1</mockito.version>
         <assertj.version>3.0.0</assertj.version>
+        <awaitility.version>3.0.0</awaitility.version>
     </properties>
     <dependencies>
         <!-- Source: https://mvnrepository.com/artifact/jdom/jdom -->
@@ -152,6 +153,18 @@ Fax number: 217-356-3356
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>
             <version>${assertj.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.awaitility</groupId>
+            <artifactId>awaitility</artifactId>
+            <version>${awaitility.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.awaitility</groupId>
+            <artifactId>awaitility-proxy</artifactId>
+            <version>${awaitility.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

@@ -127,19 +127,23 @@ public abstract class ChannelTasksRuntimeAdapter extends RunnableUnitAdapter imp
      *
      * @param channel the instance to add
      * @return true if it's succeeded
-     * @throws ServerUnitException if it cannot find task pools manager in the registry
      */
     @Override
-    public boolean addRunnerFor(Channel channel) throws ServerUnitException {
-        // preparing task pool for the channel
-        final TasksPoolUnit tasksPool = UnitRegistry.lookup(TaskPoolsManager.class)
-                .getTaskPool(channel.getName(), channel.getDeviceVendor());
-        // creating task runner for the channel
-        final ChannelTaskRunner taskRunner = new ChannelTaskRuntime(new Environment(), channel, tasksPool);
-        // add created task runner as device-events listener to the channel's device-factory
-        channel.addDeviceEventListenerFor(taskRunner);
-        // add task runner to the server's runtime
-        return add(taskRunner);
+    public boolean addRunnerFor(Channel channel) {
+        try {
+            // preparing task pool for the channel
+            final TasksPoolUnit tasksPool = UnitRegistry.lookup(TaskPoolsManager.class)
+                    .getTaskPool(channel.getName(), channel.getDeviceVendor());
+            // creating task runner for the channel
+            final ChannelTaskRunner taskRunner = new ChannelTaskRuntime(new Environment(), channel, tasksPool);
+            // add created task runner as device-events listener to the channel's device-factory
+            channel.addDeviceEventListenerFor(taskRunner);
+            // add task runner to the server's runtime
+            return add(taskRunner);
+        } catch (ServerUnitException e) {
+            dispatchError(e, "Cannot found task pools manager in the units registry.");
+            return false;
+        }
     }
 
     /**

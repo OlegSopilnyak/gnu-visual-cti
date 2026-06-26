@@ -38,6 +38,7 @@ Fax number: 217-356-3356
 package org.visualcti.server.channel;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -54,6 +55,9 @@ import static org.mockito.Mockito.verify;
 
 import java.io.IOException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.IntStream;
+import org.awaitility.Duration;
 import org.jdom.DataConversionException;
 import org.jdom.Element;
 import org.junit.Before;
@@ -106,6 +110,7 @@ public class ChannelTaskRunnerAdapterTest {
     @Test
     public void shouldAcceptIncomingDeviceEvent() throws IOException {
         // preparing test data
+        doReturn("task-name").when(task).getName();
         DeviceEvent.Type deviceEventType = DeviceEvent.Type.INCOMING;
         String deviceName = "device-name";
         String deviceFactoryName = "device-factory-name";
@@ -118,6 +123,7 @@ public class ChannelTaskRunnerAdapterTest {
         doReturn(deviceEventType).when(event).getEventType();
         // starting runner
         runner.Start();
+        doReturn("task-name").when(task).getName();
         verify(tasksPoolUnit).Start();
         reset(runner);
 
@@ -276,6 +282,7 @@ public class ChannelTaskRunnerAdapterTest {
     @Test
     public void shouldRunChannelTask() throws IOException {
         // preparing test data
+        doReturn("task-name").when(task).getName();
         // starting runner
         runner.Start();
         verify(tasksPoolUnit).Start();
@@ -285,7 +292,7 @@ public class ChannelTaskRunnerAdapterTest {
         runner.runChannelTask();
 
         // check the behavior
-        verify(runner).isStarted();
+        verify(runner, times(2)).isStarted();
         verify(tasksPoolUnit).next();
         verify(runner, never()).Stop();
         verify(runner).getExclusiveAccessLock();
@@ -295,6 +302,7 @@ public class ChannelTaskRunnerAdapterTest {
         verify(runner).attachTask(task);
         verify(task).execute();
         verify(runner).detachTask(task);
+        verify(runner).executingTaskCount();
     }
 
     @Test
@@ -305,14 +313,18 @@ public class ChannelTaskRunnerAdapterTest {
         runner.runChannelTask();
 
         // check the behavior
-        verify(runner).isStarted();
+        verify(runner, times(2)).isStarted();
         verify(tasksPoolUnit, never()).next();
     }
 
     @Test
     public void shouldAttachTask() {
         // preparing test data
+        String taskName = "task-name";
         Task taskToAttach = mock(Task.class);
+        doReturn(taskName).when(taskToAttach).getName();
+        assertThat(runner.executingTaskCount()).isZero();
+        reset(runner);
 
         // acting
         runner.attachTask(taskToAttach);
@@ -321,15 +333,19 @@ public class ChannelTaskRunnerAdapterTest {
         verify(runner).getEnvironment();
         verify(runner).getGroup();
         verify(taskToAttach).setEnv(environment);
-        verify(taskToAttach).getName();
+        verify(taskToAttach, times(2)).getName();
         verify(runner).dispatchEvent(anyString());
         verify(channel).beforeStart(taskToAttach);
+        // check results
+        assertThat(runner.executingTaskCount()).isEqualTo(1);
     }
 
     @Test
     public void shouldDetachTask() {
         // preparing test data
+        String taskName = "task-name";
         Task taskToDetach = mock(Task.class);
+        doReturn(taskName).when(taskToDetach).getName();
 
         // acting
         runner.detachTask(taskToDetach);
@@ -338,6 +354,31 @@ public class ChannelTaskRunnerAdapterTest {
         verify(taskToDetach).setEnv(null);
         verify(runner).dispatchEvent(anyString());
         verify(channel).afterStop(taskToDetach);
+        // check results
+        assertThat(runner.executingTaskCount()).isZero();
+    }
+
+    @Test
+    public void shouldGetExecutingTaskCount() {
+        // preparing test data
+        int taskQuantity = 10;
+        String taskName = "task-name";
+        Task taskToAttach = mock(Task.class);
+        doReturn(taskName).when(taskToAttach).getName();
+        assertThat(runner.executingTaskCount()).isZero();
+        reset(runner);
+
+        // acting
+        IntStream.range(0, taskQuantity).forEach(i -> runner.attachTask(taskToAttach));
+
+        // check results
+        assertThat(runner.executingTaskCount()).isEqualTo(taskQuantity);
+
+        // acting
+        IntStream.range(0, taskQuantity).forEach(i -> runner.detachTask(taskToAttach));
+
+        // check results
+        assertThat(runner.executingTaskCount()).isZero();
     }
 
     @Test
@@ -432,5 +473,46 @@ public class ChannelTaskRunnerAdapterTest {
         assertThat(xml.getName()).isEqualTo(service);
         assertThat(xml.getAttributeValue("class")).contains(service);
         assertThat(xml.getAttributeValue("extends")).endsWith(service);
+    }
+
+    @Test
+    public void shouldStartChannelTaskRunner() throws IOException {
+        // preparing test data
+        doReturn("task-name").when(task).getName();
+        assertThat(runner.getNextRunnerStepExecutor()).isNull();
+        AtomicBoolean acceptRunning = new AtomicBoolean(false);
+        doAnswer(invocation -> {
+            acceptRunning.getAndSet(true);
+            return invocation.callRealMethod();
+        }).when(runner).accept(any(DeviceEvent.class));
+
+        // acting
+        runner.Start();
+
+        // check the behavior
+        verify(runner).startUnitRunnable();
+        verify(runner).executingTaskCount();
+        verify(runner).dispatchEvent("Pushing the next iteration event");
+        await().atMost(Duration.ONE_SECOND).until(acceptRunning::get);
+        verify(runner).accept(any(DeviceEvent.class));
+        verify(runner).runChannelTask();
+        // check results
+        assertThat(runner.getNextRunnerStepExecutor()).isNotNull();
+    }
+
+    @Test
+    public void shouldStopChannelTaskRunner() throws IOException {
+        // preparing test data
+        doReturn("task-name").when(task).getName();
+        runner.Start();
+        assertThat(runner.getNextRunnerStepExecutor()).isNotNull();
+
+        // acting
+        runner.Stop();
+
+        // check the behavior
+        verify(runner).stopUnitRunnable();
+        // check results
+        assertThat(runner.getNextRunnerStepExecutor()).isNull();
     }
 }

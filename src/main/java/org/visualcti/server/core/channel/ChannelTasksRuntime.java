@@ -37,12 +37,13 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.core.channel;
 
+import java.util.Arrays;
 import java.util.Timer;
 import java.util.concurrent.Executor;
 import java.util.stream.Stream;
+import org.visualcti.server.core.channel.device.Factory;
 import org.visualcti.server.core.unit.RunnableServerUnit;
 import org.visualcti.server.core.unit.ServerUnit;
-import org.visualcti.server.core.unit.exception.ServerUnitException;
 
 /**
  * Tasks Runners Group: container of the tasks runners for particular channel-device
@@ -94,16 +95,31 @@ public interface ChannelTasksRuntime extends RunnableServerUnit {
         return timer;
     }
 
+
+    /**
+     * <mutator>
+     * To add task runners for the channel-devices factory
+     *
+     * @param factory the instance of devices factory
+     * @return true if it's succeeded
+     * @see Factory#channels()
+     * @see #addRunnerFor(Channel)
+     */
+    default boolean prepareRunnersFor(Factory factory) {
+        return Arrays.stream(factory.channels())
+                .map(this::addRunnerFor)
+                .reduce(true, (a, b) -> a && b);
+    }
+
     /**
      * <mutator>
      * To add task runner for the channel
      *
      * @param channel the instance to add
      * @return true if it's succeeded
-     * @throws ServerUnitException if it cannot find task pools manager in the registry
      * @see Channel
      */
-    boolean addRunnerFor(Channel channel) throws ServerUnitException;
+    boolean addRunnerFor(Channel channel);
 
     /**
      * <accessor>

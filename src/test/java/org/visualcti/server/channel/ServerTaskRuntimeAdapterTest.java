@@ -38,8 +38,8 @@ Fax number: 217-356-3356
 package org.visualcti.server.channel;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -66,7 +66,7 @@ import org.visualcti.server.core.channel.device.DeviceEvent;
 import org.visualcti.server.core.executable.task.TaskPoolsManager;
 import org.visualcti.server.core.executable.task.TasksPoolUnit;
 import org.visualcti.server.core.unit.ServerUnit;
-import org.visualcti.server.core.unit.exception.ServerUnitException;
+import org.visualcti.server.core.unit.exception.NoSuchUnitException;
 import org.visualcti.server.task.TaskPoolsManagerAdapter;
 
 public class ServerTaskRuntimeAdapterTest {
@@ -89,7 +89,7 @@ public class ServerTaskRuntimeAdapterTest {
     }
 
     @Test
-    public void shouldAddRunnerForTheChannel() throws ServerUnitException, IOException {
+    public void shouldAddRunnerForTheChannel() throws IOException {
         // preparing test data
         String channelName = "testChannel";
         String deviceVendor = "testDeviceVendor";
@@ -137,13 +137,16 @@ public class ServerTaskRuntimeAdapterTest {
         doReturn(deviceVendor).when(channel).getDeviceVendor();
 
         // acting
-        Exception e = assertThrows(Exception.class, () -> runtime.addRunnerFor(channel));
+        boolean added = runtime.addRunnerFor(channel);
 
         // check the behavior
         verify(channel, never()).addDeviceEventListenerFor(any(DeviceEvent.Listener.class));
         verify(runtime, never()).add(any(ServerUnit.class));
+        ArgumentCaptor<Throwable> captor = ArgumentCaptor.forClass(Throwable.class);
+        verify(runtime).dispatchError(captor.capture(), anyString());
         // check results
-        assertThat(e).isInstanceOf(ServerUnitException.class);
+        assertThat(added).isFalse();
+        assertThat(captor.getValue()).isInstanceOf(NoSuchUnitException.class);
         assertThat(runtime.runners().toArray()).isEmpty();
     }
 
@@ -161,7 +164,7 @@ public class ServerTaskRuntimeAdapterTest {
     }
 
     @Test
-    public void shouldGetRunners_WithRunner() throws IOException, ServerUnitException {
+    public void shouldGetRunners_WithRunner() throws IOException {
         // preparing test data
         String channelName = "testChannel";
         String deviceVendor = "testDeviceVendor";
@@ -224,7 +227,7 @@ public class ServerTaskRuntimeAdapterTest {
     }
 
     @Test
-    public void shouldStartWithRunners() throws IOException, ServerUnitException {
+    public void shouldStartWithRunners() throws IOException {
         // preparing test data
         String channelName = "testChannel";
         String deviceName = "testDeviceName";
