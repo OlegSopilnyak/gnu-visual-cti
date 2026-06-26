@@ -54,6 +54,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.IntStream;
@@ -318,6 +319,23 @@ public class ChannelTaskRunnerAdapterTest {
     }
 
     @Test
+    public void getOnlineTasks() {
+        // preparing test data
+        String taskName = "task-name";
+        Task taskToAttach = mock(Task.class);
+        doReturn(taskName).when(taskToAttach).getName();
+        assertThat(runner.getOnlineTasks()).isEmpty();
+        runner.attachTask(taskToAttach);
+
+        // acting
+        Map<String,Integer> onlineTasks = runner.getOnlineTasks();
+
+        // check results
+        assertThat(onlineTasks).containsEntry(taskName, 1);
+        assertThat(runner.executingTaskCount()).isEqualTo(1);
+    }
+
+    @Test
     public void shouldAttachTask() {
         // preparing test data
         String taskName = "task-name";
@@ -373,12 +391,14 @@ public class ChannelTaskRunnerAdapterTest {
 
         // check results
         assertThat(runner.executingTaskCount()).isEqualTo(taskQuantity);
+        assertThat(runner.getOnlineTasks()).containsEntry(taskName, taskQuantity);
 
         // acting
         IntStream.range(0, taskQuantity).forEach(i -> runner.detachTask(taskToAttach));
 
         // check results
         assertThat(runner.executingTaskCount()).isZero();
+        assertThat(runner.getOnlineTasks()).containsEntry(taskName, 0);
     }
 
     @Test

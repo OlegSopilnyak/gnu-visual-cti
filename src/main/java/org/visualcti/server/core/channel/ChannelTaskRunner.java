@@ -38,6 +38,7 @@ Fax number: 217-356-3356
 package org.visualcti.server.core.channel;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.locks.Lock;
 import java.util.function.UnaryOperator;
@@ -262,6 +263,16 @@ public interface ChannelTaskRunner extends RunnableServerUnit, DeviceEvent.Liste
             detachTask(taskToRun);
         }
     }
+
+    /**
+     * <accessor>
+     * To get executing tasks
+     * key: task name
+     * value: executing quantity
+     *
+     * @return the value
+     */
+    Map<String, Integer> getOnlineTasks();
 
     /**
      * <error-hanler>

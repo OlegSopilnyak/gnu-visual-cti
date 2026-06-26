@@ -340,18 +340,6 @@ abstract class ChannelTaskRunnerAdapter extends RunnableUnitAdapter implements C
     }
 
     /**
-     * <accessor>
-     * To get the quantity of tasks executing in the channel runner now
-     *
-     * @return how many tasks are executing now
-     * @see #attachTask(Task)
-     * @see #detachTask(Task)
-     */
-    public int executingTaskCount() {
-        return executingTasks.values().stream().mapToInt(Integer::intValue).sum();
-    }
-
-    /**
      * <error-hanler>
      * To handle channel-device malfunction during the task execution
      *
@@ -418,6 +406,32 @@ abstract class ChannelTaskRunnerAdapter extends RunnableUnitAdapter implements C
         ChannelTaskRunner.super.runChannelTask();
         // running next runner's iteration
         nextRunnerStep();
+    }
+
+    /**
+     * <accessor>
+     * To get executing tasks
+     * key: task name
+     * value: executing quantity
+     *
+     * @return the value
+     * @see #attachTask(Task)
+     * @see #detachTask(Task)
+     */
+    @Override
+    public Map<String, Integer> getOnlineTasks() {
+        return Collections.unmodifiableMap(executingTasks);
+    }
+
+    /**
+     * <accessor>
+     * To get the quantity of tasks executing in the channel runner now
+     *
+     * @return how many tasks are executing now
+     * @see #getOnlineTasks()
+     */
+    public int executingTaskCount() {
+        return getOnlineTasks().values().stream().mapToInt(Integer::intValue).sum();
     }
 
     /// / inner classes
