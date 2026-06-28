@@ -35,9 +35,7 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.server.core.channel.device;
-
-import org.visualcti.core.channel.device.Device;
+package org.visualcti.core.channel.device;
 
 /**
  * channel device may throw it in case of malfunction in the cannel-device
@@ -45,8 +43,8 @@ import org.visualcti.core.channel.device.Device;
  * @see Device
  */
 public class DeviceMalfunction extends Error {
-    private final transient Device device;
-    public DeviceMalfunction(Device device, String description) {
+    private final transient Device<?> device;
+    public DeviceMalfunction(Device<?> device, String description) {
         super("In device: " + device.getDeviceName() + " was detected malfunction: " + description);
         this.device = device;
     }

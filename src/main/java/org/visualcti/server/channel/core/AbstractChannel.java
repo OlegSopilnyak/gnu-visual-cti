@@ -44,7 +44,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.visualcti.core.channel.Channel;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.server.core.channel.ChannelTaskRunner;
-import org.visualcti.server.core.channel.device.DeviceEvent;
+import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.server.core.executable.task.Task;
 import org.visualcti.server.core.unit.ServerUnit;
 import org.visualcti.server.unit.ServerUnitAdapter;
@@ -56,7 +56,7 @@ import org.visualcti.server.unit.ServerUnitAdapter;
  * @see Channel
  * @param <D> the type of channel device
  */
-public abstract class AbstractChannel<D extends Device> extends ServerUnitAdapter implements Channel<D> {
+public abstract class AbstractChannel<D extends Device<?>> extends ServerUnitAdapter implements Channel<D> {
     // the device associated with the channel
     protected final transient D device;
     // the map of online tasks counters

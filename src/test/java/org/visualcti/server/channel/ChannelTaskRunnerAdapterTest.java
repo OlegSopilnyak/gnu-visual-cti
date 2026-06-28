@@ -65,9 +65,10 @@ import org.junit.Test;
 import org.visualcti.core.channel.Channel;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.Factory;
+import org.visualcti.server.channel.core.AbstractChannel;
 import org.visualcti.server.core.channel.ChannelTasksRuntime;
 import org.visualcti.server.core.channel.TaskRunnerStream;
-import org.visualcti.server.core.channel.device.DeviceEvent;
+import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.server.core.executable.task.Task;
 import org.visualcti.server.core.executable.task.TasksPoolUnit;
 import org.visualcti.server.task.Environment;
@@ -76,17 +77,18 @@ import org.visualcti.server.task.Environment;
 public class ChannelTaskRunnerAdapterTest {
     ChannelTasksRuntime group;
     Executor executor;
-    ChannelTaskRunnerAdapter runner;
+    ChannelTaskRunnerAdapter<?> runner;
     Environment environment;
-    Channel channel;
-    Device device;
-    Factory factory;
+    Channel<?> channel;
+    Device<?> device;
+    Factory<?> factory;
     TasksPoolUnit tasksPoolUnit;
     Task task;
 
     @Before
     public void setUp() throws IOException {
-        channel = mock(Channel.class);
+        channel = spy(new AbstractChannel(device) {
+        });
         doCallRealMethod().when(channel).getName();
         device = mock(Device.class);
         factory = mock(Factory.class);
@@ -298,12 +300,12 @@ public class ChannelTaskRunnerAdapterTest {
         verify(runner, never()).Stop();
         verify(runner).getExclusiveAccessLock();
         verify(runner, times(3)).getChannel();
-        verify(channel, times(5)).getDevice();
+        verify(channel, times(6)).getDevice();
         verify(device).open();
         verify(runner).attachTask(task);
         verify(task).execute();
         verify(runner).detachTask(task);
-        verify(channel).onlineTasksCount();
+        verify(channel, times(2)).onlineTasksCount();
     }
 
     @Test
@@ -399,7 +401,7 @@ public class ChannelTaskRunnerAdapterTest {
 
         // check the behavior
         verify(runner, times(2)).getChannel();
-        verify(channel, times(3)).getDevice();
+        verify(channel, times(4)).getDevice();
         verify(device).isOpened();
         verify(device).open();
         verify(tasksPoolUnit).Start();
@@ -407,7 +409,7 @@ public class ChannelTaskRunnerAdapterTest {
         verify(runner).getEnvironment();
         verify(environment).clear();
         verify(device).getDeviceName();
-        verify(factory).getVendor();
+        verify(factory, times(2)).getVendor();
         verify(device, times(2)).getName();
         verify(environment).setPart(anyString(), eq(channelDeviceName));
         verify(environment).setPart(channelDeviceName, device);
@@ -424,7 +426,7 @@ public class ChannelTaskRunnerAdapterTest {
 
         // check the behavior
         verify(runner).getChannel();
-        verify(channel, times(2)).getDevice();
+        verify(channel, times(3)).getDevice();
         verify(device).isOpened();
         verify(device).close();
         verify(tasksPoolUnit).Stop();
@@ -441,7 +443,7 @@ public class ChannelTaskRunnerAdapterTest {
 
         // check the behavior
         verify(runner).getChannel();
-        verify(channel, times(2)).getDevice();
+        verify(channel, times(3)).getDevice();
         verify(device).isOpened();
         verify(device, never()).close();
         verify(tasksPoolUnit).Stop();

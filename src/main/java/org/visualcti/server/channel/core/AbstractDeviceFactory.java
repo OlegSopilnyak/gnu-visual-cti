@@ -45,7 +45,7 @@ import java.util.stream.Stream;
 import org.visualcti.core.channel.Channel;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.Factory;
-import org.visualcti.server.core.channel.device.DeviceEvent;
+import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.server.unit.RunnableUnitAdapter;
 
 /**
@@ -56,13 +56,13 @@ import org.visualcti.server.unit.RunnableUnitAdapter;
  * @see RunnableUnitAdapter
  */
 @SuppressWarnings("unchecked")
-public class DeviceFactoryAdapter<D extends Device> extends RunnableUnitAdapter implements Factory<D> {
+public abstract class AbstractDeviceFactory<D extends Device<?>> extends RunnableUnitAdapter implements Factory<D> {
     // the listeners of factory's device events
     private final Map<String, List<DeviceEvent.Listener>> factoryEventListeners = new ConcurrentHashMap<>();
 
     @Override
     public final boolean equals(Object o) {
-        if (!(o instanceof DeviceFactoryAdapter)) return false;
+        if (!(o instanceof AbstractDeviceFactory)) return false;
         return super.equals(o);
     }
 

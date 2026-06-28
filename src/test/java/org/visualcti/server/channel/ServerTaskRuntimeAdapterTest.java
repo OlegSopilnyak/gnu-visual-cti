@@ -62,7 +62,7 @@ import org.visualcti.server.UnitRegistry;
 import org.visualcti.core.channel.Channel;
 import org.visualcti.server.core.channel.ChannelTaskRunner;
 import org.visualcti.core.channel.device.Device;
-import org.visualcti.server.core.channel.device.DeviceEvent;
+import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.server.core.executable.task.TaskPoolsManager;
 import org.visualcti.server.core.executable.task.TasksPoolUnit;
 import org.visualcti.server.core.unit.ServerUnit;
@@ -104,7 +104,7 @@ public class ServerTaskRuntimeAdapterTest {
         doReturn(managerUnitPath).when(manager).getPath();
         UnitRegistry.register(manager);
         doReturn(tasksPool).when(manager).getTaskPool(channelName, deviceVendor);
-        Channel channel = mock(Channel.class);
+        Channel<?> channel = mock(Channel.class);
         doReturn(channelName).when(channel).getName();
         doReturn(deviceVendor).when(channel).getDeviceVendor();
 
@@ -132,7 +132,7 @@ public class ServerTaskRuntimeAdapterTest {
         // preparing test data
         String channelName = "testChannel";
         String deviceVendor = "testDeviceVendor";
-        Channel channel = mock(Channel.class);
+        Channel<?> channel = mock(Channel.class);
         doReturn(channelName).when(channel).getName();
         doReturn(deviceVendor).when(channel).getDeviceVendor();
 
@@ -179,7 +179,7 @@ public class ServerTaskRuntimeAdapterTest {
         doReturn(managerUnitPath).when(manager).getPath();
         UnitRegistry.register(manager);
         doReturn(tasksPool).when(manager).getTaskPool(channelName, deviceVendor);
-        Channel channel = mock(Channel.class);
+        Channel<?> channel = mock(Channel.class);
         doReturn(channelName).when(channel).getName();
         doReturn(deviceVendor).when(channel).getDeviceVendor();
         assertThat(runtime.addRunnerFor(channel)).isTrue();
@@ -243,7 +243,7 @@ public class ServerTaskRuntimeAdapterTest {
         doReturn(managerUnitPath).when(manager).getPath();
         UnitRegistry.register(manager);
         doReturn(tasksPool).when(manager).getTaskPool(channelName, deviceVendor);
-        Channel channel = mock(Channel.class);
+        Channel<?> channel = mock(Channel.class);
         doReturn(channelName).when(channel).getName();
         doReturn(deviceVendor).when(channel).getDeviceVendor();
         assertThat(runtime.addRunnerFor(channel)).isTrue();
@@ -253,7 +253,7 @@ public class ServerTaskRuntimeAdapterTest {
         ChannelTaskRunner runner = (ChannelTaskRunner) captor.getValue();
         assertThat(runtime.runners().toArray()).hasSize(1).contains(runner);
         assertThat(runtime.isStarted()).isFalse();
-        Device device = mock(Device.class);
+        Device<?> device = mock(Device.class);
         doReturn(device).when(channel).getDevice();
         doReturn(deviceName).when(device).getDeviceName();
         reset(runtime);

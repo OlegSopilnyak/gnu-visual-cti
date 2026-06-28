@@ -40,7 +40,6 @@ package org.visualcti.core.channel.device;
 import java.util.Optional;
 import java.util.stream.Stream;
 import org.visualcti.core.channel.Channel;
-import org.visualcti.server.core.channel.device.DeviceEvent;
 import org.visualcti.server.core.unit.RunnableServerUnit;
 
 /**
@@ -50,7 +49,8 @@ import org.visualcti.server.core.unit.RunnableServerUnit;
  * @see RunnableServerUnit
  * @param <D> the type of factory's devices
  */
-public interface Factory<D extends Device> extends RunnableServerUnit {
+@SuppressWarnings("unchecked")
+public interface Factory<D extends Device<?>> extends RunnableServerUnit {
     // The name of root XML's Element
     String ELEMENT = "factory";
     // the value of type the server unit
@@ -104,7 +104,7 @@ public interface Factory<D extends Device> extends RunnableServerUnit {
      * @see Stream
      * @see RunnableServerUnit#children()
      */
-    default Stream<Device> devices() {
+    default Stream<Device<?>> devices() {
         return children().filter(Device.class::isInstance).map(Device.class::cast);
     }
 
@@ -127,7 +127,7 @@ public interface Factory<D extends Device> extends RunnableServerUnit {
      * @see Device
      * @see Optional
      */
-    default Optional<Device> getDevice(String name) {
+    default Optional<Device<?>> getDevice(String name) {
         return devices().filter(d -> d.getName().equals(name)).findFirst();
     }
 

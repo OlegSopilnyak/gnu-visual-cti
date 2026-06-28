@@ -53,16 +53,16 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.Factory;
-import org.visualcti.server.core.channel.device.DeviceEvent;
+import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.server.core.executable.task.Task;
 
 @SuppressWarnings("unchecked")
 public class AbstractChannelTest {
     String deviceName = "device-name";
     String deviceVendor = "device-vendor";
-    Factory factory;
-    Device device;
-    AbstractChannel channel;
+    Factory<?> factory;
+    Device<?> device;
+    AbstractChannel<?> channel;
 
     @Before
     public void setUp() {
@@ -70,7 +70,7 @@ public class AbstractChannelTest {
         doReturn(deviceName).when(device).getName();
         factory = mock(Factory.class);
         doReturn(deviceVendor).when(factory).getVendor();
-        channel = spy(new TestChannel(device));
+        channel = spy(new TestChannel<>(device));
         doReturn(factory).when(device).getFactory();
     }
 
@@ -79,7 +79,7 @@ public class AbstractChannelTest {
         // preparing test data
 
         // acting
-        Device<Factory> channelDevice = channel.getDevice();
+        Device<?> channelDevice = channel.getDevice();
 
         // check results
         assertThat(channelDevice).isSameAs(device);
@@ -90,7 +90,7 @@ public class AbstractChannelTest {
         // preparing test data
 
         // acting
-        Factory<Device> channelDeviceFactory = channel.getDeviceFactory();
+        Factory<?> channelDeviceFactory = channel.getDeviceFactory();
 
         // check the behavior
         verify(channel).getDevice();
@@ -232,8 +232,8 @@ public class AbstractChannelTest {
     }
 
     //// inner classes
-    static class TestChannel extends AbstractChannel {
-        protected TestChannel(Device device) {
+    static class TestChannel<F extends Factory<?>> extends AbstractChannel<Device<F>> {
+        protected TestChannel(Device<F> device) {
             super(device);
         }
     }

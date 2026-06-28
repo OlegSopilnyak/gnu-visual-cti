@@ -40,7 +40,7 @@ package org.visualcti.core.channel;
 import java.util.Map;
 import org.visualcti.server.UnitRegistry;
 import org.visualcti.core.channel.device.Device;
-import org.visualcti.server.core.channel.device.DeviceEvent;
+import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.Factory;
 import org.visualcti.server.core.executable.task.Task;
 import org.visualcti.server.core.unit.ServerUnit;
@@ -52,7 +52,7 @@ import org.visualcti.server.core.unit.ServerUnit;
  * @see ServerUnit
  */
 @SuppressWarnings("unchecked")
-public interface Channel<D extends Device> extends ServerUnit {
+public interface Channel<D extends Device<?>> extends ServerUnit {
     // the value of type of the server unit
     String UNIT_TYPE = "[channel]";
 
@@ -71,7 +71,7 @@ public interface Channel<D extends Device> extends ServerUnit {
      * @param <F> the type of channel device factory
      * @return device factory instance associated with the channel's device
      */
-    default <F extends Factory> F getDeviceFactory() {
+    default <F extends Factory<?>> F getDeviceFactory() {
         return (F) getDevice().getFactory();
     }
 
@@ -94,7 +94,7 @@ public interface Channel<D extends Device> extends ServerUnit {
      * @see Device#isOpened()
      */
     default boolean isOpened() {
-        final Device channelDevice = getDevice();
+        final D channelDevice = getDevice();
         return channelDevice != null && channelDevice.isOpened();
     }
 

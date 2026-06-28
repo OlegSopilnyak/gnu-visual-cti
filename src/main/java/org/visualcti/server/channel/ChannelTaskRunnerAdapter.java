@@ -52,8 +52,8 @@ import org.visualcti.core.XmlAware;
 import org.visualcti.core.channel.Channel;
 import org.visualcti.server.core.channel.ChannelTaskRunner;
 import org.visualcti.core.channel.device.Device;
-import org.visualcti.server.core.channel.device.DeviceEvent;
-import org.visualcti.server.core.channel.device.DeviceMalfunction;
+import org.visualcti.core.channel.device.DeviceEvent;
+import org.visualcti.core.channel.device.DeviceMalfunction;
 import org.visualcti.server.core.executable.task.Task;
 import org.visualcti.server.core.executable.task.TasksPoolUnit;
 import org.visualcti.server.core.unit.ServerUnit;
@@ -64,14 +64,15 @@ import org.visualcti.server.unit.ServerUnitAdapter;
 /**
  * Adapter: entity to run task from tasks-pool for particular channel-device
  */
-public abstract class ChannelTaskRunnerAdapter extends RunnableUnitAdapter implements ChannelTaskRunner {
+@SuppressWarnings("unchecked")
+public abstract class ChannelTaskRunnerAdapter<D extends Device<?>> extends RunnableUnitAdapter implements ChannelTaskRunner<D> {
     private final transient Environment environment;
-    private final transient Channel channel;
+    private final transient Channel<D> channel;
     private final transient TasksPoolUnit tasksPool;
     private final transient Lock exclusiveAccessLock;
     private transient ScheduledExecutorService nextRunnerStepExecutor;
 
-    protected ChannelTaskRunnerAdapter(Environment environment, Channel channel, TasksPoolUnit tasksPool) {
+    protected ChannelTaskRunnerAdapter(Environment environment, Channel<D> channel, TasksPoolUnit tasksPool) {
         this.environment = environment;
         this.channel = channel;
         this.tasksPool = tasksPool;
@@ -119,7 +120,7 @@ public abstract class ChannelTaskRunnerAdapter extends RunnableUnitAdapter imple
     public boolean equals(Object o) {
         if (!(o instanceof ChannelTaskRunner)) return false;
         if (!super.equals(o)) return false;
-        ChannelTaskRunner that = (ChannelTaskRunner) o;
+        ChannelTaskRunner<D> that = (ChannelTaskRunner<D>) o;
         return Objects.equals(getChannel().getName(), that.getChannel().getName())
                 && Objects.equals(getTasksPool().getName(), that.getTasksPool().getName());
     }
@@ -162,7 +163,7 @@ public abstract class ChannelTaskRunnerAdapter extends RunnableUnitAdapter imple
      * @see Channel
      */
     @Override
-    public Channel getChannel() {
+    public Channel<D> getChannel() {
         return channel;
     }
 
@@ -287,7 +288,7 @@ public abstract class ChannelTaskRunnerAdapter extends RunnableUnitAdapter imple
                 // terminating current task because of device's malfunction
                 tasksPool.current().stopExecute();
                 // trying to repair the broken device
-                final Device device = channel.getDevice();
+                final Device<?> device = channel.getDevice();
                 try {
                     // terminate current device activity
                     device.terminate();
@@ -381,9 +382,9 @@ public abstract class ChannelTaskRunnerAdapter extends RunnableUnitAdapter imple
     /// / inner classes
     // class event to push runner's next iteration without hardware's device event
     private static class NextIterationEvent implements DeviceEvent {
-        private final Device device;
+        private final Device<?> device;
 
-        private NextIterationEvent(Device device) {
+        private NextIterationEvent(Device<?> device) {
             this.device = device;
         }
 
