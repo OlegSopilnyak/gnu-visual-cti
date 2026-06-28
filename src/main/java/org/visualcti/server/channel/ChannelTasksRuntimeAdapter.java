@@ -43,7 +43,7 @@ import java.util.concurrent.Executor;
 import org.jdom.Element;
 import org.visualcti.core.XmlAware;
 import org.visualcti.server.UnitRegistry;
-import org.visualcti.server.core.channel.Channel;
+import org.visualcti.core.channel.Channel;
 import org.visualcti.server.core.channel.ChannelTaskRunner;
 import org.visualcti.server.core.channel.ChannelTasksRuntime;
 import org.visualcti.server.core.executable.task.TaskPoolsManager;
@@ -66,6 +66,17 @@ public abstract class ChannelTasksRuntimeAdapter extends RunnableUnitAdapter imp
     protected ChannelTasksRuntimeAdapter(Executor taskExecutor) {
         this.taskExecutor = taskExecutor;
         this.unitPath = UNIT_PATH;
+    }
+
+    @Override
+    public final boolean equals(Object o) {
+        if (!(o instanceof ChannelTasksRuntimeAdapter)) return false;
+        return super.equals(o);
+    }
+
+    @Override
+    public int hashCode() {
+        return super.hashCode();
     }
 
     /**

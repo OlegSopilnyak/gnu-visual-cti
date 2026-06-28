@@ -37,8 +37,8 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.core.channel.telephony;
 
-import org.visualcti.server.core.channel.Channel;
-import org.visualcti.server.core.channel.device.Device;
+import org.visualcti.core.channel.Channel;
+import org.visualcti.core.channel.device.Device;
 import org.visualcti.server.core.unit.ServerUnit;
 
 /**

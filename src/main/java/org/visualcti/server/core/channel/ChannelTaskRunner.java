@@ -38,12 +38,12 @@ Fax number: 217-356-3356
 package org.visualcti.server.core.channel;
 
 import java.io.IOException;
-import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.locks.Lock;
 import java.util.function.UnaryOperator;
+import org.visualcti.core.channel.Channel;
+import org.visualcti.core.channel.device.Device;
 import org.visualcti.server.UnitRegistry;
-import org.visualcti.server.core.channel.device.Device;
 import org.visualcti.server.core.channel.device.DeviceEvent;
 import org.visualcti.server.core.channel.device.DeviceMalfunction;
 import org.visualcti.server.core.executable.task.Task;
@@ -265,16 +265,6 @@ public interface ChannelTaskRunner extends RunnableServerUnit, DeviceEvent.Liste
     }
 
     /**
-     * <accessor>
-     * To get executing tasks
-     * key: task name
-     * value: executing quantity
-     *
-     * @return the value
-     */
-    Map<String, Integer> getOnlineTasks();
-
-    /**
      * <error-hanler>
      * To handle channel-device malfunction during the task execution
      *
@@ -303,7 +293,7 @@ public interface ChannelTaskRunner extends RunnableServerUnit, DeviceEvent.Liste
         task.setEnv(environment);
         // sending notification about task's attachment to the runner
         dispatchEvent(runnerTaskState.apply(task.getName()));
-        // adjust the channel state
+        // adjust the channel's task state
         getChannel().beforeStart(task);
     }
 
@@ -318,7 +308,7 @@ public interface ChannelTaskRunner extends RunnableServerUnit, DeviceEvent.Liste
         task.setEnv(null);
         // sending notification about task's detachment from the runner
         dispatchEvent(runnerTaskState.apply(" "));
-        // adjust the channel state
+        // adjust the channel's task state
         getChannel().afterStop(task);
     }
 

@@ -38,6 +38,8 @@ Fax number: 217-356-3356
 package org.visualcti.server.core.channel.device;
 
 import java.util.Map;
+import org.visualcti.core.channel.device.Device;
+import org.visualcti.core.channel.device.Factory;
 
 /**
  * The event from the channel-device side

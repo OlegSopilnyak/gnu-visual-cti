@@ -35,11 +35,12 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.server.core.channel.device;
+package org.visualcti.core.channel.device;
 
 import java.util.Optional;
 import java.util.stream.Stream;
-import org.visualcti.server.core.channel.Channel;
+import org.visualcti.core.channel.Channel;
+import org.visualcti.server.core.channel.device.DeviceEvent;
 import org.visualcti.server.core.unit.RunnableServerUnit;
 
 /**
@@ -47,8 +48,9 @@ import org.visualcti.server.core.unit.RunnableServerUnit;
  *
  * @see Device
  * @see RunnableServerUnit
+ * @param <D> the type of factory's devices
  */
-public interface Factory extends RunnableServerUnit {
+public interface Factory<D extends Device> extends RunnableServerUnit {
     // The name of root XML's Element
     String ELEMENT = "factory";
     // the value of type the server unit
@@ -113,7 +115,7 @@ public interface Factory extends RunnableServerUnit {
      * @return the array of available channels
      * @see Channel
      */
-    Channel[] channels();
+    Channel<D>[] channels();
 
     /**
      * <aceessor>
@@ -128,6 +130,19 @@ public interface Factory extends RunnableServerUnit {
     default Optional<Device> getDevice(String name) {
         return devices().filter(d -> d.getName().equals(name)).findFirst();
     }
+
+    /**
+     * <aceessor>
+     * to get the event listener of the device
+     *
+     * @param deviceName the name of device in the factory
+     * @return the stream of the listeners of the device with name
+     * @see #addDeviceEventListenerFor(String, DeviceEvent.Listener)
+     * @see #removeDeviceEventListenerFor(String, DeviceEvent.Listener)
+     * @see DeviceEvent.Listener
+     * @see Stream
+     */
+    Stream<DeviceEvent.Listener> eventListeners(String deviceName);
 
     /**
      * <mutator>

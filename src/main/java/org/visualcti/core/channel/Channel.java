@@ -35,21 +35,24 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.server.core.channel;
+package org.visualcti.core.channel;
 
+import java.util.Map;
 import org.visualcti.server.UnitRegistry;
-import org.visualcti.server.core.channel.device.Device;
+import org.visualcti.core.channel.device.Device;
 import org.visualcti.server.core.channel.device.DeviceEvent;
-import org.visualcti.server.core.channel.device.Factory;
+import org.visualcti.core.channel.device.Factory;
 import org.visualcti.server.core.executable.task.Task;
 import org.visualcti.server.core.unit.ServerUnit;
 
 /**
  * The Channel: The channel through device of which task is communicating with external world
  *
+ * @param <D> the type of channel device
  * @see ServerUnit
  */
-public interface Channel extends ServerUnit {
+@SuppressWarnings("unchecked")
+public interface Channel<D extends Device> extends ServerUnit {
     // the value of type of the server unit
     String UNIT_TYPE = "[channel]";
 
@@ -59,16 +62,17 @@ public interface Channel extends ServerUnit {
      *
      * @return channel-device instance associated with the channel
      */
-    Device getDevice();
+    D getDevice();
 
     /**
      * <accessor>
      * To get the device's factory of the channel
      *
+     * @param <F> the type of channel device factory
      * @return device factory instance associated with the channel's device
      */
-    default Factory getDeviceFactory() {
-        return getDevice().getFactory();
+    default <F extends Factory> F getDeviceFactory() {
+        return (F) getDevice().getFactory();
     }
 
     /**
@@ -99,21 +103,40 @@ public interface Channel extends ServerUnit {
      * Before start task execution on the channel
      *
      * @param task task which is going to be executed
+     * @see org.visualcti.server.core.channel.ChannelTaskRunner#attachTask(Task)
      * @see #isBusy()
      */
-    default void beforeStart(Task task) {
-        throw new UnsupportedOperationException("Please implement me!");
-    }
+    void beforeStart(Task task);
 
     /**
      * <action>
      * After stop task execution on the channel
      *
      * @param task task which was executed
+     * @see org.visualcti.server.core.channel.ChannelTaskRunner#detachTask(Task)
      * @see #isBusy()
      */
-    default void afterStop(Task task) {
-        throw new UnsupportedOperationException("Please implement me!");
+    void afterStop(Task task);
+
+    /**
+     * <accessor>
+     * To get executing tasks
+     * key: task name
+     * value: executing quantity
+     *
+     * @return the value
+     */
+    Map<String, Integer> getOnlineTasks();
+
+    /**
+     * <accessor>
+     * To get the quantity of tasks executing in the channel now
+     *
+     * @return how many tasks are executing now
+     * @see #getOnlineTasks()
+     */
+    default int onlineTasksCount() {
+        return getOnlineTasks().values().stream().mapToInt(Integer::intValue).sum();
     }
 
     /**
@@ -169,7 +192,7 @@ public interface Channel extends ServerUnit {
      * <mutator>
      * To add device events listener for particular device's events
      *
-     * @param listener   the listener instance
+     * @param listener the listener instance
      * @see DeviceEvent.Listener
      * @see Device#getName()
      */
@@ -182,7 +205,7 @@ public interface Channel extends ServerUnit {
      * <mutator>
      * To remove device events listener for particular device's events
      *
-     * @param listener   the listener instance
+     * @param listener the listener instance
      * @see DeviceEvent.Listener
      * @see Device#getName()
      */
@@ -193,6 +216,7 @@ public interface Channel extends ServerUnit {
     /**
      * <accessor>
      * To check is unit needs to be registered in units registry
+     * by default we don't need the registration for that kid of server units
      *
      * @return true if unit needed registration
      * @see UnitRegistry#register(ServerUnit)

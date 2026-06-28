@@ -35,7 +35,7 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.server.core.channel.device;
+package org.visualcti.core.channel.device;
 
 import java.io.IOException;
 import org.visualcti.server.UnitRegistry;
@@ -47,14 +47,25 @@ import org.visualcti.server.task.Environment;
 /**
  * Device of the Channel: The root device through which task communicate with external world
  *
+ * @param <F> the type of channel device factory
  * @see Task#setEnv(Environment)
  * @see Environment#setPart(String, Object)
  * @see Environment#getPart(String, Class)
  * @see ServerUnit
  */
-public interface Device extends ServerUnit {
+public interface Device<F extends Factory> extends ServerUnit {
     // the value of type the server unit
     String UNIT_TYPE = "[channel-device]";
+    // common device's statuses
+    //
+    // hardware error on the device detected
+    String DEVICE_STATUS_ERROR = "ERROR";
+    // The device is closed
+    String DEVICE_STATUS_CLOSED = "CLOSED";
+    // The device is waiting for incoming event
+    String DEVICE_STATUS_WAIT = "WAIT";
+    // The device is doing nothing at the moment
+    String DEVICE_STATUS_IDLE = "IDLE";
 
     /**
      * <accessor>
@@ -62,7 +73,7 @@ public interface Device extends ServerUnit {
      *
      * @return the factory-owner of the channel-device
      */
-    Factory getFactory();
+    F getFactory();
 
     /**
      * <action>
@@ -127,7 +138,7 @@ public interface Device extends ServerUnit {
      * @see ChannelTaskRunner
      */
     default String getDeviceName() {
-        return getFactory().getVendor() + "/"+ getName();
+        return getFactory().getVendor() + "/" + getName();
     }
 
     /**

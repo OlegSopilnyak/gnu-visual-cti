@@ -41,7 +41,8 @@ import java.util.Arrays;
 import java.util.Timer;
 import java.util.concurrent.Executor;
 import java.util.stream.Stream;
-import org.visualcti.server.core.channel.device.Factory;
+import org.visualcti.core.channel.Channel;
+import org.visualcti.core.channel.device.Factory;
 import org.visualcti.server.core.unit.RunnableServerUnit;
 import org.visualcti.server.core.unit.ServerUnit;
 

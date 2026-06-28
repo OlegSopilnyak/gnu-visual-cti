@@ -41,7 +41,6 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -50,9 +49,9 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import org.jdom.Element;
 import org.visualcti.core.XmlAware;
-import org.visualcti.server.core.channel.Channel;
+import org.visualcti.core.channel.Channel;
 import org.visualcti.server.core.channel.ChannelTaskRunner;
-import org.visualcti.server.core.channel.device.Device;
+import org.visualcti.core.channel.device.Device;
 import org.visualcti.server.core.channel.device.DeviceEvent;
 import org.visualcti.server.core.channel.device.DeviceMalfunction;
 import org.visualcti.server.core.executable.task.Task;
@@ -65,11 +64,10 @@ import org.visualcti.server.unit.ServerUnitAdapter;
 /**
  * Adapter: entity to run task from tasks-pool for particular channel-device
  */
-abstract class ChannelTaskRunnerAdapter extends RunnableUnitAdapter implements ChannelTaskRunner {
+public abstract class ChannelTaskRunnerAdapter extends RunnableUnitAdapter implements ChannelTaskRunner {
     private final transient Environment environment;
     private final transient Channel channel;
     private final transient TasksPoolUnit tasksPool;
-    private final transient Map<String, Integer> executingTasks;
     private final transient Lock exclusiveAccessLock;
     private transient ScheduledExecutorService nextRunnerStepExecutor;
 
@@ -77,8 +75,6 @@ abstract class ChannelTaskRunnerAdapter extends RunnableUnitAdapter implements C
         this.environment = environment;
         this.channel = channel;
         this.tasksPool = tasksPool;
-        // the counter of tasks in executing state at the moment
-        executingTasks = new ConcurrentHashMap<>();
         this.exclusiveAccessLock = new ReentrantLock(true);
         this.unitPath = defaultUnitPath();
     }
@@ -314,32 +310,6 @@ abstract class ChannelTaskRunnerAdapter extends RunnableUnitAdapter implements C
     }
 
     /**
-     * <action>
-     * To attach task to the runner before execution one
-     *
-     * @param task the task to execute
-     */
-    @Override
-    public void attachTask(Task task) {
-        ChannelTaskRunner.super.attachTask(task);
-        // incrementing particular task counter
-        executingTasks.compute(task.getName(), (name, counter) -> counter == null ? 1 : counter + 1);
-    }
-
-    /**
-     * <action>
-     * To detach task from the runner after execution one
-     *
-     * @param task the executed task
-     */
-    @Override
-    public void detachTask(Task task) {
-        ChannelTaskRunner.super.detachTask(task);
-        // decrementing particular task counter
-        executingTasks.compute(task.getName(), (name, counter) -> counter == null ? 0 : counter - 1);
-    }
-
-    /**
      * <error-hanler>
      * To handle channel-device malfunction during the task execution
      *
@@ -408,32 +378,6 @@ abstract class ChannelTaskRunnerAdapter extends RunnableUnitAdapter implements C
         nextRunnerStep();
     }
 
-    /**
-     * <accessor>
-     * To get executing tasks
-     * key: task name
-     * value: executing quantity
-     *
-     * @return the value
-     * @see #attachTask(Task)
-     * @see #detachTask(Task)
-     */
-    @Override
-    public Map<String, Integer> getOnlineTasks() {
-        return Collections.unmodifiableMap(executingTasks);
-    }
-
-    /**
-     * <accessor>
-     * To get the quantity of tasks executing in the channel runner now
-     *
-     * @return how many tasks are executing now
-     * @see #getOnlineTasks()
-     */
-    public int executingTaskCount() {
-        return getOnlineTasks().values().stream().mapToInt(Integer::intValue).sum();
-    }
-
     /// / inner classes
     // class event to push runner's next iteration without hardware's device event
     private static class NextIterationEvent implements DeviceEvent {
@@ -472,7 +416,7 @@ abstract class ChannelTaskRunnerAdapter extends RunnableUnitAdapter implements C
     /// / private methods
     // to launch runner's next iteration, works like the steps loop
     private void nextRunnerStep() {
-        if (!isStarted() || executingTaskCount() != 0) {
+        if (!isStarted() || channel.onlineTasksCount() != 0) {
             // channel task runner isn't started or there is working task there
             return;
         }

@@ -37,6 +37,8 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.core.channel.device;
 
+import org.visualcti.core.channel.device.Device;
+
 /**
  * channel device may throw it in case of malfunction in the cannel-device
  *

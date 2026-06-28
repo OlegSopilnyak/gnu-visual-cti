@@ -54,7 +54,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import java.io.IOException;
-import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.IntStream;
@@ -63,16 +62,17 @@ import org.jdom.DataConversionException;
 import org.jdom.Element;
 import org.junit.Before;
 import org.junit.Test;
-import org.visualcti.server.core.channel.Channel;
+import org.visualcti.core.channel.Channel;
+import org.visualcti.core.channel.device.Device;
+import org.visualcti.core.channel.device.Factory;
 import org.visualcti.server.core.channel.ChannelTasksRuntime;
 import org.visualcti.server.core.channel.TaskRunnerStream;
-import org.visualcti.server.core.channel.device.Device;
 import org.visualcti.server.core.channel.device.DeviceEvent;
-import org.visualcti.server.core.channel.device.Factory;
 import org.visualcti.server.core.executable.task.Task;
 import org.visualcti.server.core.executable.task.TasksPoolUnit;
 import org.visualcti.server.task.Environment;
 
+@SuppressWarnings("unchecked")
 public class ChannelTaskRunnerAdapterTest {
     ChannelTasksRuntime group;
     Executor executor;
@@ -303,7 +303,7 @@ public class ChannelTaskRunnerAdapterTest {
         verify(runner).attachTask(task);
         verify(task).execute();
         verify(runner).detachTask(task);
-        verify(runner).executingTaskCount();
+        verify(channel).onlineTasksCount();
     }
 
     @Test
@@ -319,29 +319,12 @@ public class ChannelTaskRunnerAdapterTest {
     }
 
     @Test
-    public void getOnlineTasks() {
-        // preparing test data
-        String taskName = "task-name";
-        Task taskToAttach = mock(Task.class);
-        doReturn(taskName).when(taskToAttach).getName();
-        assertThat(runner.getOnlineTasks()).isEmpty();
-        runner.attachTask(taskToAttach);
-
-        // acting
-        Map<String,Integer> onlineTasks = runner.getOnlineTasks();
-
-        // check results
-        assertThat(onlineTasks).containsEntry(taskName, 1);
-        assertThat(runner.executingTaskCount()).isEqualTo(1);
-    }
-
-    @Test
     public void shouldAttachTask() {
         // preparing test data
         String taskName = "task-name";
         Task taskToAttach = mock(Task.class);
         doReturn(taskName).when(taskToAttach).getName();
-        assertThat(runner.executingTaskCount()).isZero();
+        assertThat(runner.getChannel().onlineTasksCount()).isZero();
         reset(runner);
 
         // acting
@@ -355,7 +338,7 @@ public class ChannelTaskRunnerAdapterTest {
         verify(runner).dispatchEvent(anyString());
         verify(channel).beforeStart(taskToAttach);
         // check results
-        assertThat(runner.executingTaskCount()).isEqualTo(1);
+        assertThat(runner.getChannel().onlineTasksCount()).isEqualTo(1);
     }
 
     @Test
@@ -373,7 +356,7 @@ public class ChannelTaskRunnerAdapterTest {
         verify(runner).dispatchEvent(anyString());
         verify(channel).afterStop(taskToDetach);
         // check results
-        assertThat(runner.executingTaskCount()).isZero();
+        assertThat(runner.getChannel().onlineTasksCount()).isZero();
     }
 
     @Test
@@ -383,22 +366,22 @@ public class ChannelTaskRunnerAdapterTest {
         String taskName = "task-name";
         Task taskToAttach = mock(Task.class);
         doReturn(taskName).when(taskToAttach).getName();
-        assertThat(runner.executingTaskCount()).isZero();
+        assertThat(runner.getChannel().onlineTasksCount()).isZero();
         reset(runner);
 
         // acting
         IntStream.range(0, taskQuantity).forEach(i -> runner.attachTask(taskToAttach));
 
         // check results
-        assertThat(runner.executingTaskCount()).isEqualTo(taskQuantity);
-        assertThat(runner.getOnlineTasks()).containsEntry(taskName, taskQuantity);
+        assertThat(runner.getChannel().onlineTasksCount()).isEqualTo(taskQuantity);
+        assertThat(channel.getOnlineTasks()).containsEntry(taskName, taskQuantity);
 
         // acting
         IntStream.range(0, taskQuantity).forEach(i -> runner.detachTask(taskToAttach));
 
         // check results
-        assertThat(runner.executingTaskCount()).isZero();
-        assertThat(runner.getOnlineTasks()).containsEntry(taskName, 0);
+        assertThat(runner.getChannel().onlineTasksCount()).isZero();
+        assertThat(channel.getOnlineTasks()).containsEntry(taskName, 0);
     }
 
     @Test
@@ -511,7 +494,7 @@ public class ChannelTaskRunnerAdapterTest {
 
         // check the behavior
         verify(runner).startUnitRunnable();
-        verify(runner).executingTaskCount();
+        verify(channel).onlineTasksCount();
         verify(runner).dispatchEvent("Pushing the next iteration event");
         await().atMost(Duration.ONE_SECOND).until(acceptRunning::get);
         verify(runner).accept(any(DeviceEvent.class));
