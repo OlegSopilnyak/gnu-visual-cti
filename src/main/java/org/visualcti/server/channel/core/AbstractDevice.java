@@ -54,9 +54,7 @@ import org.visualcti.server.unit.ServerUnitAdapter;
  * @see Device
  * @see Factory
  */
-public class DeviceAdapter<F extends Factory> extends ServerUnitAdapter implements Device<F> {
-    // the factory of the device
-    protected final F factory;
+public abstract class AbstractDevice<F extends Factory<?>> extends ServerUnitAdapter implements Device<F> {
     // the current status of the device
     protected String currentStatus = DEVICE_STATUS_CLOSED;
     // the possible statuses of not opened device
@@ -64,19 +62,9 @@ public class DeviceAdapter<F extends Factory> extends ServerUnitAdapter implemen
             Arrays.asList(DEVICE_STATUS_ERROR, DEVICE_STATUS_CLOSED)
     );
 
-    /**
-     * <constructor>
-     * To make the instance of the device with its factory-owner
-     *
-     * @param factory the factory-owner of the device
-     */
-    protected DeviceAdapter(F factory) {
-        this.factory = factory;
-    }
-
     @Override
     public final boolean equals(Object o) {
-        if (!(o instanceof DeviceAdapter)) return false;
+        if (!(o instanceof AbstractDevice)) return false;
         return super.equals(o);
     }
 
@@ -86,27 +74,16 @@ public class DeviceAdapter<F extends Factory> extends ServerUnitAdapter implemen
     }
 
     /**
-     * <accessor>
-     * To get reference to the channel-devices factory, the owner of this channel-device
-     *
-     * @return the factory-owner of the channel-device
-     */
-    @Override
-    public F getFactory() {
-        return factory;
-    }
-
-    /**
      * <action>
      * Opening and activation of the channel-device.
      *
      * @throws IOException if channel device cannot be opened or activated
      * @see #currentStatus
-     * @see Device#DEVICE_STATUS_WAIT
+     * @see Device#DEVICE_STATUS_IDLE
      */
     @Override
     public void open() throws IOException {
-        currentStatus = DEVICE_STATUS_WAIT;
+        currentStatus = DEVICE_STATUS_IDLE;
     }
 
     /**
@@ -146,7 +123,9 @@ public class DeviceAdapter<F extends Factory> extends ServerUnitAdapter implemen
      */
     @Override
     public void terminate() throws IOException {
-        // doing nothing by default
+        if (isOpened()) {
+            close();
+        }
     }
 
     /**

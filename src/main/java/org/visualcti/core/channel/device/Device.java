@@ -38,6 +38,7 @@ Fax number: 217-356-3356
 package org.visualcti.core.channel.device;
 
 import java.io.IOException;
+import java.util.Optional;
 import org.visualcti.server.UnitRegistry;
 import org.visualcti.server.core.channel.ChannelTaskRunner;
 import org.visualcti.server.core.executable.task.Task;
@@ -72,11 +73,26 @@ public interface Device<F extends Factory<?>> extends ServerUnit {
      * <accessor>
      * To get reference to the channel-devices factory, the owner of this channel-device
      *
-     * @return the factory-owner of the channel-device
+     * @return the factory-owner of the channel-device or throws DeviceMalfunction
+     * @see Factory
      */
     default F getFactory() {
+        return getFactoryOptional()
+                .orElseThrow(() -> new DeviceMalfunction(this, "No Factory for the Device!"))
+                ;
+    }
+
+    /**
+     * <accessor>
+     * To get optional reference to the channel-devices factory, the owner of this channel-device
+     *
+     * @return the optional factory-owner of the channel-device
+     * @see Factory
+     * @see Optional
+     */
+    default Optional<F> getFactoryOptional() {
         final ServerUnit owner = getOwner();
-        return (owner instanceof Factory) ? (F) owner : null;
+        return Optional.ofNullable((owner instanceof Factory) ? (F) owner : null);
     }
 
     /**
@@ -140,6 +156,9 @@ public interface Device<F extends Factory<?>> extends ServerUnit {
      *
      * @return the value
      * @see ChannelTaskRunner
+     * @see #getFactory()
+     * @see Factory#getVendor()
+     * @see #getName()
      */
     default String getDeviceName() {
         return getFactory().getVendor() + "/" + getName();

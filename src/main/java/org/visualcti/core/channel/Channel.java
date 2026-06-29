@@ -38,10 +38,10 @@ Fax number: 217-356-3356
 package org.visualcti.core.channel;
 
 import java.util.Map;
-import org.visualcti.server.UnitRegistry;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.Factory;
+import org.visualcti.server.UnitRegistry;
 import org.visualcti.server.core.executable.task.Task;
 import org.visualcti.server.core.unit.ServerUnit;
 
