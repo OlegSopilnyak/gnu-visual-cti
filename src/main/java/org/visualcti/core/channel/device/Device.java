@@ -53,7 +53,8 @@ import org.visualcti.server.task.Environment;
  * @see Environment#getPart(String, Class)
  * @see ServerUnit
  */
-public interface Device<F extends Factory> extends ServerUnit {
+@SuppressWarnings("unchecked")
+public interface Device<F extends Factory<?>> extends ServerUnit {
     // the value of type the server unit
     String UNIT_TYPE = "[channel-device]";
     // common device's statuses
@@ -73,7 +74,10 @@ public interface Device<F extends Factory> extends ServerUnit {
      *
      * @return the factory-owner of the channel-device
      */
-    F getFactory();
+    default F getFactory() {
+        final ServerUnit owner = getOwner();
+        return (owner instanceof Factory) ? (F) owner : null;
+    }
 
     /**
      * <action>

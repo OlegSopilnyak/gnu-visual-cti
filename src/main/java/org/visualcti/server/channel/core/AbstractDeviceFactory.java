@@ -37,15 +37,17 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.channel.core;
 
+import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 import org.visualcti.core.channel.Channel;
 import org.visualcti.core.channel.device.Device;
-import org.visualcti.core.channel.device.Factory;
 import org.visualcti.core.channel.device.DeviceEvent;
+import org.visualcti.core.channel.device.Factory;
 import org.visualcti.server.unit.RunnableUnitAdapter;
 
 /**
@@ -59,6 +61,8 @@ import org.visualcti.server.unit.RunnableUnitAdapter;
 public abstract class AbstractDeviceFactory<D extends Device<?>> extends RunnableUnitAdapter implements Factory<D> {
     // the listeners of factory's device events
     private final Map<String, List<DeviceEvent.Listener>> factoryEventListeners = new ConcurrentHashMap<>();
+    // the holder of factory's device channels
+    private final AtomicReference<Channel<D>[]> channelsHolder = new AtomicReference<>(new Channel[0]);
 
     @Override
     public final boolean equals(Object o) {
@@ -95,6 +99,43 @@ public abstract class AbstractDeviceFactory<D extends Device<?>> extends Runnabl
     }
 
     /**
+     * <action>
+     * To start the internal runnable parts of the unit
+     * Grabbing the factory's devices and making channels for them
+     *
+     * @throws IOException if something went wrong during the internal parts starting
+     * @see #Start()
+     * @see #makeChannelFor(Device)
+     */
+    @Override
+    public void startUnitRunnable() throws IOException {
+        channelsHolder.getAndSet(devices().map(this::makeChannelFor).toArray(Channel[]::new));
+    }
+
+    /**
+     * <builder>
+     * To make the channel for device
+     *
+     * @param device channel to build for
+     * @return built channel
+     */
+    protected abstract Channel<D> makeChannelFor(Device<?> device);
+
+    /**
+     * <action>
+     * To stop the internal runnable parts of the unit
+     * Clearing built in startUnitRunnable channels array
+     *
+     * @throws IOException if something went wrong during the internal parts stopping
+     * @see #Stop()
+     * @see #startUnitRunnable()
+     */
+    @Override
+    public void stopUnitRunnable() throws IOException {
+        channelsHolder.getAndSet(new Channel[0]);
+    }
+
+    /**
      * <aceessor>
      * to get the array of available factory's channels
      *
@@ -103,7 +144,7 @@ public abstract class AbstractDeviceFactory<D extends Device<?>> extends Runnabl
      */
     @Override
     public Channel<D>[] channels() {
-        return new Channel[0];
+        return channelsHolder.get();
     }
 
     /**
