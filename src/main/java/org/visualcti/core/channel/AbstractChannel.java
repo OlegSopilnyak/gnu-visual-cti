@@ -35,13 +35,12 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.server.channel.core;
+package org.visualcti.core.channel;
 
 import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
-import org.visualcti.core.channel.Channel;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.server.core.channel.ChannelTaskRunner;
 import org.visualcti.core.channel.device.DeviceEvent;

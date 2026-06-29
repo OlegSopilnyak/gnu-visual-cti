@@ -35,7 +35,7 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.server.channel.core;
+package org.visualcti.core.channel.device;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doReturn;
@@ -48,7 +48,6 @@ import java.io.IOException;
 import java.util.Optional;
 import org.junit.Before;
 import org.junit.Test;
-import org.visualcti.core.channel.device.Factory;
 
 public class AbstractDeviceTest {
     String deviceVendor = "deviceVendor";

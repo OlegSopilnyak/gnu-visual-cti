@@ -65,7 +65,7 @@ import org.junit.Test;
 import org.visualcti.core.channel.Channel;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.Factory;
-import org.visualcti.server.channel.core.AbstractChannel;
+import org.visualcti.core.channel.AbstractChannel;
 import org.visualcti.server.core.channel.ChannelTasksRuntime;
 import org.visualcti.server.core.channel.TaskRunnerStream;
 import org.visualcti.core.channel.device.DeviceEvent;
