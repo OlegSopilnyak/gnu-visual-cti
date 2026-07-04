@@ -80,10 +80,10 @@ public interface Channel<D extends Device<?>> extends ServerUnit {
      * To get access to the status of the channel
      *
      * @return status
-     * @see Device#getStatus()
+     * @see Device#getState()
      */
     default String getStatus() {
-        return getDevice().getStatus();
+        return getDevice().getState().getValue();
     }
 
     /**

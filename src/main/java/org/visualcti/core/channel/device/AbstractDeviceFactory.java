@@ -62,7 +62,7 @@ public abstract class AbstractDeviceFactory<D extends Device<?>> extends Runnabl
     private final AtomicReference<Channel<D>[]> channelsHolder = new AtomicReference<>(new Channel[0]);
 
     @Override
-    public final boolean equals(Object o) {
+    public boolean equals(Object o) {
         if (!(o instanceof AbstractDeviceFactory)) return false;
         return super.equals(o);
     }

@@ -38,15 +38,17 @@ Fax number: 217-356-3356
 package org.visualcti.core.channel.device;
 
 
+import static org.visualcti.core.channel.device.Device.State.CLOSED;
+import static org.visualcti.core.channel.device.Device.State.ERROR;
+import static org.visualcti.core.channel.device.Device.State.IDLE;
+
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 import org.visualcti.server.core.unit.ServerUnit;
 import org.visualcti.server.unit.ServerUnitAdapter;
 
 /**
- * Device of the Channel Adapter: The root device through which task communicate with external world
+ * Abstract Device of the Channel: The root device through which task communicate with external world
  *
  * @see ServerUnit
  * @see Device
@@ -54,11 +56,7 @@ import org.visualcti.server.unit.ServerUnitAdapter;
  */
 public abstract class AbstractDevice<F extends Factory<?>> extends ServerUnitAdapter implements Device<F> {
     // the current status of the device
-    protected String currentStatus = DEVICE_STATUS_CLOSED;
-    // the possible statuses of not opened device
-    private static final Set<String> wrongDeviceStatuses = new HashSet<>(
-            Arrays.asList(DEVICE_STATUS_ERROR, DEVICE_STATUS_CLOSED)
-    );
+    protected final AtomicReference<DeviceStateValue> currentState = new AtomicReference<>(CLOSED);
 
     @Override
     public final boolean equals(Object o) {
@@ -76,12 +74,12 @@ public abstract class AbstractDevice<F extends Factory<?>> extends ServerUnitAda
      * Opening and activation of the channel-device.
      *
      * @throws IOException if channel device cannot be opened or activated
-     * @see #currentStatus
-     * @see Device#DEVICE_STATUS_IDLE
+     * @see #currentState
+     * @see Device.State#IDLE
      */
     @Override
     public void open() throws IOException {
-        currentStatus = DEVICE_STATUS_IDLE;
+        currentState.getAndSet(IDLE);
     }
 
     /**
@@ -89,12 +87,12 @@ public abstract class AbstractDevice<F extends Factory<?>> extends ServerUnitAda
      * Closing the server unit, releasing attached resources and restoring original unitPath
      *
      * @throws IOException if an I/O error occurs
-     * @see #currentStatus
-     * @see Device#DEVICE_STATUS_CLOSED
+     * @see #currentState
+     * @see Device.State#CLOSED
      */
     @Override
     public void close() throws IOException {
-        currentStatus = DEVICE_STATUS_CLOSED;
+        currentState.getAndSet(CLOSED);
     }
 
     /**
@@ -102,13 +100,14 @@ public abstract class AbstractDevice<F extends Factory<?>> extends ServerUnitAda
      * Check, is device already opened
      *
      * @return true if it's opened
-     * @see #currentStatus
-     * @see Device#DEVICE_STATUS_ERROR
-     * @see Device#DEVICE_STATUS_CLOSED
+     * @see #currentState
+     * @see Device.State#ERROR
+     * @see Device.State#CLOSED
      */
     @Override
     public boolean isOpened() {
-        return !wrongDeviceStatuses.contains(currentStatus);
+        // device isn't in error state or already closed
+        return currentState.get() != ERROR && currentState.get() != CLOSED;
     }
 
     /**
@@ -133,8 +132,34 @@ public abstract class AbstractDevice<F extends Factory<?>> extends ServerUnitAda
      * @return status' value
      */
     @Override
-    public String getStatus() {
-        return currentStatus;
+    public DeviceStateValue getState() {
+        return currentState.get();
+    }
+
+    /**
+     * <mutator>
+     * To set up the new state value of the channel-device
+     *
+     * @param state new value of device state
+     * @see DeviceStateValue#getValue()
+     */
+    @Override
+    public void setState(DeviceStateValue state) {
+        this.currentState.getAndSet(state);
+        // sending event (unit state is changed)
+        dispatchEvent(state.getValue());
+        // notifying about device state changed
+        stateChanged(state);
+    }
+
+    /**
+     * <notify>
+     * To notify, about device state changed
+     *
+     * @param state the new value of device state
+     */
+    protected void stateChanged(DeviceStateValue state) {
+        // doing nothing by default
     }
 
     /**

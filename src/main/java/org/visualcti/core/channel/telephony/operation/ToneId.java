@@ -35,16 +35,38 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.server.core.channel.telephony;
-
-import org.visualcti.core.channel.device.Device;
-
+package org.visualcti.core.channel.telephony.operation;
 
 /**
- * Device of the Telephony Channel: The root device through which task communicate with computer telephony equipment
- *
- * @see TelephonyChannel
- * @see Device
+ * Tone IDs Enumeration: The telephony's tone ids
  */
-public interface CoreDevice extends Device {
+public enum ToneId {
+    // Tone ID for BEEP before  start record (for example)
+    BEEP("BEEP"),
+    // Tone ID for dial tone signal
+    DIAL("DIAL"),
+    // Tone ID for BUSY signal
+    BUSY("BUSY"),
+    // Tone ID for RINGBACK signal
+    RINGBACK1("RINGBACK1"),
+    // Tone ID for RINGBACK signal
+    RINGBACK2("RINGBACK2"),
+    // Tone ID for REORDER signal
+    REORDER("REORDER"),
+    // Tone ID for INTERCEPT signal
+    INTERCEPT("INTERCEPT"),
+    // Tone ID for CALL WAIT signal
+    CALLWAIT1("CALL WAIT 1"),
+    // Tone ID for CALL WAIT signal
+    CALLWAIT2("CALL WAIT 2");
+    // status value
+    private final String status;
+
+    ToneId(String status) {
+        this.status = status;
+    }
+
+    public String getValue() {
+        return status;
+    }
 }

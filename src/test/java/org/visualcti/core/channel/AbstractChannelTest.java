@@ -35,7 +35,7 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.core.channel.device;
+package org.visualcti.core.channel;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doAnswer;
@@ -51,7 +51,9 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import org.visualcti.core.channel.AbstractChannel;
+import org.visualcti.core.channel.device.Device;
+import org.visualcti.core.channel.device.DeviceEvent;
+import org.visualcti.core.channel.device.Factory;
 import org.visualcti.server.core.executable.task.Task;
 
 @SuppressWarnings("unchecked")
@@ -101,7 +103,7 @@ public class AbstractChannelTest {
     public void shouldGetChannelStatus() {
         // preparing test data
         String status = "status";
-        doReturn(status).when(device).getStatus();
+        doReturn(status).when(device).getState();
 
         // acting
         String channelStatus = channel.getStatus();

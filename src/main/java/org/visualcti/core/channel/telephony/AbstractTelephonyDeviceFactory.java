@@ -35,42 +35,64 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.server.core.channel.telephony;
+package org.visualcti.core.channel.telephony;
 
-import org.visualcti.core.channel.Channel;
+import org.visualcti.core.channel.device.AbstractDeviceFactory;
 import org.visualcti.core.channel.device.Device;
-import org.visualcti.server.core.unit.ServerUnit;
+import org.visualcti.core.channel.device.Factory;
+
 
 /**
- * The Telephony Channel: The channel through device of which task is communicating with computer telephony equipment
+ * The Abstract Factory of the Telephony Devices: The factory of the telephony channel-devices
  *
- * @see ServerUnit
+ * @param <D> the type of factory's devices
+ * @see TelephonyDevice
+ * @see Factory
  */
-public interface TelephonyChannel extends Channel {
-    // the value of type of the server unit
-    String UNIT_TYPE = "[telephony-channel]";
+public abstract class AbstractTelephonyDeviceFactory<D extends TelephonyDevice<?>>
+        extends AbstractDeviceFactory<D> implements TelephonyDeviceFactory<D> {
 
     /**
      * <accessor>
-     * To get the Type of unit as string (service, manager, subsystem, etc.)
+     * get access to factory's vendor name
      *
-     * @return the value
-     * @see #UNIT_TYPE
+     * @return vendor's name
+     * @see Factory#getName()
      */
     @Override
-    default String getType() {
-        return UNIT_TYPE;
+    public String getVendor() {
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     /**
      * <accessor>
-     * To check is channel busy to accept incoming device event
+     * get access to factory's version
      *
-     * @return true if channel's device is opened
-     * @see Device#isOpened()
+     * @return the version
      */
     @Override
-    default boolean isBusy() {
-        return getDevice().isOpened();
+    public String getVersion() {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    /**
+     * <builder>
+     * To make the channel for device
+     *
+     * @param device channel to build for
+     * @return built channel
+     */
+    @Override
+    protected abstract TelephonyChannel<D> makeChannelFor(Device<?> device);
+
+    @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof AbstractTelephonyDeviceFactory)) return false;
+        return super.equals(o);
+    }
+
+    @Override
+    public int hashCode() {
+        return super.hashCode();
     }
 }

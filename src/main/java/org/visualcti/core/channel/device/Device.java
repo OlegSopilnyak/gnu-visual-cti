@@ -39,6 +39,7 @@ package org.visualcti.core.channel.device;
 
 import java.io.IOException;
 import java.util.Optional;
+import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.server.UnitRegistry;
 import org.visualcti.server.core.channel.ChannelTaskRunner;
 import org.visualcti.server.core.executable.task.Task;
@@ -58,16 +59,6 @@ import org.visualcti.server.task.Environment;
 public interface Device<F extends Factory<?>> extends ServerUnit {
     // the value of type the server unit
     String UNIT_TYPE = "[channel-device]";
-    // common device's statuses
-    //
-    // hardware error on the device detected
-    String DEVICE_STATUS_ERROR = "ERROR";
-    // The device is closed
-    String DEVICE_STATUS_CLOSED = "CLOSED";
-    // The device is waiting for incoming event
-    String DEVICE_STATUS_WAIT = "WAIT";
-    // The device is doing nothing at the moment
-    String DEVICE_STATUS_IDLE = "IDLE";
 
     /**
      * <accessor>
@@ -94,6 +85,18 @@ public interface Device<F extends Factory<?>> extends ServerUnit {
         final ServerUnit owner = getOwner();
         return Optional.ofNullable((owner instanceof Factory) ? (F) owner : null);
     }
+
+    /**
+     * <accessor>
+     * To get access to the channel-device configured parameter value
+     *
+     * @param name the name of configured parameter
+     * @return the parameter value or empty
+     * @see ConfigurationParameter
+     * @see ParameterName
+     * @see Optional
+     */
+    Optional<ConfigurationParameter> getParameter(ParameterName name);
 
     /**
      * <action>
@@ -133,11 +136,22 @@ public interface Device<F extends Factory<?>> extends ServerUnit {
 
     /**
      * <accessor>
-     * To get access to the status of the channel-device
+     * To get access to the state of the channel-device
      *
-     * @return status' value
+     * @return value of device state
+     * @see DeviceStateValue#getValue()
+     * @see Device.State
      */
-    String getStatus();
+    DeviceStateValue getState();
+
+    /**
+     * <mutator>
+     * To set up the new state value of the channel-device
+     *
+     * @param state new value of device state
+     * @see DeviceStateValue#getValue()
+     */
+    void setState(DeviceStateValue state);
 
     /**
      * <accessor>
@@ -183,4 +197,37 @@ public interface Device<F extends Factory<?>> extends ServerUnit {
      * @return true if repaired well
      */
     boolean repair();
+
+    /**
+     * The parent of configured parameter names enumerations
+     */
+    interface ParameterName {
+        String value();
+    }
+
+    /**
+     * Device States Enumeration: The states of the device
+     *
+     * @see Device#getState()
+     * @see DeviceStateValue
+     */
+    enum State implements DeviceStateValue {
+        // hardware error on the device
+        ERROR("ERROR"),
+        // device is closed
+        CLOSED("CLOSED"),
+        // device is doing nothing at the moment
+        IDLE("IDLE");
+
+        private final String value;
+
+        State(String value) {
+            this.value = value;
+        }
+
+        @Override
+        public String getValue() {
+            return value;
+        }
+    }
 }

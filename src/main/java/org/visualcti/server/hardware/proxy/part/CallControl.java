@@ -224,7 +224,7 @@ boolean canUsedInConnect();
     number  - telephone number or channel's name;
     timeout - maximal waiting time of the answer (sec), after which
               the NO_ANSWER comes back.
-    toPaly  - The sound to play during connect's operation
+    toPaly  - The sound to play during connect operation
 
     Returned value (reason of completion):
 
@@ -232,7 +232,7 @@ boolean canUsedInConnect();
     Reason.CA.FAX     - the fax - device has answered
     Reason.CA.BUSY    - number is engaged
     Reason.CA.NO_ANSWER - the telephone number does not answer
-    Reason.CA.NO_DIAL_TONE - system be not capable to execute a outgoing call
+    Reason.CA.NO_DIAL_TONE - system be not capable to execute an outgoing call
                     (There is no free line for performance of an outgoing call)
     Reason.CA.SIT     - special information signal on a line
     Reason.CA.NO_RESPONDING - there is no signal after a set of number

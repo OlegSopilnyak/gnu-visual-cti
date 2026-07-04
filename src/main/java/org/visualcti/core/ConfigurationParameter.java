@@ -54,6 +54,7 @@ public class ConfigurationParameter {
     // The types of the parameter
     private static final String NUMBER_TYPE = "number";
     private static final String STRING_TYPE = "string";
+    private static final String BOOLEAN_TYPE = "boolean";
     // parameter's fields
     // the name of the parameter
     private final String name;
@@ -125,11 +126,14 @@ public class ConfigurationParameter {
     private Object valueByType() {
         switch (type) {
             case NUMBER_TYPE:
-                return new Integer(value);
+                return Integer.valueOf(value);
+            case BOOLEAN_TYPE:
+                return Boolean.valueOf(value);
             case STRING_TYPE:
                 return value;
+            default:
+                return null;
         }
-        return null;
     }
 
     private ConfigurationParameter(String name, String type, String value) {

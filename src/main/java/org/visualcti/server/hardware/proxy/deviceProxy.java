@@ -37,6 +37,7 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.hardware.proxy;
 
+import java.io.IOException;
 import org.visualcti.server.hardware.proxy.part.*;
 /**
  * <p>Title: Visual CTI Java Telephony Server</p>
@@ -47,6 +48,7 @@ import org.visualcti.server.hardware.proxy.part.*;
  * @author Sopilnyak Oleg
  * @version 3.01
  */
+@Deprecated
 public interface deviceProxy extends
                                   CallControl,
                                   ToneDetector,ToneGenerator,
@@ -143,5 +145,5 @@ String getDeviceName();
  	2. exchanges of the data (voice or fax)
  * @throws IOException If the device can't terminate current operation
  */
-void terminate() throws java.io.IOException;
+void terminate() throws IOException;
 }

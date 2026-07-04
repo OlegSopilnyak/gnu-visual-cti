@@ -48,6 +48,7 @@ import java.io.IOException;
 import java.util.Optional;
 import org.junit.Before;
 import org.junit.Test;
+import org.visualcti.core.ConfigurationParameter;
 
 public class AbstractDeviceTest {
     String deviceVendor = "deviceVendor";
@@ -59,6 +60,11 @@ public class AbstractDeviceTest {
     public void setUp() {
         factory = mock(Factory.class);
         device = spy(new AbstractDevice(){
+            @Override
+            public Optional<ConfigurationParameter> getParameter(ParameterName name) {
+                return Optional.empty();
+            }
+
             @Override
             public String getName() {
                 return deviceName;
@@ -96,33 +102,33 @@ public class AbstractDeviceTest {
     @Test
     public void shouldOpenDevice() throws IOException {
         // preparing test data
-        assertThat(device.getStatus()).isEqualTo("CLOSED");
+        assertThat(device.getState().getValue()).isEqualTo("CLOSED");
 
         // acting
         device.open();
 
         // check results
-        assertThat(device.getStatus()).isEqualTo("IDLE");
+        assertThat(device.getState().getValue()).isEqualTo("IDLE");
     }
 
     @Test
     public void shouldCloseDevice() throws IOException {
         // preparing test data
         device.open();
-        assertThat(device.getStatus()).isEqualTo("IDLE");
+        assertThat(device.getState().getValue()).isEqualTo("IDLE");
 
         // acting
         device.close();
 
         // check results
-        assertThat(device.getStatus()).isEqualTo("CLOSED");
+        assertThat(device.getState().getValue()).isEqualTo("CLOSED");
     }
 
     @Test
     public void shouldDeviceBeOpened() throws IOException {
         // preparing test data
         device.open();
-        assertThat(device.getStatus()).isEqualTo("IDLE");
+        assertThat(device.getState().getValue()).isEqualTo("IDLE");
 
         // acting
         boolean opened = device.isOpened();
@@ -134,7 +140,7 @@ public class AbstractDeviceTest {
     @Test
     public void shouldDeviceNotBeOpened() {
         // preparing test data
-        assertThat(device.getStatus()).isEqualTo("CLOSED");
+        assertThat(device.getState().getValue()).isEqualTo("CLOSED");
 
         // acting
         boolean opened = device.isOpened();
@@ -147,7 +153,7 @@ public class AbstractDeviceTest {
     public void shouldTerminateDevice() throws IOException {
         // preparing test data
         device.open();
-        assertThat(device.getStatus()).isEqualTo("IDLE");
+        assertThat(device.getState().getValue()).isEqualTo("IDLE");
 
         // acting
         device.terminate();
@@ -170,13 +176,13 @@ public class AbstractDeviceTest {
     }
 
     @Test
-    public void shouldGetStatus() {
+    public void shouldGetState() {
         // preparing test data
-        String deviceStatus = "WAIT";
-        device.currentStatus = deviceStatus;
+        DeviceStateValue deviceStatus = () -> "WAIT";
+        device.currentState.getAndSet(deviceStatus);
 
         // acting
-        String status = device.getStatus();
+        DeviceStateValue status = device.getState();
 
         // check results
         assertThat(status).isSameAs(deviceStatus);
