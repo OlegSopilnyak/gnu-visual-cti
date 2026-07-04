@@ -43,29 +43,32 @@ package org.visualcti.server.hardware.proxy.part;
  * Iterface - union of all fax's features</p>
  * <p>Copyright: Copyright (c) 2002 Prominic Technologies, Inc. & Prominic Ukraine Co.</p>
  * <p>Company: Prominic Ukraine Co.</p>
+ *
  * @author Sopilnyak Oleg
  * @version 3.01
  */
-public interface faxMachine extends faxReceiver,faxTransmitter
-{
-/**
- * <accessor>
- * The quantity of the transferred fax-pages
- */
-int getTransferredPages();
-/**
- * <accessor>
- * The local ID of the remote fax machine
- */
-String getRemoteID();
-/**
- * <mutator>
- * To establish heading of page of the fax-document
- */
-void setFaxHeader(String header);
-/**
- * <mutator>
- * To establish fax local ID for fax machine
- */
-void setFaxLocalID(String localID);
+public interface faxMachine extends faxReceiver, faxTransmitter {
+    /**
+     * <accessor>
+     * The quantity of the transferred fax-pages
+     */
+    int getTransferredPages();
+
+    /**
+     * <accessor>
+     * The local ID of the remote fax machine
+     */
+    String getRemoteID();
+
+    /**
+     * <mutator>
+     * To establish heading of page of the fax-document
+     */
+    void setFaxHeader(String header);
+
+    /**
+     * <mutator>
+     * To establish fax local ID for fax machine
+     */
+    void setFaxLocalID(String localID);
 }

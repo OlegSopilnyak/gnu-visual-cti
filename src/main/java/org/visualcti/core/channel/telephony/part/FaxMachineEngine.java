@@ -37,8 +37,140 @@ Fax number: 217-356-3356
 */
 package org.visualcti.core.channel.telephony.part;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import org.visualcti.core.channel.telephony.operation.Result;
+import org.visualcti.core.channel.telephony.operation.ResultValue;
+import org.visualcti.media.Document;
+import org.visualcti.media.Fax;
+
 /**
  * The Part of the Telephony Channel Device: The root device part of the telephony fax-documents management
  */
 public interface FaxMachineEngine {
+    /**
+     * <accessor>
+     * To check, whether device can operate with fax-machines
+     * This flag, the factory may set in properties of the device
+     *
+     * @return true if device can operate with fax-machine
+     * @see CallsPortEngine.CallParameter#FAX_ALLOWED
+     */
+    boolean canFax();
+
+    /**
+     * <accessor>
+     * To get the quantity of the transferred fax-pages
+     *
+     * @return how many pages transferred
+     */
+    int getTransferredPages();
+
+    /**
+     * <accessor>
+     * To get the local ID of the remote fax machine
+     *
+     * @return localId of the remote fax-machine
+     */
+    String getRemoteID();
+
+    /**
+     * <mutator>
+     * To set up the heading of page of the fax-document
+     *
+     * @param header the new value
+     */
+    void setFaxHeader(String header);
+
+    /**
+     * <mutator>
+     * To set up fax local ID for fax machine
+     *
+     * @param localID new value of device's fax-machine localId
+     */
+    void setFaxLocalID(String localID);
+
+    /**
+     * <action>
+     * To receive the fax document.
+     *
+     * @param target            the stream for saving data of the received fax document in a TIFF format
+     * @param pollingMode       flag, to initiate receive of a fax in a polling mode;
+     * @param issueVoiceRequest upon termination of receive to give out a
+     *                          sound signal on the remote fax-device
+     * @return the operation's result<p>
+     * {@link Result.IO#EOF} - normal end of document transferring<br>
+     * {@link Result.CALL#DISCONNECT} - the receiving is interrupted by telephony line disconnection<br>
+     * {@link Result#TIMEOUT} - the remote fax-device does not answer (there is no signal of transfer starting)<br>
+     * {@link Result.FAX#COMMUNICATION_ERROR} - detected communication error during fax-document receiving<br>
+     * {@link Result.FAX#POLLING} - the inquiry on polling from the remote fax-device is received<br>
+     * {@link Result.FAX#NO_POLL} - the remote fax-device has not accepted inquiry on polling<br>
+     * {@link Result.FAX#USER_STOP} - on the remote fax-device the button STOP is pressed<br>
+     * {@link Result.FAX#COMPATIBILITY} - the remote fax-machine is not compatible with device's one
+     * @see ResultValue
+     */
+    ResultValue receive(OutputStream target, boolean pollingMode, boolean issueVoiceRequest);
+
+    /**
+     * <action>
+     * To transmit the fax document.
+     *
+     * @param source            stream to fax data
+     * @param format            format of data in the stream(resolution is a field)
+     * @param issueVoiceRequest upon termination of reception to give out a
+     *                          sound signal on the remote fax-device
+     * @return the operation's result
+     * <p>
+     * {@link Result.IO#EOF} - normal end of the transmitted document<br>
+     * {@link Result.CALL#DISCONNECT} - the transmitting is interrupted by telephony line disconnection<br>
+     * {@link Result#TIMEOUT} - the remote fax-device does not answer (there is no signal of reception or transfer)<br>
+     * {@link Result.IO#FORMAT} - the format of the data in the transmitted file is not supported by fax-device<br>
+     * {@link Result.FAX#COMMUNICATION_ERROR} - detected communication error during fax-document transmitting<br>
+     * {@link Result.FAX#USER_STOP} - on the remote fax-device the button STOP is pressed<br>
+     * {@link Result.FAX#COMPATIBILITY} - the remote fax-device is not compatible or can't accept a fax with the given resolution<br>
+     * @see Fax
+     * @see ResultValue
+     */
+    ResultValue transmit(InputStream source, Fax format, boolean issueVoiceRequest);
+
+    /**
+     * <action>
+     * To transmit the fax document
+     *
+     * @param doc               The fax-document (the pair fax data InputStream & Format)
+     * @param issueVoiceRequest upon termination of reception to give out a
+     *                          sound signal on the remote fax-device
+     * @return the operation's result
+     * <p>
+     * {@link Result.IO#EOF} - normal end of the transmitted document<br>
+     * {@link Result.CALL#DISCONNECT} - the transmitting is interrupted by telephony line disconnection<br>
+     * {@link Result#TIMEOUT} - the remote fax-device does not answer (there is no signal of reception or transfer)<br>
+     * {@link Result.IO#FORMAT} - the format of the data in the transmitted file is not supported by fax-device<br>
+     * {@link Result.FAX#COMMUNICATION_ERROR} - detected communication error during fax-document transmitting<br>
+     * {@link Result.FAX#USER_STOP} - on the remote fax-device the button STOP is pressed<br>
+     * {@link Result.FAX#COMPATIBILITY} - the remote fax-device is not compatible or can't accept a fax with the given resolution<br>
+     * {@link Result#TERMINATED} - the fax-document has broken data input stream<br>
+     * @see Document#getFormat()
+     * @see Document#getInputStream()
+     * @see #transmit(InputStream, Fax, boolean)
+     * @see #dispatchError(Throwable, String)
+     */
+    default ResultValue transmit(Document doc, boolean issueVoiceRequest) {
+        try {
+            return transmit(doc.getInputStream(), doc.getFormat(), issueVoiceRequest);
+        } catch (IOException e) {
+            dispatchError(e, "Cannot get input stream of the Fax Document.");
+            return Result.TERMINATED;
+        }
+    }
+
+    /**
+     * <action>
+     * To create and dispatch the error-type message from the device
+     *
+     * @param exception   the cause of the error
+     * @param description the description of the error
+     */
+    void dispatchError(Throwable exception, String description);
 }

@@ -162,6 +162,33 @@ public interface TelephonyDevice<F extends TelephonyDeviceFactory<?>> extends De
 
     /**
      * <accessor>
+     * To check, whether device can operate with fax-machhines
+     * This flag, the factory may set in properties of the device
+     *
+     * @return true if device can accept the incoming phone call
+     * @see FaxMachineEngine#canFax()
+     */
+    @Override
+    default boolean canFax() {
+        dispatchError(null, "");
+        return (boolean) getParameter(CallParameter.FAX_ALLOWED)
+                .map(ConfigurationParameter::getValue).orElse(false);
+    }
+
+    /**
+     * <action>
+     * To create and dispatch the error-type message from the device
+     *
+     * @param exception   the cause of the error
+     * @param description the description of the error
+     */
+    @Override
+    default void dispatchError(Throwable exception, String description) {
+        Device.super.dispatchError(exception, description);
+    }
+
+    /**
+     * <accessor>
      * To get access to device's low-level handle
      *
      * @param <H> the type of the device's low-level handle
