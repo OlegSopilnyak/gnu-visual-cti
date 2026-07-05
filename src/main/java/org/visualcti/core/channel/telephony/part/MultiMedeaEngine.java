@@ -52,7 +52,7 @@ public interface MultiMedeaEngine {
      * Returns the array of supported audio formats for playing back,
      * null if playback is not supported
      *
-     * @return the array of the playback formats supported by device
+     * @return the array of the supported playback formats supported by device or null if device can't play back
      */
     Audio[] canPlay();
 
@@ -60,7 +60,7 @@ public interface MultiMedeaEngine {
      * <accessor>
      * To get access to audio format to play raw data (without header)
      *
-     * @return the format for the play
+     * @return the format for the play or null if device can't play back
      */
     Audio getRawFormat();
 
@@ -94,7 +94,7 @@ public interface MultiMedeaEngine {
      * Returns the array of supported audio formats for recording,
      * null if record is not supported
      *
-     * @return the array of the record formats supported by device
+     * @return the array of the record formats supported by device or null if device can't record
      */
     Audio[] canRecord();
 
@@ -102,7 +102,7 @@ public interface MultiMedeaEngine {
      * <accessor>
      * To get access to the default audio format of recording
      *
-     * @return the default format for the voice record operation
+     * @return the default format for the voice record operation or null if device can't record
      */
     Audio getRecordFormat();
 

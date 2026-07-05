@@ -89,6 +89,18 @@ public class ConfigurationParameter {
 
     /**
      * <builder>
+     * To make the parameter from parameter name and value (Boolean value)
+     *
+     * @param name the name of parameter
+     * @param value the value of parameter
+     * @return built instance
+     */
+    public static ConfigurationParameter of(String name, Boolean value) {
+        return new ConfigurationParameter(name, BOOLEAN_TYPE, value.toString());
+    }
+
+    /**
+     * <builder>
      * To make the parameter from XML
      *
      * @param xml the XML of the parameter
