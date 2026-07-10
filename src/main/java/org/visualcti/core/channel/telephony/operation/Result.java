@@ -37,10 +37,12 @@ Fax number: 217-356-3356
 */
 package org.visualcti.core.channel.telephony.operation;
 
+import org.visualcti.core.channel.device.operation.OperationResultValue;
+
 /**
  * Results Enumeration: The results of common telephony operation completion
  */
-public enum Result implements ResultValue {
+public enum Result implements OperationResultValue {
     // The error during operation is detected
     ERROR("ERROR"),
     // The result of the operation, which is not required a reason of completion
@@ -64,7 +66,7 @@ public enum Result implements ResultValue {
     /**
      * Results Enumeration: The results of Phone Call telephony operation completion
      */
-    public enum CALL implements ResultValue {
+    public enum CALL implements OperationResultValue {
         // The incoming call is alerted (no answer)
         ALERTING("ALERTING"),
         // The incoming call is alerted (after answer)
@@ -87,7 +89,7 @@ public enum Result implements ResultValue {
          * Results Enumeration: The results of Phone Call Analyze telephony operation completion
          * for makeCall(...) method
          */
-        public enum Analysis implements ResultValue {
+        public enum Analysis implements OperationResultValue {
             // The voice is detected in the outgoing call
             VOICE("VOICE"),
             // The fax-machine is detected in the outgoing call
@@ -126,7 +128,7 @@ public enum Result implements ResultValue {
     /**
      * Results Enumeration: The results of Media IO operation completion
      */
-    public enum IO implements ResultValue {
+    public enum IO implements OperationResultValue {
         // The incompatible media format is detected
         FORMAT("FORMAT"),
         // The end of media stream is reached
@@ -151,7 +153,7 @@ public enum Result implements ResultValue {
     /**
      * Results Enumeration: The results Fax operation completion
      */
-    public enum FAX implements ResultValue {
+    public enum FAX implements OperationResultValue {
         // The remote fax-device is not COMPATIBLE or
         // Can't accept or transfer a fax document with the given sanction
         COMPATIBILITY("COMPATIBILITY"),

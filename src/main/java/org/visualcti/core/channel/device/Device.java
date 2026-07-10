@@ -65,7 +65,9 @@ public interface Device<F extends Factory<?>> extends ServerUnit {
      * To get reference to the channel-devices factory, the owner of this channel-device
      *
      * @return the factory-owner of the channel-device or throws DeviceMalfunction
+     * @see #getFactoryOptional()
      * @see Factory
+     * @see DeviceMalfunction
      */
     default F getFactory() {
         return getFactoryOptional()

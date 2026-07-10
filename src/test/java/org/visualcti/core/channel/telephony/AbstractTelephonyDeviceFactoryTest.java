@@ -38,22 +38,30 @@ Fax number: 217-356-3356
 package org.visualcti.core.channel.telephony;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 
+import java.util.concurrent.Executor;
 import org.junit.Before;
 import org.junit.Test;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceEvent;
+import org.visualcti.core.channel.device.operation.OperationResultValue;
 
 public class AbstractTelephonyDeviceFactoryTest {
     static String deviceVendor = "device-vendor";
     static String deviceVendorVersion = "device-vendor-version";
 
     AbstractTelephonyDeviceFactory<?> factory;
+    Executor deviceEventExecutor;
+    DeviceEvent.Provider eventsProvider;
+
     @Before
     public void setUp() {
-        factory = spy(new TestFactory());
+        deviceEventExecutor = mock(Executor.class);
+        eventsProvider = mock(DeviceEvent.Provider.class);
+        factory = spy(new TestFactory(deviceEventExecutor, eventsProvider));
     }
 
     @Test
@@ -76,11 +84,15 @@ public class AbstractTelephonyDeviceFactoryTest {
         TelephonyChannel<?> madeDeviceChannel = factory.makeChannelFor(device);
 
         // check results
-//        assertThat(madeDeviceChannel.getDevice()).isSameAs(device);
+        assertThat(madeDeviceChannel.getDevice()).isSameAs(device);
     }
 
     /// / inner classes
     private static class TestFactory<T extends TelephonyDevice<?>> extends AbstractTelephonyDeviceFactory<T> {
+        public TestFactory(Executor deviceEventExecutor, DeviceEvent.Provider eventsProvider) {
+            super(deviceEventExecutor, eventsProvider);
+        }
+
         @Override
         public String getVendor() {
             return deviceVendor;
@@ -98,8 +110,52 @@ public class AbstractTelephonyDeviceFactoryTest {
 
         @Override
         protected TelephonyChannel<T> makeChannelFor(Device<?> device) {
-            // TODO implement it
-            return null;
+            TelephonyChannel<T> deviceChannel = mock(TelephonyChannel.class);
+            doReturn(device).when(deviceChannel).getDevice();
+            return deviceChannel;
+        }
+
+        /**
+         * <action>
+         * To enable particular type events producing for particular device from the factory
+         *
+         * @param device    device for which events producing is enabled
+         * @param eventType the type of events to enable
+         * @see TelephonyDevice
+         * @see OperationResultValue
+         * @see DeviceEvent.Listener
+         */
+        @Override
+        public void enableEvents(TelephonyDevice<?> device, OperationResultValue eventType) {
+
+        }
+
+        /**
+         * <action>
+         * To disable particular type events producing for particular device from the factory
+         *
+         * @param device    device for which events producing is disabled
+         * @param eventType the type of events to disable
+         * @see TelephonyDevice
+         * @see OperationResultValue
+         * @see DeviceEvent.Listener
+         */
+        @Override
+        public void disableEvents(TelephonyDevice<?> device, OperationResultValue eventType) {
+
+        }
+
+        /**
+         * <action>
+         * To disable ALL events producing for particular device from the factory
+         *
+         * @param device device for which events producing is disabled
+         * @see TelephonyDevice
+         * @see DeviceEvent.Listener
+         */
+        @Override
+        public void disableEvents(TelephonyDevice<?> device) {
+
         }
     }
 }

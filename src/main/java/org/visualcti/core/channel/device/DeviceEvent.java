@@ -37,7 +37,9 @@ Fax number: 217-356-3356
 */
 package org.visualcti.core.channel.device;
 
+import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * The event from the channel-device side
@@ -46,6 +48,36 @@ import java.util.Map;
  * @see Factory
  */
 public interface DeviceEvent {
+    /**
+     * Special Event: The event marker for the events queue
+     */
+    DeviceEvent EMPTY = new DeviceEvent() {
+        @Override
+        public Type getEventType() {
+            return null;
+        }
+
+        @Override
+        public String getDeviceName() {
+            return "";
+        }
+
+        @Override
+        public String getVendor() {
+            return "";
+        }
+
+        @Override
+        public String getDescription() {
+            return "";
+        }
+
+        @Override
+        public Map<String, Object> getOptions() {
+            return Collections.emptyMap();
+        }
+    };
+
     /**
      * <accessor>
      * to get the type of event occurred for the device
@@ -102,7 +134,7 @@ public interface DeviceEvent {
     }
 
     /**
-     * The listener of the channel device events
+     * EventListener: The listener of the channel device events
      */
     interface Listener {
         /**
@@ -113,5 +145,21 @@ public interface DeviceEvent {
          * @return true if the event accepted for the processing
          */
         boolean accept(DeviceEvent event);
+    }
+
+    /**
+     * EventsProvider: The native device's events provider
+     */
+    interface Provider {
+        /**
+         * <action>
+         * To get the device event from events provider during particular time-frame
+         *
+         * @param during time-frame for event's getting
+         * @return detected event or empty
+         * @see DeviceEvent
+         * @see Optional
+         */
+        Optional<DeviceEvent> getEvent(long during);
     }
 }

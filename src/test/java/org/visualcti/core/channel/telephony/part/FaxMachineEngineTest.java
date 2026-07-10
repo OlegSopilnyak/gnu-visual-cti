@@ -56,7 +56,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.visualcti.core.channel.telephony.operation.Result;
-import org.visualcti.core.channel.telephony.operation.ResultValue;
+import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.media.Document;
 import org.visualcti.media.Fax;
 
@@ -144,14 +144,14 @@ public class FaxMachineEngineTest {
     @Test
     public void shouldReceiveFax() {
         // preparing test data
-        ResultValue resultValue = mock(ResultValue.class);
+        OperationResultValue resultValue = mock(OperationResultValue.class);
         OutputStream stream = mock(OutputStream.class);
         boolean pollingMode = true;
         boolean issueVoiceRequest = true;
         doReturn(resultValue).when(engine).receive(any(OutputStream.class), eq(true), anyBoolean());
 
         // acting
-        ResultValue result = engine.receive(stream, pollingMode, issueVoiceRequest);
+        OperationResultValue result = engine.receive(stream, pollingMode, issueVoiceRequest);
 
         // check the behavior
         ArgumentCaptor<OutputStream> captor = ArgumentCaptor.forClass(OutputStream.class);
@@ -164,14 +164,14 @@ public class FaxMachineEngineTest {
     @Test
     public void shouldTransmitFaxStream() {
         // preparing test data
-        ResultValue resultValue = mock(ResultValue.class);
+        OperationResultValue resultValue = mock(OperationResultValue.class);
         InputStream stream = mock(InputStream.class);
         Fax faxFormat = Fax.TIFF;
         boolean issueVoiceRequest = true;
         doReturn(resultValue).when(engine).transmit(eq(stream), eq(faxFormat), anyBoolean());
 
         // acting
-        ResultValue result = engine.transmit(stream, faxFormat, issueVoiceRequest);
+        OperationResultValue result = engine.transmit(stream, faxFormat, issueVoiceRequest);
 
         // check the behavior
         ArgumentCaptor<Fax> captor = ArgumentCaptor.forClass(Fax.class);
@@ -184,7 +184,7 @@ public class FaxMachineEngineTest {
     @Test
     public void shouldTransmitFaxDocument() throws IOException {
         // preparing test data
-        ResultValue resultValue = mock(ResultValue.class);
+        OperationResultValue resultValue = mock(OperationResultValue.class);
         InputStream stream = mock(InputStream.class);
         Fax faxFormat = Fax.TIFF;
         Document document = mock(Document.class);
@@ -195,7 +195,7 @@ public class FaxMachineEngineTest {
         doReturn(resultValue).when(engine).transmit(stream, faxFormat, true);
 
         // acting
-        ResultValue result = engine.transmit(document, issueVoiceRequest);
+        OperationResultValue result = engine.transmit(document, issueVoiceRequest);
 
         // check the behavior
         ArgumentCaptor<Fax> captor = ArgumentCaptor.forClass(Fax.class);
@@ -217,7 +217,7 @@ public class FaxMachineEngineTest {
         doCallRealMethod().when(engine).transmit(eq(document), anyBoolean());
 
         // acting
-        ResultValue result = engine.transmit(document, issueVoiceRequest);
+        OperationResultValue result = engine.transmit(document, issueVoiceRequest);
 
         // check the behavior
         verify(document, never()).getFormat();

@@ -40,7 +40,7 @@ package org.visualcti.core.channel.telephony.part;
 import java.io.InputStream;
 import java.io.OutputStream;
 import org.visualcti.core.channel.telephony.operation.Result;
-import org.visualcti.core.channel.telephony.operation.ResultValue;
+import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.media.Audio;
 
 /**
@@ -84,10 +84,10 @@ public interface MultiMedeaEngine {
      * @param timeout                maximum time of playing back in seconds (-1 for unlimited, waiting for end of stream)
      * @param format                 parameter determining type of the decoder for transformation the sound data
      * @return the operation's result
-     * @see ResultValue
+     * @see OperationResultValue
      * @see TonesEngine#getInputSymbols()
      */
-    ResultValue playbackAudio(InputStream source, String terminationSymbolsMask, int timeout, Audio format);
+    OperationResultValue playbackAudio(InputStream source, String terminationSymbolsMask, int timeout, Audio format);
 
     /**
      * <accessor>
@@ -127,8 +127,8 @@ public interface MultiMedeaEngine {
      * @param timeout                maximum time of recording in seconds
      * @param format                 parameter determining type of the record audio data
      * @return the operation's result
-     * @see ResultValue
+     * @see OperationResultValue
      * @see TonesEngine#getInputSymbols()
      */
-    ResultValue recordAudio(OutputStream target, String terminationSymbolsMask, int silence, int timeout, Audio format);
+    OperationResultValue recordAudio(OutputStream target, String terminationSymbolsMask, int silence, int timeout, Audio format);
 }

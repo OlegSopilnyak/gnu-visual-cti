@@ -41,12 +41,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import org.visualcti.core.channel.telephony.operation.Result;
-import org.visualcti.core.channel.telephony.operation.ResultValue;
+import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.media.Document;
 import org.visualcti.media.Fax;
 
 /**
- * The Part of the Telephony Channel Device: The root device part of the telephony fax-documents management
+ * The Part of the Telephony Channel Device: The root device part of the telephony fax-document exchange management
  */
 public interface FaxMachineEngine {
     /**
@@ -108,9 +108,9 @@ public interface FaxMachineEngine {
      * {@link Result.FAX#NO_POLL} - the remote fax-device has not accepted inquiry on polling<br>
      * {@link Result.FAX#USER_STOP} - on the remote fax-device the button STOP is pressed<br>
      * {@link Result.FAX#COMPATIBILITY} - the remote fax-machine is not compatible with device's one
-     * @see ResultValue
+     * @see OperationResultValue
      */
-    ResultValue receive(OutputStream target, boolean pollingMode, boolean issueVoiceRequest);
+    OperationResultValue receive(OutputStream target, boolean pollingMode, boolean issueVoiceRequest);
 
     /**
      * <action>
@@ -130,9 +130,9 @@ public interface FaxMachineEngine {
      * {@link Result.FAX#USER_STOP} - on the remote fax-device the button STOP is pressed<br>
      * {@link Result.FAX#COMPATIBILITY} - the remote fax-device is not compatible or can't accept a fax with the given resolution<br>
      * @see Fax
-     * @see ResultValue
+     * @see OperationResultValue
      */
-    ResultValue transmit(InputStream source, Fax format, boolean issueVoiceRequest);
+    OperationResultValue transmit(InputStream source, Fax format, boolean issueVoiceRequest);
 
     /**
      * <action>
@@ -156,7 +156,7 @@ public interface FaxMachineEngine {
      * @see #transmit(InputStream, Fax, boolean)
      * @see #dispatchError(Throwable, String)
      */
-    default ResultValue transmit(Document doc, boolean issueVoiceRequest) {
+    default OperationResultValue transmit(Document doc, boolean issueVoiceRequest) {
         try {
             return transmit(doc.getInputStream(), doc.getFormat(), issueVoiceRequest);
         } catch (IOException e) {

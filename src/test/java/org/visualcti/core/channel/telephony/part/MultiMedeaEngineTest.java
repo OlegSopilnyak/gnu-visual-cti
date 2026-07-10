@@ -52,7 +52,7 @@ import java.io.OutputStream;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
-import org.visualcti.core.channel.telephony.operation.ResultValue;
+import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.media.Audio;
 
 public class MultiMedeaEngineTest {
@@ -113,7 +113,7 @@ public class MultiMedeaEngineTest {
 
     @Test
     public void shouldPlaybackAudio() {
-        ResultValue resultValue = mock(ResultValue.class);
+        OperationResultValue resultValue = mock(OperationResultValue.class);
         InputStream stream = mock(InputStream.class);
         String mask = "*,#";
         Audio audioFormat = Audio.LINEAR_11;
@@ -121,7 +121,7 @@ public class MultiMedeaEngineTest {
         doReturn(resultValue).when(engine).playbackAudio(eq(stream), anyString(), anyInt(), eq(audioFormat));
 
         // acting
-        ResultValue result = engine.playbackAudio(stream, mask, timeout, audioFormat);
+        OperationResultValue result = engine.playbackAudio(stream, mask, timeout, audioFormat);
 
         // check the behavior
         ArgumentCaptor<InputStream> captor = ArgumentCaptor.forClass(InputStream.class);
@@ -181,7 +181,7 @@ public class MultiMedeaEngineTest {
 
     @Test
     public void shouldRecordAudio() {
-        ResultValue resultValue = mock(ResultValue.class);
+        OperationResultValue resultValue = mock(OperationResultValue.class);
         OutputStream stream = mock(OutputStream.class);
         String mask = "*,#";
         Audio audioFormat = ULAW_8;
@@ -190,7 +190,7 @@ public class MultiMedeaEngineTest {
         doReturn(resultValue).when(engine).recordAudio(eq(stream), anyString(), anyInt(), anyInt(), eq(audioFormat));
 
         // acting
-        ResultValue result = engine.recordAudio(stream, mask, silence, timeout, audioFormat);
+        OperationResultValue result = engine.recordAudio(stream, mask, silence, timeout, audioFormat);
 
         // check the behavior
         ArgumentCaptor<OutputStream> captor = ArgumentCaptor.forClass(OutputStream.class);

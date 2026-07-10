@@ -35,21 +35,20 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.core.channel.telephony.operation;
+package org.visualcti.core.channel.telephony.part.impl;
+
+import org.visualcti.core.XmlAware;
+import org.visualcti.core.channel.telephony.TelephonyDeviceFactory;
 
 /**
- * Result Parent: The value of the telephony operation result
+ * The Part of the Telephony Channel Device: The device part adapter for communicate with device factory
+ *
+ * @see TelephonyDeviceFactory
  */
-public interface ResultValue {
-    /**
-     * <accssor>
-     * To get the value of the operation
-     *
-     * @return the status
-     * @see Result
-     * @see Result.CALL
-     * @see Result.IO
-     * @see Result.CALL.Analysis
-     */
-    String getValue();
+public class AbstractDevicePart implements XmlAware {
+    public AbstractDevicePart(TelephonyDeviceFactory factory) {
+        this.factory = factory;
+    }
+
+    private final TelephonyDeviceFactory factory;
 }

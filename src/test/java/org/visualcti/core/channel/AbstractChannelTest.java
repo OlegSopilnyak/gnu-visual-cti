@@ -53,6 +53,7 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceEvent;
+import org.visualcti.core.channel.device.DeviceStateValue;
 import org.visualcti.core.channel.device.Factory;
 import org.visualcti.server.core.executable.task.Task;
 
@@ -103,7 +104,9 @@ public class AbstractChannelTest {
     public void shouldGetChannelStatus() {
         // preparing test data
         String status = "status";
-        doReturn(status).when(device).getState();
+        DeviceStateValue state = mock(DeviceStateValue.class);
+        doReturn(status).when(state).getValue();
+        doReturn(state).when(device).getState();
 
         // acting
         String channelStatus = channel.getStatus();

@@ -41,7 +41,9 @@ import java.util.Optional;
 import java.util.stream.Stream;
 import org.visualcti.core.channel.Channel;
 import org.visualcti.core.channel.device.Device;
+import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.Factory;
+import org.visualcti.core.channel.device.operation.OperationResultValue;
 
 /**
  * The Factory of the Telephony Devices: The factory of the telephony channel-devices
@@ -50,6 +52,7 @@ import org.visualcti.core.channel.device.Factory;
  * @see Factory
  * @param <D> the type of factory's devices
  */
+@SuppressWarnings("uncecked")
 public interface TelephonyDeviceFactory<D extends TelephonyDevice<?>> extends Factory<D> {
     // the value of type the server unit
     String UNIT_TYPE = "[telephony-channel-devices-board]";
@@ -93,6 +96,43 @@ public interface TelephonyDeviceFactory<D extends TelephonyDevice<?>> extends Fa
     default Stream<Device<?>> devices() {
         return Factory.super.devices().filter(TelephonyDevice.class::isInstance);
     }
+
+    /**
+     * <action>
+     * To enable particular type events producing for particular device from the factory
+     *
+     *
+     * @param device device for which events producing is enabled
+     * @param eventType the type of events to enable
+     * @see TelephonyDevice
+     * @see OperationResultValue
+     * @see DeviceEvent.Listener
+     */
+    void enableEvents(TelephonyDevice<?> device, OperationResultValue eventType);
+
+    /**
+     * <action>
+     * To disable particular type events producing for particular device from the factory
+     *
+     *
+     * @param device device for which events producing is disabled
+     * @param eventType the type of events to disable
+     * @see TelephonyDevice
+     * @see OperationResultValue
+     * @see DeviceEvent.Listener
+     */
+    void disableEvents(TelephonyDevice<?> device, OperationResultValue eventType);
+
+    /**
+     * <action>
+     * To disable ALL events producing for particular device from the factory
+     *
+     *
+     * @param device device for which events producing is disabled
+     * @see TelephonyDevice
+     * @see DeviceEvent.Listener
+     */
+    void disableEvents(TelephonyDevice<?> device);
 
     /**
      * <aceessor>

@@ -38,7 +38,7 @@ Fax number: 217-356-3356
 package org.visualcti.core.channel.telephony.part;
 
 import org.visualcti.core.channel.telephony.operation.Result;
-import org.visualcti.core.channel.telephony.operation.ResultValue;
+import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.operation.ToneId;
 
 /**
@@ -103,10 +103,10 @@ public interface TonesEngine {
      *                               The symbol finished up the input from the <b>terminationSymbolsMask</b>
      *                               will not be placed to the buffer of input symbols
      * @return the operation's result
-     * @see ResultValue
+     * @see OperationResultValue
      * @see #getInputSymbols()
      */
-    ResultValue inputDigits(int digitsCount, int timeout, String terminationSymbolsMask);
+    OperationResultValue inputDigits(int digitsCount, int timeout, String terminationSymbolsMask);
 
     /**
      * <accessor>

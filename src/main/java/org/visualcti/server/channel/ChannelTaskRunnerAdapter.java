@@ -433,7 +433,7 @@ public abstract class ChannelTaskRunnerAdapter<D extends Device<?>> extends Runn
         // the runner's device is broken so stopping the runner
         Stop();
         // mark runner as broken server unit
-        unitState = UnitState.BROKEN;
+        unitState.getAndSet(UnitState.BROKEN);
     }
 
     // running channel task

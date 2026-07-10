@@ -35,70 +35,45 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.core.channel.telephony.operation;
+package org.visualcti.core.channel.telephony.impl;
 
+import org.visualcti.core.channel.telephony.operation.PhoneCall;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
-import org.visualcti.core.channel.telephony.TelephonyDevice;
 
 /**
- * Phone Call: Keep all information about phone call
+ * Implementation: Phone Call: Keep all information about phone call
+ *
+ * @see PhoneCall
  */
-public interface PhoneCall {
-    /**
-     * Failed value of phone's call
-     */
-    PhoneCall FAILED = new PhoneCall() {
-        @Override
-        public String getDeviceName() {
-            return "no matter";
-        }
+public class AbstractPhoneCall implements PhoneCall {
+    private String deviceName;
+    private boolean alive;
+    private OperationResultValue operationResult;
+    private Number calledNumber;
+    private Number callingNumber;
 
-        @Override
-        public boolean isAlive() {
-            return false;
-        }
-
-        @Override
-        public OperationResultValue operationResult() {
-            return Result.ERROR;
-        }
-
-        @Override
-        public Number getCalledNumber() {
-            return null;
-        }
-
-        @Override
-        public Number getCallingNumber() {
-            return null;
-        }
-    };
     /**
      * <accssor>
      * To get the device name where the call is appeared
      *
      * @return the value
-     * @see TelephonyDevice#getName()
+     * @see PhoneCall#getDeviceName()
      */
-    String getDeviceName();
+    @Override
+    public String getDeviceName() {
+        return deviceName;
+    }
 
     /**
      * <accssor>
      * To check up the condition of a telephone call
      *
      * @return true if the call is in service
+     * @see PhoneCall#isAlive()
      */
-    boolean isAlive();
-
-    /**
-     * <accessor>
-     * To check up the condition of a telephone call
-     *
-     * @return true (The call does not serve anymore) or false(The call is in service)
-     * @see #isAlive()
-     */
-    default boolean isDisconnected() {
-        return !isAlive();
+    @Override
+    public boolean isAlive() {
+        return alive;
     }
 
     /**
@@ -107,64 +82,36 @@ public interface PhoneCall {
      *
      * @return the value
      * @see OperationResultValue
+     * @see PhoneCall#operationResult()
      */
-    OperationResultValue operationResult();
+    @Override
+    public OperationResultValue operationResult() {
+        return operationResult;
+    }
 
     /**
      * <accssor>
      * To get the called number of the call
      *
      * @return the value
-     * @see PhoneCall.Number
+     * @see Number
+     * @see PhoneCall#getCalledNumber()
      */
-    PhoneCall.Number getCalledNumber();
+    @Override
+    public Number getCalledNumber() {
+        return calledNumber;
+    }
 
     /**
      * <accssor>
      * To get the calling number of the call
      *
      * @return the value
-     * @see PhoneCall.Number
-     */
-    PhoneCall.Number getCallingNumber();
-
-    /**
-     * Call Number: Keep all information about phone number of the call
-     *
-     * @see PhoneCall#getCalledNumber()
+     * @see Number
      * @see PhoneCall#getCallingNumber()
      */
-    interface Number {
-        /**
-         * <accssor>
-         * To get the country's code
-         *
-         * @return the value
-         */
-        int countryCode();
-
-        /**
-         * <accssor>
-         * To get the area's code
-         *
-         * @return the value
-         */
-        int areaCode();
-
-        /**
-         * <accssor>
-         * To get the local number
-         *
-         * @return the value
-         */
-        int number();
-
-        /**
-         * <accssor>
-         * To get the local number extension
-         *
-         * @return the value
-         */
-        int extension();
+    @Override
+    public Number getCallingNumber() {
+        return callingNumber;
     }
 }

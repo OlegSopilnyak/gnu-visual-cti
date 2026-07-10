@@ -48,7 +48,7 @@ import static org.mockito.Mockito.mock;
 import org.junit.Before;
 import org.junit.Test;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
-import org.visualcti.core.channel.telephony.operation.ResultValue;
+import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.media.Sound;
 
 public class CallsPortEngineTest {
@@ -98,7 +98,7 @@ public class CallsPortEngineTest {
     public void shouldWaitForCall() {
         // preparing test data
         PhoneCall call = mock(PhoneCall.class);
-        ResultValue resultValue = mock(ResultValue.class);
+        OperationResultValue resultValue = mock(OperationResultValue.class);
         doReturn(resultValue).when(call).operationResult();
         int rings = 3;
         int timeout = 5;
@@ -140,7 +140,7 @@ public class CallsPortEngineTest {
     public void shouldMakeCall() {
         // preparing test data
         PhoneCall call = mock(PhoneCall.class);
-        ResultValue resultValue = mock(ResultValue.class);
+        OperationResultValue resultValue = mock(OperationResultValue.class);
         doReturn(resultValue).when(call).operationResult();
         String phoneNumber = "pone-number";
         int timeout = 5;
@@ -181,7 +181,7 @@ public class CallsPortEngineTest {
     public void shouldConnect() {
         // preparing test data
         PhoneCall call = mock(PhoneCall.class);
-        ResultValue resultValue = mock(ResultValue.class);
+        OperationResultValue resultValue = mock(OperationResultValue.class);
         doReturn(resultValue).when(call).operationResult();
         Sound playBefore = mock(Sound.class);
         String phoneNumber = "phone-number";

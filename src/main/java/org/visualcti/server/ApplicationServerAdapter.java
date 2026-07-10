@@ -577,13 +577,13 @@ public class ApplicationServerAdapter extends RunnableUnitAdapter implements App
             try {
                 localRegistry = LocateRegistry.createRegistry(rmi.port);
             } catch(java.rmi.server.ExportException e) {
-                this.unitState = UnitState.BROKEN;
+                this.unitState.getAndSet(UnitState.BROKEN);
                 e.printStackTrace(Tools.err);
                 // detected another copy of RMI Registry server
                 Tools.error("Only one copy of running Server is Valid\nThis copy will be stopped.)");
                 throw new InternalError("Another copy of VisualCTI Server is detected", e);
             } catch (java.rmi.RemoteException e) {
-                this.unitState = UnitState.BROKEN;
+                this.unitState.getAndSet(UnitState.BROKEN);
                 Tools.error("Application RMI make failed " + e.getMessage());
                 throw new InternalError("Create registry invalid", e);
             }

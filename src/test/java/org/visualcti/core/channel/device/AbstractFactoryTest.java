@@ -38,7 +38,10 @@ Fax number: 217-356-3356
 package org.visualcti.core.channel.device;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -50,25 +53,48 @@ import static org.mockito.Mockito.verify;
 
 import java.io.IOException;
 import java.util.Optional;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 import org.visualcti.core.channel.AbstractChannel;
 import org.visualcti.core.channel.Channel;
+import org.visualcti.server.core.unit.RunnableServerUnit;
 
-public class AbstractDeviceFactoryTest {
+@SuppressWarnings("unchecked")
+public class AbstractFactoryTest {
     static String deviceName = "device-name";
     static String deviceVendor = "device-vendor";
     static String deviceVendorVersion = "device-vendor-version";
     Device<?> device;
-    AbstractDeviceFactory<?> factory;
+    Executor deviceEventExecutor;
+    ExecutorService shadowExecutor;
+    DeviceEvent.Provider eventsProvider;
+    AbstractFactory<?> factory;
 
     @Before
     public void setUp() {
         device = mock(Device.class);
         doReturn(deviceName).when(device).getName();
-        factory = spy(new TestFactory());
+        deviceEventExecutor = mock(Executor.class);
+        shadowExecutor = Executors.newFixedThreadPool(2);
+        doAnswer(invocation -> {
+            shadowExecutor.execute(invocation.getArgument(0, Runnable.class));
+            return null;
+        }).when(deviceEventExecutor).execute(any(Runnable.class));
+        eventsProvider = mock(DeviceEvent.Provider.class);
+        factory = spy(new TestFactory(deviceEventExecutor, eventsProvider));
+    }
+
+    @After
+    public void tearDown() throws Exception {
+        factory.Stop();
+        shadowExecutor.shutdown();
     }
 
     @Test
@@ -123,12 +149,12 @@ public class AbstractDeviceFactoryTest {
         factory.add(device);
 
         // acting
-        Stream<Device<?>> available = factory.devices();
+        Stream<?> available = factory.devices();
 
         // check the behavior
         verify(factory).children();
         // check results
-        assertThat(available.findAny()).isPresent().contains(device);
+        assertThat((Optional<Device<?>>) available.findFirst()).isPresent().contains(device);
     }
 
     @Test
@@ -136,7 +162,7 @@ public class AbstractDeviceFactoryTest {
         // preparing test data
 
         // acting
-        Stream<Device<?>> available = factory.devices();
+        Stream<?> available = factory.devices();
 
         // check the behavior
         verify(factory).children();
@@ -322,7 +348,7 @@ public class AbstractDeviceFactoryTest {
         // preparing test data
 
         // acting
-        Optional<Device<?>> factoryDevice = factory.getDevice(deviceName);
+        Optional<?> factoryDevice = factory.getDevice(deviceName);
 
         // check the behavior
         verify(factory).devices();
@@ -383,6 +409,7 @@ public class AbstractDeviceFactoryTest {
         verify(factory).devices();
         verify(factory).makeChannelFor(device);
         // check results
+        assertThat(factory.channels()).hasSize(1);
         assertThat(factory.channels()[0].getDevice()).isSameAs(device);
     }
 
@@ -391,7 +418,7 @@ public class AbstractDeviceFactoryTest {
         // preparing test data
         factory.add(device);
         factory.startUnitRunnable();
-        assertThat(factory.channels()[0].getDevice()).isSameAs(device);
+        assertThat(factory.channels()).hasSize(1);
         reset(factory);
 
         // acting
@@ -403,8 +430,137 @@ public class AbstractDeviceFactoryTest {
         assertThat(factory.channels()).isEmpty();
     }
 
+    @Test
+    public void shouldSetupActiveCurrentUnitState() throws InterruptedException {
+        // preparing test data
+        DeviceEvent event = mock(DeviceEvent.class);
+        doReturn(Optional.of(event)).when(eventsProvider).getEvent(anyLong());
+        assertThat(factory.providerEventsThread.get()).isNull();
+
+        // acting
+        factory.currentUnitState(RunnableServerUnit.UnitState.ACTIVE);
+
+        // check the behavior
+        await().until(() -> factory.providerEventsThread.get() != null);
+        ArgumentCaptor<String> messageCaptor = ArgumentCaptor.forClass(String.class);
+        verify(factory).dispatchEvent(messageCaptor.capture());
+        verify(deviceEventExecutor, times(2)).execute(any(Runnable.class));
+        verify(factory).processingDeviceEvents();
+        verify(factory).grabProviderEvents();
+        ArgumentCaptor<DeviceEvent> eventCaptor = ArgumentCaptor.forClass(DeviceEvent.class);
+        verify(factory, atLeastOnce()).processing(eventCaptor.capture());
+        verify(factory, atLeastOnce()).takeDeviceEvent();
+        verify(eventsProvider, atLeastOnce()).getEvent(anyLong());
+        // check results
+        assertThat(messageCaptor.getValue()).startsWith("Starting");
+        eventCaptor.getAllValues().forEach(e -> assertThat(e).isSameAs(event));
+        assertThat(factory.providerEventsThread.get()).isNotNull();
+        assertThat(factory.isStarted()).isTrue();
+    }
+
+    @Test
+    public void shouldSetupPassiveCurrentUnitState() {
+        // preparing test data
+        DeviceEvent event = mock(DeviceEvent.class);
+        doReturn(Optional.of(event)).when(eventsProvider).getEvent(anyLong());
+        factory.currentUnitState(RunnableServerUnit.UnitState.ACTIVE);
+        await().until(() -> factory.providerEventsThread.get() != null);
+        reset(factory, deviceEventExecutor);
+
+        // acting
+        factory.currentUnitState(RunnableServerUnit.UnitState.PASSIVE);
+
+        // check the behavior
+        await().until(() -> factory.providerEventsThread.get() == null);
+        ArgumentCaptor<String> messageCaptor = ArgumentCaptor.forClass(String.class);
+        verify(factory).dispatchEvent(messageCaptor.capture());
+        ArgumentCaptor<DeviceEvent> eventCaptor = ArgumentCaptor.forClass(DeviceEvent.class);
+        verify(factory, atLeastOnce()).processing(eventCaptor.capture());
+        verify(deviceEventExecutor, never()).execute(any(Runnable.class));
+        // check results
+        assertThat(messageCaptor.getValue()).startsWith("Stopping");
+        assertThat(eventCaptor.getValue()).isSameAs(DeviceEvent.EMPTY);
+        assertThat(factory.providerEventsThread.get()).isNull();
+        assertThat(factory.isStopped()).isTrue();
+    }
+
+    @Test
+    public void shouldGrabProviderEvents() {
+        // preparing test data
+        DeviceEvent event = mock(DeviceEvent.class);
+        doAnswer(invocation -> {
+            Thread.sleep(invocation.getArgument(0));
+            return Optional.of(event);
+        }).when(eventsProvider).getEvent(anyLong());
+        factory.currentUnitState(RunnableServerUnit.UnitState.ACTIVE);
+        await().until(() -> factory.isThereNoUnprocessedEvents());
+        factory.currentUnitState(RunnableServerUnit.UnitState.PASSIVE);
+
+        // acting
+        factory.grabProviderEvents();
+
+        // check the behavior
+        verify(eventsProvider, atLeastOnce()).getEvent(anyLong());
+        verify(factory, atLeastOnce()).processing(event);
+    }
+
+    @Test
+    public void shouldNotGrabProviderEvents_NotStarted() {
+        // preparing test data
+
+        // acting
+        factory.grabProviderEvents();
+
+        // check the behavior
+        verify(eventsProvider, never()).getEvent(anyLong());
+        verify(factory, never()).processing(any(DeviceEvent.class));
+    }
+
+    @Test
+    public void shouldDoEventProcessing() {
+        // preparing test data
+        DeviceEvent event = mock(DeviceEvent.class);
+        assertThat(factory.isThereNoUnprocessedEvents()).isTrue();
+
+        // acting
+        factory.processing(event);
+
+        // check the behavior
+        assertThat(factory.isThereNoUnprocessedEvents()).isFalse();
+    }
+
+    @Test
+    public void shouldDoEventProcessingDeviceEvents() throws InterruptedException {
+        // preparing test data
+        AbstractFactory<Device<?>> activeFactory = spy(new AbstractFactory(deviceEventExecutor, eventsProvider) {
+            {
+                this.unitState.getAndSet(UnitState.ACTIVE);
+            }
+        });
+        await().until(activeFactory::isThereNoUnprocessedEvents);
+        String activeDeviceName = "deviceName";
+        DeviceEvent event = mock(DeviceEvent.class);
+        doReturn(activeDeviceName).when(event).getDeviceName();
+        activeFactory.processing(event);
+        activeFactory.processing(mock(DeviceEvent.class));
+        activeFactory.processing(DeviceEvent.EMPTY);
+        reset(activeFactory, deviceEventExecutor);
+
+        // acting
+        activeFactory.processingDeviceEvents();
+
+        // check the behavior
+        verify(activeFactory, times(3)).takeDeviceEvent();
+        verify(activeFactory).notifyListeners(event);
+        verify(activeFactory).isThereNoUnprocessedEvents();
+    }
+
     /// / inner classes
-    private static class TestFactory extends AbstractDeviceFactory<Device<?>> {
+    private static class TestFactory extends AbstractFactory<Device<?>> {
+        public TestFactory(Executor deviceEventExecutor, DeviceEvent.Provider eventsProvider) {
+            super(deviceEventExecutor, eventsProvider);
+        }
+
         @Override
         public String getVendor() {
             return deviceVendor;

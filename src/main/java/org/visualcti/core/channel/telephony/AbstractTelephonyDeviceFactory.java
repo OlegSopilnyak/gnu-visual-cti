@@ -37,8 +37,10 @@ Fax number: 217-356-3356
 */
 package org.visualcti.core.channel.telephony;
 
-import org.visualcti.core.channel.device.AbstractDeviceFactory;
+import java.util.concurrent.Executor;
+import org.visualcti.core.channel.device.AbstractFactory;
 import org.visualcti.core.channel.device.Device;
+import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.Factory;
 
 
@@ -50,7 +52,11 @@ import org.visualcti.core.channel.device.Factory;
  * @see Factory
  */
 public abstract class AbstractTelephonyDeviceFactory<D extends TelephonyDevice<?>>
-        extends AbstractDeviceFactory<D> implements TelephonyDeviceFactory<D> {
+        extends AbstractFactory<D> implements TelephonyDeviceFactory<D> {
+
+    protected AbstractTelephonyDeviceFactory(Executor deviceEventExecutor, DeviceEvent.Provider eventsProvider) {
+        super(deviceEventExecutor, eventsProvider);
+    }
 
     /**
      * <accessor>

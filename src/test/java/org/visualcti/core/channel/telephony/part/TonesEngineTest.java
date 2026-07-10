@@ -50,7 +50,7 @@ import static org.mockito.Mockito.verify;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
-import org.visualcti.core.channel.telephony.operation.ResultValue;
+import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.operation.ToneId;
 
 public class TonesEngineTest {
@@ -104,14 +104,14 @@ public class TonesEngineTest {
     @Test
     public void shouldInputDigits() {
         // preparing test data
-        ResultValue resultValue = mock(ResultValue.class);
+        OperationResultValue resultValue = mock(OperationResultValue.class);
         int count = 1;
         int timeout = 5;
         String mask = "#";
         doReturn(resultValue).when(engine).inputDigits(anyInt(), anyInt(), anyString());
 
         // acting
-        ResultValue result = engine.inputDigits(count, timeout, mask);
+        OperationResultValue result = engine.inputDigits(count, timeout, mask);
 
         // check results
         assertThat(result).isSameAs(resultValue);

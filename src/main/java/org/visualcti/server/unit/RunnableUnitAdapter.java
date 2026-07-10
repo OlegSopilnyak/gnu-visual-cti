@@ -42,6 +42,7 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import org.jdom.Element;
@@ -67,7 +68,7 @@ public abstract class RunnableUnitAdapter extends ServerUnitAdapter implements R
     // the lock for listeners
     private final Lock listenersLock = new ReentrantLock();
     // The current state of the unit
-    protected UnitState unitState = UnitState.PASSIVE;
+    protected final AtomicReference<UnitState> unitState = new AtomicReference<>(UnitState.PASSIVE);
 
     /**
      * <accessor>
@@ -77,7 +78,7 @@ public abstract class RunnableUnitAdapter extends ServerUnitAdapter implements R
      */
     @Override
     public UnitState currentUnitState() {
-        return unitState;
+        return unitState.get();
     }
 
     /**
@@ -89,7 +90,7 @@ public abstract class RunnableUnitAdapter extends ServerUnitAdapter implements R
      */
     @Override
     public void currentUnitState(UnitState unitState) {
-        this.unitState = unitState;
+        this.unitState.getAndSet(unitState);
     }
 
     /**
@@ -177,7 +178,7 @@ public abstract class RunnableUnitAdapter extends ServerUnitAdapter implements R
     @Override
     protected void cannotConfigureBecause(Exception e) {
         // mark unit as broken one
-        unitState = UnitState.BROKEN;
+        unitState.getAndSet(UnitState.BROKEN);
         // dispatching malfunction cause to the event-listeners
         dispatchError(e, "Cannot restore server unit :" + getName());
     }
