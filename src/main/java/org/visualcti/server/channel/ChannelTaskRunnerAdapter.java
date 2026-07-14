@@ -65,7 +65,7 @@ import org.visualcti.server.unit.ServerUnitAdapter;
  * Adapter: entity to run task from tasks-pool for particular channel-device
  */
 @SuppressWarnings("unchecked")
-public abstract class ChannelTaskRunnerAdapter<D extends Device<?>> extends RunnableUnitAdapter implements ChannelTaskRunner<D> {
+public abstract class ChannelTaskRunnerAdapter<D extends Device<?, ?>> extends RunnableUnitAdapter implements ChannelTaskRunner<D> {
     private final transient Environment environment;
     private final transient Channel<D> channel;
     private final transient TasksPoolUnit tasksPool;
@@ -288,10 +288,10 @@ public abstract class ChannelTaskRunnerAdapter<D extends Device<?>> extends Runn
                 // terminating current task because of device's malfunction
                 tasksPool.current().stopExecute();
                 // trying to repair the broken device
-                final Device<?> device = channel.getDevice();
+                final D device = channel.getDevice();
                 try {
                     // terminate current device activity
-                    device.terminate();
+//                    device.terminate();
                     // repairing terminated device
                     if (!device.repair()) {
                         // the device repairing is failed
@@ -382,9 +382,9 @@ public abstract class ChannelTaskRunnerAdapter<D extends Device<?>> extends Runn
     /// / inner classes
     // class event to push runner's next iteration without hardware's device event
     private static class NextIterationEvent implements DeviceEvent {
-        private final Device<?> device;
+        private final Device<?, ?> device;
 
-        private NextIterationEvent(Device<?> device) {
+        private NextIterationEvent(Device<?, ?> device) {
             this.device = device;
         }
 
@@ -414,7 +414,7 @@ public abstract class ChannelTaskRunnerAdapter<D extends Device<?>> extends Runn
         }
     }
 
-    /// / private methods
+    //// private methods
     // to launch runner's next iteration, works like the steps loop
     private void nextRunnerStep() {
         if (!isStarted() || channel.onlineTasksCount() != 0) {

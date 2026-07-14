@@ -52,7 +52,7 @@ import org.visualcti.server.core.unit.ServerUnit;
  * @see ServerUnit
  */
 @SuppressWarnings("unchecked")
-public interface Channel<D extends Device<?>> extends ServerUnit {
+public interface Channel<D extends Device<?, ?>> extends ServerUnit {
     // the value of type of the server unit
     String UNIT_TYPE = "[channel]";
 
@@ -82,9 +82,9 @@ public interface Channel<D extends Device<?>> extends ServerUnit {
      * @return status
      * @see Device#getState()
      */
-    default String getStatus() {
-        return getDevice().getState().getValue();
-    }
+//    default String getStatus() {
+//        return getDevice().getState().getValue();
+//    }
 
     /**
      * <accessor>

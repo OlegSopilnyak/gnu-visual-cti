@@ -39,14 +39,18 @@ package org.visualcti.core.channel.telephony.part;
 
 import java.io.InputStream;
 import java.io.OutputStream;
-import org.visualcti.core.channel.telephony.operation.Result;
+import java.util.Arrays;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
+import org.visualcti.core.channel.telephony.operation.Result;
 import org.visualcti.media.Audio;
 
 /**
  * The Part of the Telephony Channel Device: The root device part of the telephony multi-medea (playback/record) management
+ *
+ * @param <H> the type of low-level telephony operations handle
+ * @see TelephonyDevicePart
  */
-public interface MultiMedeaEngine {
+public interface MultiMedeaEngine<H> extends TelephonyDevicePart<H> {
     /**
      * <accessor>
      * Returns the array of supported audio formats for playing back,
@@ -55,6 +59,17 @@ public interface MultiMedeaEngine {
      * @return the array of the supported playback formats supported by device or null if device can't play back
      */
     Audio[] canPlay();
+
+    /**
+     * <accessor>
+     * To check whether device can play particular format of the audio-stream
+     *
+     * @param audio the format to check
+     * @return true if device can play the audio with format
+     */
+    default boolean canPlay(Audio audio) {
+        return isComply(canPlay(), audio);
+    }
 
     /**
      * <accessor>
@@ -97,6 +112,21 @@ public interface MultiMedeaEngine {
      * @return the array of the record formats supported by device or null if device can't record
      */
     Audio[] canRecord();
+
+    /**
+     * <accessor>
+     * To check whether device can record particular format of the audio-stream
+     *
+     * @param audio the format to check
+     * @return true if device can record the audio with format
+     */
+    default boolean canRecord(final Audio audio) {
+        return isComply(canRecord(), audio);
+    }
+
+    static boolean isComply(final Audio[] audios, final Audio audio) {
+        return audios != null && Arrays.asList(audios).contains(audio);
+    }
 
     /**
      * <accessor>

@@ -46,8 +46,11 @@ import org.visualcti.media.Sound;
 
 /**
  * The Part of the Telephony Channel Device: The root device part of the telephony call management
+ *
+ * @param <H> the type of low-level telephony operations handle
+ * @see TelephonyDevicePart
  */
-public interface CallsPortEngine {
+public interface CallsPortEngine<H> extends TelephonyDevicePart<H> {
     /**
      * <action>
      * To break off telephone connection.

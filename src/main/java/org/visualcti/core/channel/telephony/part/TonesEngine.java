@@ -37,14 +37,17 @@ Fax number: 217-356-3356
 */
 package org.visualcti.core.channel.telephony.part;
 
-import org.visualcti.core.channel.telephony.operation.Result;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
+import org.visualcti.core.channel.telephony.operation.Result;
 import org.visualcti.core.channel.telephony.operation.ToneId;
 
 /**
  * The Part of the Telephony Channel Device: The root device part of the telephony signals and tones management
+ *
+ * @param <H> the type of low-level telephony operations handle
+ * @see TelephonyDevicePart
  */
-public interface TonesEngine {
+public interface TonesEngine<H> extends TelephonyDevicePart<H> {
     /**
      * <action>
      * To dial DTMF symbols to phone line

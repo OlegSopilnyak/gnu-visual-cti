@@ -35,66 +35,35 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.core.channel.device;
+package org.visualcti.core.channel.telephony.part;
 
-
-import java.util.concurrent.Executor;
-import java.util.stream.Stream;
-import org.visualcti.server.core.unit.RunnableServerUnit;
-import org.visualcti.server.unit.RunnableUnitAdapter;
+import java.io.IOException;
+import org.visualcti.core.channel.telephony.TelephonyDeviceCore;
 
 /**
- * Manager: The facade to deal with server devices, registered in server kernel
+ * The Part of the Telephony Channel Device: The common device part
  *
- * @see Device
- * @see Factory
- * @see RunnableUnitAdapter
+ * @see TelephonyDevicePart
  */
-public interface DeviceManager extends RunnableServerUnit {
-    /**
-     * <aceessor>
-     * The stream to factories managed by the manager
-     *
-     * @return factories stream
-     * @see Factory
-     */
-    Stream<Factory<?>> factories();
-
-    /**
-     * <aceessor>
-     * The stream to devices managed by the manager's factories
-     *
-     * @return devices stream
-     * @see Factory#devices()
-     * @see Device
-     */
-    Stream<Device<?, ?>> devices();
-
+public interface TelephonyDevicePart<H> {
     /**
      * <mutator>
-     * to add devices factory for management
+     * To assign device core which will be used in the device part
      *
-     * @param factory the instance to add for management
-     * @see Factory
+     * @param deviceCore device core which will be used in the part's activities
+     * @return concrete instance of device part
+     * @param <P> the type of device part
+     * @see TelephonyDeviceCore
      */
-    void addFactory(Factory<?> factory);
+    <P extends TelephonyDevicePart<?>> P use(TelephonyDeviceCore<H> deviceCore);
 
     /**
-     * <mutator>
-     * to remove devices factory from the manager
+     * <action>
+     * The unconditional termination anyone current active operation:
+     * 1. operations with telephony calls (waiting or making call, connect, etc.)
+     * 2. exchanges of the data (voice or fax)
      *
-     * @param factory the instance to add for management
-     * @see Factory
+     * @throws IOException If the device can't terminate current operation
      */
-    void removeFactory(Factory<?> factory);
-
-    /**
-     * <aceessor>
-     * The executor of device factories' events management
-     *
-     * @return threads pool for device events processing
-     * @see Factory#getEvent()
-     * @see DeviceEvent.Listener#accept(DeviceEvent)
-     */
-    Executor deviceEventExecutor();
+    void terminate() throws IOException;
 }

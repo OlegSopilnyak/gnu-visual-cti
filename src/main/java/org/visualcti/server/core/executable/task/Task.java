@@ -37,7 +37,9 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.core.executable.task;
 
+import java.io.IOException;
 import org.jdom.Element;
+import org.visualcti.core.channel.device.Device;
 import org.visualcti.server.task.Environment;
 import org.visualcti.server.task.TaskPool;
 
@@ -109,6 +111,18 @@ public interface Task extends Cloneable {
     String getAbout();
 
     /////// Block of calls used for adjustment and start of the CTI-application task /////////
+    /**
+     * <action>
+     * To connect task with external access device's session
+     *
+     * @param channelDeviceSession the started session of the device
+     * @throws IOException throw if the task can't connect with device
+     * @see Device.Session
+     */
+    default void connect(Device.Session<?> channelDeviceSession) throws IOException {
+        // doing nothing here for backward compatibility
+    }
+
     /**
      * <action>
      * Method to start execution of the task ,

@@ -47,13 +47,12 @@ import org.junit.Before;
 import org.junit.Test;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceEvent;
-import org.visualcti.core.channel.device.operation.OperationResultValue;
 
 public class AbstractTelephonyDeviceFactoryTest {
     static String deviceVendor = "device-vendor";
     static String deviceVendorVersion = "device-vendor-version";
 
-    AbstractTelephonyDeviceFactory<?> factory;
+    AbstractTelephonyDeviceFactory<?, ?> factory;
     Executor deviceEventExecutor;
     DeviceEvent.Provider eventsProvider;
 
@@ -61,7 +60,7 @@ public class AbstractTelephonyDeviceFactoryTest {
     public void setUp() {
         deviceEventExecutor = mock(Executor.class);
         eventsProvider = mock(DeviceEvent.Provider.class);
-        factory = spy(new TestFactory(deviceEventExecutor, eventsProvider));
+        factory = spy(new TestFactory<>(deviceEventExecutor, eventsProvider));
     }
 
     @Test
@@ -78,7 +77,7 @@ public class AbstractTelephonyDeviceFactoryTest {
     @Test
     public void shouldMakeChannelFor() {
         // preparing test data
-        TelephonyDevice<?> device = mock(TelephonyDevice.class);
+        TelephonyDevice<?, ?> device = mock(TelephonyDevice.class);
 
         // acting
         TelephonyChannel<?> madeDeviceChannel = factory.makeChannelFor(device);
@@ -88,7 +87,7 @@ public class AbstractTelephonyDeviceFactoryTest {
     }
 
     /// / inner classes
-    private static class TestFactory<T extends TelephonyDevice<?>> extends AbstractTelephonyDeviceFactory<T> {
+    private static class TestFactory<H, T extends TelephonyDevice<H, ?>> extends AbstractTelephonyDeviceFactory<H, T> {
         public TestFactory(Executor deviceEventExecutor, DeviceEvent.Provider eventsProvider) {
             super(deviceEventExecutor, eventsProvider);
         }
@@ -109,53 +108,10 @@ public class AbstractTelephonyDeviceFactoryTest {
         }
 
         @Override
-        protected TelephonyChannel<T> makeChannelFor(Device<?> device) {
+        protected TelephonyChannel<T> makeChannelFor(Device<?, ?> device) {
             TelephonyChannel<T> deviceChannel = mock(TelephonyChannel.class);
             doReturn(device).when(deviceChannel).getDevice();
             return deviceChannel;
-        }
-
-        /**
-         * <action>
-         * To enable particular type events producing for particular device from the factory
-         *
-         * @param device    device for which events producing is enabled
-         * @param eventType the type of events to enable
-         * @see TelephonyDevice
-         * @see OperationResultValue
-         * @see DeviceEvent.Listener
-         */
-        @Override
-        public void enableEvents(TelephonyDevice<?> device, OperationResultValue eventType) {
-
-        }
-
-        /**
-         * <action>
-         * To disable particular type events producing for particular device from the factory
-         *
-         * @param device    device for which events producing is disabled
-         * @param eventType the type of events to disable
-         * @see TelephonyDevice
-         * @see OperationResultValue
-         * @see DeviceEvent.Listener
-         */
-        @Override
-        public void disableEvents(TelephonyDevice<?> device, OperationResultValue eventType) {
-
-        }
-
-        /**
-         * <action>
-         * To disable ALL events producing for particular device from the factory
-         *
-         * @param device device for which events producing is disabled
-         * @see TelephonyDevice
-         * @see DeviceEvent.Listener
-         */
-        @Override
-        public void disableEvents(TelephonyDevice<?> device) {
-
         }
     }
 }

@@ -37,7 +37,6 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.core.channel;
 
-import java.util.Arrays;
 import java.util.Timer;
 import java.util.concurrent.Executor;
 import java.util.stream.Stream;
@@ -106,10 +105,8 @@ public interface ChannelTasksRuntime extends RunnableServerUnit {
      * @see Factory#channels()
      * @see #addRunnerFor(Channel)
      */
-    default boolean prepareRunnersFor(Factory factory) {
-        return Arrays.stream(factory.channels())
-                .map(this::addRunnerFor)
-                .reduce(true, (a, b) -> a && b);
+    default boolean prepareRunnersFor(Factory<?> factory) {
+        return factory.channels().stream().map(this::addRunnerFor).reduce(true, (a, b) -> a && b);
     }
 
     /**

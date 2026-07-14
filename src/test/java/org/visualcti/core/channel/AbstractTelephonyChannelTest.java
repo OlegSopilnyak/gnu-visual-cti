@@ -50,7 +50,7 @@ import org.visualcti.core.channel.telephony.TelephonyDeviceFactory;
 
 public class AbstractTelephonyChannelTest {
     String deviceName = "telephony-device-name";
-    TelephonyDevice<?> device;
+    TelephonyDevice<?, ?> device;
     AbstractTelephonyChannel<?> channel;
 
     @Before
@@ -65,7 +65,7 @@ public class AbstractTelephonyChannelTest {
         // preparing test data
 
         // acting
-        TelephonyDevice<?> channelDevice = channel.getDevice();
+        TelephonyDevice<?, ?> channelDevice = channel.getDevice();
 
         // check results
         assertThat(channelDevice).isSameAs(device);

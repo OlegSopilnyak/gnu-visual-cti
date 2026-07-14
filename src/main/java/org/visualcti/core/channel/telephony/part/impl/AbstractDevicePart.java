@@ -37,18 +37,44 @@ Fax number: 217-356-3356
 */
 package org.visualcti.core.channel.telephony.part.impl;
 
+import java.io.IOException;
 import org.visualcti.core.XmlAware;
+import org.visualcti.core.channel.telephony.TelephonyDeviceCore;
 import org.visualcti.core.channel.telephony.TelephonyDeviceFactory;
+import org.visualcti.core.channel.telephony.part.TelephonyDevicePart;
 
 /**
  * The Part of the Telephony Channel Device: The device part adapter for communicate with device factory
  *
  * @see TelephonyDeviceFactory
  */
-public class AbstractDevicePart implements XmlAware {
-    public AbstractDevicePart(TelephonyDeviceFactory factory) {
-        this.factory = factory;
+@SuppressWarnings("unchecked")
+public class AbstractDevicePart<H> implements TelephonyDevicePart<H>, XmlAware {
+    // the core of the telephony device
+    protected transient TelephonyDeviceCore<H> deviceCore;
+
+    /**
+     * <mutator>
+     * To assign device core which will be used in the device part
+     *
+     * @param deviceCore device core will be used in the part
+     */
+    @Override
+    public <P extends TelephonyDevicePart<?>> P use(TelephonyDeviceCore<H> deviceCore) {
+        this.deviceCore = deviceCore;
+        return (P) this;
     }
 
-    private final TelephonyDeviceFactory factory;
+    /**
+     * <action>
+     * The unconditional termination anyone current active operation:
+     * 1. operations with telephony calls (waiting or making call, connect, etc.)
+     * 2. exchanges of the data (voice or fax)
+     *
+     * @throws IOException If the device can't terminate current operation
+     */
+    @Override
+    public void terminate() throws IOException {
+        // doing nothing for this
+    }
 }

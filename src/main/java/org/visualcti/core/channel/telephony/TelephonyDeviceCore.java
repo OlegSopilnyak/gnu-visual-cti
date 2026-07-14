@@ -35,66 +35,44 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.core.channel.device;
+package org.visualcti.core.channel.telephony;
 
 
-import java.util.concurrent.Executor;
-import java.util.stream.Stream;
-import org.visualcti.server.core.unit.RunnableServerUnit;
-import org.visualcti.server.unit.RunnableUnitAdapter;
+import org.visualcti.core.channel.device.Device;
+import org.visualcti.core.channel.device.DeviceStateValue;
 
 /**
- * Manager: The facade to deal with server devices, registered in server kernel
+ * Device of the Telephony Channel: The core part of the telephony device type
  *
- * @see Device
- * @see Factory
- * @see RunnableUnitAdapter
+ * @see TelephonyServiceProvider
+ * @param <H> the type of the device's low-level operations handle
  */
-public interface DeviceManager extends RunnableServerUnit {
+public interface TelephonyDeviceCore<H> {
     /**
-     * <aceessor>
-     * The stream to factories managed by the manager
+     * <accessor>
+     * To get access to device's low-level handle
      *
-     * @return factories stream
-     * @see Factory
+     * @return the handle to manipulate the device features
      */
-    Stream<Factory<?>> factories();
+//    H getHandle();
 
     /**
-     * <aceessor>
-     * The stream to devices managed by the manager's factories
+     * <accessor>
+     * To get access to the current device's telephony events provider
      *
-     * @return devices stream
-     * @see Factory#devices()
-     * @see Device
+     * @return the reference to the events provider singleton
+     * @see TelephonyServiceProvider
      */
-    Stream<Device<?, ?>> devices();
+    TelephonyServiceProvider<H> getProvider();
 
     /**
-     * <mutator>
-     * to add devices factory for management
+     * <accessor>
+     * To get access to the current device's state
      *
-     * @param factory the instance to add for management
-     * @see Factory
+     * @return the value
+     * @see DeviceStateValue
+     * @see Device.State
+     * @see TelephonyDevice.State
      */
-    void addFactory(Factory<?> factory);
-
-    /**
-     * <mutator>
-     * to remove devices factory from the manager
-     *
-     * @param factory the instance to add for management
-     * @see Factory
-     */
-    void removeFactory(Factory<?> factory);
-
-    /**
-     * <aceessor>
-     * The executor of device factories' events management
-     *
-     * @return threads pool for device events processing
-     * @see Factory#getEvent()
-     * @see DeviceEvent.Listener#accept(DeviceEvent)
-     */
-    Executor deviceEventExecutor();
+//    DeviceStateValue getState();
 }

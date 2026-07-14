@@ -253,7 +253,7 @@ public class ServerTaskRuntimeAdapterTest {
         ChannelTaskRunner runner = (ChannelTaskRunner) captor.getValue();
         assertThat(runtime.runners().toArray()).hasSize(1).contains(runner);
         assertThat(runtime.isStarted()).isFalse();
-        Device<?> device = mock(Device.class);
+        Device<?, ?> device = mock(Device.class);
         doReturn(device).when(channel).getDevice();
         doReturn(deviceName).when(device).getDeviceName();
         reset(runtime);

@@ -55,7 +55,7 @@ import org.visualcti.server.unit.ServerUnitAdapter;
  * @see Channel
  * @param <D> the type of channel device
  */
-public abstract class AbstractChannel<D extends Device<?>> extends ServerUnitAdapter implements Channel<D> {
+public abstract class AbstractChannel<D extends Device<?, ?>> extends ServerUnitAdapter implements Channel<D> {
     // the device associated with the channel
     protected final transient D device;
     // the map of online tasks counters

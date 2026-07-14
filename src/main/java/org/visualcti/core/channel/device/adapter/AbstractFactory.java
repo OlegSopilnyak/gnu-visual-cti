@@ -35,9 +35,11 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.core.channel.device;
+package org.visualcti.core.channel.device.adapter;
 
 import java.io.IOException;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -49,8 +51,12 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.visualcti.core.channel.Channel;
+import org.visualcti.core.channel.device.Device;
+import org.visualcti.core.channel.device.DeviceEvent;
+import org.visualcti.core.channel.device.Factory;
 import org.visualcti.server.unit.RunnableUnitAdapter;
 import org.visualcti.util.Tools;
 
@@ -62,7 +68,7 @@ import org.visualcti.util.Tools;
  * @see RunnableUnitAdapter
  */
 @SuppressWarnings("unchecked")
-public class AbstractFactory<D extends Device<?>> extends RunnableUnitAdapter implements Factory<D> {
+public class AbstractFactory<D extends Device<?, ?>> extends RunnableUnitAdapter implements Factory<D> {
     // the executor for device events processing threads
     protected final transient Executor deviceEventExecutor;
     // the provider of device events
@@ -79,7 +85,7 @@ public class AbstractFactory<D extends Device<?>> extends RunnableUnitAdapter im
     // the listeners of factory's device events
     private final Map<String, List<DeviceEvent.Listener>> factoryEventListeners = new ConcurrentHashMap<>();
     // the holder of factory's device channels
-    private final AtomicReference<Channel<D>[]> channelsHolder = new AtomicReference<>(new Channel[0]);
+    private final AtomicReference<Collection<Channel<?>>> channelsHolder = new AtomicReference<>(Collections.emptyList());
 
     protected AbstractFactory(Executor deviceEventExecutor, DeviceEvent.Provider eventsProvider) {
         this.deviceEventExecutor = deviceEventExecutor;
@@ -131,7 +137,7 @@ public class AbstractFactory<D extends Device<?>> extends RunnableUnitAdapter im
      */
     @Override
     public void startUnitRunnable() throws IOException {
-        channelsHolder.getAndSet(devices().map(this::makeChannelFor).toArray(Channel[]::new));
+        channelsHolder.getAndSet(devices().map(this::makeChannelFor).collect(Collectors.toSet()));
     }
 
     /**
@@ -145,7 +151,7 @@ public class AbstractFactory<D extends Device<?>> extends RunnableUnitAdapter im
      */
     @Override
     public void stopUnitRunnable() throws IOException {
-        channelsHolder.getAndSet(new Channel[0]);
+        channelsHolder.getAndSet(Collections.emptyList());
     }
 
     /**
@@ -155,7 +161,7 @@ public class AbstractFactory<D extends Device<?>> extends RunnableUnitAdapter im
      * @param device channel to build for
      * @return built channel
      */
-    protected Channel<D> makeChannelFor(Device<?> device) {
+    protected Channel<D> makeChannelFor(Device<?, ?> device) {
         throw new UnsupportedOperationException("Not supported here. Please implement it in the descendent.");
     }
 
@@ -288,7 +294,7 @@ public class AbstractFactory<D extends Device<?>> extends RunnableUnitAdapter im
      * @see Channel
      */
     @Override
-    public Channel<D>[] channels() {
+    public Collection<Channel<?>> channels() {
         return channelsHolder.get();
     }
 

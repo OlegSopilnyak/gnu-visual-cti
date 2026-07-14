@@ -45,10 +45,7 @@ import org.visualcti.media.Sound;
 /**
  * The Part of the Telephony Channel Device: The device part adapter of the telephony call management
  */
-public class AbstractCallsPortEngine extends AbstractDevicePart implements CallsPortEngine {
-    public AbstractCallsPortEngine(TelephonyDeviceFactory<?> factory) {
-        super(factory);
-    }
+public class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> implements CallsPortEngine<H> {
 
     /**
      * <action>

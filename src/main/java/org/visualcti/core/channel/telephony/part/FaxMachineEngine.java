@@ -40,15 +40,42 @@ package org.visualcti.core.channel.telephony.part;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import org.visualcti.core.channel.telephony.operation.Result;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
+import org.visualcti.core.channel.telephony.operation.Result;
 import org.visualcti.media.Document;
 import org.visualcti.media.Fax;
 
 /**
  * The Part of the Telephony Channel Device: The root device part of the telephony fax-document exchange management
+ *
+ * @param <H> the type of low-level telephony operations handle
+ * @see TelephonyDevicePart
  */
-public interface FaxMachineEngine {
+public interface FaxMachineEngine<H> extends TelephonyDevicePart<H> {
+    /**
+     * <action>
+     * Opening and activation the fax-machine part of the channel-device.
+     *
+     * @throws IOException if channel cannot be opened or activated
+     */
+//    void open() throws IOException;
+
+    /**
+     * <accessor>
+     * Check, is device already opened
+     *
+     * @return true if it's opened
+     */
+//    boolean isOpened();
+
+    /**
+     * <action>
+     * Closing the fax-machine part of the device
+     *
+     * @throws IOException if channel cannot be closed
+     */
+//    void close() throws IOException;
+
     /**
      * <accessor>
      * To check, whether device can operate with fax-machines

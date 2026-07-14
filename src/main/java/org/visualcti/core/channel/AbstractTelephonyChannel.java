@@ -50,9 +50,8 @@ import org.visualcti.server.channel.ChannelTaskRunnerAdapter;
  * @see AbstractChannel
  * @see TelephonyDevice
  */
-public abstract class AbstractTelephonyChannel<D extends TelephonyDevice<?>>
-        extends AbstractChannel<D> implements TelephonyChannel<D>
-{
+public abstract class AbstractTelephonyChannel<D extends TelephonyDevice<?, ?>>
+        extends AbstractChannel<D> implements TelephonyChannel<D> {
     protected AbstractTelephonyChannel(D device) {
         super(device);
     }

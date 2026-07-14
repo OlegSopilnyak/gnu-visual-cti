@@ -38,20 +38,21 @@ Fax number: 217-356-3356
 package org.visualcti.core.channel.telephony;
 
 import java.util.concurrent.Executor;
-import org.visualcti.core.channel.device.AbstractFactory;
-import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceEvent;
+import org.visualcti.core.channel.device.adapter.AbstractFactory;
+import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.Factory;
 
 
 /**
  * The Abstract Factory of the Telephony Devices: The factory of the telephony channel-devices
  *
+ * @param <H> the type of the device's low-level operations handle
  * @param <D> the type of factory's devices
  * @see TelephonyDevice
  * @see Factory
  */
-public abstract class AbstractTelephonyDeviceFactory<D extends TelephonyDevice<?>>
+public abstract class AbstractTelephonyDeviceFactory<H, D extends TelephonyDevice<H, ?>>
         extends AbstractFactory<D> implements TelephonyDeviceFactory<D> {
 
     protected AbstractTelephonyDeviceFactory(Executor deviceEventExecutor, DeviceEvent.Provider eventsProvider) {
@@ -89,7 +90,7 @@ public abstract class AbstractTelephonyDeviceFactory<D extends TelephonyDevice<?
      * @return built channel
      */
     @Override
-    protected abstract TelephonyChannel<D> makeChannelFor(Device<?> device);
+    protected abstract TelephonyChannel<D> makeChannelFor(Device<?, ?> device);
 
     @Override
     public boolean equals(Object o) {

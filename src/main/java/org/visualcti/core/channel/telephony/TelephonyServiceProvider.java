@@ -37,49 +37,51 @@ Fax number: 217-356-3356
 */
 package org.visualcti.core.channel.telephony;
 
-import org.visualcti.core.channel.Channel;
 import org.visualcti.core.channel.device.Device;
+import org.visualcti.core.channel.device.DeviceEvent;
+import org.visualcti.core.channel.device.operation.OperationResultValue;
 
 /**
- * The Telephony Channel: The channel through device of which task is communicating with computer telephony equipment
- *
- * @see Channel
- * @see TelephonyDevice
+ * Provider Facade: The telephony service provider facade (for manufacturer implementation)
+ * @see DeviceEvent.Provider
+ * @param <H> the type of the device's low-level operations handle
  */
-public interface TelephonyChannel<D extends TelephonyDevice<?, ?>> extends Channel<D> {
-    // the value of type of the server unit
-    String UNIT_TYPE = "[telephony-channel]";
+public interface TelephonyServiceProvider<H>  extends DeviceEvent.Provider, Device.ServiceProvider<H> {
 
     /**
-     * <accessor>
-     * To get the device of the channel
+     * <action>
+     * To enable particular type events producing for particular device from the factory
      *
-     * @return channel-device instance associated with the channel
+     *
+     * @param deviceHandle device handle of the device for which events producing is enabled
+     * @param eventType the type of events to enable
+     * @see TelephonyDevice#getHandle()
+     * @see OperationResultValue
+     * @see DeviceEvent.Listener
      */
-    @Override
-    D getDevice();
+    void enableEvents(H deviceHandle, OperationResultValue eventType);
 
     /**
-     * <accessor>
-     * To get the Type of unit as string (service, manager, subsystem, etc.)
+     * <action>
+     * To disable particular type events producing for particular device from the factory
      *
-     * @return the value
-     * @see #UNIT_TYPE
+     *
+     * @param deviceHandle device handle of the device for which events producing is disabled
+     * @param eventType the type of events to disable
+     * @see TelephonyDevice#getHandle()
+     * @see OperationResultValue
+     * @see DeviceEvent.Listener
      */
-    @Override
-    default String getType() {
-        return UNIT_TYPE;
-    }
+    void disableEvents(H deviceHandle, OperationResultValue eventType);
 
     /**
-     * <accessor>
-     * To check is channel busy to accept incoming device event
+     * <action>
+     * To disable ALL events producing for particular device from the factory
      *
-     * @return true if channel's device is opened
-     * @see Device#isOpened()
+     *
+     * @param deviceHandle device handle of the device for which events producing is disabled
+     * @see TelephonyDevice#getHandle()
+     * @see DeviceEvent.Listener
      */
-    @Override
-    default boolean isBusy() {
-        return getDevice().isOpened();
-    }
+    void disableEvents(H deviceHandle);
 }

@@ -80,7 +80,7 @@ public class ChannelTaskRunnerAdapterTest {
     ChannelTaskRunnerAdapter<?> runner;
     Environment environment;
     Channel<?> channel;
-    Device<?> device;
+    Device<?, ?> device;
     Factory<?> factory;
     TasksPoolUnit tasksPoolUnit;
     Task task;
@@ -186,7 +186,7 @@ public class ChannelTaskRunnerAdapterTest {
         verify(runner, atLeastOnce()).getChannel();
         verify(channel, atLeastOnce()).getDevice();
         verify(runner).dispatchError(eventDescription);
-        verify(device).terminate();
+//        verify(device).terminate();
         verify(device).repair();
         verify(runner).Stop();
         // check results

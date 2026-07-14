@@ -50,7 +50,7 @@ public enum Result implements OperationResultValue {
     // The timeout expiration is detected
     TIMEOUT("TIMEOUT"),
     // The operation was interrupted by manager
-    TERMINATED("TERMINATED");
+    TERMINATED("TERMINATION");
     // status value
     private final String status;
 

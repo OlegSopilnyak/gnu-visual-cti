@@ -35,12 +35,11 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.core.channel.device;
+package org.visualcti.core.channel.device.adapter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
@@ -48,23 +47,21 @@ import java.io.IOException;
 import java.util.Optional;
 import org.junit.Before;
 import org.junit.Test;
-import org.visualcti.core.ConfigurationParameter;
+import org.visualcti.core.channel.device.Device;
+import org.visualcti.core.channel.device.Factory;
 
 public class AbstractDeviceTest {
     String deviceVendor = "deviceVendor";
     String deviceName = "deviceName";
     Factory<?> factory;
-    AbstractDevice<?> device;
+    AbstractDevice<String, ?> device;
+    Device.ServiceProvider<?> serviceProvider;
 
     @Before
     public void setUp() {
         factory = mock(Factory.class);
-        device = spy(new AbstractDevice(){
-            @Override
-            public Optional<ConfigurationParameter> getParameter(ParameterName name) {
-                return Optional.empty();
-            }
-
+        serviceProvider = mock(Device.ServiceProvider.class);
+        device = spy(new AbstractDevice(serviceProvider) {
             @Override
             public String getName() {
                 return deviceName;
@@ -102,33 +99,32 @@ public class AbstractDeviceTest {
     @Test
     public void shouldOpenDevice() throws IOException {
         // preparing test data
-        assertThat(device.getState().getValue()).isEqualTo("CLOSED");
+        assertThat(device.isOpened()).isFalse();
 
         // acting
         device.open();
 
         // check results
-        assertThat(device.getState().getValue()).isEqualTo("IDLE");
+        assertThat(device.isOpened()).isTrue();
     }
 
     @Test
     public void shouldCloseDevice() throws IOException {
         // preparing test data
         device.open();
-        assertThat(device.getState().getValue()).isEqualTo("IDLE");
+        assertThat(device.isOpened()).isTrue();
 
         // acting
         device.close();
 
         // check results
-        assertThat(device.getState().getValue()).isEqualTo("CLOSED");
+        assertThat(device.isOpened()).isFalse();
     }
 
     @Test
     public void shouldDeviceBeOpened() throws IOException {
         // preparing test data
         device.open();
-        assertThat(device.getState().getValue()).isEqualTo("IDLE");
 
         // acting
         boolean opened = device.isOpened();
@@ -140,52 +136,13 @@ public class AbstractDeviceTest {
     @Test
     public void shouldDeviceNotBeOpened() {
         // preparing test data
-        assertThat(device.getState().getValue()).isEqualTo("CLOSED");
+        assertThat(device.isOpened()).isFalse();
 
         // acting
         boolean opened = device.isOpened();
 
         // check results
         assertThat(opened).isFalse();
-    }
-
-    @Test
-    public void shouldTerminateDevice() throws IOException {
-        // preparing test data
-        device.open();
-        assertThat(device.getState().getValue()).isEqualTo("IDLE");
-
-        // acting
-        device.terminate();
-
-        // check the behavior
-        verify(device).isOpened();
-        verify(device).close();
-    }
-
-    @Test
-    public void shouldNotTerminateDevice_Closed() throws IOException {
-        // preparing test data
-
-        // acting
-        device.terminate();
-
-        // check the behavior
-        verify(device).isOpened();
-        verify(device, never()).close();
-    }
-
-    @Test
-    public void shouldGetState() {
-        // preparing test data
-        DeviceStateValue deviceStatus = () -> "WAIT";
-        device.currentState.getAndSet(deviceStatus);
-
-        // acting
-        DeviceStateValue status = device.getState();
-
-        // check results
-        assertThat(status).isSameAs(deviceStatus);
     }
 
     @Test
@@ -249,5 +206,17 @@ public class AbstractDeviceTest {
         verify(factory).getVendor();
         // check results
         assertThat(name).isEqualTo(deviceVendor + "/" + deviceName);
+    }
+
+    @Test
+    public void stateChangedFor() {
+    }
+
+    @Test
+    public void getParameter() {
+    }
+
+    @Test
+    public void createSessionFor() {
     }
 }

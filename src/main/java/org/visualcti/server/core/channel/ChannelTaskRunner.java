@@ -56,7 +56,7 @@ import org.visualcti.server.unit.ServerUnitAdapter;
 /**
  * Tasks Runner: entity to run task from tasks-pool for particular channel-device
  */
-public interface ChannelTaskRunner<D extends Device<?>> extends RunnableServerUnit, DeviceEvent.Listener {
+public interface ChannelTaskRunner<D extends Device<?, ?>> extends RunnableServerUnit, DeviceEvent.Listener {
     String ROOT_ELEMENT_NAME = "ChannelTaskRunner";
     String SERVER_UNIT_DESCRIPTION = "The runner of task for particular channel-device";
     // the value of type the server unit
@@ -187,7 +187,7 @@ public interface ChannelTaskRunner<D extends Device<?>> extends RunnableServerUn
     @Override
     default void stopUnitRunnable() throws IOException {
         // getting channel device instance
-        final Device<?> device = getChannel().getDevice();
+        final Device<?, ?> device = getChannel().getDevice();
         // closing channel device if it did open yet
         if (device.isOpened()) {
             // closing the device
@@ -209,7 +209,7 @@ public interface ChannelTaskRunner<D extends Device<?>> extends RunnableServerUn
     @Override
     default boolean accept(DeviceEvent event) {
         final Channel<?> channel = getChannel();
-        final Device<?> device = channel.getDevice();
+        final Device<?, ?> device = channel.getDevice();
         if (isStarted() && eventCompliesDevice(event, device)) {
             // runner state and event are good, checking event type
             return event.getEventType() != null;
@@ -241,9 +241,10 @@ public interface ChannelTaskRunner<D extends Device<?>> extends RunnableServerUn
         // locking the access to the runner instance
         Lock lock = getExclusiveAccessLock();
         lock.lock();
-        // to get the channel-device instance for the task's execution
-        try (final Device<?> channelDevice = getChannel().getDevice()) {
-            channelDevice.open();
+        // to start the channel-device session for the task's execution
+        try (final Device.Session<?> channelDeviceSession = getChannel().getDevice().startSession()) {
+            // connecting task with started device's session
+            taskToRun.connect(channelDeviceSession);
             // attaching the task to the tasks runner
             attachTask(taskToRun);
             // unlocking the access to the runner instance
@@ -323,9 +324,9 @@ public interface ChannelTaskRunner<D extends Device<?>> extends RunnableServerUn
         return ChannelTaskRunner.class;
     }
 
-    /// // private methods
+    //// private methods
     // to check is event complies with the device
-    static boolean eventCompliesDevice(DeviceEvent event, Device<?> device) {
+    static boolean eventCompliesDevice(DeviceEvent event, Device<?, ?> device) {
         return Objects.equals(event.getDeviceName(), device.getName())
                 && Objects.equals(event.getVendor(), device.getFactory().getVendor());
     }
@@ -336,7 +337,7 @@ public interface ChannelTaskRunner<D extends Device<?>> extends RunnableServerUn
         final Environment environment = runner.getEnvironment();
         environment.clear();
         // prepare channel-device part of the environment
-        final Device<?> channelDevice = runner.getChannel().getDevice();
+        final Device<?, ?> channelDevice = runner.getChannel().getDevice();
         final String currentDeviceName = "/channel/device/" + channelDevice.getDeviceName();
         environment.setPart(ENVIRONMENT_PART_DEVICE_NAME, currentDeviceName);
         environment.setPart(currentDeviceName, channelDevice);

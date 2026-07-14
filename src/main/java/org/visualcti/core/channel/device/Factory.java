@@ -37,6 +37,7 @@ Fax number: 217-356-3356
 */
 package org.visualcti.core.channel.device;
 
+import java.util.Collection;
 import java.util.Optional;
 import java.util.stream.Stream;
 import org.visualcti.core.channel.Channel;
@@ -45,12 +46,12 @@ import org.visualcti.server.core.unit.RunnableServerUnit;
 /**
  * The Factory of the Devices: The factory of the channel-devices
  *
+ * @param <D> the type of factory's devices
  * @see Device
  * @see RunnableServerUnit
- * @param <D> the type of factory's devices
  */
 @SuppressWarnings("unchecked")
-public interface Factory<D extends Device<?>> extends RunnableServerUnit {
+public interface Factory<D extends Device<?, ?>> extends RunnableServerUnit {
     // The name of root XML's Element
     String ELEMENT = "factory";
     // the value of type the server unit
@@ -104,8 +105,8 @@ public interface Factory<D extends Device<?>> extends RunnableServerUnit {
      * @see Stream
      * @see RunnableServerUnit#children()
      */
-    default Stream<Device<?>> devices() {
-        return children().filter(Device.class::isInstance).map(Device.class::cast);
+    default Stream<D> devices() {
+        return children().filter(Device.class::isInstance).map(device -> (D) device);
     }
 
     /**
@@ -115,7 +116,7 @@ public interface Factory<D extends Device<?>> extends RunnableServerUnit {
      * @return the array of available channels
      * @see Channel
      */
-    Channel<D>[] channels();
+    Collection<Channel<?>> channels();
 
     /**
      * <aceessor>
@@ -127,7 +128,7 @@ public interface Factory<D extends Device<?>> extends RunnableServerUnit {
      * @see Device
      * @see Optional
      */
-    default Optional<Device<?>> getDevice(String name) {
+    default Optional<D> getDevice(String name) {
         return devices().filter(d -> d.getName().equals(name)).findFirst();
     }
 

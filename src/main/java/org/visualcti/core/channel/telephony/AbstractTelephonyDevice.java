@@ -37,20 +37,35 @@ Fax number: 217-356-3356
 */
 package org.visualcti.core.channel.telephony;
 
+import static org.visualcti.core.channel.telephony.TelephonyDevice.State.DIAL;
+import static org.visualcti.core.channel.telephony.TelephonyDevice.State.GTDIG;
+import static org.visualcti.core.channel.telephony.TelephonyDevice.State.PLAY;
+import static org.visualcti.core.channel.telephony.TelephonyDevice.State.RECORD;
+import static org.visualcti.core.channel.telephony.TelephonyDevice.State.TONE;
+import static org.visualcti.core.channel.telephony.TelephonyDevice.State.WAIT;
+
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 import org.visualcti.core.ConfigurationParameter;
-import org.visualcti.core.channel.device.AbstractDevice;
+import org.visualcti.core.channel.device.Device;
+import org.visualcti.core.channel.device.DeviceStateValue;
+import org.visualcti.core.channel.device.adapter.AbstractDevice;
+import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
 import org.visualcti.core.channel.telephony.operation.Result;
-import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.operation.ToneId;
 import org.visualcti.core.channel.telephony.part.CallsPortEngine;
 import org.visualcti.core.channel.telephony.part.FaxMachineEngine;
 import org.visualcti.core.channel.telephony.part.MultiMedeaEngine;
+import org.visualcti.core.channel.telephony.part.TelephonyDevicePart;
 import org.visualcti.core.channel.telephony.part.TonesEngine;
 import org.visualcti.media.Audio;
 import org.visualcti.media.Fax;
@@ -61,6 +76,8 @@ import org.visualcti.media.Sound;
  * <p>
  * <b>Computer Telephony Equipment</b>
  *
+ * @param <H> the type of the device's low-level operations handle
+ * @param <T> the type of the devices factory
  * @see AbstractDevice
  * @see TelephonyDevice
  * @see TelephonyDeviceFactory
@@ -69,40 +86,65 @@ import org.visualcti.media.Sound;
  * @see MultiMedeaEngine
  * @see FaxMachineEngine
  */
-public class AbstractTelephonyDevice<T extends TelephonyDeviceFactory<?>> extends AbstractDevice<T> implements TelephonyDevice<T> {
+public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<?>>
+        extends AbstractDevice<H, T> implements TelephonyDevice<H, T> {
     // the channel-device configured parameters map
     private final Map<ParameterName, ConfigurationParameter> parameters = new ConcurrentHashMap<>();
     // the name of the device in the device factory
     private final String name;
+    // The opened device handle for the low level telephony operations
+    private final AtomicReference<H> handleHolder = new AtomicReference<>(wrongHandle());
+    private final Predicate<H> validResourceHandle =
+            handle -> !Objects.equals(handle, wrongHandle()) || !Objects.equals(handle, errorHandle());
+    // predicate for valid result values of wait for call operation
+    private static Predicate<OperationResultValue> waitForCallExpected = value -> value == Result.CALL.RINGS
+            || value == Result.CALL.ALERTING || value == Result.TIMEOUT;
+    // predicate for valid result values of make call operation
+    private static Predicate<OperationResultValue> makeCallExpected = value -> value == Result.CALL.Analysis.VOICE
+            || value == Result.CALL.Analysis.FAX
+            || value == Result.CALL.Analysis.BUSY
+            || value == Result.CALL.Analysis.NO_ANSWER
+            || value == Result.CALL.Analysis.NO_RESPONDING
+            || value == Result.CALL.Analysis.NO_DIAL_TONE;
+    // the provider of telephony operations
+//    private final TelephonyServiceProvider<H> provider;
     // device part of the telephony calls management
-    private final CallsPortEngine calls;
+    private final CallsPortEngine<H> calls;
     // device part of the telephony signals and tones management
-    private final TonesEngine tones;
+    private final TonesEngine<H> tones;
     // device part of the telephony multi-medea (playback/record) management
-    private final MultiMedeaEngine media;
+    private final MultiMedeaEngine<H> media;
     // device part of the telephony fax-document exchange management
-    private final FaxMachineEngine faxes;
+    private final FaxMachineEngine<H> faxes;
 
     /**
      * <builder>
      * The constructor of the telephony device with parts instance
      *
-     * @param name the name of the device in the device factory
-     * @param calls device part of the telephony calls management
-     * @param tones device part of the telephony signals and tones management
-     * @param media device part of the telephony multi-medea (playback/record) management
-     * @param faxes device part of the telephony fax-document exchange management
+     * @param name     the name of the device in the device factory
+     * @param provider the manufacturer's provider of telephony operations
+     * @param calls    device part of the telephony calls management
+     * @param tones    device part of the telephony signals and tones management
+     * @param media    device part of the telephony multi-medea (playback/record) management
+     * @param faxes    device part of the telephony fax-document exchange management
      */
     protected AbstractTelephonyDevice(
-            final String name,
-            final CallsPortEngine calls, final TonesEngine tones,
-            final MultiMedeaEngine media, final FaxMachineEngine faxes
+            final String name, final TelephonyServiceProvider<H> provider,
+            final CallsPortEngine<H> calls, final TonesEngine<H> tones,
+            final MultiMedeaEngine<H> media, final FaxMachineEngine<H> faxes
     ) {
+        super(provider);
         this.name = name;
-        this.calls = calls;
-        this.tones = tones;
-        this.media = media;
-        this.faxes = faxes;
+//        this.provider = provider;
+        this.calls = calls.use(this);
+        this.tones = tones.use(this);
+        this.media = media.use(this);
+        this.faxes = faxes.use(this);
+    }
+
+    @Override
+    public <P extends TelephonyDevicePart<?>> P use(TelephonyDeviceCore<H> deviceCore) {
+        throw new UnsupportedOperationException("Not applicable here");
     }
 
     /**
@@ -122,9 +164,29 @@ public class AbstractTelephonyDevice<T extends TelephonyDeviceFactory<?>> extend
      *
      * @return the handle to manipulate the device features
      */
-    @Override
-    public <H> H getHandle() {
-        throw new UnsupportedOperationException("Not supported here.");
+//    @Override
+//    public H getHandle() {
+//        return handleHolder.get();
+//    }
+
+    /**
+     * <accessor>
+     * To get access to the wrong value device's low-level handle
+     *
+     * @return the value for handle of unopened device
+     */
+    protected H wrongHandle() {
+        return null;
+    }
+
+    /**
+     * <accessor>
+     * To get access to the error value device's low-level handle
+     *
+     * @return the value for handle of corrupted device
+     */
+    protected H errorHandle() {
+        return null;
     }
 
     /**
@@ -137,9 +199,119 @@ public class AbstractTelephonyDevice<T extends TelephonyDeviceFactory<?>> extend
      * @see ParameterName
      * @see Optional
      */
+//    @Override
+//    public Optional<ConfigurationParameter> getParameter(ParameterName name) {
+//        return Optional.ofNullable(parameters.get(name));
+//    }
+
+    /**
+     * <accessor>
+     * To get access to the current device's telephony events provider
+     *
+     * @return the reference to the events provider singleton
+     * @see TelephonyServiceProvider
+     */
     @Override
-    public Optional<ConfigurationParameter> getParameter(ParameterName name) {
-        return Optional.ofNullable(parameters.get(name));
+    public TelephonyServiceProvider<H> getProvider() {
+        return (TelephonyServiceProvider<H>) super.serviceProvider;
+    }
+
+    /**
+     * <action>
+     * Opening and activation of the channel-device.
+     *
+     * @throws IOException if channel device cannot be opened or activated
+     * @see #isOpened()
+     * @see #close()
+     * @see #getName()
+     * @see TelephonyServiceProvider#openResource(String)
+     * @see AbstractDevice#open()
+     * @see #dropCall()
+     * @see TelephonyServiceProvider#enableEvents(Object, OperationResultValue)
+     */
+    @Override
+    public void open() throws IOException {
+        if (isOpened()) {
+            // device is opened already, closing it
+            close();
+        }
+        // trying to open the telephony resource by the name and get the handle to the resource
+        final H handle = getProvider().openResource(getName());
+        // checking the resource's handle
+        if (validResourceHandle.test(handle)) {
+            // setting up the state of te device
+            super.open();
+            // storing resource's handle
+            handleHolder.getAndSet(handle);
+            // dropping the call if any
+            dropCall();
+            // enabling device's incoming call events producing
+//            getProvider().enableEvents(getHandle(), Result.CALL.RINGS);
+//            // opening fax-machine engine
+//            try {
+//                faxes.open();
+//            } catch (IOException e) {
+//                dispatchError(e, "Failed to open fax-machine for: " + getName());
+//            }
+        }
+    }
+
+    /**
+     * <action>
+     * Closing the device
+     *
+     * @throws IOException if an I/O error occurs
+//     * @see #getHandle()
+     * @see #terminate()
+     * @see #dropCall()
+     * @see AbstractDevice#close()
+     * @see TelephonyServiceProvider#disableEvents(Object)
+     */
+    @Override
+    public void close() throws IOException {
+//        if (isDeviceOpened()) {
+//            // to terminate the current device's operation
+//            terminate();
+//            // dropping the call if any
+//            dropCall();
+//            // setting up the state of the device
+//            super.close();
+//            // disabling any events producing
+//            provider.disableEvents(getHandle());
+//            // closing the resource
+//            provider.closeResource(getHandle());
+//            // closing fax-machine engine
+//            try {
+//                faxes.close();
+//            } catch (IOException e) {
+//                dispatchError(e, "Failed to close fax-machine for: " + getName());
+//            }
+//        }
+    }
+
+    /**
+     * <action>
+     * The unconditional termination anyone current active operation:
+     * 1. operations with telephony calls (waiting or making call, connect, etc.)
+     * 2. exchanges of the data (voice or fax)
+     *
+     * @throws IOException If the device can't terminate current operation
+     */
+    @Override
+    public void terminate() throws IOException {
+//        if (isDeviceOpened()) {
+//            final DeviceStateValue deviceState = getState();
+//            if (deviceState == PLAY || deviceState == RECORD) {
+//                media.terminate();
+//            } else if (deviceState == SENDFAX || deviceState == RECVFAX) {
+//                faxes.terminate();
+//            } else if (deviceState == DIAL || deviceState == TONE || deviceState == GTDIG) {
+//                tones.terminate();
+//            } else if (calls != null) {
+//                calls.terminate();
+//            }
+//            setState(Device.State.STOPD);
+//        }
     }
 
     /**
@@ -150,9 +322,8 @@ public class AbstractTelephonyDevice<T extends TelephonyDeviceFactory<?>> extend
      */
     @Override
     public void dropCall() {
-        if (calls != null) {
-            calls.dropCall();
-        }
+        calls.dropCall();
+//        currentState.getAndSet(Device.State.IDLE);
     }
 
     /**
@@ -171,7 +342,16 @@ public class AbstractTelephonyDevice<T extends TelephonyDeviceFactory<?>> extend
      */
     @Override
     public PhoneCall waitForCall(int rings, int timeout, boolean answer) {
-        return calls != null ? calls.waitForCall(rings, timeout, answer) : PhoneCall.FAILED;
+        return calls.canAcceptCall()
+                // to delegate call to the particular device's part engine
+                ? delegatePhoneCallOperation(WAIT, () -> calls.waitForCall(rings, timeout, answer), waitForCallExpected)
+                // failed answer
+                : PhoneCall.FAILED;
+    }
+
+    // to delegate call to the particular device's part engine
+    private PhoneCall delegateWaitForCall(int rings, int timeout, boolean answer) {
+        return delegatePhoneCallOperation(WAIT, () -> calls.waitForCall(rings, timeout, answer), waitForCallExpected);
     }
 
     /**
@@ -190,8 +370,13 @@ public class AbstractTelephonyDevice<T extends TelephonyDeviceFactory<?>> extend
      */
     @Override
     public PhoneCall makeCall(String number, int timeout) {
-        return calls != null ? calls.makeCall(number, timeout) : PhoneCall.FAILED;
+        return calls.canMakeCall()
+                // to delegate call to the particular device's part engine
+                ? delegatePhoneCallOperation(DIAL, () -> calls.makeCall(number, timeout), makeCallExpected)
+                // failed answer
+                : PhoneCall.FAILED;
     }
+
 
     /**
      * <action>
@@ -208,7 +393,11 @@ public class AbstractTelephonyDevice<T extends TelephonyDeviceFactory<?>> extend
      */
     @Override
     public PhoneCall connect(String number, int timeout, Sound toPlay) {
-        return calls != null ? calls.connect(number, timeout, toPlay) : PhoneCall.FAILED;
+        return calls.canBeConnected()
+                // to delegate call to the particular device's part engine
+                ? delegatePhoneCallOperation(DIAL, () -> calls.connect(number, timeout, toPlay), makeCallExpected)
+                // failed answer
+                : PhoneCall.FAILED;
     }
 
     /**
@@ -220,7 +409,8 @@ public class AbstractTelephonyDevice<T extends TelephonyDeviceFactory<?>> extend
      */
     @Override
     public int getTransferredPages() {
-        return faxes != null ? faxes.getTransferredPages() : 0;
+        return  0;
+//        return isDeviceOpened() && faxes.isOpened() ? faxes.getTransferredPages() : 0;
     }
 
     /**
@@ -232,7 +422,8 @@ public class AbstractTelephonyDevice<T extends TelephonyDeviceFactory<?>> extend
      */
     @Override
     public String getRemoteID() {
-        return faxes != null ? faxes.getRemoteID() : "";
+        return "";
+//        return isDeviceOpened() && faxes.isOpened() ? faxes.getRemoteID() : "";
     }
 
     /**
@@ -244,9 +435,7 @@ public class AbstractTelephonyDevice<T extends TelephonyDeviceFactory<?>> extend
      */
     @Override
     public void setFaxHeader(String header) {
-        if (faxes != null) {
-            faxes.setFaxHeader(header);
-        }
+        faxes.setFaxHeader(header);
     }
 
     /**
@@ -258,9 +447,7 @@ public class AbstractTelephonyDevice<T extends TelephonyDeviceFactory<?>> extend
      */
     @Override
     public void setFaxLocalID(String localID) {
-        if (faxes != null) {
-            faxes.setFaxLocalID(localID);
-        }
+        faxes.setFaxLocalID(localID);
     }
 
     /**
@@ -277,7 +464,19 @@ public class AbstractTelephonyDevice<T extends TelephonyDeviceFactory<?>> extend
      */
     @Override
     public OperationResultValue receive(OutputStream target, boolean pollingMode, boolean issueVoiceRequest) {
-        return faxes != null ? faxes.receive(target, pollingMode, issueVoiceRequest) : Result.ERROR;
+        return isDeviceOpened() && faxes.canFax()
+                ? delegateFaxReceive(target, pollingMode, issueVoiceRequest)
+                : Result.ERROR;
+    }
+
+    // to delegate call to the particular device's part engine
+    private OperationResultValue delegateFaxReceive(OutputStream target, boolean pollingMode, boolean issueVoiceRequest) {
+//        setState(RECVFAX);
+        try {
+            return faxes.receive(target, pollingMode, issueVoiceRequest);
+        } finally {
+//            setState(Device.State.IDLE);
+        }
     }
 
     /**
@@ -295,7 +494,19 @@ public class AbstractTelephonyDevice<T extends TelephonyDeviceFactory<?>> extend
      */
     @Override
     public OperationResultValue transmit(InputStream source, Fax format, boolean issueVoiceRequest) {
-        return faxes != null ? faxes.transmit(source, format, issueVoiceRequest) : Result.ERROR;
+        return isDeviceOpened() && faxes.canFax()
+                ? delegateFaxTransmit(source, format, issueVoiceRequest)
+                : Result.ERROR;
+    }
+
+    // to delegate call to the particular device's part engine
+    private OperationResultValue delegateFaxTransmit(InputStream source, Fax format, boolean issueVoiceRequest) {
+//        setState(SENDFAX);
+        try {
+            return faxes.transmit(source, format, issueVoiceRequest);
+        } finally {
+//            setState(Device.State.IDLE);
+        }
     }
 
     /**
@@ -309,7 +520,7 @@ public class AbstractTelephonyDevice<T extends TelephonyDeviceFactory<?>> extend
      */
     @Override
     public Audio[] canPlay() {
-        return media != null ? media.canPlay() : null;
+        return isDeviceOpened() ? media.canPlay() : null;
     }
 
     /**
@@ -322,7 +533,7 @@ public class AbstractTelephonyDevice<T extends TelephonyDeviceFactory<?>> extend
      */
     @Override
     public Audio getRawFormat() {
-        return media != null ? media.getRawFormat() : null;
+        return isDeviceOpened() ? media.getRawFormat() : null;
     }
 
     /**
@@ -339,9 +550,13 @@ public class AbstractTelephonyDevice<T extends TelephonyDeviceFactory<?>> extend
      * @see Result#ERROR
      */
     @Override
-    public OperationResultValue playbackAudio(InputStream source, String terminationSymbolsMask, int timeout, Audio format) {
-        return media != null ? media.playbackAudio(source, terminationSymbolsMask, timeout, format) : Result.ERROR;
+    public OperationResultValue playbackAudio(final InputStream source, final String terminationSymbolsMask,
+                                              final int timeout, final Audio format) {
+        return media.canPlay(format)
+                ? delegateMediaOperation(PLAY, () -> media.playbackAudio(source, terminationSymbolsMask, timeout, format))
+                : Result.ERROR;
     }
+
 
     /**
      * <accessor>
@@ -354,7 +569,7 @@ public class AbstractTelephonyDevice<T extends TelephonyDeviceFactory<?>> extend
      */
     @Override
     public Audio[] canRecord() {
-        return media != null ? media.canRecord() : null;
+        return isDeviceOpened() ? media.canRecord() : null;
     }
 
     /**
@@ -367,7 +582,7 @@ public class AbstractTelephonyDevice<T extends TelephonyDeviceFactory<?>> extend
      */
     @Override
     public Audio getRecordFormat() {
-        return media != null ? media.getRecordFormat() : null;
+        return isDeviceOpened() ? media.getRecordFormat() : null;
     }
 
     /**
@@ -385,8 +600,11 @@ public class AbstractTelephonyDevice<T extends TelephonyDeviceFactory<?>> extend
      * @see Result#ERROR
      */
     @Override
-    public OperationResultValue recordAudio(OutputStream target, String terminationSymbolsMask, int silence, int timeout, Audio format) {
-        return media != null ? media.recordAudio(target, terminationSymbolsMask, silence, timeout, format) : Result.ERROR;
+    public OperationResultValue recordAudio(final OutputStream target, final String terminationSymbolsMask,
+                                            final int silence, final int timeout, final Audio format) {
+        return media.canRecord(format)
+                ? delegateRecordAudio(target, terminationSymbolsMask, silence, timeout, format)
+                : Result.ERROR;
     }
 
     /**
@@ -398,9 +616,7 @@ public class AbstractTelephonyDevice<T extends TelephonyDeviceFactory<?>> extend
      */
     @Override
     public void dial(String toDial) {
-        if (tones != null) {
-            tones.dial(toDial);
-        }
+        delegateToneAction(DIAL, () -> tones.dial(toDial));
     }
 
     /**
@@ -416,9 +632,7 @@ public class AbstractTelephonyDevice<T extends TelephonyDeviceFactory<?>> extend
      */
     @Override
     public void playTone(ToneId toneId, float time) {
-        if (tones != null) {
-            tones.playTone(toneId, time);
-        }
+        delegateToneAction(TONE, () -> tones.playTone(toneId, time));
     }
 
     /**
@@ -437,8 +651,11 @@ public class AbstractTelephonyDevice<T extends TelephonyDeviceFactory<?>> extend
      */
     @Override
     public OperationResultValue inputDigits(int digitsCount, int timeout, String terminationSymbolsMask) {
-        return tones != null ? tones.inputDigits(digitsCount, timeout, terminationSymbolsMask) : Result.ERROR;
+        return isDeviceOpened()
+                ? delegateMediaOperation(GTDIG, () -> tones.inputDigits(digitsCount, timeout, terminationSymbolsMask))
+                : Result.ERROR;
     }
+
 
     /**
      * <accessor>
@@ -451,6 +668,89 @@ public class AbstractTelephonyDevice<T extends TelephonyDeviceFactory<?>> extend
      */
     @Override
     public String getInputSymbols() {
-        return tones != null ? tones.getInputSymbols() : "";
+        return isDeviceOpened() ? delegateInputSymbols() : "";
+    }
+
+    // to delegate call to the particular device's part engine
+    private String delegateInputSymbols() {
+//        setState(GTDIG);
+        try {
+            return tones.getInputSymbols();
+        } finally {
+//            setState(Device.State.IDLE);
+        }
+    }
+
+    // unified delegation of phone call operation for particular device
+    private PhoneCall delegatePhoneCallOperation(final DeviceStateValue operationInitState,
+                                                 final Supplier<PhoneCall> operation,
+                                                 final Predicate<OperationResultValue> validResults) {
+        // checking device's handle value
+        if (!isDeviceOpened()) {
+            // device isn't opened yet
+//            setState(Device.State.CLOSED);
+            return PhoneCall.FAILED;
+        } else {
+            // running the operation's call sequence
+//            setState(operationInitState);
+            // waiting for the operation's complete
+            final PhoneCall result = operation.get();
+            // preparing new device state
+            final DeviceStateValue operationResultDeviceState = validResults.test(result.operationResult())
+                    ? Device.State.IDLE
+                    : result.operationResult() == Result.TERMINATED ? Device.State.STOPD : Device.State.ERROR;
+            // setting up the device state according the operation's result
+//            setState(operationResultDeviceState);
+            // returning the phone call instance
+            return result;
+        }
+    }
+
+    // unified delegation to the proper tone-engine related action
+    private void delegateToneAction(final DeviceStateValue actionState, final Runnable action) {
+        if (isDeviceOpened()) {
+            // running the action's call sequence
+//            setState(actionState);
+            // waiting for the action's complete
+            action.run();
+            // setting up the device state according the action's result
+//            setState(Device.State.IDLE);
+        }
+    }
+
+    // to delegate call to the particular device's part engine
+    private OperationResultValue delegateRecordAudio(final OutputStream target, final String terminationSymbolsMask,
+                                                     final int silence, final int timeout, final Audio format) {
+        return delegateMediaOperation(RECORD,
+                () -> media.recordAudio(target, terminationSymbolsMask, silence, timeout, format)
+        );
+    }
+
+    // unified delegation of media operation for particular device
+    private OperationResultValue delegateMediaOperation(final DeviceStateValue operationInitState,
+                                                        final Supplier<OperationResultValue> operation) {
+        // checking device's handle value
+        if (!isDeviceOpened()) {
+            // device isn't opened yet
+//            setState(Device.State.CLOSED);
+            return Result.ERROR;
+        } else {
+            // running the operation's call sequence
+//            setState(operationInitState);
+            try {
+                // waiting for the operation's complete
+                // returning the phone call instance
+                return operation.get();
+            } finally {
+                // setting up the device state according the operation's result
+//                setState(Device.State.IDLE);
+            }
+        }
+    }
+
+    // to check is device has valid handle
+    private boolean isDeviceOpened() {
+        return true;
+//        return validResourceHandle.test(getHandle());
     }
 }
