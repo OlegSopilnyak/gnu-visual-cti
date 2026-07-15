@@ -45,7 +45,7 @@ package org.visualcti.core.channel.device;
 public class DeviceMalfunction extends Error {
     private final transient Device<?, ?> device;
     public DeviceMalfunction(Device<?, ?> device, String description) {
-        super("In device: " + device.getDeviceName() + " was detected malfunction: " + description);
+        super("In device: '" + device.getName() + "' was detected malfunction: " + description);
         this.device = device;
     }
 

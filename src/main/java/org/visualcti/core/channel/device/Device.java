@@ -64,6 +64,8 @@ import org.visualcti.server.task.Environment;
 public interface Device<H, F extends Factory<?>> extends ServerUnit {
     // the value of type the server unit
     String UNIT_TYPE = "[channel-device]";
+    ParameterName REPAIR_ATTEMPT = Repair.ATTEMPT;
+    ParameterName REPAIR_TIMEOUT = Repair.TIMEOUT;
 
     /**
      * <accessor>
@@ -125,7 +127,9 @@ public interface Device<H, F extends Factory<?>> extends ServerUnit {
      * @throws IOException if device cannot create the session for device handle
      * @see Session
      */
-    Session<H> createSessionFor(H openedDeviceHandle) throws IOException;
+    default Session<H> createSessionFor(H openedDeviceHandle) throws IOException {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
 
     /**
      * <action>
@@ -144,8 +148,10 @@ public interface Device<H, F extends Factory<?>> extends ServerUnit {
         }
         // building new session for the device handle
         final Session<H> session = createSessionFor(deviceHandle);
-        // add the device context as device events listener
+        // add the device session as device events listener
         getFactory().addDeviceEventListenerFor(getName(), session);
+        // notifying about created session state
+        stateChangedFor(session);
         // reruns built well device session
         return session;
     }
@@ -164,7 +170,7 @@ public interface Device<H, F extends Factory<?>> extends ServerUnit {
         session.close();
         // closing device provider resource (can throw IOException)
         serviceProvider().closeResource(session.getDeviceHandle());
-        // removing context as an events listener from the factory
+        // removing the device session as an events listener from the factory
         getFactory().removeDeviceEventListenerFor(getName(), session);
 
     }
@@ -177,6 +183,16 @@ public interface Device<H, F extends Factory<?>> extends ServerUnit {
      * @see Session#getState()
      */
     void stateChangedFor(Session<H> session);
+
+    /**
+     * <accessor>
+     * To get the stream of the states of the active device's sessions
+     *
+     * @return stream of active device's sessions states
+     * @see Session#getState()
+     * @see DeviceStateValue
+     */
+    Stream<DeviceStateValue> getStates();
 
     /**
      * <accessor>
@@ -207,6 +223,8 @@ public interface Device<H, F extends Factory<?>> extends ServerUnit {
         // trying to start session
         final Session<H> session = startSession();
         if (!session.isOpened()) {
+            // removing the broken device session as device events listener from the factory
+            getFactory().removeDeviceEventListenerFor(getName(), session);
             // starting is failed
             final String message = "Device Session could not be opened!";
             dispatchError(message);
@@ -311,8 +329,10 @@ public interface Device<H, F extends Factory<?>> extends ServerUnit {
      * @see TimeUnit#sleep(long)
      */
     default boolean repair() {
-        final int repairTryAttempts = 20;
-        final long nextTryInSeconds = 3;
+        final ConfigurationParameter attempt = getParameter(REPAIR_ATTEMPT).orElse(null);
+        final int repairTryAttempts = attempt != null ? attempt.getValue() : 20;
+        final ConfigurationParameter nextTryIn = getParameter(REPAIR_TIMEOUT).orElse(null);
+        final int nextTryInSeconds = nextTryIn != null ? nextTryIn.getValue() : 3000;
         // repairing sequence
         try {
             // closing the device
@@ -320,13 +340,14 @@ public interface Device<H, F extends Factory<?>> extends ServerUnit {
             // trying 20 times to open the device
             for (int i = 1; i <= repairTryAttempts; i++) {
                 // try to open the device
-                open();
+                tryToOpenTheDevice(this);
+                // check device opening result
                 if (isOpened()) {
                     // device repaired well
                     return true;
                 }
                 // sleeping 3 sec, before next try
-                sleepSeconds(nextTryInSeconds);
+                sleepMilliseconds(nextTryInSeconds);
             }
         } catch (IOException e) {
             dispatchError(e, "Cannot repair device: " + getDeviceName());
@@ -335,11 +356,35 @@ public interface Device<H, F extends Factory<?>> extends ServerUnit {
         return false;
     }
 
-    static void sleepSeconds(final long seconds) {
+    static void tryToOpenTheDevice(final Device<?, ?> device) throws IOException {
         try {
-            TimeUnit.SECONDS.sleep(seconds);
+            device.open();
+        } catch (Exception e) {
+            device.dispatchError(e, "Cannot open device: " + device.getDeviceName());
+        }
+    }
+
+    static void sleepMilliseconds(final long milliseconds) {
+        try {
+            TimeUnit.MILLISECONDS.sleep(milliseconds);
         } catch (Exception e) {
             // doing nothing here
+        }
+    }
+
+    enum Repair implements ParameterName {
+        ATTEMPT("ATTEMPT"),
+        TIMEOUT("TIMEOUT");
+
+        private final String name;
+
+        Repair(String name) {
+            this.name = name;
+        }
+
+        @Override
+        public String value() {
+            return name.toLowerCase();
         }
     }
 

@@ -38,9 +38,13 @@ Fax number: 217-356-3356
 package org.visualcti.core.channel.device.adapter;
 
 
+import static org.visualcti.core.channel.device.Device.State.CLOSED;
+
+import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Stream;
 import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceStateValue;
@@ -60,6 +64,8 @@ public class AbstractDevice<H, F extends Factory<?>> extends ServerUnitAdapter i
     protected final Map<ParameterName, ConfigurationParameter> parameters = new ConcurrentHashMap<>();
     // the service provider of the channel device actions functionality
     protected final transient ServiceProvider<H> serviceProvider;
+    // the map of sessions' states of the device
+    private final Map<H, DeviceStateValue> sessionStates = new ConcurrentHashMap<>();
 
     /**
      * <builder>
@@ -90,10 +96,49 @@ public class AbstractDevice<H, F extends Factory<?>> extends ServerUnitAdapter i
      *
      * @param session the context with new value of the state
      * @see AbstractDeviceSession#setState(DeviceStateValue)
+     * @see #dispatchError(String)
+     * @see Session#getState()
+     * @see Session#getDeviceHandle()
      */
     @Override
     public void stateChangedFor(final Session<H> session) {
-        // doing nothing by default
+        if (isInvalid(session)) {
+            dispatchError("Wrong state changed notification for\n" + session);
+        } else {
+            // session is valid working with it
+            if (session.getState() == CLOSED) {
+                // last state before session's detaching, removing session's state from the states map
+                sessionStates.remove(session.getDeviceHandle());
+            } else {
+                // changed state, updating the states map
+                sessionStates.put(session.getDeviceHandle(), session.getState());
+            }
+        }
+    }
+
+    /**
+     * <accessor>
+     * To get the stream of the states of the active device's sessions
+     *
+     * @return stream of active device's sessions states
+     * @see DeviceStateValue
+     * @see #stateChangedFor(Session)
+     */
+    @Override
+    public Stream<DeviceStateValue> getStates() {
+        return Stream.of(sessionStates.values().toArray(new DeviceStateValue[0]));
+    }
+
+    /**
+     * <action>
+     * Closing the channel device removing all sessions from device factory as events listeners
+     *
+     * @throws IOException if an I/O error occurs
+     * @see Device#close()
+     */
+    @Override
+    public void close() throws IOException {
+        Device.super.close();
     }
 
     /**
@@ -109,20 +154,6 @@ public class AbstractDevice<H, F extends Factory<?>> extends ServerUnitAdapter i
     @Override
     public Optional<ConfigurationParameter> getParameter(final ParameterName name) {
         return Optional.ofNullable(parameters.get(name));
-    }
-
-    /**
-     * <builder>
-     * To build the session for the opened device resource handle
-     *
-     * @param openedDeviceHandle the handle of the opened resource
-     * @return built device session
-     * @see AbstractDeviceSession
-     */
-    @Override
-    public Session<H> createSessionFor(final H openedDeviceHandle) {
-        // creating abstract device session
-        return new AbstractDeviceSession<>(this, openedDeviceHandle);
     }
 
     /**
@@ -145,5 +176,11 @@ public class AbstractDevice<H, F extends Factory<?>> extends ServerUnitAdapter i
     @Override
     public int hashCode() {
         return super.hashCode();
+    }
+
+    /// / private methods
+    // to check the device session integrity
+    private boolean isInvalid(Session<H> session) {
+        return session == null || session.getDeviceHandle() == null || session.getState() == null;
     }
 }
