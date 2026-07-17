@@ -149,7 +149,7 @@ public interface Device<H, F extends Factory<?>> extends ServerUnit {
         // building new session for the device handle
         final Session<H> session = createSessionFor(deviceHandle);
         // add the device session as device events listener
-        getFactory().addDeviceEventListenerFor(getName(), session);
+        getFactory().getHub().addDeviceEventListenerFor(getName(), session);
         // notifying about created session state
         stateChangedFor(session);
         // reruns built well device session
@@ -171,7 +171,7 @@ public interface Device<H, F extends Factory<?>> extends ServerUnit {
         // closing device provider resource (can throw IOException)
         serviceProvider().closeResource(session.getDeviceHandle());
         // removing the device session as an events listener from the factory
-        getFactory().removeDeviceEventListenerFor(getName(), session);
+        getFactory().getHub().removeDeviceEventListenerFor(getName(), session);
 
     }
 
@@ -201,14 +201,14 @@ public interface Device<H, F extends Factory<?>> extends ServerUnit {
      * @return stream of active device sessions
      * @see #getFactory()
      * @see #getName()
-     * @see Factory#eventListeners(String)
+     * @see DeviceEvent.Listener.Hub#eventListeners(String)
      * @see Session
      * @see #isOpened()
      * @see #findSessionByHandle(Object)
      * @see #close()
      */
     default Stream<Session<H>> sessions() {
-        return getFactory().eventListeners(getName())
+        return getFactory().getHub().eventListeners(getName())
                 .filter(Session.class::isInstance).map(context -> (Session<H>) context);
     }
 
@@ -224,7 +224,7 @@ public interface Device<H, F extends Factory<?>> extends ServerUnit {
         final Session<H> session = startSession();
         if (!session.isOpened()) {
             // removing the broken device session as device events listener from the factory
-            getFactory().removeDeviceEventListenerFor(getName(), session);
+            getFactory().getHub().removeDeviceEventListenerFor(getName(), session);
             // starting is failed
             final String message = "Device Session could not be opened!";
             dispatchError(message);
@@ -266,9 +266,9 @@ public interface Device<H, F extends Factory<?>> extends ServerUnit {
      * @see #getName()
      * @see #getFactory()
      * @see #serviceProvider()
-     * @see Factory#eventListeners(String)
+     * @see DeviceEvent.Listener.Hub#eventListeners(String)
      * @see ServiceProvider#closeResource(Object)
-     * @see Factory#removeDeviceEventListenerFor(String, DeviceEvent.Listener)
+     * @see DeviceEvent.Listener.Hub#removeDeviceEventListenerFor(String, DeviceEvent.Listener)
      */
     @Override
     default void close() throws IOException {
@@ -367,8 +367,9 @@ public interface Device<H, F extends Factory<?>> extends ServerUnit {
     static void sleepMilliseconds(final long milliseconds) {
         try {
             TimeUnit.MILLISECONDS.sleep(milliseconds);
-        } catch (Exception e) {
-            // doing nothing here
+        } catch (InterruptedException e) {
+            /* Clean up whatever needs to be handled before interrupting  */
+            Thread.currentThread().interrupt();
         }
     }
 
@@ -514,7 +515,18 @@ public interface Device<H, F extends Factory<?>> extends ServerUnit {
      *
      * @param <H> the type of the device's low-level operations handle
      */
-    interface ServiceProvider<H> {
+    interface ServiceProvider<H> extends DeviceEvent.Provider {
+        /**
+         * <action>
+         * To get the device event from events provider during particular time-frame
+         *
+         * @param during time-frame for event's getting
+         * @return detected event or empty
+         * @see DeviceEvent
+         * @see Optional
+         */
+        @Override
+        Optional<DeviceEvent> getEvent(long during);
 
         /**
          * <action>

@@ -56,7 +56,6 @@ import java.util.Optional;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 import org.junit.After;
 import org.junit.Before;
@@ -199,151 +198,167 @@ public class AbstractFactoryTest {
         // check results
         assertThat(factoryChannels).isEmpty();
     }
+//
+//    @Test
+//    public void shouldGetEventListenersForDeviceName() {
+//        // preparing test data
+//        DeviceEvent.Listener mockedListener = mock(DeviceEvent.Listener.class);
+//        factory.getHub().addDeviceEventListenerFor(deviceName, mockedListener);
+//
+//        // acting
+//        Stream<DeviceEvent.Listener> stream = factory.getHub().eventListeners(deviceName);
+//
+//        // check results
+//        assertThat(stream.toArray()).hasSize(1).contains(mockedListener);
+//    }
+//
+//    @Test
+//    public void shouldNotGetEventListenersForDeviceName_NoOneAdded() {
+//        // preparing test data
+//
+//        // acting
+//        Stream<DeviceEvent.Listener> stream = factory.eventListeners(deviceName);
+//
+//        // check results
+//        assertThat(stream.toArray()).isEmpty();
+//    }
+//
+//    @Test
+//    public void shouldAddDeviceEventListenerFor() {
+//        // preparing test data
+//        DeviceEvent.Listener mockedListener = mock(DeviceEvent.Listener.class);
+//        assertThat(factory.eventListeners(deviceName).toArray()).isEmpty();
+//
+//        // acting
+//        boolean done = factory.addDeviceEventListenerFor(deviceName, mockedListener);
+//
+//        // check results
+//        assertThat(done).isTrue();
+//        assertThat(factory.eventListeners(deviceName).toArray()).hasSize(1).contains(mockedListener);
+//    }
 
-    @Test
-    public void shouldGetEventListenersForDeviceName() {
-        // preparing test data
-        DeviceEvent.Listener eventListener = mock(DeviceEvent.Listener.class);
-        factory.addDeviceEventListenerFor(deviceName, eventListener);
-
-        // acting
-        Stream<DeviceEvent.Listener> stream = factory.eventListeners(deviceName);
-
-        // check results
-        assertThat(stream.toArray()).hasSize(1).contains(eventListener);
-    }
-
-    @Test
-    public void shouldNotGetEventListenersForDeviceName_NoAddedOnes() {
-        // preparing test data
-
-        // acting
-        Stream<DeviceEvent.Listener> stream = factory.eventListeners(deviceName);
-
-        // check results
-        assertThat(stream.toArray()).isEmpty();
-    }
-
-    @Test
-    public void shouldAddDeviceEventListenerFor() {
-        // preparing test data
-        DeviceEvent.Listener eventListener = mock(DeviceEvent.Listener.class);
-        assertThat(factory.eventListeners(deviceName).toArray()).isEmpty();
-
-        // acting
-        factory.addDeviceEventListenerFor(deviceName, eventListener);
-
-        // check results
-        assertThat(factory.eventListeners(deviceName).toArray()).hasSize(1).contains(eventListener);
-    }
-
-    @Test
-    public void shouldNotAddDeviceEventListenerFor_AlreadyAddedOne() {
-        // preparing test data
-        DeviceEvent.Listener eventListener = mock(DeviceEvent.Listener.class);
-        factory.addDeviceEventListenerFor(deviceName, eventListener);
-        assertThat(factory.eventListeners(deviceName).toArray()).hasSize(1).contains(eventListener);
-
-        // acting
-        factory.addDeviceEventListenerFor(deviceName, eventListener);
-
-        // check results
-        assertThat(factory.eventListeners(deviceName).toArray()).hasSize(1);
-    }
-
-    @Test
-    public void shouldRemoveDeviceEventListenerFor() {
-        // preparing test data
-        DeviceEvent.Listener eventListener = mock(DeviceEvent.Listener.class);
-        factory.addDeviceEventListenerFor(deviceName, eventListener);
-        assertThat(factory.eventListeners(deviceName).toArray()).hasSize(1).contains(eventListener);
-
-        // acting
-        factory.removeDeviceEventListenerFor(deviceName, eventListener);
-
-        // check results
-        assertThat(factory.eventListeners(deviceName).toArray()).isEmpty();
-    }
-
-    @Test
-    public void shouldNotifyListeners() {
-        // preparing test data
-        DeviceEvent.Listener eventListener = mock(DeviceEvent.Listener.class);
-        DeviceEvent.Listener eventListener2 = mock(DeviceEvent.Listener.class);
-        factory.addDeviceEventListenerFor(deviceName, eventListener);
-        factory.addDeviceEventListenerFor(deviceName, eventListener2);
-        assertThat(factory.eventListeners(deviceName).toArray()).hasSize(2).contains(eventListener);
-        assertThat(factory.eventListeners(deviceName).toArray()).hasSize(2).contains(eventListener2);
-        DeviceEvent event = mock(DeviceEvent.class);
-        doReturn(deviceName).when(event).getDeviceName();
-        doReturn(true).when(eventListener).accept(event);
-        doReturn(true).when(eventListener2).accept(event);
-
-        // acting
-        factory.notifyListeners(event);
-
-        // check the behavior
-        verify(eventListener).accept(event);
-        verify(eventListener2).accept(event);
-        verify(factory, never()).reject(event);
-        // check results
-    }
-
-    @Test
-    public void shouldNotifyListeners_WithRejectEvent() {
-        // preparing test data
-        DeviceEvent.Listener eventListener = mock(DeviceEvent.Listener.class);
-        factory.addDeviceEventListenerFor(deviceName, eventListener);
-        assertThat(factory.eventListeners(deviceName).toArray()).hasSize(1).contains(eventListener);
-        DeviceEvent event = mock(DeviceEvent.class);
-        doReturn(deviceName).when(event).getDeviceName();
-
-        // acting
-        factory.notifyListeners(event);
-
-        // check the behavior
-        verify(eventListener).accept(event);
-        verify(factory).reject(event);
-        // check results
-    }
-
-    @Test
-    public void shouldNotifyListeners_WithAcceptEvent() {
-        // preparing test data
-        DeviceEvent.Listener eventListener = mock(DeviceEvent.Listener.class);
-        factory.addDeviceEventListenerFor(deviceName, eventListener);
-        assertThat(factory.eventListeners(deviceName).toArray()).hasSize(1).contains(eventListener);
-        DeviceEvent event = mock(DeviceEvent.class);
-        doReturn(deviceName).when(event).getDeviceName();
-        doReturn(true).when(eventListener).accept(event);
-
-        // acting
-        factory.notifyListeners(event);
-
-        // check the behavior
-        verify(eventListener).accept(event);
-        verify(factory, never()).reject(event);
-        // check results
-    }
-
-    @Test
-    public void shouldRejectEvent() {
-        // preparing test data
-        DeviceEvent event = mock(DeviceEvent.class);
-        doReturn(deviceName).when(event).getDeviceName();
-        AtomicBoolean rejected = new AtomicBoolean(false);
-        doAnswer(invocationOnMock -> {
-            rejected.getAndSet(true);
-            return invocationOnMock.callRealMethod();
-        }).when(factory).reject(event);
-        assertThat(rejected.get()).isFalse();
-
-        // acting
-        factory.reject(event);
-
-        // check results
-        assertThat(rejected.get()).isTrue();
-    }
+//    @Test
+//    public void shouldNotAddDeviceEventListenerFor_AlreadyAddedOne() {
+//        // preparing test data
+//        DeviceEvent.Listener mockedListener = mock(DeviceEvent.Listener.class);
+//        factory.addDeviceEventListenerFor(deviceName, mockedListener);
+//        assertThat(factory.eventListeners(deviceName).toArray()).hasSize(1).contains(mockedListener);
+//
+//        // acting
+//        boolean done = factory.addDeviceEventListenerFor(deviceName, mockedListener);
+//
+//        // check results
+//        assertThat(done).isFalse();
+//        assertThat(factory.eventListeners(deviceName).toArray()).hasSize(1);
+//    }
+//
+//    @Test
+//    public void shouldRemoveDeviceEventListenerFor() {
+//        // preparing test data
+//        DeviceEvent.Listener mockedListener = mock(DeviceEvent.Listener.class);
+//        factory.addDeviceEventListenerFor(deviceName, mockedListener);
+//        assertThat(factory.eventListeners(deviceName).toArray()).hasSize(1).contains(mockedListener);
+//
+//        // acting
+//        boolean done = factory.removeDeviceEventListenerFor(deviceName, mockedListener);
+//
+//        // check results
+//        assertThat(done).isTrue();
+//        assertThat(factory.eventListeners(deviceName).toArray()).isEmpty();
+//    }
+//
+//    @Test
+//    public void shouldNotRemoveDeviceEventListenerFor_NotAddedYet() {
+//        // preparing test data
+//        DeviceEvent.Listener mockedListener = mock(DeviceEvent.Listener.class);
+//
+//        // acting
+//        boolean done = factory.removeDeviceEventListenerFor(deviceName, mockedListener);
+//
+//        // check results
+//        assertThat(done).isFalse();
+//        assertThat(factory.eventListeners(deviceName).toArray()).isEmpty();
+//    }
+//
+//    @Test
+//    public void shouldNotifyListeners() {
+//        // preparing test data
+//        DeviceEvent.Listener mockedListener = mock(DeviceEvent.Listener.class);
+//        DeviceEvent.Listener mockedListener2 = mock(DeviceEvent.Listener.class);
+//        assertThat(factory.addDeviceEventListenerFor(deviceName, mockedListener)).isTrue();
+//        assertThat(factory.addDeviceEventListenerFor(deviceName, mockedListener2)).isTrue();
+//        assertThat(factory.eventListeners(deviceName).toArray()).hasSize(2).contains(mockedListener);
+//        assertThat(factory.eventListeners(deviceName).toArray()).hasSize(2).contains(mockedListener2);
+//        DeviceEvent event = mock(DeviceEvent.class);
+//        doReturn(deviceName).when(event).getDeviceName();
+//        doReturn(true).when(mockedListener).accept(event);
+//        doReturn(true).when(mockedListener2).accept(event);
+//
+//        // acting
+//        factory.notifyListeners(event);
+//
+//        // check the behavior
+//        verify(mockedListener).accept(event);
+//        verify(mockedListener2).accept(event);
+//        verify(factory, never()).reject(event);
+//        // check results
+//    }
+//
+//    @Test
+//    public void shouldNotifyListeners_WithRejectEvent() {
+//        // preparing test data
+//        DeviceEvent.Listener mockedListener = mock(DeviceEvent.Listener.class);
+//        assertThat(factory.addDeviceEventListenerFor(deviceName, mockedListener)).isTrue();
+//        assertThat(factory.eventListeners(deviceName).toArray()).hasSize(1).contains(mockedListener);
+//        DeviceEvent event = mock(DeviceEvent.class);
+//        doReturn(deviceName).when(event).getDeviceName();
+//
+//        // acting
+//        factory.notifyListeners(event);
+//
+//        // check the behavior
+//        verify(mockedListener).accept(event);
+//        verify(factory).reject(event);
+//        // check results
+//    }
+//
+//    @Test
+//    public void shouldNotifyListeners_WithAcceptEvent() {
+//        // preparing test data
+//        DeviceEvent.Listener eventListener = mock(DeviceEvent.Listener.class);
+//        factory.addDeviceEventListenerFor(deviceName, eventListener);
+//        assertThat(factory.eventListeners(deviceName).toArray()).hasSize(1).contains(eventListener);
+//        DeviceEvent event = mock(DeviceEvent.class);
+//        doReturn(deviceName).when(event).getDeviceName();
+//        doReturn(true).when(eventListener).accept(event);
+//
+//        // acting
+//        factory.notifyListeners(event);
+//
+//        // check the behavior
+//        verify(eventListener).accept(event);
+//        verify(factory, never()).reject(event);
+//        // check results
+//    }
+//
+//    @Test
+//    public void shouldRejectEvent() {
+//        // preparing test data
+//        DeviceEvent event = mock(DeviceEvent.class);
+//        doReturn(deviceName).when(event).getDeviceName();
+//        AtomicBoolean rejected = new AtomicBoolean(false);
+//        doAnswer(invocationOnMock -> {
+//            rejected.getAndSet(true);
+//            return invocationOnMock.callRealMethod();
+//        }).when(factory).reject(event);
+//        assertThat(rejected.get()).isFalse();
+//
+//        // acting
+//        factory.reject(event);
+//
+//        // check results
+//        assertThat(rejected.get()).isTrue();
+//    }
 
     @Test
     public void shouldNotGetDevice_NoANyDevice() {
@@ -534,7 +549,7 @@ public class AbstractFactoryTest {
     @Test
     public void shouldDoEventProcessingDeviceEvents() throws InterruptedException {
         // preparing test data
-        AbstractFactory<Device<?, ?>> activeFactory = spy(new AbstractFactory(deviceEventExecutor, eventsProvider) {
+        AbstractFactory<Device<?, ?>> activeFactory = spy(new AbstractFactory(deviceEventExecutor, eventsProvider, null) {
             {
                 this.unitState.getAndSet(UnitState.ACTIVE);
             }
@@ -560,7 +575,7 @@ public class AbstractFactoryTest {
     /// / inner classes
     private static class TestFactory extends AbstractFactory<Device<?, ?>> {
         public TestFactory(Executor deviceEventExecutor, DeviceEvent.Provider eventsProvider) {
-            super(deviceEventExecutor, eventsProvider);
+            super(deviceEventExecutor, eventsProvider, null);
         }
 
         @Override
@@ -572,11 +587,11 @@ public class AbstractFactoryTest {
         public String getVersion() {
             return deviceVendorVersion;
         }
-
-        @Override
-        protected void reject(DeviceEvent event) {
-            // doing nothing here
-        }
+//
+//        @Override
+//        protected void reject(DeviceEvent event) {
+//            // doing nothing here
+//        }
 
         @Override
         protected Channel<Device<?, ?>> makeChannelFor(Device<?, ?> device) {

@@ -51,7 +51,7 @@ import org.visualcti.server.core.unit.RunnableServerUnit;
  * @see RunnableServerUnit
  */
 @SuppressWarnings("unchecked")
-public interface Factory<D extends Device<?, ?>> extends RunnableServerUnit {
+public interface Factory<D extends Device<?, ?>> extends RunnableServerUnit, DeviceEvent.Processor {
     // The name of root XML's Element
     String ELEMENT = "factory";
     // the value of type the server unit
@@ -131,40 +131,4 @@ public interface Factory<D extends Device<?, ?>> extends RunnableServerUnit {
     default Optional<D> getDevice(String name) {
         return devices().filter(d -> d.getName().equals(name)).findFirst();
     }
-
-    /**
-     * <aceessor>
-     * to get the event listener of the device
-     *
-     * @param deviceName the name of device in the factory
-     * @return the stream of the listeners of the device with name
-     * @see #addDeviceEventListenerFor(String, DeviceEvent.Listener)
-     * @see #removeDeviceEventListenerFor(String, DeviceEvent.Listener)
-     * @see DeviceEvent.Listener
-     * @see Stream
-     */
-    Stream<DeviceEvent.Listener> eventListeners(String deviceName);
-
-    /**
-     * <mutator>
-     * To add device events listener for particular device's events
-     *
-     * @param deviceName the name of device to listen events from
-     * @param listener   the listener instance
-     * @see DeviceEvent.Listener
-     * @see Device#getName()
-     */
-    void addDeviceEventListenerFor(String deviceName, DeviceEvent.Listener listener);
-
-
-    /**
-     * <mutator>
-     * To remove device events listener for particular device's events
-     *
-     * @param deviceName the name of device to listen events from
-     * @param listener   the listener instance
-     * @see DeviceEvent.Listener
-     * @see Device#getName()
-     */
-    void removeDeviceEventListenerFor(String deviceName, DeviceEvent.Listener listener);
 }

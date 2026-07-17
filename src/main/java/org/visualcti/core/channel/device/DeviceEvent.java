@@ -40,6 +40,9 @@ package org.visualcti.core.channel.device;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Predicate;
+import java.util.stream.Stream;
+import org.visualcti.server.core.unit.RunnableServerUnit;
 
 /**
  * The event from the channel-device side
@@ -145,6 +148,49 @@ public interface DeviceEvent {
          * @return true if the event accepted for the processing
          */
         boolean accept(DeviceEvent event);
+
+        /**
+         * Events Listeners Hub: The hub of the native device's event listeners
+         */
+        interface Hub {
+            /**
+             * <aceessor>
+             * to get the event listener of the device
+             *
+             * @param deviceName the name of device in the factory
+             * @return the stream of the listeners of the device with name
+             * @see #addDeviceEventListenerFor(String, DeviceEvent.Listener)
+             * @see #removeDeviceEventListenerFor(String, DeviceEvent.Listener)
+             * @see DeviceEvent.Listener
+             * @see Stream
+             */
+            Stream<DeviceEvent.Listener> eventListeners(String deviceName);
+
+            /**
+             * <mutator>
+             * To add device events listener for particular device's events
+             *
+             * @param deviceName the name of device to listen events from
+             * @param listener   the listener instance
+             * @return true if added well
+             * @see DeviceEvent.Listener
+             * @see Device#getName()
+             */
+            boolean addDeviceEventListenerFor(String deviceName, DeviceEvent.Listener listener);
+
+
+            /**
+             * <mutator>
+             * To remove device events listener for particular device's events
+             *
+             * @param deviceName the name of device to listen events from
+             * @param listener   the listener instance
+             * @return true if removed well
+             * @see DeviceEvent.Listener
+             * @see Device#getName()
+             */
+            boolean removeDeviceEventListenerFor(String deviceName, DeviceEvent.Listener listener);
+        }
     }
 
     /**
@@ -161,5 +207,164 @@ public interface DeviceEvent {
          * @see Optional
          */
         Optional<DeviceEvent> getEvent(long during);
+
+        /**
+         * <action>
+         * To reject unprocessing device event
+         *
+         * @param event device event to reject
+         */
+        void reject(DeviceEvent event);
+    }
+
+    /**
+     * EventsProcessor: The native device's events processor
+     */
+    interface Processor extends RunnableServerUnit {
+        // predicate to test whether device event valid or not
+        Predicate<DeviceEvent> isValidEvent =
+                event -> event != null && isEmptyString.negate().test(event.getDeviceName());
+        /**
+         * <accessor>
+         * To get access to the device's events provider
+         *
+         * @return the device's events provider reference
+         */
+        Provider getProvider();
+
+        /**
+         * <accessor>
+         * To get access to the device's event listeners hub
+         *
+         * @return the device's event listeners hub reference
+         */
+        Listener.Hub getHub();
+
+        /**
+         * <action>
+         * To grab device events from the device event provider and put them somewhere for the event processing
+         *
+         * @see #getProvider()
+         * @see #eventsGrabberThread(Thread)
+         * @see #sendForProcessing(DeviceEvent)
+         * @see DeviceEvent.Provider#getEvent(long)
+         * @see RunnableServerUnit#isStarted()
+         */
+        default void grabProviderEvents() {
+            eventsGrabberThread(Thread.currentThread());
+            while (isStarted()) {
+                getProvider().getEvent(getHowLongWaitForDeviceEvent()).ifPresent(this::sendForProcessing);
+            }
+        }
+
+        /**
+         * <mutator>
+         * To store current events grabber thread
+         *
+         * @param eventsGrabberThread current events grabber thread instance
+         * @see #grabProviderEvents()
+         */
+        void eventsGrabberThread(final Thread eventsGrabberThread);
+
+        /**
+         * <accessor>
+         * To get how long the processor will wait for device event appearance (milliseconds)
+         *
+         * @return the value
+         * @see #grabProviderEvents()
+         */
+        long getHowLongWaitForDeviceEvent();
+
+        /**
+         * <action>
+         * Sending grabbed provider's device-event for further processing
+         *
+         * @param event device-event for the processing
+         * @see #grabProviderEvents()
+         */
+        void sendForProcessing(DeviceEvent event);
+
+        /**
+         * <event-action>
+         * To notify all device event listeners
+         *
+         * @param event the event to notify the listener
+         * @see #getHub()
+         * @see DeviceEvent#getDeviceName()
+         * @see Listener.Hub#eventListeners(String)
+         * @see Listener#accept(DeviceEvent)
+         * @see Provider#reject(DeviceEvent)
+         * @see #processingDeviceEvents()
+         */
+        default void notifyListeners(final DeviceEvent event) {
+            final boolean notified = getHub().eventListeners(event.getDeviceName())
+                    .map(listener -> listener.accept(event))
+                    .reduce(true, (oldValue, newValue) -> oldValue && newValue);
+            if (!notified) {
+                dispatchError("Event rejected :" + event);
+                getProvider().reject(event);
+            }
+        }
+
+        /**
+         * <taker>
+         * To take the device event grabbed and sent device event
+         *
+         * @return taken device event
+         * @throws InterruptedException if thread is interrupted
+         */
+        DeviceEvent takeSentEvent() throws InterruptedException;
+
+        /**
+         * <checker>
+         * To check is there any unprocessed event there
+         *
+         * @return true if events queue is empty
+         * @see #processingDeviceEvents()
+         */
+        boolean isThereNoUnprocessedEvents();
+
+        /**
+         * <action>
+         * The processor is taking the little break
+         *
+         * @return the break is taken well
+         */
+        boolean isNotTakenTheBreak();
+
+        /**
+         * <action>
+         * To get and process device's events
+         *
+         * @see #isStarted()
+         * @see DeviceEvent
+         * @see #takeSentEvent()
+         * @see #isNotTakenTheBreak()
+         * @see #notifyListeners(DeviceEvent)
+         * @see #dispatchError(Throwable, String)
+         */
+        default void processingDeviceEvents() {
+            while (isStarted()) {
+                try {
+                    final DeviceEvent deviceEvent = takeSentEvent();
+                    if (!isStarted() || DeviceEvent.EMPTY.equals(deviceEvent)) {
+                        // factory stopped or end of events queue is reached, stop the events processing
+                        return;
+                    } else if (isValidEvent.test(deviceEvent)) {
+                        // pooled event is correct, notify listeners
+                        // processing the device-event through device's events' listeners
+                        notifyListeners(deviceEvent);
+                    } else if (isThereNoUnprocessedEvents() && isNotTakenTheBreak()) {
+                        // for incorrect pooled device-event with started factory taking the little break
+                        //  which could be interrupted outside
+                        return;
+                    }
+                } catch (InterruptedException e) {
+                    dispatchError(e, "Cannot pool grabbed provider event");
+                    /* Clean up whatever needs to be handled before interrupting  */
+                    Thread.currentThread().interrupt();
+                }
+            }
+        }
     }
 }

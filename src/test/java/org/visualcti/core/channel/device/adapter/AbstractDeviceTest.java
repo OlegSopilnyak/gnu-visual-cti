@@ -73,12 +73,14 @@ public class AbstractDeviceTest {
     Device.Session<?> session;
     Executor deviceEventExecutor;
     DeviceEvent.Provider eventsProvider;
+    DeviceEvent.Listener.Hub hub;
 
     @Before
     public void setUp() throws IOException {
         deviceEventExecutor = mock(Executor.class);
         eventsProvider = mock(DeviceEvent.Provider.class);
-        factory = spy(new AbstractFactory(deviceEventExecutor, eventsProvider) {
+        hub = mock(DeviceEvent.Listener.Hub.class);
+        factory = spy(new AbstractFactory(deviceEventExecutor, eventsProvider, hub) {
             @Override
             public String getVendor() {
                 return deviceVendor;
@@ -434,7 +436,7 @@ public class AbstractDeviceTest {
         verify(device).findSessionByHandle(handle);
         verify(device).sessions();
         verify(device).createSessionFor(handle);
-        verify(factory).addDeviceEventListenerFor(deviceName, deviceSession);
+        verify(factory.getHub()).addDeviceEventListenerFor(deviceName, deviceSession);
         verify(device).stateChangedFor(deviceSession);
         // check results
         assertThat(startedSession).isSameAs(deviceSession);

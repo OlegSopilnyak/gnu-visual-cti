@@ -102,10 +102,10 @@ public class AbstractTelephonyDeviceFactoryTest {
             return deviceVendorVersion;
         }
 
-        @Override
-        protected void reject(DeviceEvent event) {
-            // doing nothing here
-        }
+//        @Override
+//        protected void reject(DeviceEvent event) {
+//            // doing nothing here
+//        }
 
         @Override
         protected TelephonyChannel<T> makeChannelFor(Device<?, ?> device) {

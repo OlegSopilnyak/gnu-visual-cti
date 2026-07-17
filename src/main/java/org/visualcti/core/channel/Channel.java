@@ -77,20 +77,9 @@ public interface Channel<D extends Device<?, ?>> extends ServerUnit {
 
     /**
      * <accessor>
-     * To get access to the status of the channel
-     *
-     * @return status
-     * @see Device#getState()
-     */
-//    default String getStatus() {
-//        return getDevice().getState().getValue();
-//    }
-
-    /**
-     * <accessor>
      * Check, is device already opened
      *
-     * @return true if it's opened
+     * @return true if channel is opened
      * @see Device#isOpened()
      */
     default boolean isOpened() {
@@ -197,7 +186,7 @@ public interface Channel<D extends Device<?, ?>> extends ServerUnit {
      * @see Device#getName()
      */
     default void addDeviceEventListenerFor(DeviceEvent.Listener listener) {
-        getDeviceFactory().addDeviceEventListenerFor(getDevice().getName(), listener);
+        getDeviceFactory().getHub().addDeviceEventListenerFor(getDevice().getName(), listener);
     }
 
 
@@ -210,7 +199,7 @@ public interface Channel<D extends Device<?, ?>> extends ServerUnit {
      * @see Device#getName()
      */
     default void removeDeviceEventListenerFor(DeviceEvent.Listener listener) {
-        getDeviceFactory().removeDeviceEventListenerFor(getDevice().getName(), listener);
+        getDeviceFactory().getHub().removeDeviceEventListenerFor(getDevice().getName(), listener);
     }
 
     /**

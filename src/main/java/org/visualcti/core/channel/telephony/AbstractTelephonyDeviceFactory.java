@@ -56,7 +56,7 @@ public abstract class AbstractTelephonyDeviceFactory<H, D extends TelephonyDevic
         extends AbstractFactory<D> implements TelephonyDeviceFactory<D> {
 
     protected AbstractTelephonyDeviceFactory(Executor deviceEventExecutor, DeviceEvent.Provider eventsProvider) {
-        super(deviceEventExecutor, eventsProvider);
+        super(deviceEventExecutor, eventsProvider, null);
     }
 
     /**
