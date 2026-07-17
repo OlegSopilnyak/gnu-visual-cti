@@ -53,7 +53,8 @@ public class AbstractEventListenersHubTest {
 
     @Before
     public void setUp() {
-        hub = spy(new AbstractEventListenersHub());
+        hub = spy(new AbstractEventListenersHub() {
+        });
         listener = mock(DeviceEvent.Listener.class);
     }
 

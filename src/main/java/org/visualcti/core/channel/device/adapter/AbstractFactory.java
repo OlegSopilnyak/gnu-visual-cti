@@ -47,18 +47,21 @@ import org.visualcti.core.channel.Channel;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.Factory;
-import org.visualcti.server.unit.RunnableUnitAdapter;
 
 /**
  * The Factory of the Devices Adapter: The factory of the channel-devices
  *
  * @param <D> the type of factory's devices
  * @see Factory
- * @see RunnableUnitAdapter
+ * @see AbstractEventProcessor
  */
 public class AbstractFactory<D extends Device<?, ?>> extends AbstractEventProcessor implements Factory<D> {
     // the holder of factory's device channels
     private final AtomicReference<Collection<Channel<?>>> channelsHolder = new AtomicReference<>(Collections.emptyList());
+
+    public AbstractFactory(Executor deviceEventExecutor, DeviceEvent.Provider eventsProvider) {
+        this(deviceEventExecutor, eventsProvider, new DefaultDeviceEventListenersHub());
+    }
 
     protected AbstractFactory(Executor deviceEventExecutor, DeviceEvent.Provider eventsProvider, DeviceEvent.Listener.Hub eventListenersHub) {
         super(deviceEventExecutor, eventsProvider, eventListenersHub);
@@ -147,5 +150,13 @@ public class AbstractFactory<D extends Device<?, ?>> extends AbstractEventProces
     @Override
     public Collection<Channel<?>> channels() {
         return channelsHolder.get();
+    }
+
+    /**
+     * Events Listeners Hub: The default implementation hub of the native device's event listeners
+     *
+     * @see DeviceEvent.Listener.Hub
+     */
+    public static class DefaultDeviceEventListenersHub extends AbstractEventListenersHub {
     }
 }

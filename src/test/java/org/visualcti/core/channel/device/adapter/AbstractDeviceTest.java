@@ -48,6 +48,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.visualcti.core.channel.device.Device.State.IDLE;
 
 import java.io.IOException;
 import java.util.Optional;
@@ -79,7 +80,7 @@ public class AbstractDeviceTest {
     public void setUp() throws IOException {
         deviceEventExecutor = mock(Executor.class);
         eventsProvider = mock(DeviceEvent.Provider.class);
-        hub = mock(DeviceEvent.Listener.Hub.class);
+        hub = spy(new AbstractFactory.DefaultDeviceEventListenersHub());
         factory = spy(new AbstractFactory(deviceEventExecutor, eventsProvider, hub) {
             @Override
             public String getVendor() {
@@ -93,6 +94,8 @@ public class AbstractDeviceTest {
         });
         serviceProvider = mock(Device.ServiceProvider.class);
         session = mock(Device.Session.class);
+        doReturn("handle").when(session).getDeviceHandle();
+        doReturn(IDLE).when(session).getState();
         device = spy(new AbstractDevice(serviceProvider) {
             @Override
             public String getName() {
@@ -319,7 +322,7 @@ public class AbstractDeviceTest {
         // preparing test data
         String handle = "100";
         Device.Session<String> deviceSession = spy(new AbstractDeviceSession(device, handle));
-        assertThat(deviceSession.getState()).isSameAs(Device.State.IDLE);
+        assertThat(deviceSession.getState()).isSameAs(IDLE);
         doReturn(deviceSession).when(device).createSessionFor(handle);
 
         // acting
@@ -335,11 +338,11 @@ public class AbstractDeviceTest {
         // preparing test data
         String handle = "100";
         Device.Session<String> deviceSession = spy(new AbstractDeviceSession(device, handle));
-        assertThat(deviceSession.getState()).isSameAs(Device.State.IDLE);
+        assertThat(deviceSession.getState()).isSameAs(IDLE);
         doReturn(deviceSession).when(device).createSessionFor(handle);
 
         // acting
-        deviceSession.setState(Device.State.IDLE);
+        deviceSession.setState(IDLE);
 
         // check the behavior
         verify(device, never()).dispatchEvent(anyString());
@@ -393,7 +396,7 @@ public class AbstractDeviceTest {
     public void shouldGetStates() throws IOException {
         // preparing test data
         String handle = "101";
-        DeviceStateValue sessionStateInitValue = Device.State.IDLE;
+        DeviceStateValue sessionStateInitValue = IDLE;
         Device.Session<String> deviceSession = spy(new AbstractDeviceSession(device, handle));
         assertThat(deviceSession.getState()).isSameAs(sessionStateInitValue);
         doReturn(deviceSession).when(device).createSessionFor(handle);
@@ -424,7 +427,7 @@ public class AbstractDeviceTest {
         // preparing test data
         String handle = "102";
         Device.Session<String> deviceSession = spy(new AbstractDeviceSession(device, handle));
-        assertThat(deviceSession.getState()).isSameAs(Device.State.IDLE);
+        assertThat(deviceSession.getState()).isSameAs(IDLE);
         doReturn(deviceSession).when(device).createSessionFor(handle);
         doReturn(handle).when(serviceProvider).openResource(deviceName);
 

@@ -37,6 +37,8 @@ Fax number: 217-356-3356
 */
 package org.visualcti.core.channel.device.adapter;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
@@ -50,29 +52,21 @@ import org.visualcti.util.Tools;
 /**
  * Events Processor: The native device's events producer and notifier adapter
  */
-public class AbstractEventProcessor extends RunnableUnitAdapter implements DeviceEvent.Processor {
+public abstract class AbstractEventProcessor extends RunnableUnitAdapter implements DeviceEvent.Processor {
+    public static final String WAIT_EVENT_TIMEOUT_PROPERTY = "WAIT_EVENT_TIMEOUT_PROPERTY";
+    public static final long DEFAULT_WAIT_EVENT_TIMEOUT = 100L;
     // the queue of device events from the events provider
     private final BlockingQueue<DeviceEvent> deviceEvents = new LinkedBlockingQueue<>();
     // the thread where events provider is running
     protected final AtomicReference<Thread> providerEventsThread = new AtomicReference<>(null);
     // how long system will wait for device event appearance (milliseconds)
-    protected transient long howLongWaitForDeviceEvent = 100;
+    protected transient long howLongWaitForDeviceEvent = DEFAULT_WAIT_EVENT_TIMEOUT;
     // the executor for device events processing threads
     protected final transient Executor deviceEventExecutor;
     // the provider of device events
     protected final transient DeviceEvent.Provider eventsProvider;
     // the provider of device events
     protected final transient DeviceEvent.Listener.Hub eventListenersHub;
-
-    @Override
-    public String getType() {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
-
-    @Override
-    public String getName() {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
 
     protected AbstractEventProcessor(final Executor deviceEventExecutor,
                                      final DeviceEvent.Provider eventsProvider,
@@ -235,7 +229,11 @@ public class AbstractEventProcessor extends RunnableUnitAdapter implements Devic
     /// private methods
     // starting the events processing
     private void startingDeviceEventProcessing() {
+        // adjusting how long wait for device event parameter
+        prepareWaitForEventStuff();
+        //
         final CountDownLatch eventQueueLatch = new CountDownLatch(1);
+        // launching grabbed device events processing thread
         deviceEventExecutor.execute(() -> {
             // clearing the queue
             deviceEvents.clear();
@@ -244,11 +242,11 @@ public class AbstractEventProcessor extends RunnableUnitAdapter implements Devic
         });
         try {
             if (eventQueueLatch.await(howLongWaitForDeviceEvent, TimeUnit.MILLISECONDS)) {
-                // processing events queue thread is started
-                // run provider events grabbing
+                // the grabbed device events processing thread is started
+                // launching device provider's events grabbing thread
                 deviceEventExecutor.execute(this::grabProviderEvents);
             } else {
-                dispatchError("Cannot grab provider events");
+                dispatchError("Cannot launch provider's events grabbing");
                 super.currentUnitState(UnitState.BROKEN);
             }
         } catch (InterruptedException e) {
@@ -256,6 +254,21 @@ public class AbstractEventProcessor extends RunnableUnitAdapter implements Devic
             super.currentUnitState(UnitState.BROKEN);
             /* Clean up whatever needs to be handled before interrupting  */
             Thread.currentThread().interrupt();
+        }
+    }
+
+    // preparing how long wait for device event parameter
+    private void prepareWaitForEventStuff() {
+        final Map<String, Object> properties = new HashMap<>(getProperties());
+        final Object howLong = properties.get(WAIT_EVENT_TIMEOUT_PROPERTY);
+        if (howLong instanceof Long) {
+            // updating the timeout value
+            howLongWaitForDeviceEvent = (Long) howLong;
+        } else {
+            // don't touch timeout value
+            // placing the value by default
+            properties.put(WAIT_EVENT_TIMEOUT_PROPERTY, DEFAULT_WAIT_EVENT_TIMEOUT);
+            setProperties(properties);
         }
     }
 

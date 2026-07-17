@@ -48,7 +48,7 @@ import org.visualcti.core.channel.device.DeviceEvent;
 /**
  * Events Listeners Hub: The hub of the native device's event listeners
  */
-public class AbstractEventListenersHub implements DeviceEvent.Listener.Hub {
+public abstract class AbstractEventListenersHub implements DeviceEvent.Listener.Hub {
     // the listeners of factory's device events
     private final Map<String, List<DeviceEvent.Listener>> factoryEventListeners = new ConcurrentHashMap<>();
 

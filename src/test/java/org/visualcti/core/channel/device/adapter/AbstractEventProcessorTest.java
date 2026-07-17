@@ -83,7 +83,8 @@ public class AbstractEventProcessorTest {
             return null;
         }).when(deviceEventExecutor).execute(any(Runnable.class));
         eventsProvider = mock(DeviceEvent.Provider.class);
-        eventListenersHub = spy(new AbstractEventListenersHub());
+        eventListenersHub = spy(new AbstractEventListenersHub() {
+        });
         processor = spy(new AbstractEventProcessor(deviceEventExecutor, eventsProvider, eventListenersHub) {
             {
                 unitState.getAndSet(UnitState.ACTIVE);
