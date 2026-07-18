@@ -61,7 +61,7 @@ import org.visualcti.server.core.executable.task.Task;
 public class AbstractChannelTest {
     String deviceName = "device-name";
     String deviceVendor = "device-vendor";
-    Factory<?> factory;
+    Factory<?, ?> factory;
     Device<?, ?> device;
     AbstractChannel<?> channel;
 
@@ -91,7 +91,7 @@ public class AbstractChannelTest {
         // preparing test data
 
         // acting
-        Factory<?> channelDeviceFactory = channel.getDeviceFactory();
+        Factory<?, ?> channelDeviceFactory = channel.getDeviceFactory();
 
         // check the behavior
         verify(channel).getDevice();
@@ -217,6 +217,7 @@ public class AbstractChannelTest {
         // check the behavior
         verify(channel, times(2)).getDevice();
         verify(device).getFactory();
+        verify(factory).getHub();
 //        verify(factory).addDeviceEventListenerFor(deviceName, listener);
     }
 
@@ -235,7 +236,7 @@ public class AbstractChannelTest {
     }
 
     //// inner classes
-    static class TestChannel<F extends Factory<?>> extends AbstractChannel<Device<?, F>> {
+    static class TestChannel<F extends Factory<?, ?>> extends AbstractChannel<Device<?, F>> {
         protected TestChannel(Device<?, F> device) {
             super(device);
         }

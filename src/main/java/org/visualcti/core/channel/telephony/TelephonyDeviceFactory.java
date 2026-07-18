@@ -47,12 +47,13 @@ import org.visualcti.core.channel.device.Factory;
 /**
  * The Factory of the Telephony Devices: The factory of the telephony channel-devices
  *
+ * @param <H> the type of device's handle (for low-level operations)
+ * @param <D> the type of factory's devices
  * @see TelephonyDevice
  * @see Factory
- * @param <D> the type of factory's devices
  */
 @SuppressWarnings("uncecked")
-public interface TelephonyDeviceFactory<D extends TelephonyDevice<?, ?>> extends Factory<D> {
+public interface TelephonyDeviceFactory<H, D extends TelephonyDevice<?, ?>> extends Factory<H, D> {
     // the value of type the server unit
     String UNIT_TYPE = "[telephony-channel-devices-board]";
 

@@ -266,7 +266,7 @@ public abstract class ChannelTaskRunnerAdapter<D extends Device<?, ?>> extends R
      * @see Channel
      */
     @Override
-    public boolean accept(final DeviceEvent event) {
+    public boolean accept(final DeviceEvent<?> event) {
         if (!ChannelTaskRunner.super.accept(event)) {
             dispatchError("Rejected invalid event: " + event);
             return false;
@@ -381,7 +381,7 @@ public abstract class ChannelTaskRunnerAdapter<D extends Device<?, ?>> extends R
 
     /// / inner classes
     // class event to push runner's next iteration without hardware's device event
-    private static class NextIterationEvent implements DeviceEvent {
+    private static class NextIterationEvent<H> implements DeviceEvent<H> {
         private final Device<?, ?> device;
 
         private NextIterationEvent(Device<?, ?> device) {
@@ -391,6 +391,11 @@ public abstract class ChannelTaskRunnerAdapter<D extends Device<?, ?>> extends R
         @Override
         public Type getEventType() {
             return Type.INCOMING;
+        }
+
+        @Override
+        public H getDeviceHandle() {
+            return null;
         }
 
         @Override
@@ -424,7 +429,7 @@ public abstract class ChannelTaskRunnerAdapter<D extends Device<?, ?>> extends R
         // pushing next iteration event to the runner in 0.5 second
         dispatchEvent("Pushing the next iteration event");
         nextRunnerStepExecutor.schedule(() ->
-                this.accept(new NextIterationEvent(channel.getDevice())), 500, TimeUnit.MILLISECONDS
+                this.accept(new NextIterationEvent<>(channel.getDevice())), 500, TimeUnit.MILLISECONDS
         );
     }
 

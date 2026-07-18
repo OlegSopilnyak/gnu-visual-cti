@@ -71,7 +71,7 @@ public interface Channel<D extends Device<?, ?>> extends ServerUnit {
      * @param <F> the type of channel device factory
      * @return device factory instance associated with the channel's device
      */
-    default <F extends Factory<?>> F getDeviceFactory() {
+    default <F extends Factory<?, ?>> F getDeviceFactory() {
         return (F) getDevice().getFactory();
     }
 

@@ -51,19 +51,20 @@ import org.visualcti.core.channel.device.Factory;
 /**
  * The Factory of the Devices Adapter: The factory of the channel-devices
  *
+ * @param <H> the type of device's handle (for low-level operations)
  * @param <D> the type of factory's devices
  * @see Factory
  * @see AbstractEventProcessor
  */
-public class AbstractFactory<D extends Device<?, ?>> extends AbstractEventProcessor implements Factory<D> {
+public class AbstractFactory<H, D extends Device<?, ?>> extends AbstractEventProcessor<H> implements Factory<H, D> {
     // the holder of factory's device channels
     private final AtomicReference<Collection<Channel<?>>> channelsHolder = new AtomicReference<>(Collections.emptyList());
 
-    public AbstractFactory(Executor deviceEventExecutor, DeviceEvent.Provider eventsProvider) {
+    public AbstractFactory(Executor deviceEventExecutor, DeviceEvent.Provider<H> eventsProvider) {
         this(deviceEventExecutor, eventsProvider, new DefaultDeviceEventListenersHub());
     }
 
-    protected AbstractFactory(Executor deviceEventExecutor, DeviceEvent.Provider eventsProvider, DeviceEvent.Listener.Hub eventListenersHub) {
+    protected AbstractFactory(Executor deviceEventExecutor, DeviceEvent.Provider<H> eventsProvider, DeviceEvent.Listener.Hub eventListenersHub) {
         super(deviceEventExecutor, eventsProvider, eventListenersHub);
     }
 

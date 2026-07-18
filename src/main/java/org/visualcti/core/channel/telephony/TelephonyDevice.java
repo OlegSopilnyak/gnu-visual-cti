@@ -66,14 +66,14 @@ import org.visualcti.server.core.unit.ServerUnit;
 /**
  * Device of the Telephony Channel: The root device through which task communicate with computer telephony equipment
  *
+ * @param <H> the type of the device's low-level operations handle
+ * @param <F> the type of the devices factory
  * @see TelephonyDeviceFactory
  * @see Device
  * @see CallsPortEngine
  * @see TonesEngine
- * @param <H> the type of the device's low-level operations handle
- * @param <F> the type of the devices factory
  */
-public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<?>> extends Device<H, F>,
+public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> extends Device<H, F>,
         // core stuff of the telephony device
         TelephonyDeviceCore<H>,
         // phone calls control engine
@@ -188,17 +188,6 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<?>> extends
 
     /**
      * <accessor>
-     * To get access to device's low-level handle
-     *
-     * @return the handle to manipulate the device features
-     */
-//    @Override
-//    default H getHandle() {
-//        return null;
-//    }
-
-    /**
-     * <accessor>
      * To get access to the current device's telephony events provider
      *
      * @return the reference to the events provider singleton
@@ -208,28 +197,6 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<?>> extends
     default TelephonyServiceProvider<H> getProvider() {
         return null;
     }
-//
-//    /**
-//     * <accessor>
-//     * To get access to the current device's state
-//     *
-//     * @return the value
-//     * @see DeviceStateValue
-//     * @see Device.State
-//     * @see TelephonyDevice.State
-//     */
-//    @Override
-//    DeviceStateValue getState();
-//
-//    /**
-//     * <accessor>
-//     * To get access to the current device's telephony events provider
-//     *
-//     * @return the reference to the events provider singleton
-//     * @see TelephonyServiceProvider
-//     */
-//    @Override
-//    TelephonyServiceProvider<H> getProvider();
 
     /**
      * <action>
@@ -834,14 +801,6 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<?>> extends
     default void terminate() throws IOException {
 
     }
-//
-//    /**
-//     * <accessor>
-//     * To get access to device's low-level handle
-//     *
-//     * @return the handle to manipulate the device features
-//     */
-//    H getHandle();
 
     /**
      * Telephony Device States Enumeration: The states of the device

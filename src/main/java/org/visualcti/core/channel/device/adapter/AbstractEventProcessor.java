@@ -46,17 +46,20 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.visualcti.core.channel.device.DeviceEvent;
+import org.visualcti.core.channel.device.DeviceEventsProcessor;
 import org.visualcti.server.unit.RunnableUnitAdapter;
 import org.visualcti.util.Tools;
 
 /**
  * Events Processor: The native device's events producer and notifier adapter
+ *
+ * @param <H> the type of device's handle (for low-level operations)
  */
-public abstract class AbstractEventProcessor extends RunnableUnitAdapter implements DeviceEvent.Processor {
+public abstract class AbstractEventProcessor<H> extends RunnableUnitAdapter implements DeviceEventsProcessor<H> {
     public static final String WAIT_EVENT_TIMEOUT_PROPERTY = "WAIT_EVENT_TIMEOUT_PROPERTY";
     public static final long DEFAULT_WAIT_EVENT_TIMEOUT = 100L;
     // the queue of device events from the events provider
-    private final BlockingQueue<DeviceEvent> deviceEvents = new LinkedBlockingQueue<>();
+    private final BlockingQueue<DeviceEvent<H>> deviceEvents = new LinkedBlockingQueue<>();
     // the thread where events provider is running
     protected final AtomicReference<Thread> providerEventsThread = new AtomicReference<>(null);
     // how long system will wait for device event appearance (milliseconds)
@@ -64,12 +67,12 @@ public abstract class AbstractEventProcessor extends RunnableUnitAdapter impleme
     // the executor for device events processing threads
     protected final transient Executor deviceEventExecutor;
     // the provider of device events
-    protected final transient DeviceEvent.Provider eventsProvider;
+    protected final transient DeviceEvent.Provider<H> eventsProvider;
     // the provider of device events
     protected final transient DeviceEvent.Listener.Hub eventListenersHub;
 
     protected AbstractEventProcessor(final Executor deviceEventExecutor,
-                                     final DeviceEvent.Provider eventsProvider,
+                                     final DeviceEvent.Provider<H> eventsProvider,
                                      final DeviceEvent.Listener.Hub eventListenersHub) {
         this.deviceEventExecutor = deviceEventExecutor;
         this.eventsProvider = eventsProvider;
@@ -94,7 +97,7 @@ public abstract class AbstractEventProcessor extends RunnableUnitAdapter impleme
      * @return the device's events provider reference
      */
     @Override
-    public DeviceEvent.Provider getProvider() {
+    public DeviceEvent.Provider<H> getProvider() {
         return eventsProvider;
     }
 
@@ -146,7 +149,7 @@ public abstract class AbstractEventProcessor extends RunnableUnitAdapter impleme
      * @see #grabProviderEvents()
      */
     @Override
-    public void sendForProcessing(DeviceEvent event) {
+    public void sendForProcessing(DeviceEvent<H> event) {
         if (!deviceEvents.offer(event)) {
             Tools.error("Can't add event " + event);
             dispatchError("Cannot put the device-event to the queue");
@@ -161,7 +164,7 @@ public abstract class AbstractEventProcessor extends RunnableUnitAdapter impleme
      * @throws InterruptedException if thread is interrupted
      */
     @Override
-    public DeviceEvent takeSentEvent() throws InterruptedException {
+    public DeviceEvent<H> takeSentEvent() throws InterruptedException {
         return deviceEvents.poll(howLongWaitForDeviceEvent, TimeUnit.MILLISECONDS);
     }
 
@@ -273,9 +276,10 @@ public abstract class AbstractEventProcessor extends RunnableUnitAdapter impleme
     }
 
     // stopping the events processing
+    @SuppressWarnings("unchecked")
     private void stoppingDeviceEventProcessing() {
         // putting end os queue marker
-        sendForProcessing(DeviceEvent.EMPTY);
+        sendForProcessing((DeviceEvent<H>) DeviceEvent.EMPTY);
         // stopping provider events thread
         eventsGrabberThread(null);
     }

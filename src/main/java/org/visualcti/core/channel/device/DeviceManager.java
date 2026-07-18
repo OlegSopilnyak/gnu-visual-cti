@@ -58,7 +58,7 @@ public interface DeviceManager extends RunnableServerUnit {
      * @return factories stream
      * @see Factory
      */
-    Stream<Factory<?>> factories();
+    Stream<Factory<?, ?>> factories();
 
     /**
      * <aceessor>
@@ -77,7 +77,7 @@ public interface DeviceManager extends RunnableServerUnit {
      * @param factory the instance to add for management
      * @see Factory
      */
-    void addFactory(Factory<?> factory);
+    void addFactory(Factory<?, ?> factory);
 
     /**
      * <mutator>
@@ -86,15 +86,14 @@ public interface DeviceManager extends RunnableServerUnit {
      * @param factory the instance to add for management
      * @see Factory
      */
-    void removeFactory(Factory<?> factory);
+    void removeFactory(Factory<?, ?> factory);
 
     /**
      * <aceessor>
      * The executor of device factories' events management
      *
      * @return threads pool for device events processing
-     * @see Factory#getEvent()
-     * @see DeviceEvent.Listener#accept(DeviceEvent)
+     * @see DeviceEventsProcessor#grabProviderEvents()
      */
     Executor deviceEventExecutor();
 }

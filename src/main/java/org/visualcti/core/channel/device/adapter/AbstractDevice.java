@@ -59,7 +59,7 @@ import org.visualcti.server.unit.ServerUnitAdapter;
  * @see Device
  * @see Device.ServiceProvider
  */
-public class AbstractDevice<H, F extends Factory<?>> extends ServerUnitAdapter implements Device<H, F> {
+public class AbstractDevice<H, F extends Factory<H, ?>> extends ServerUnitAdapter implements Device<H, F> {
     // the basic parameters of the device
     protected final Map<ParameterName, ConfigurationParameter> parameters = new ConcurrentHashMap<>();
     // the service provider of the channel device actions functionality

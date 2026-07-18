@@ -46,12 +46,13 @@ import org.visualcti.server.core.unit.RunnableServerUnit;
 /**
  * The Factory of the Devices: The factory of the channel-devices
  *
+ * @param <H> the type of device's handle (for low-level operations)
  * @param <D> the type of factory's devices
  * @see Device
  * @see RunnableServerUnit
  */
 @SuppressWarnings("unchecked")
-public interface Factory<D extends Device<?, ?>> extends RunnableServerUnit, DeviceEvent.Processor {
+public interface Factory<H, D extends Device<?, ?>> extends RunnableServerUnit, DeviceEventsProcessor<H> {
     // The name of root XML's Element
     String ELEMENT = "factory";
     // the value of type the server unit

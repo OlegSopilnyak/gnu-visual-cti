@@ -53,10 +53,10 @@ import org.visualcti.core.channel.device.Factory;
  * @see Factory
  */
 public abstract class AbstractTelephonyDeviceFactory<H, D extends TelephonyDevice<H, ?>>
-        extends AbstractFactory<D> implements TelephonyDeviceFactory<D> {
+        extends AbstractFactory<H, D> implements TelephonyDeviceFactory<H, D> {
 
-    protected AbstractTelephonyDeviceFactory(Executor deviceEventExecutor, DeviceEvent.Provider eventsProvider) {
-        super(deviceEventExecutor, eventsProvider, null);
+    protected AbstractTelephonyDeviceFactory(Executor deviceEventExecutor, DeviceEvent.Provider<H> eventsProvider) {
+        super(deviceEventExecutor, eventsProvider);
     }
 
     /**

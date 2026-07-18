@@ -86,7 +86,7 @@ import org.visualcti.media.Sound;
  * @see MultiMedeaEngine
  * @see FaxMachineEngine
  */
-public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<?>>
+public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
         extends AbstractDevice<H, T> implements TelephonyDevice<H, T> {
     // the channel-device configured parameters map
     private final Map<ParameterName, ConfigurationParameter> parameters = new ConcurrentHashMap<>();

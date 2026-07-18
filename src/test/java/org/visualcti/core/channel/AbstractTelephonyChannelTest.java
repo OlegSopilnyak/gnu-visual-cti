@@ -114,11 +114,11 @@ public class AbstractTelephonyChannelTest {
     @Test
     public void shouldGetDeviceFactory() {
         // preparing test data
-        TelephonyDeviceFactory<?> factory = mock(TelephonyDeviceFactory.class);
+        TelephonyDeviceFactory<?, ?> factory = mock(TelephonyDeviceFactory.class);
         doReturn(factory).when(device).getFactory();
 
         // acting
-        TelephonyDeviceFactory<?> channelDeviceFactory = channel.getDeviceFactory();
+        TelephonyDeviceFactory<?, ?> channelDeviceFactory = channel.getDeviceFactory();
 
         // check the behavior
         verify(channel).getDevice();

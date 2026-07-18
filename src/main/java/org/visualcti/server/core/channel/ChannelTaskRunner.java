@@ -207,7 +207,7 @@ public interface ChannelTaskRunner<D extends Device<?, ?>> extends RunnableServe
      * @return true if the event accepted for the processing
      */
     @Override
-    default boolean accept(DeviceEvent event) {
+    default boolean accept(DeviceEvent<?> event) {
         final Channel<?> channel = getChannel();
         final Device<?, ?> device = channel.getDevice();
         if (isStarted() && eventCompliesDevice(event, device)) {
@@ -326,7 +326,7 @@ public interface ChannelTaskRunner<D extends Device<?, ?>> extends RunnableServe
 
     //// private methods
     // to check is event complies with the device
-    static boolean eventCompliesDevice(DeviceEvent event, Device<?, ?> device) {
+    static boolean eventCompliesDevice(DeviceEvent<?> event, Device<?, ?> device) {
         return Objects.equals(event.getDeviceName(), device.getName())
                 && Objects.equals(event.getVendor(), device.getFactory().getVendor());
     }

@@ -105,7 +105,7 @@ public interface ChannelTasksRuntime extends RunnableServerUnit {
      * @see Factory#channels()
      * @see #addRunnerFor(Channel)
      */
-    default boolean prepareRunnersFor(Factory<?> factory) {
+    default boolean prepareRunnersFor(Factory<?, ?> factory) {
         return factory.channels().stream().map(this::addRunnerFor).reduce(true, (a, b) -> a && b);
     }
 
@@ -117,7 +117,7 @@ public interface ChannelTasksRuntime extends RunnableServerUnit {
      * @return true if it's succeeded
      * @see Channel
      */
-    boolean addRunnerFor(Channel channel);
+    boolean addRunnerFor(Channel<?> channel);
 
     /**
      * <accessor>
@@ -127,7 +127,7 @@ public interface ChannelTasksRuntime extends RunnableServerUnit {
      * @see RunnableServerUnit#runnableChildren()
      * @see ChannelTaskRunner
      */
-    default Stream<ChannelTaskRunner> runners() {
+    default Stream<ChannelTaskRunner<?>> runners() {
         return runnableChildren().filter(ChannelTaskRunner.class::isInstance).map(ChannelTaskRunner.class::cast);
     }
 

@@ -68,12 +68,12 @@ public class AbstractDeviceTest {
     String vendorVersion = "device-vendor-version";
     String deviceVendor = "device-vendor";
     String deviceName = "device-name";
-    Factory<?> factory;
+    Factory<?, ?> factory;
     AbstractDevice<String, ?> device;
     Device.ServiceProvider<?> serviceProvider;
     Device.Session<?> session;
     Executor deviceEventExecutor;
-    DeviceEvent.Provider eventsProvider;
+    DeviceEvent.Provider<?> eventsProvider;
     DeviceEvent.Listener.Hub hub;
 
     @Before
@@ -115,7 +115,7 @@ public class AbstractDeviceTest {
         // preparing test data
 
         // acting
-        Factory<?> deviceFactory = device.getFactory();
+        Factory<?, ?> deviceFactory = device.getFactory();
 
         // check the behavior
         verify(device).getOwner();

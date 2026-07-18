@@ -40,23 +40,28 @@ package org.visualcti.core.channel.device;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.Predicate;
 import java.util.stream.Stream;
-import org.visualcti.server.core.unit.RunnableServerUnit;
+import org.visualcti.core.channel.device.operation.OperationResultValue;
 
 /**
  * The event from the channel-device side
  *
+ * @param <H> the type of device's handle (for low-level operations)
  * @see Device
  * @see Factory
  */
-public interface DeviceEvent {
+public interface DeviceEvent<H> {
     /**
      * Special Event: The event marker for the events queue
      */
-    DeviceEvent EMPTY = new DeviceEvent() {
+    DeviceEvent<?> EMPTY = new DeviceEvent() {
         @Override
         public Type getEventType() {
+            return null;
+        }
+
+        @Override
+        public Object getDeviceHandle() {
             return null;
         }
 
@@ -89,6 +94,15 @@ public interface DeviceEvent {
      * @see Type
      */
     Type getEventType();
+
+    /**
+     * <accessor>
+     * To get the device's internal handle
+     *
+     * @return the value
+     * @see Device.Session#getDeviceHandle()
+     */
+    H getDeviceHandle();
 
     /**
      * <accessor>
@@ -147,7 +161,7 @@ public interface DeviceEvent {
          * @param event the fired Event
          * @return true if the event accepted for the processing
          */
-        boolean accept(DeviceEvent event);
+        boolean accept(DeviceEvent<?> event);
 
         /**
          * Events Listeners Hub: The hub of the native device's event listeners
@@ -195,18 +209,56 @@ public interface DeviceEvent {
 
     /**
      * EventsProvider: The native device's events provider
+     *
+     * @param <H> the type of device's handle (for low-level operations)
      */
-    interface Provider {
+    interface Provider<H> {
         /**
          * <action>
-         * To get the device event from events provider during particular time-frame
+         * To get the device event from events provider during particular timeframe
          *
          * @param during time-frame for event's getting
          * @return detected event or empty
          * @see DeviceEvent
          * @see Optional
+         * @see DeviceEventsProcessor#grabProviderEvents()
          */
-        Optional<DeviceEvent> getEvent(long during);
+        Optional<DeviceEvent<H>> getEvent(long during);
+
+        /**
+         * <action>
+         * To enable particular type events producing for particular device from the events provider
+         *
+         *
+         * @param deviceHandle device handle of the device for which events producing is enabled
+         * @param eventType the type of events to enable
+         * @see Device.Session#getDeviceHandle()
+         * @see OperationResultValue
+         */
+        void enableEvents(H deviceHandle, OperationResultValue eventType);
+
+        /**
+         * <action>
+         * To disable particular type events producing for particular device from the events provider
+         *
+         *
+         * @param deviceHandle device handle of the device for which events producing is disabled
+         * @param eventType the type of events to disable
+         * @see Device.Session#getDeviceHandle()
+         * @see OperationResultValue
+         */
+        void disableEvents(H deviceHandle, OperationResultValue eventType);
+
+        /**
+         * <action>
+         * To disable ALL events producing for particular device from the events provider
+         *
+         *
+         * @param deviceHandle device handle of the device for which events producing is disabled
+         * @see Device.Session#getDeviceHandle()
+         * @see DeviceEvent.Listener
+         */
+        void disableEvents(H deviceHandle);
 
         /**
          * <action>
@@ -214,157 +266,6 @@ public interface DeviceEvent {
          *
          * @param event device event to reject
          */
-        void reject(DeviceEvent event);
-    }
-
-    /**
-     * EventsProcessor: The native device's events processor
-     */
-    interface Processor extends RunnableServerUnit {
-        // predicate to test whether device event valid or not
-        Predicate<DeviceEvent> isValidEvent =
-                event -> event != null && isEmptyString.negate().test(event.getDeviceName());
-        /**
-         * <accessor>
-         * To get access to the device's events provider
-         *
-         * @return the device's events provider reference
-         */
-        Provider getProvider();
-
-        /**
-         * <accessor>
-         * To get access to the device's event listeners hub
-         *
-         * @return the device's event listeners hub reference
-         */
-        Listener.Hub getHub();
-
-        /**
-         * <action>
-         * To grab device events from the device event provider and put them somewhere for the event processing
-         *
-         * @see #getProvider()
-         * @see #eventsGrabberThread(Thread)
-         * @see #sendForProcessing(DeviceEvent)
-         * @see DeviceEvent.Provider#getEvent(long)
-         * @see RunnableServerUnit#isStarted()
-         */
-        default void grabProviderEvents() {
-            eventsGrabberThread(Thread.currentThread());
-            while (isStarted()) {
-                getProvider().getEvent(getHowLongWaitForDeviceEvent()).ifPresent(this::sendForProcessing);
-            }
-        }
-
-        /**
-         * <mutator>
-         * To store current events grabber thread
-         *
-         * @param eventsGrabberThread current events grabber thread instance
-         * @see #grabProviderEvents()
-         */
-        void eventsGrabberThread(final Thread eventsGrabberThread);
-
-        /**
-         * <accessor>
-         * To get how long the processor will wait for device event appearance (milliseconds)
-         *
-         * @return the value
-         * @see #grabProviderEvents()
-         */
-        long getHowLongWaitForDeviceEvent();
-
-        /**
-         * <action>
-         * Sending grabbed provider's device-event for further processing
-         *
-         * @param event device-event for the processing
-         * @see #grabProviderEvents()
-         */
-        void sendForProcessing(DeviceEvent event);
-
-        /**
-         * <event-action>
-         * To notify all device event listeners
-         *
-         * @param event the event to notify the listener
-         * @see #getHub()
-         * @see DeviceEvent#getDeviceName()
-         * @see Listener.Hub#eventListeners(String)
-         * @see Listener#accept(DeviceEvent)
-         * @see Provider#reject(DeviceEvent)
-         * @see #processingDeviceEvents()
-         */
-        default void notifyListeners(final DeviceEvent event) {
-            final boolean notified = getHub().eventListeners(event.getDeviceName())
-                    .map(listener -> listener.accept(event))
-                    .reduce(true, (oldValue, newValue) -> oldValue && newValue);
-            if (!notified) {
-                dispatchError("Event rejected :" + event);
-                getProvider().reject(event);
-            }
-        }
-
-        /**
-         * <taker>
-         * To take the device event grabbed and sent device event
-         *
-         * @return taken device event
-         * @throws InterruptedException if thread is interrupted
-         */
-        DeviceEvent takeSentEvent() throws InterruptedException;
-
-        /**
-         * <checker>
-         * To check is there any unprocessed event there
-         *
-         * @return true if events queue is empty
-         * @see #processingDeviceEvents()
-         */
-        boolean isThereNoUnprocessedEvents();
-
-        /**
-         * <action>
-         * The processor is taking the little break
-         *
-         * @return the break is taken well
-         */
-        boolean isNotTakenTheBreak();
-
-        /**
-         * <action>
-         * To get and process device's events
-         *
-         * @see #isStarted()
-         * @see DeviceEvent
-         * @see #takeSentEvent()
-         * @see #isNotTakenTheBreak()
-         * @see #notifyListeners(DeviceEvent)
-         * @see #dispatchError(Throwable, String)
-         */
-        default void processingDeviceEvents() {
-            while (isStarted()) {
-                try {
-                    final DeviceEvent deviceEvent = takeSentEvent();
-                    if (!isStarted() || DeviceEvent.EMPTY.equals(deviceEvent)) {
-                        // factory stopped or end of events queue is reached, stop the events processing
-                        return;
-                    } else if (isValidEvent.test(deviceEvent)) {
-                        // pooled event is correct, notify listeners
-                        // processing the device-event through device's events' listeners
-                        notifyListeners(deviceEvent);
-                    } else if (isThereNoUnprocessedEvents() && isNotTakenTheBreak()) {
-                        // for incorrect pooled device-event with started factory taking the little break
-                        //  which could be interrupted outside
-                        return;
-                    }
-                } catch (InterruptedException e) {
-                    dispatchError(e, "Cannot pool grabbed provider event");
-                    /* Clean up whatever needs to be handled before interrupting  */
-                    Thread.currentThread().interrupt();
-                }
-            }
-        }
+        void reject(DeviceEvent<H> event);
     }
 }

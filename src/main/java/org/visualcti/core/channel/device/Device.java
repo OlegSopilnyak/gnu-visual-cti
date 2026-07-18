@@ -61,7 +61,7 @@ import org.visualcti.server.task.Environment;
  * @see ServerUnit
  */
 @SuppressWarnings("unchecked")
-public interface Device<H, F extends Factory<?>> extends ServerUnit {
+public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
     // the value of type the server unit
     String UNIT_TYPE = "[channel-device]";
     ParameterName REPAIR_ATTEMPT = Repair.ATTEMPT;
@@ -436,7 +436,7 @@ public interface Device<H, F extends Factory<?>> extends ServerUnit {
          *
          * @return the device-owner reference
          */
-        Device<H, ? extends Factory<?>> getDevice();
+        Device<H, ? extends Factory<H, ?>> getDevice();
 
         /**
          * <accessor>
@@ -515,19 +515,7 @@ public interface Device<H, F extends Factory<?>> extends ServerUnit {
      *
      * @param <H> the type of the device's low-level operations handle
      */
-    interface ServiceProvider<H> extends DeviceEvent.Provider {
-        /**
-         * <action>
-         * To get the device event from events provider during particular time-frame
-         *
-         * @param during time-frame for event's getting
-         * @return detected event or empty
-         * @see DeviceEvent
-         * @see Optional
-         */
-        @Override
-        Optional<DeviceEvent> getEvent(long during);
-
+    interface ServiceProvider<H> extends DeviceEvent.Provider<H> {
         /**
          * <action>
          * To open the device related resource (device's implementation)

@@ -38,50 +38,12 @@ Fax number: 217-356-3356
 package org.visualcti.core.channel.telephony;
 
 import org.visualcti.core.channel.device.Device;
-import org.visualcti.core.channel.device.DeviceEvent;
-import org.visualcti.core.channel.device.operation.OperationResultValue;
 
 /**
  * Provider Facade: The telephony service provider facade (for manufacturer implementation)
- * @see DeviceEvent.Provider
+ *
  * @param <H> the type of the device's low-level operations handle
+ * @see Device.ServiceProvider
  */
-public interface TelephonyServiceProvider<H>  extends DeviceEvent.Provider, Device.ServiceProvider<H> {
-
-    /**
-     * <action>
-     * To enable particular type events producing for particular device from the factory
-     *
-     *
-     * @param deviceHandle device handle of the device for which events producing is enabled
-     * @param eventType the type of events to enable
-     * @see TelephonyDevice#getHandle()
-     * @see OperationResultValue
-     * @see DeviceEvent.Listener
-     */
-    void enableEvents(H deviceHandle, OperationResultValue eventType);
-
-    /**
-     * <action>
-     * To disable particular type events producing for particular device from the factory
-     *
-     *
-     * @param deviceHandle device handle of the device for which events producing is disabled
-     * @param eventType the type of events to disable
-     * @see TelephonyDevice#getHandle()
-     * @see OperationResultValue
-     * @see DeviceEvent.Listener
-     */
-    void disableEvents(H deviceHandle, OperationResultValue eventType);
-
-    /**
-     * <action>
-     * To disable ALL events producing for particular device from the factory
-     *
-     *
-     * @param deviceHandle device handle of the device for which events producing is disabled
-     * @see TelephonyDevice#getHandle()
-     * @see DeviceEvent.Listener
-     */
-    void disableEvents(H deviceHandle);
+public interface TelephonyServiceProvider<H>  extends Device.ServiceProvider<H> {
 }

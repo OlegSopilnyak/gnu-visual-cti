@@ -81,7 +81,7 @@ public class ChannelTaskRunnerAdapterTest {
     Environment environment;
     Channel<?> channel;
     Device<?, ?> device;
-    Factory<?> factory;
+    Factory<?, ?> factory;
     TasksPoolUnit tasksPoolUnit;
     Task task;
 
@@ -99,7 +99,8 @@ public class ChannelTaskRunnerAdapterTest {
         task = mock(Task.class);
         doReturn(task).when(tasksPoolUnit).next();
         doReturn(task).when(tasksPoolUnit).current();
-        runner = spy(new ChannelTaskRunnerAdapter(environment, channel, tasksPoolUnit){});
+        runner = spy(new ChannelTaskRunnerAdapter(environment, channel, tasksPoolUnit) {
+        });
         group = mock(ChannelTasksRuntime.class);
         runner.setOwner(group);
         executor = mock(Executor.class);
@@ -120,7 +121,7 @@ public class ChannelTaskRunnerAdapterTest {
         doReturn(deviceName).when(device).getName();
         doReturn(deviceFactoryName).when(factory).getVendor();
         // event
-        DeviceEvent event = mock(DeviceEvent.class);
+        DeviceEvent<?> event = mock(DeviceEvent.class);
         doReturn(deviceName).when(event).getDeviceName();
         doReturn(deviceFactoryName).when(event).getVendor();
         doReturn(deviceEventType).when(event).getEventType();
@@ -168,7 +169,7 @@ public class ChannelTaskRunnerAdapterTest {
         doReturn(deviceName).when(device).getName();
         doReturn(deviceFactoryName).when(factory).getVendor();
         // event
-        DeviceEvent event = mock(DeviceEvent.class);
+        DeviceEvent<?> event = mock(DeviceEvent.class);
         doReturn(deviceName).when(event).getDeviceName();
         doReturn(deviceFactoryName).when(event).getVendor();
         doReturn(deviceEventType).when(event).getEventType();
@@ -202,7 +203,7 @@ public class ChannelTaskRunnerAdapterTest {
         doReturn(deviceName).when(device).getName();
         doReturn(deviceFactoryName).when(factory).getVendor();
         // event
-        DeviceEvent event = mock(DeviceEvent.class);
+        DeviceEvent<?> event = mock(DeviceEvent.class);
         doReturn(deviceName).when(event).getDeviceName();
         doReturn(deviceFactoryName).when(event).getVendor();
 
@@ -228,7 +229,7 @@ public class ChannelTaskRunnerAdapterTest {
         doReturn(deviceName).when(device).getName();
         doReturn(deviceFactoryName).when(factory).getVendor();
         // event
-        DeviceEvent event = mock(DeviceEvent.class);
+        DeviceEvent<?> event = mock(DeviceEvent.class);
         doReturn(deviceName).when(event).getDeviceName();
         doReturn(deviceFactoryName).when(event).getVendor();
         doReturn(deviceEventType).when(event).getEventType();
@@ -260,7 +261,7 @@ public class ChannelTaskRunnerAdapterTest {
         doReturn(deviceName).when(device).getName();
         doReturn(deviceFactoryName).when(factory).getVendor();
         // event
-        DeviceEvent event = mock(DeviceEvent.class);
+        DeviceEvent<?> event = mock(DeviceEvent.class);
         doReturn(deviceName).when(event).getDeviceName();
         doReturn(deviceFactoryName).when(event).getVendor();
         doReturn(deviceEventType).when(event).getEventType();

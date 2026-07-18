@@ -70,8 +70,8 @@ public class AbstractFactoryTest {
     Device<?, ?> device;
     Executor deviceEventExecutor;
     ExecutorService shadowExecutor;
-    DeviceEvent.Provider eventsProvider;
-    AbstractFactory<?> factory;
+    DeviceEvent.Provider<?> eventsProvider;
+    AbstractFactory<?, ?> factory;
 
     @Before
     public void setUp() {
@@ -282,8 +282,8 @@ public class AbstractFactoryTest {
     }
 
     /// / inner classes
-    private static class TestFactory extends AbstractFactory<Device<?, ?>> {
-        public TestFactory(Executor deviceEventExecutor, DeviceEvent.Provider eventsProvider) {
+    private static class TestFactory<H, D extends Device<?, ?>> extends AbstractFactory<H, D> {
+        public TestFactory(Executor deviceEventExecutor, DeviceEvent.Provider<H> eventsProvider) {
             super(deviceEventExecutor, eventsProvider);
         }
 
@@ -298,8 +298,8 @@ public class AbstractFactoryTest {
         }
 
         @Override
-        protected Channel<Device<?, ?>> makeChannelFor(Device<?, ?> device) {
-            return new AbstractChannel<Device<?, ?>>(device) {
+        protected Channel<D> makeChannelFor(Device<?, ?> device) {
+            return new AbstractChannel(device) {
             };
         }
     }
