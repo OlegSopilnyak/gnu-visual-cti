@@ -43,6 +43,8 @@ import org.visualcti.core.channel.device.operation.OperationResultValue;
  * Results Enumeration: The results of common telephony operation completion
  */
 public enum Result implements OperationResultValue {
+    // There is no completed operation yet
+    NONE("NOTHING"),
     // The error during operation is detected
     ERROR("ERROR"),
     // The result of the operation, which is not required a reason of completion

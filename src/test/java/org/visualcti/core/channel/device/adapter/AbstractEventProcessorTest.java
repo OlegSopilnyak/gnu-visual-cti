@@ -65,6 +65,7 @@ import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.server.core.unit.RunnableServerUnit;
 import org.visualcti.server.core.unit.message.UnitMessage;
 
+@SuppressWarnings({"unchecked", "rawtypes"})
 public class AbstractEventProcessorTest {
     String processorType = "abstract-event-processor-test";
     String processorName = "AbstractEventProcessorTest";
@@ -146,7 +147,7 @@ public class AbstractEventProcessorTest {
     public void shouldBeUnprocessedEventsThere() {
         // preparing test data
         DeviceEvent deviceEvent = mock(DeviceEvent.class);
-        processor.sendForProcessing(deviceEvent);
+        processor.onDeviceEvent(deviceEvent);
 
         // acting
         boolean isThere = processor.isThereNoUnprocessedEvents();
@@ -163,7 +164,7 @@ public class AbstractEventProcessorTest {
         DeviceEvent deviceEvent = mock(DeviceEvent.class);
 
         // acting
-        processor.sendForProcessing(deviceEvent);
+        processor.onDeviceEvent(deviceEvent);
 
         // check the behavior
         // check results
@@ -177,7 +178,7 @@ public class AbstractEventProcessorTest {
         processor.howLongWaitForDeviceEvent = howLong;
 
         // acting
-        DeviceEvent deviceEvent = processor.takeSentEvent();
+        DeviceEvent deviceEvent = processor.takeDeviceEvent();
 
         // check the behavior
         // check results
@@ -188,10 +189,10 @@ public class AbstractEventProcessorTest {
     public void shouldTakeSentEvent_EventSent() throws InterruptedException {
         // preparing test data
         DeviceEvent deviceEvent = mock(DeviceEvent.class);
-        processor.sendForProcessing(deviceEvent);
+        processor.onDeviceEvent(deviceEvent);
 
         // acting
-        DeviceEvent takenEvent = processor.takeSentEvent();
+        DeviceEvent takenEvent = processor.takeDeviceEvent();
 
         // check the behavior
         // check results
@@ -242,8 +243,8 @@ public class AbstractEventProcessorTest {
         assertThat(processor.isThereNoUnprocessedEvents()).isTrue();
         DeviceEvent deviceEvent = mock(DeviceEvent.class);
         doReturn(Optional.of(deviceEvent)).when(eventsProvider).getEvent(anyLong());
-        processor.sendForProcessing(deviceEvent);
-        processor.sendForProcessing(DeviceEvent.EMPTY);
+        processor.onDeviceEvent(deviceEvent);
+        processor.onDeviceEvent(DeviceEvent.EMPTY);
         AtomicReference<Thread> grabbingThread = new AtomicReference<>();
         CountDownLatch latch = new CountDownLatch(1);
         Future<?> grabEvents = shadowExecutor.submit(() -> {
@@ -262,7 +263,7 @@ public class AbstractEventProcessorTest {
         verify(processor, atLeastOnce()).isStarted();
         verify(processor, atLeastOnce()).getProvider();
         verify(eventsProvider, atLeastOnce()).getEvent(anyLong());
-        verify(processor, atLeastOnce()).sendForProcessing(deviceEvent);
+        verify(processor, atLeastOnce()).onDeviceEvent(deviceEvent);
         // check results
         assertThat(processor.isThereNoUnprocessedEvents()).isFalse();
     }
@@ -339,7 +340,7 @@ public class AbstractEventProcessorTest {
 
         // check the behavior
         verify(processor, atLeastOnce()).isStarted();
-        verify(processor, atLeastOnce()).takeSentEvent();
+        verify(processor, atLeastOnce()).takeDeviceEvent();
         verify(deviceEvent, atLeastOnce()).getDeviceName();
         verify(processor, atLeastOnce()).notifyListeners(deviceEvent);
         verify(processor, never()).isNotTakenTheBreak();
@@ -357,7 +358,7 @@ public class AbstractEventProcessorTest {
         // check the behavior
         verify(processor).isStarted();
         // grabbed events processing
-        verify(processor, never()).takeSentEvent();
+        verify(processor, never()).takeDeviceEvent();
         // grabbing device events provider events and put for processing
         verify(processor, never()).eventsGrabberThread(any(Thread.class));
         // check results
@@ -399,7 +400,7 @@ public class AbstractEventProcessorTest {
         // working threads activities check
         verify(testProcessor, atLeastOnce()).isStarted();
         // grabbed events processing
-        verify(testProcessor, atLeastOnce()).takeSentEvent();
+        verify(testProcessor, atLeastOnce()).takeDeviceEvent();
         verify(deviceEvent, atLeastOnce()).getDeviceName();
         verify(testProcessor, atLeastOnce()).notifyListeners(deviceEvent);
         verify(testProcessor, never()).isNotTakenTheBreak();
@@ -408,7 +409,7 @@ public class AbstractEventProcessorTest {
         verify(testProcessor, atLeastOnce()).getProvider();
         verify(testProcessor, atLeastOnce()).getHowLongWaitForDeviceEvent();
         verify(eventsProvider, atLeastOnce()).getEvent(anyLong());
-        verify(testProcessor, atLeastOnce()).sendForProcessing(deviceEvent);
+        verify(testProcessor, atLeastOnce()).onDeviceEvent(deviceEvent);
         // check results
     }
 

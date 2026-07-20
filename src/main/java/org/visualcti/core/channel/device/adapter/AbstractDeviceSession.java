@@ -238,7 +238,7 @@ public class AbstractDeviceSession<H> implements Device.Session<H> {
      * @return true if the event accepted for the processing
      */
     @Override
-    public boolean accept(DeviceEvent event) {
+    public boolean accept(DeviceEvent<?> event) {
         return true;
     }
 
@@ -249,7 +249,7 @@ public class AbstractDeviceSession<H> implements Device.Session<H> {
      * @param event the fired Event
      * @return true if the event accepted for the processing
      */
-    protected boolean acceptEvent(DeviceEvent event) {
+    protected boolean acceptEvent(DeviceEvent<?> event) {
         return true;
     }
 }

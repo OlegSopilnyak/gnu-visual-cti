@@ -72,14 +72,14 @@ public interface DeviceEventsProcessor<H> extends RunnableServerUnit {
      *
      * @see #getProvider()
      * @see #eventsGrabberThread(Thread)
-     * @see #sendForProcessing(DeviceEvent)
+     * @see #onDeviceEvent(DeviceEvent)
      * @see DeviceEvent.Provider#getEvent(long)
      * @see RunnableServerUnit#isStarted()
      */
     default void grabProviderEvents() {
         eventsGrabberThread(Thread.currentThread());
         while (isStarted()) {
-            getProvider().getEvent(getHowLongWaitForDeviceEvent()).ifPresent(this::sendForProcessing);
+            getProvider().getEvent(getHowLongWaitForDeviceEvent()).ifPresent(this::onDeviceEvent);
         }
     }
 
@@ -103,12 +103,13 @@ public interface DeviceEventsProcessor<H> extends RunnableServerUnit {
 
     /**
      * <action>
-     * Sending grabbed provider's device-event for further processing
+     * To process actions according the device event
      *
      * @param event device-event for the processing
      * @see #grabProviderEvents()
+     * @see #takeDeviceEvent()
      */
-    void sendForProcessing(DeviceEvent<H> event);
+    void onDeviceEvent(DeviceEvent<H> event);
 
     /**
      * <event-action>
@@ -134,12 +135,13 @@ public interface DeviceEventsProcessor<H> extends RunnableServerUnit {
 
     /**
      * <taker>
-     * To take the device event grabbed and sent device event
+     * To take the device event for further even's processing
      *
      * @return taken device event
      * @throws InterruptedException if thread is interrupted
+     * @see #processingDeviceEvents()
      */
-    DeviceEvent<H> takeSentEvent() throws InterruptedException;
+    DeviceEvent<H> takeDeviceEvent() throws InterruptedException;
 
     /**
      * <checker>
@@ -164,7 +166,7 @@ public interface DeviceEventsProcessor<H> extends RunnableServerUnit {
      *
      * @see #isStarted()
      * @see DeviceEvent
-     * @see #takeSentEvent()
+     * @see #takeDeviceEvent()
      * @see #isNotTakenTheBreak()
      * @see #notifyListeners(DeviceEvent)
      * @see #dispatchError(Throwable, String)
@@ -172,7 +174,7 @@ public interface DeviceEventsProcessor<H> extends RunnableServerUnit {
     default void processingDeviceEvents() {
         while (isStarted()) {
             try {
-                final DeviceEvent<H> deviceEvent = takeSentEvent();
+                final DeviceEvent<H> deviceEvent = takeDeviceEvent();
                 if (!isStarted() || DeviceEvent.EMPTY.equals(deviceEvent)) {
                     // factory stopped or end of events queue is reached, stop the events processing
                     return;

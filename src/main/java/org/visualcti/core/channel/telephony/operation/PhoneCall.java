@@ -37,17 +37,24 @@ Fax number: 217-356-3356
 */
 package org.visualcti.core.channel.telephony.operation;
 
+import java.io.Closeable;
+import java.util.stream.Stream;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.TelephonyDevice;
 
 /**
  * Phone Call: Keep all information about phone call
  */
-public interface PhoneCall {
+public interface PhoneCall extends Closeable {
     /**
      * Failed value of phone's call
      */
     PhoneCall FAILED = new PhoneCall() {
+        @Override
+        public void close() {
+
+        }
+
         @Override
         public String getDeviceName() {
             return "no matter";
@@ -61,6 +68,26 @@ public interface PhoneCall {
         @Override
         public OperationResultValue operationResult() {
             return Result.ERROR;
+        }
+
+        @Override
+        public void waitForOperationComplete(long timeout) throws InterruptedException {
+
+        }
+
+        @Override
+        public void operationComplete(OperationResultValue completionReason) {
+
+        }
+
+        @Override
+        public Stream<PhoneCall> joint() {
+            return Stream.empty();
+        }
+
+        @Override
+        public void join(PhoneCall anotherCall) {
+
         }
 
         @Override
@@ -103,9 +130,9 @@ public interface PhoneCall {
 
     /**
      * <accssor>
-     * To get access to the result of the operation that initiated or updated the call
+     * To get access to the last result of the operation that initiated or updated the phone call
      *
-     * @return the value
+     * @return the last result value
      * @see OperationResultValue
      */
     OperationResultValue operationResult();
@@ -129,12 +156,80 @@ public interface PhoneCall {
     PhoneCall.Number getCallingNumber();
 
     /**
+     * <action>
+     * To wait the running operation complete or timeout
+     *
+     * @param timeout how long to wait
+     * @throws InterruptedException if operation is interrupted outside
+     */
+    void waitForOperationComplete(long timeout) throws InterruptedException;
+
+    /**
+     * <action>
+     * To wait the running operation complete
+     *
+     * @throws InterruptedException if operation is interrupted outside
+     * @see #waitForOperationComplete(long)
+     */
+    default void waitForOperationComplete() throws InterruptedException {
+        waitForOperationComplete(-1L);
+    }
+
+    /**
+     * <action>
+     * To notify about the previously running in the phone-call-session operation is completed
+     *
+     * @param completionReason the reason of the operation's complete
+     * @see #waitForOperationComplete(long)
+     */
+    void operationComplete(OperationResultValue completionReason);
+
+    /**
+     * <accessor>
+     * To get phone calls joint by device connection feature
+     *
+     * @return the stream of joint with this session other phone-call-sessions
+     * @see #join(PhoneCall)
+     */
+    Stream<PhoneCall> joint();
+
+    /**
+     * <mutator>
+     * To join another phone-call-session
+     *
+     * @param anotherCall another session value
+     */
+    void join(PhoneCall anotherCall);
+
+    /**
      * Call Number: Keep all information about phone number of the call
      *
      * @see PhoneCall#getCalledNumber()
      * @see PhoneCall#getCallingNumber()
      */
     interface Number {
+        // the none, empty phone-call number
+        Number EMPTY = new Number() {
+            @Override
+            public int countryCode() {
+                return -1;
+            }
+
+            @Override
+            public int areaCode() {
+                return -1;
+            }
+
+            @Override
+            public int number() {
+                return -1;
+            }
+
+            @Override
+            public int extension() {
+                return -1;
+            }
+        };
         /**
          * <accssor>
          * To get the country's code

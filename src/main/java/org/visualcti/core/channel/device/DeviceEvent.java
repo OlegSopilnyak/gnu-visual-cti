@@ -37,8 +37,6 @@ Fax number: 217-356-3356
 */
 package org.visualcti.core.channel.device;
 
-import java.util.Collections;
-import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
@@ -50,41 +48,12 @@ import org.visualcti.core.channel.device.operation.OperationResultValue;
  * @see Device
  * @see Factory
  */
+@SuppressWarnings({"rawtypes"})
 public interface DeviceEvent<H> {
     /**
      * Special Event: The event marker for the events queue
      */
-    DeviceEvent<?> EMPTY = new DeviceEvent() {
-        @Override
-        public Type getEventType() {
-            return null;
-        }
-
-        @Override
-        public Object getDeviceHandle() {
-            return null;
-        }
-
-        @Override
-        public String getDeviceName() {
-            return "";
-        }
-
-        @Override
-        public String getVendor() {
-            return "";
-        }
-
-        @Override
-        public String getDescription() {
-            return "";
-        }
-
-        @Override
-        public Map<String, Object> getOptions() {
-            return Collections.emptyMap();
-        }
-    };
+    DeviceEvent<?> EMPTY = new DeviceEvent(){};
 
     /**
      * <accessor>
@@ -93,7 +62,9 @@ public interface DeviceEvent<H> {
      * @return the value
      * @see Type
      */
-    Type getEventType();
+    default Type getEventType() {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
 
     /**
      * <accessor>
@@ -102,7 +73,9 @@ public interface DeviceEvent<H> {
      * @return the value
      * @see Device.Session#getDeviceHandle()
      */
-    H getDeviceHandle();
+    default H getDeviceHandle() {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
 
     /**
      * <accessor>
@@ -111,7 +84,9 @@ public interface DeviceEvent<H> {
      * @return the value
      * @see Device#getName()
      */
-    String getDeviceName();
+    default String getDeviceName() {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
 
     /**
      * <accessor>
@@ -120,7 +95,9 @@ public interface DeviceEvent<H> {
      * @return vendor's name
      * @see Factory#getVendor()
      */
-    String getVendor();
+    default String getVendor() {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
 
     /**
      * <accessor>
@@ -128,15 +105,52 @@ public interface DeviceEvent<H> {
      *
      * @return event's description
      */
-    String getDescription();
+    default String getDescription() {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
 
     /**
      * <accessor>
-     * get access to the event's options
+     * To get event option value by name
      *
-     * @return the options of the event
+     * @param name the name of option's parameter
+     * @return the value or empty
+     * @param <T> the type of event option's value
+     * @see Device.ParameterName
      */
-    Map<String, Object> getOptions();
+    default <T> Optional<T> getOption(Device.ParameterName name) {
+        return Optional.empty();
+    }
+
+
+    /**
+     * <accessor>
+     * To get device event's options names
+     *
+     * @return the stream to options names
+     * @see Device.ParameterName
+     * @see Stream
+     */
+    default Stream<Device.ParameterName> options() {
+        return Stream.empty();
+    }
+    /**
+     * Enumeration: Parameter names for device event options
+     */
+    enum Option implements Device.ParameterName {
+        REASON("DEVICE EVENT REASON");
+
+        private final String name;
+
+        Option(String name) {
+            this.name = name;
+        }
+
+        @Override
+        public String value() {
+            return name.toLowerCase();
+        }
+    }
 
     /**
      * The types of device's events

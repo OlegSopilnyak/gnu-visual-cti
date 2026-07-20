@@ -38,8 +38,6 @@ Fax number: 217-356-3356
 package org.visualcti.server.channel;
 
 import java.io.IOException;
-import java.util.Collections;
-import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -50,10 +48,10 @@ import java.util.concurrent.locks.ReentrantLock;
 import org.jdom.Element;
 import org.visualcti.core.XmlAware;
 import org.visualcti.core.channel.Channel;
-import org.visualcti.server.core.channel.ChannelTaskRunner;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.DeviceMalfunction;
+import org.visualcti.server.core.channel.ChannelTaskRunner;
 import org.visualcti.server.core.executable.task.Task;
 import org.visualcti.server.core.executable.task.TasksPoolUnit;
 import org.visualcti.server.core.unit.ServerUnit;
@@ -394,11 +392,6 @@ public abstract class ChannelTaskRunnerAdapter<D extends Device<?, ?>> extends R
         }
 
         @Override
-        public H getDeviceHandle() {
-            return null;
-        }
-
-        @Override
         public String getDeviceName() {
             return device.getName();
         }
@@ -411,11 +404,6 @@ public abstract class ChannelTaskRunnerAdapter<D extends Device<?, ?>> extends R
         @Override
         public String getDescription() {
             return "Start Next Iteration Task";
-        }
-
-        @Override
-        public Map<String, Object> getOptions() {
-            return Collections.emptyMap();
         }
     }
 

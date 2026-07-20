@@ -48,8 +48,11 @@ import org.jdom.Element;
 import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceStateValue;
+import org.visualcti.core.channel.device.adapter.AbstractDeviceEvent;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
+import org.visualcti.core.channel.telephony.adapter.PhoneCallSession;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
+import org.visualcti.core.channel.telephony.operation.Result;
 import org.visualcti.core.channel.telephony.operation.ToneId;
 import org.visualcti.core.channel.telephony.part.CallsPortEngine;
 import org.visualcti.core.channel.telephony.part.FaxMachineEngine;
@@ -83,8 +86,7 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
         // phone line's playback record features engine
         MultiMedeaEngine<H>,
         // phone line's fax-machine features engine
-        FaxMachineEngine<H>
-{
+        FaxMachineEngine<H> {
     //
     // the value of type the device as the server unit
     String UNIT_TYPE = "[telephony-channel-device]";
@@ -166,12 +168,11 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      *
      * @param openedDeviceHandle the handle of the opened device resource
      * @return built device session
-     * @throws IOException if device cannot create the session for device handle
-     * @see Session
+     * @see DefaultTelephonyCall
      */
     @Override
-    default Session<H> createSessionFor(H openedDeviceHandle) throws IOException {
-        return null;
+    default Session<H> createSessionFor(H openedDeviceHandle) {
+        return new DefaultTelephonyCall<>(this, openedDeviceHandle);
     }
 
     /**
@@ -838,5 +839,27 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
         public String getValue() {
             return value;
         }
+    }
+
+
+    /**
+     * Default Implementation: Phone Call Sessions: Keeps all information about phone call
+     *
+     * @param <H> the type of the device's low-level operations handle
+     * @see PhoneCallSession
+     */
+    class DefaultTelephonyCall<H> extends PhoneCallSession<H> {
+
+        public DefaultTelephonyCall(TelephonyDevice<H, ?> deviceOwner, H deviceHandle) {
+            super(deviceOwner, deviceHandle);
+        }
+    }
+    /**
+     * Default Implementation: The event from the telephony channel-device side
+     *
+     * @param <H> the type of device's handle (for low-level operations)
+     * @see AbstractDeviceEvent
+     */
+    class DefaultTelephonyEvent<H> extends AbstractDeviceEvent<H> {
     }
 }

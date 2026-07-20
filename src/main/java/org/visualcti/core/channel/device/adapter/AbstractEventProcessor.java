@@ -143,13 +143,14 @@ public abstract class AbstractEventProcessor<H> extends RunnableUnitAdapter impl
 
     /**
      * <action>
-     * Sending grabbed provider's device-event for further processing
+     * To process actions according the device event
      *
      * @param event device-event for the processing
      * @see #grabProviderEvents()
+     * @see #takeDeviceEvent()
      */
     @Override
-    public void sendForProcessing(DeviceEvent<H> event) {
+    public void onDeviceEvent(DeviceEvent<H> event) {
         if (!deviceEvents.offer(event)) {
             Tools.error("Can't add event " + event);
             dispatchError("Cannot put the device-event to the queue");
@@ -158,13 +159,14 @@ public abstract class AbstractEventProcessor<H> extends RunnableUnitAdapter impl
 
     /**
      * <taker>
-     * To take the device event grabbed and sent device event
+     * To take the device event for further even's processing
      *
      * @return taken device event
      * @throws InterruptedException if thread is interrupted
+     * @see #processingDeviceEvents()
      */
     @Override
-    public DeviceEvent<H> takeSentEvent() throws InterruptedException {
+    public DeviceEvent<H> takeDeviceEvent() throws InterruptedException {
         return deviceEvents.poll(howLongWaitForDeviceEvent, TimeUnit.MILLISECONDS);
     }
 
@@ -207,10 +209,12 @@ public abstract class AbstractEventProcessor<H> extends RunnableUnitAdapter impl
      * @param unitState new value of unit state
      * @see UnitState
      * @see RunnableUnitAdapter#currentUnitState(UnitState)
+     * @see RunnableUnitAdapter#unitState
      * @see RunnableUnitAdapter#dispatchEvent(String)
      */
     @Override
     public void currentUnitState(UnitState unitState) {
+        // changing the attribute value
         super.currentUnitState(unitState);
         // dealing with event dispatching factory's thread
         switch (unitState) {
@@ -279,7 +283,7 @@ public abstract class AbstractEventProcessor<H> extends RunnableUnitAdapter impl
     @SuppressWarnings("unchecked")
     private void stoppingDeviceEventProcessing() {
         // putting end os queue marker
-        sendForProcessing((DeviceEvent<H>) DeviceEvent.EMPTY);
+        onDeviceEvent((DeviceEvent<H>) DeviceEvent.EMPTY);
         // stopping provider events thread
         eventsGrabberThread(null);
     }

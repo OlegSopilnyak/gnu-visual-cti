@@ -64,7 +64,9 @@ import org.visualcti.server.task.Environment;
 public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
     // the value of type the server unit
     String UNIT_TYPE = "[channel-device]";
+    // parameter name of the quantity of repair attempts
     ParameterName REPAIR_ATTEMPT = Repair.ATTEMPT;
+    // parameter name of the timeout between repair attempts
     ParameterName REPAIR_TIMEOUT = Repair.TIMEOUT;
 
     /**
@@ -373,6 +375,9 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
         }
     }
 
+    /**
+     * Enumeration: Parameter names for device repair activity
+     */
     enum Repair implements ParameterName {
         ATTEMPT("ATTEMPT"),
         TIMEOUT("TIMEOUT");
