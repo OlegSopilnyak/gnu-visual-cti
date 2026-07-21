@@ -38,9 +38,6 @@ Fax number: 217-356-3356
 package org.visualcti.core.channel.telephony;
 
 
-import org.visualcti.core.channel.device.Device;
-import org.visualcti.core.channel.device.DeviceStateValue;
-
 /**
  * Device of the Telephony Channel: The core part of the telephony device type
  *
@@ -50,29 +47,10 @@ import org.visualcti.core.channel.device.DeviceStateValue;
 public interface TelephonyDeviceCore<H> {
     /**
      * <accessor>
-     * To get access to device's low-level handle
-     *
-     * @return the handle to manipulate the device features
-     */
-//    H getHandle();
-
-    /**
-     * <accessor>
      * To get access to the current device's telephony events provider
      *
      * @return the reference to the events provider singleton
      * @see TelephonyServiceProvider
      */
     TelephonyServiceProvider<H> getProvider();
-
-    /**
-     * <accessor>
-     * To get access to the current device's state
-     *
-     * @return the value
-     * @see DeviceStateValue
-     * @see Device.State
-     * @see TelephonyDevice.State
-     */
-//    DeviceStateValue getState();
 }

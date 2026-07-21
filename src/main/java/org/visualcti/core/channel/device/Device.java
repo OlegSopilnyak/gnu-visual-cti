@@ -143,11 +143,8 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
     default Session<H> startSession() throws IOException {
         // opening the device provider resource
         final H deviceHandle = serviceProvider().openResource(getName());
-        final Optional<Session<H>> oldSession = findSessionByHandle(deviceHandle);
-        if (oldSession.isPresent()) {
-            // stopping and detach the old session
-            stopAndDetach(oldSession.get());
-        }
+        // stopping and detach the old session, if it exists
+        findSessionByHandle(deviceHandle).ifPresent(this::stopAndDetach);
         // building new session for the device handle
         final Session<H> session = createSessionFor(deviceHandle);
         // add the device session as device events listener
@@ -163,15 +160,18 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
      * To stop device's session and detach it from device events stream
      *
      * @param session opened device's session
-     * @throws IOException if device cannot stop the session
      */
-    default void stopAndDetach(final Session<H> session) throws IOException {
-        // terminating current device activities of the session
-        session.terminate();
-        // closing current device session
-        session.close();
-        // closing device provider resource (can throw IOException)
-        serviceProvider().closeResource(session.getDeviceHandle());
+    default void stopAndDetach(final Session<H> session) {
+        try {
+            // terminating current device activities of the session
+            session.terminate();
+            // closing current device session
+            session.close();
+            // closing device provider resource (can throw IOException)
+            serviceProvider().closeResource(session.getDeviceHandle());
+        } catch (IOException e) {
+            dispatchError(e, "Cannot stop and detach opened device session");
+        }
         // removing the device session as an events listener from the factory
         getFactory().getHub().removeDeviceEventListenerFor(getName(), session);
 

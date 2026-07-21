@@ -47,10 +47,8 @@ import static org.visualcti.core.channel.telephony.TelephonyDevice.State.WAIT;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -88,8 +86,6 @@ import org.visualcti.media.Sound;
  */
 public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
         extends AbstractDevice<H, T> implements TelephonyDevice<H, T> {
-    // the channel-device configured parameters map
-    private final Map<ParameterName, ConfigurationParameter> parameters = new ConcurrentHashMap<>();
     // the name of the device in the device factory
     private final String name;
     // The opened device handle for the low level telephony operations
@@ -106,8 +102,6 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
             || value == Result.CALL.Analysis.NO_ANSWER
             || value == Result.CALL.Analysis.NO_RESPONDING
             || value == Result.CALL.Analysis.NO_DIAL_TONE;
-    // the provider of telephony operations
-//    private final TelephonyServiceProvider<H> provider;
     // device part of the telephony calls management
     private final CallsPortEngine<H> calls;
     // device part of the telephony signals and tones management
@@ -135,15 +129,14 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
     ) {
         super(provider);
         this.name = name;
-//        this.provider = provider;
-        this.calls = calls.use(this);
-        this.tones = tones.use(this);
-        this.media = media.use(this);
-        this.faxes = faxes.use(this);
+        this.calls = calls.uses(this);
+        this.tones = tones.uses(this);
+        this.media = media.uses(this);
+        this.faxes = faxes.uses(this);
     }
 
     @Override
-    public <P extends TelephonyDevicePart<?>> P use(TelephonyDeviceCore<H> deviceCore) {
+    public <P extends TelephonyDevicePart<?>> P uses(TelephonyDeviceCore<H> deviceCore) {
         throw new UnsupportedOperationException("Not applicable here");
     }
 

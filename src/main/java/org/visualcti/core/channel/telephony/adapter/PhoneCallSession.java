@@ -38,6 +38,7 @@ Fax number: 217-356-3356
 package org.visualcti.core.channel.telephony.adapter;
 
 import static org.visualcti.core.channel.device.Device.State.IDLE;
+import static org.visualcti.core.channel.device.adapter.AbstractDeviceEvent.incoming;
 import static org.visualcti.core.channel.telephony.TelephonyDevice.State.WAIT;
 
 import java.io.IOException;
@@ -67,6 +68,7 @@ import org.visualcti.core.channel.telephony.operation.Result;
  * @see PhoneCall
  * @see AbstractDeviceSession
  */
+@SuppressWarnings("unchecked")
 public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> implements PhoneCall {
     // predicate to be sure that device is delivered to the correct events listener(phone-call-session)
     private final Predicate<DeviceEvent<?>> thisSessionEvent = event -> event != DeviceEvent.EMPTY
@@ -81,8 +83,19 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
     private Number calledNumber = Number.EMPTY;
     private Number callingNumber = Number.EMPTY;
 
-    protected PhoneCallSession(Device<H, ?> deviceOwner, H deviceHandle) {
+    protected PhoneCallSession(TelephonyDevice<H, ?> deviceOwner, H deviceHandle) {
         super(deviceOwner, deviceHandle);
+    }
+
+    /**
+     * <accessor>
+     * To get access to device-owner of the context
+     *
+     * @return the device-owner reference
+     */
+    @Override
+    public TelephonyDevice<H, ?> getDevice() {
+        return (TelephonyDevice<H, ?>) super.getDevice();
     }
 
     /**
@@ -107,6 +120,20 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
     @Override
     public boolean isAlive() {
         return alive;
+    }
+
+    /**
+     * <mutator>
+     * To set up the alive flag
+     *
+     * @param alive new value
+     * @return updated phone call instance
+     * @see OperationResultValue
+     * @see #isAlive()
+     */
+    public PhoneCallSession<H> alive(boolean alive) {
+        this.alive = alive;
+        return this;
     }
 
     /**
@@ -346,7 +373,7 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
         } else if (currentState == IDLE) {
             // detected incoming call event for session in IDLE state
             // rethrowing the device event as incoming one
-            getDevice().getFactory().onDeviceEvent(TelephonyDevice.DefaultTelephonyEvent.incoming(event));
+            getDevice().getFactory().onDeviceEvent(incoming(event));
         }
     }
 

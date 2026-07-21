@@ -38,12 +38,14 @@ Fax number: 217-356-3356
 package org.visualcti.core.channel.telephony.part;
 
 import java.io.IOException;
+import org.visualcti.core.channel.telephony.TelephonyDevice;
 import org.visualcti.core.channel.telephony.TelephonyDeviceCore;
+import org.visualcti.core.channel.telephony.adapter.PhoneCallSession;
 
 /**
- * The Part of the Telephony Channel Device: The common device part
+ * The Part of the Telephony Channel Device: The common used part of the device
  *
- * @see TelephonyDevicePart
+ * @see TelephonyDevice
  */
 public interface TelephonyDevicePart<H> {
     /**
@@ -55,7 +57,7 @@ public interface TelephonyDevicePart<H> {
      * @param <P> the type of device part
      * @see TelephonyDeviceCore
      */
-    <P extends TelephonyDevicePart<?>> P use(TelephonyDeviceCore<H> deviceCore);
+    <P extends TelephonyDevicePart<?>> P uses(TelephonyDeviceCore<H> deviceCore);
 
     /**
      * <action>
@@ -63,7 +65,9 @@ public interface TelephonyDevicePart<H> {
      * 1. operations with telephony calls (waiting or making call, connect, etc.)
      * 2. exchanges of the data (voice or fax)
      *
+     * @param session the phone call's session, device is working with
      * @throws IOException If the device can't terminate current operation
+     * @see PhoneCallSession
      */
-    void terminate() throws IOException;
+    void terminate(PhoneCallSession<H> session) throws IOException;
 }

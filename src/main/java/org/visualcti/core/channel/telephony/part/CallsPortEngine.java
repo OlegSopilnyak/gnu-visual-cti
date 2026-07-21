@@ -39,6 +39,7 @@ package org.visualcti.core.channel.telephony.part;
 
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.telephony.TelephonyDeviceFactory;
+import org.visualcti.core.channel.telephony.adapter.PhoneCallSession;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
 import org.visualcti.core.channel.telephony.operation.Result;
 import org.visualcti.core.channel.telephony.operation.ToneId;
@@ -53,9 +54,13 @@ import org.visualcti.media.Sound;
 public interface CallsPortEngine<H> extends TelephonyDevicePart<H> {
     /**
      * <action>
-     * To break off telephone connection.
+     * To end a phone call.
+     *
+     * @param session the phone call's session, device is working with
+     * @return true if operation complete successfully
+     * @see PhoneCallSession
      */
-    void dropCall();
+    boolean dropCall(PhoneCallSession<H> session);
 
     /**
      * <accessor>
@@ -65,7 +70,9 @@ public interface CallsPortEngine<H> extends TelephonyDevicePart<H> {
      * @return true if device can accept the incoming phone call
      * @see CallParameter#ACCEPT_CALL_ALLOWED
      */
-    boolean canAcceptCall();
+    default boolean canAcceptCall() {
+        return false;
+    }
 
     /**
      * <action>
@@ -98,14 +105,15 @@ public interface CallsPortEngine<H> extends TelephonyDevicePart<H> {
      * or disconnect detected during simple waiting (rings==0).<BR/>
      * {@link Result#TERMINATED} - the operation is interrupted by system.
      *
+     * @param session the phone call's session, device is working with
      * @param rings   the quantity of ring signals before answering the call
      * @param timeout waiting time (seconds) how many seconds wait before timeout status returned
      * @param answer  flag is needed answer to an incoming call
-     * @return the phone call with appropriate operation result
-     * @see PhoneCall
-     * @see PhoneCall#operationResult()
+     * @return true if operation complete successfully
+     * @see PhoneCallSession
+     * @see PhoneCallSession#operationResult()
      */
-    PhoneCall waitForCall(int rings, int timeout, boolean answer);
+    boolean waitForCall(PhoneCallSession<H> session, int rings, int timeout, boolean answer);
 
     /**
      * <accessor>
@@ -135,15 +143,16 @@ public interface CallsPortEngine<H> extends TelephonyDevicePart<H> {
      * {@link Result.CALL.Analysis#NO_RESPONDING} - there is no signal after a phone number dialing up<BR/>
      * {@link Result.CALL.Analysis#BAN}           - the dialing phone number is forbidden
      *
+     * @param session the phone call's session, device is working with
      * @param number  telephone number
      * @param timeout maximal waiting time for the answer (sec) after which call with
-     *                {@link PhoneCall#operationResult()} equals {@link Result.CALL.Analysis#NO_ANSWER} will be returned.
-     * @return the phone call with appropriate operation result
-     * @see PhoneCall
-     * @see PhoneCall#operationResult()
+     *                {@link PhoneCallSession#operationResult()} equals {@link Result.CALL.Analysis#NO_ANSWER} will be returned.
+     * @return true if operation complete successfully
+     * @see PhoneCallSession
+     * @see PhoneCallSession#operationResult()
      * @see Result.CALL.Analysis
      */
-    PhoneCall makeCall(String number, int timeout);
+    boolean makeCall(PhoneCallSession<H> session, String number, int timeout);
 
     /**
      * <accessor>
@@ -200,16 +209,17 @@ public interface CallsPortEngine<H> extends TelephonyDevicePart<H> {
      * {@link Result.CALL.Analysis#NO_RESPONDING} - there is no signal after a phone number dialing up<BR/>
      * {@link Result.CALL.Analysis#BAN}           - the calling phone number is forbidden
      *
+     * @param session the phone call's session, device is working with
      * @param number  telephone number
      * @param timeout maximal waiting time for the answer (sec) after which call with
-     *                {@link PhoneCall#operationResult()} equals {@link Result.CALL.Analysis#NO_ANSWER} will be returned.
+     *                {@link PhoneCallSession#operationResult()} equals {@link Result.CALL.Analysis#NO_ANSWER} will be returned.
      * @param toPlay The sound which is playing during the connect operation
-     * @return the phone call with appropriate operation result
-     * @see PhoneCall
-     * @see PhoneCall#operationResult()
+     * @return true if operation complete successfully
+     * @see PhoneCallSession
+     * @see PhoneCallSession#operationResult()
      * @see Result.CALL.Analysis
      */
-    PhoneCall connect(String number, int timeout, Sound toPlay);
+    boolean connect(PhoneCallSession<H> session, String number, int timeout, Sound toPlay);
 
     /**
      * Configured Parameter Names Enumeration: The parameter names of call parts of the telephony device

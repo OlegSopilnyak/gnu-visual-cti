@@ -37,7 +37,8 @@ Fax number: 217-356-3356
 */
 package org.visualcti.core.channel.telephony.part.impl;
 
-import java.io.IOException;
+import java.util.Objects;
+import java.util.function.Predicate;
 import org.visualcti.core.XmlAware;
 import org.visualcti.core.channel.telephony.TelephonyDeviceCore;
 import org.visualcti.core.channel.telephony.TelephonyDeviceFactory;
@@ -49,7 +50,9 @@ import org.visualcti.core.channel.telephony.part.TelephonyDevicePart;
  * @see TelephonyDeviceFactory
  */
 @SuppressWarnings("unchecked")
-public class AbstractDevicePart<H> implements TelephonyDevicePart<H>, XmlAware {
+public abstract class AbstractDevicePart<H> implements TelephonyDevicePart<H>, XmlAware {
+    protected final transient Predicate<H> validResourceHandle =
+            handle -> !Objects.equals(handle, wrongHandle()) || !Objects.equals(handle, errorHandle());
     // the core of the telephony device
     protected transient TelephonyDeviceCore<H> deviceCore;
 
@@ -60,21 +63,28 @@ public class AbstractDevicePart<H> implements TelephonyDevicePart<H>, XmlAware {
      * @param deviceCore device core will be used in the part
      */
     @Override
-    public <P extends TelephonyDevicePart<?>> P use(TelephonyDeviceCore<H> deviceCore) {
+    public <P extends TelephonyDevicePart<?>> P uses(TelephonyDeviceCore<H> deviceCore) {
         this.deviceCore = deviceCore;
         return (P) this;
     }
 
     /**
-     * <action>
-     * The unconditional termination anyone current active operation:
-     * 1. operations with telephony calls (waiting or making call, connect, etc.)
-     * 2. exchanges of the data (voice or fax)
+     * <accessor>
+     * To get access to the wrong value device's low-level handle
      *
-     * @throws IOException If the device can't terminate current operation
+     * @return the value for handle of unopened device
      */
-    @Override
-    public void terminate() throws IOException {
-        // doing nothing for this
+    protected H wrongHandle() {
+        return null;
+    }
+
+    /**
+     * <accessor>
+     * To get access to the error value device's low-level handle
+     *
+     * @return the value for handle of corrupted device
+     */
+    protected H errorHandle() {
+        return null;
     }
 }

@@ -137,18 +137,6 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
 
     /**
      * <accessor>
-     * To get reference to the channel-devices service provider to do this channel-device low-level operations
-     *
-     * @return the service provider associated with the channel-device
-     * @see ServiceProvider
-     */
-    @Override
-    default ServiceProvider<H> serviceProvider() {
-        return null;
-    }
-
-    /**
-     * <accessor>
      * To get access to the channel-device configured parameter value
      *
      * @param name the name of configured parameter
@@ -196,16 +184,7 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      */
     @Override
     default TelephonyServiceProvider<H> getProvider() {
-        return null;
-    }
-
-    /**
-     * <action>
-     * To break off telephone connection.
-     */
-    @Override
-    default void dropCall() {
-
+        return (TelephonyServiceProvider<H>) Device.super.serviceProvider();
     }
 
     /**
@@ -786,7 +765,7 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      * @see TelephonyDeviceCore
      */
     @Override
-    default <P extends TelephonyDevicePart<?>> P use(TelephonyDeviceCore<H> deviceCore) {
+    default <P extends TelephonyDevicePart<?>> P uses(TelephonyDeviceCore<H> deviceCore) {
         return null;
     }
 

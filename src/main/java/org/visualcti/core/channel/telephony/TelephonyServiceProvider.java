@@ -38,6 +38,8 @@ Fax number: 217-356-3356
 package org.visualcti.core.channel.telephony;
 
 import org.visualcti.core.channel.device.Device;
+import org.visualcti.core.channel.telephony.adapter.PhoneCallSession;
+import org.visualcti.core.channel.telephony.part.CallsPortEngine;
 
 /**
  * Provider Facade: The telephony service provider facade (for manufacturer implementation)
@@ -46,4 +48,13 @@ import org.visualcti.core.channel.device.Device;
  * @see Device.ServiceProvider
  */
 public interface TelephonyServiceProvider<H>  extends Device.ServiceProvider<H> {
+    /**
+     * <action>
+     * To end a phone call.
+     *
+     * @param handle the telephony device handle
+     * @return true if operation complete successfully
+     * @see CallsPortEngine#dropCall(PhoneCallSession)
+     */
+    boolean dropCall(H handle);
 }

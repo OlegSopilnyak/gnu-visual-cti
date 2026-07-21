@@ -37,8 +37,17 @@ Fax number: 217-356-3356
 */
 package org.visualcti.core.channel.telephony.part.impl;
 
+import java.io.IOException;
+import org.visualcti.core.channel.device.Device;
+import org.visualcti.core.channel.device.DeviceStateValue;
+import org.visualcti.core.channel.device.operation.OperationResultValue;
+import org.visualcti.core.channel.telephony.TelephonyDevice;
 import org.visualcti.core.channel.telephony.TelephonyDeviceFactory;
+import org.visualcti.core.channel.telephony.TelephonyServiceProvider;
+import org.visualcti.core.channel.telephony.adapter.PhoneCallSession;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
+import org.visualcti.core.channel.telephony.operation.Result;
+import org.visualcti.core.channel.telephony.operation.ToneId;
 import org.visualcti.core.channel.telephony.part.CallsPortEngine;
 import org.visualcti.media.Sound;
 
@@ -46,27 +55,59 @@ import org.visualcti.media.Sound;
  * The Part of the Telephony Channel Device: The device part adapter of the telephony call management
  */
 public class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> implements CallsPortEngine<H> {
-
     /**
      * <action>
-     * To break off telephone connection.
-     */
-    @Override
-    public void dropCall() {
-
-    }
-
-    /**
-     * <accessor>
-     * To check, whether device can accept the incoming call
-     * This flag, the factory may set in properties of the device
+     * To end a phone call.
      *
-     * @return true if device can accept the incoming phone call
-     * @see CallParameter#ACCEPT_CALL_ALLOWED
+     * @param session the phone call's session, device is working with
+     * @return true if operation complete successfully
+     * @see PhoneCallSession#getDeviceHandle()
+     * @see PhoneCallSession#getDevice()
+     * @see TelephonyDevice#getProvider()
+     * @see TelephonyDevice#terminate(PhoneCallSession)
+     * @see TelephonyServiceProvider#dropCall(Object)
+     * @see PhoneCallSession#setState(DeviceStateValue)
+     * @see Device.State#IDLE
+     * @see PhoneCallSession#operationResult(OperationResultValue)
+     * @see Result.CALL#DISCONNECT
      */
     @Override
-    public boolean canAcceptCall() {
-        return false;
+    public boolean dropCall(final PhoneCallSession<H> session) {
+        // getting the device's handle
+        final H handle = session.getDeviceHandle();
+        // checking the session's state
+        if (super.validResourceHandle.test(handle) && session.isAlive()) {
+            // device's handle is valid and session is alive
+            final TelephonyDevice<H, ?> device = session.getDevice();
+            try {
+                // terminating current device activities related to the session
+                device.terminate(session);
+            } catch (IOException e) {
+                // something went wrong in the termination current operation
+                device.dispatchError(e, "Cannot terminate current phone call activities.");
+            }
+            //
+            // getting device service provider
+            final TelephonyServiceProvider<H> serviceProvider = device.getProvider();
+            // dropping telephony call on the device service provider site
+            if (serviceProvider.dropCall(handle)) {
+                // operation is finished well
+                session.setState(Device.State.IDLE);
+                // saving last operation result
+                session.operationComplete(Result.CALL.DISCONNECT);
+                // disable all events producing for the opened handle
+                serviceProvider.disableEvents(handle);
+                // enable producing incoming call events for the opened handle
+                serviceProvider.enableEvents(handle, Result.CALL.RINGS);
+            }
+            // marking session as not alive (disconnected)
+            session.alive(false);
+            // the operation is successfully completed
+            return true;
+        } else {
+            // handle had wrong value or session wasn't alive
+            return false;
+        }
     }
 
     /**
@@ -100,16 +141,29 @@ public class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> implements
      * or disconnect detected during simple waiting (rings==0).<BR/>
      * {@link Result#TERMINATED} - the operation is interrupted by system.
      *
+     * @param session the phone call's session, device is working with
      * @param rings   the quantity of ring signals before answering the call
      * @param timeout waiting time (seconds) how many seconds wait before timeout status returned
      * @param answer  flag is needed answer to an incoming call
-     * @return the phone call with appropriate operation result
-     * @see PhoneCall
-     * @see PhoneCall#operationResult()
+     * @return true if operation complete successfully
+     * @see PhoneCallSession
+     * @see PhoneCallSession#operationResult()
      */
     @Override
-    public PhoneCall waitForCall(int rings, int timeout, boolean answer) {
-        return null;
+    public boolean waitForCall(PhoneCallSession<H> session, int rings, int timeout, boolean answer) {
+        // getting the device's handle
+        final H handle = session.getDeviceHandle();
+        // checking the operation's allowance and session's state
+        if (this.canAcceptCall() && super.validResourceHandle.test(handle) && session.isDisconnected()) {
+            //
+            // getting device service provider
+            final TelephonyServiceProvider<H> serviceProvider = deviceCore.getProvider();
+            // enable producing incoming call events for the opened handle
+            serviceProvider.enableEvents(handle, Result.CALL.RINGS);
+            return true;
+        } else {
+            return false;
+        }
     }
 
     /**
@@ -143,17 +197,18 @@ public class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> implements
      * {@link Result.CALL.Analysis#NO_RESPONDING} - there is no signal after a phone number dialing up<BR/>
      * {@link Result.CALL.Analysis#BAN}           - the dialing phone number is forbidden
      *
+     * @param session the phone call's session, device is working with
      * @param number  telephone number
      * @param timeout maximal waiting time for the answer (sec) after which call with
-     *                {@link PhoneCall#operationResult()} equals {@link Result.CALL.Analysis#NO_ANSWER} will be returned.
-     * @return the phone call with appropriate operation result
-     * @see PhoneCall
-     * @see PhoneCall#operationResult()
+     *                {@link PhoneCallSession#operationResult()} equals {@link Result.CALL.Analysis#NO_ANSWER} will be returned.
+     * @return true if operation complete successfully
+     * @see PhoneCallSession
+     * @see PhoneCallSession#operationResult()
      * @see Result.CALL.Analysis
      */
     @Override
-    public PhoneCall makeCall(String number, int timeout) {
-        return null;
+    public boolean makeCall(PhoneCallSession<H> session, String number, int timeout) {
+        return false;
     }
 
     /**
@@ -214,17 +269,33 @@ public class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> implements
      * {@link Result.CALL.Analysis#NO_RESPONDING} - there is no signal after a phone number dialing up<BR/>
      * {@link Result.CALL.Analysis#BAN}           - the calling phone number is forbidden
      *
+     * @param session the phone call's session, device is working with
      * @param number  telephone number
      * @param timeout maximal waiting time for the answer (sec) after which call with
-     *                {@link PhoneCall#operationResult()} equals {@link Result.CALL.Analysis#NO_ANSWER} will be returned.
+     *                {@link PhoneCallSession#operationResult()} equals {@link Result.CALL.Analysis#NO_ANSWER} will be returned.
      * @param toPlay  The sound which is playing during the connect operation
-     * @return the phone call with appropriate operation result
-     * @see PhoneCall
-     * @see PhoneCall#operationResult()
+     * @return true if operation complete successfully
+     * @see PhoneCallSession
+     * @see PhoneCallSession#operationResult()
      * @see Result.CALL.Analysis
      */
     @Override
-    public PhoneCall connect(String number, int timeout, Sound toPlay) {
-        return null;
+    public boolean connect(PhoneCallSession<H> session, String number, int timeout, Sound toPlay) {
+        return false;
+    }
+
+    /**
+     * <action>
+     * The unconditional termination anyone current active operation:
+     * 1. operations with telephony calls (waiting or making call, connect, etc.)
+     * 2. exchanges of the data (voice or fax)
+     *
+     * @param session the phone call's session, device is working with
+     * @throws IOException If the device can't terminate current operation
+     * @see PhoneCallSession
+     */
+    @Override
+    public void terminate(PhoneCallSession<H> session) throws IOException {
+        session.terminate();
     }
 }
