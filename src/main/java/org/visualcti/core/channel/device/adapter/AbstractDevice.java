@@ -180,7 +180,7 @@ public class AbstractDevice<H, F extends Factory<H, ?>> extends ServerUnitAdapte
 
     /// / private methods
     // to check the device session integrity
-    private boolean isInvalid(Session<H> session) {
+    private static boolean isInvalid(Session<?> session) {
         return session == null || session.getDeviceHandle() == null || session.getState() == null;
     }
 }

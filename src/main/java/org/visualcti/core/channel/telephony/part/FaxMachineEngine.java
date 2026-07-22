@@ -40,6 +40,7 @@ package org.visualcti.core.channel.telephony.part;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.operation.Result;
 import org.visualcti.media.Document;
@@ -54,27 +55,24 @@ import org.visualcti.media.Fax;
 public interface FaxMachineEngine<H> extends TelephonyDevicePart<H> {
     /**
      * <action>
-     * Opening and activation the fax-machine part of the channel-device.
+     * To open and activate the fax-machine on the opened telephony device session
      *
-     * @throws IOException if channel cannot be opened or activated
+     * @param openedDeviceSession the session of the opened device
+     * @throws IOException if device cannot open fax-machine for the telephony device session
      */
-//    void open() throws IOException;
-
-    /**
-     * <accessor>
-     * Check, is device already opened
-     *
-     * @return true if it's opened
-     */
-//    boolean isOpened();
+    default void open(Device.Session<H> openedDeviceSession) throws IOException {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
 
     /**
      * <action>
      * Closing the fax-machine part of the device
      *
-     * @throws IOException if channel cannot be closed
+     * @param session the session of the opened device
      */
-//    void close() throws IOException;
+    default void close(Device.Session<H> session) {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
 
     /**
      * <accessor>
@@ -82,7 +80,7 @@ public interface FaxMachineEngine<H> extends TelephonyDevicePart<H> {
      * This flag, the factory may set in properties of the device
      *
      * @return true if device can operate with fax-machine
-     * @see CallsPortEngine.CallParameter#FAX_ALLOWED
+     * @see FaxMachineEngine.Parameter#FAX_ALLOWED
      */
     boolean canFax();
 
@@ -200,4 +198,23 @@ public interface FaxMachineEngine<H> extends TelephonyDevicePart<H> {
      * @param description the description of the error
      */
     void dispatchError(Throwable exception, String description);
+
+    /**
+     * Configured Parameter Names Enumeration: The parameter names of call parts of the telephony device
+     */
+    enum Parameter implements Device.ParameterName {
+        // whether device can operate with the fax machines
+        FAX_ALLOWED("FAX-SUPPORTED")
+        ;
+        private final String name;
+
+        Parameter(String name) {
+            this.name = name;
+        }
+
+        @Override
+        public String value() {
+            return name.toLowerCase();
+        }
+    }
 }

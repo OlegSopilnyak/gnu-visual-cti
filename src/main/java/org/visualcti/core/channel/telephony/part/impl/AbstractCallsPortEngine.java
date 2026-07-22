@@ -38,6 +38,8 @@ Fax number: 217-356-3356
 package org.visualcti.core.channel.telephony.part.impl;
 
 import java.io.IOException;
+import java.util.Optional;
+import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceStateValue;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
@@ -156,10 +158,46 @@ public class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> implements
         // checking the operation's allowance and session's state
         if (this.canAcceptCall() && super.validResourceHandle.test(handle) && session.isDisconnected()) {
             //
+            // setting up called number for waiting incoming call to
+            final Optional<ConfigurationParameter> called = deviceCore.getParameter(Parameter.ORIGIN);
+            session.calledNumber(called.isPresent() ? called.get().getValue() : PhoneCall.Number.EMPTY);
             // getting device service provider
             final TelephonyServiceProvider<H> serviceProvider = deviceCore.getProvider();
-            // enable producing incoming call events for the opened handle
+            // enabling incoming call events producing for the opened handle
             serviceProvider.enableEvents(handle, Result.CALL.RINGS);
+            session.setState(TelephonyDevice.State.WAIT);
+            session.operationComplete(Result.NONE);
+            // waiting for incoming call during the timeout value
+            int tryCount = timeout;
+            do {
+                try {
+                    // waiting for incoming call 1 second of the timeout's seconds
+                    session.waitForOperationComplete(1000);
+                    if (session.operationResult() != Result.NONE) {
+                        // stop producing events for incoming call
+                        serviceProvider.disableEvents(handle, Result.CALL.RINGS);
+                        // getting caller phone number and storing it to the session
+                        session.callingNumber(serviceProvider.getCallerID(handle));
+                        // it's caught the incoming call event
+                        if (answer) {
+                            // to answer to the incoming call and mark the session as alive
+                            session.alive(serviceProvider.answerCall(handle));
+                            // setting up the appropriate session's state
+                            session.operationComplete(Result.CALL.ALERTING);
+                            // enabling call's disconnect events producing for the opened handle
+                            serviceProvider.enableEvents(handle, Result.CALL.DISCONNECT);
+                        }
+                        // wait for call operation is complete
+                        session.setState(Device.State.IDLE);
+                        return true;
+                    }
+                } catch (InterruptedException e) {
+                    session.getDevice().dispatchError(e, "Cannot wait for call operation complete.");
+                    /* Clean up whatever needs to be handled before interrupting  */
+                    Thread.currentThread().interrupt();
+                    return false;
+                }
+            } while (--tryCount > 0);
             return true;
         } else {
             return false;
@@ -173,7 +211,7 @@ public class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> implements
      *
      * @return true if device can make outgoing calls
      * @see TelephonyDeviceFactory
-     * @see CallParameter#MAKE_CALL_ALLOWED
+     * @see Parameter#MAKE_CALL_ALLOWED
      */
     @Override
     public boolean canMakeCall() {
@@ -218,7 +256,7 @@ public class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> implements
      *
      * @return true if device can be shared for another device
      * @see TelephonyDeviceFactory
-     * @see CallParameter#SHARE_CALL_ALLOWED
+     * @see Parameter#SHARE_CALL_ALLOWED
      */
     @Override
     public boolean canBeConnected() {

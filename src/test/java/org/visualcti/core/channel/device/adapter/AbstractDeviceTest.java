@@ -263,10 +263,10 @@ public class AbstractDeviceTest {
         // preparing test data
         int attemptsCount = 2;
         long attemptsTimeout = 100;
-        ConfigurationParameter attempts = ConfigurationParameter.of(Device.REPAIR_ATTEMPT.value(), attemptsCount);
-        ConfigurationParameter timeouts = ConfigurationParameter.of(Device.REPAIR_TIMEOUT.value(), attemptsTimeout);
-        doReturn(Optional.of(attempts)).when(device).getParameter(Device.REPAIR_ATTEMPT);
-        doReturn(Optional.of(timeouts)).when(device).getParameter(Device.REPAIR_TIMEOUT);
+        ConfigurationParameter attempts = ConfigurationParameter.of(Device.Parameter.REPAIR_ATTEMPT.value(), attemptsCount);
+        ConfigurationParameter timeouts = ConfigurationParameter.of(Device.Parameter.REPAIR_TIMEOUT.value(), attemptsTimeout);
+        doReturn(Optional.of(attempts)).when(device).getParameter(Device.Parameter.REPAIR_ATTEMPT);
+        doReturn(Optional.of(timeouts)).when(device).getParameter(Device.Parameter.REPAIR_TIMEOUT);
 
         // acting
         boolean repaired = device.repair();
@@ -321,7 +321,7 @@ public class AbstractDeviceTest {
     public void shouldBeStateChangedForDevice() throws IOException {
         // preparing test data
         String handle = "100";
-        Device.Session<String> deviceSession = spy(new AbstractDeviceSession(device, handle));
+        Device.Session<String> deviceSession = spy(new AbstractDeviceSession(device, handle){});
         assertThat(deviceSession.getState()).isSameAs(IDLE);
         doReturn(deviceSession).when(device).createSessionFor(handle);
 
@@ -337,7 +337,7 @@ public class AbstractDeviceTest {
     public void shouldNotBeStateChangedForDevice_TheSameState() throws IOException {
         // preparing test data
         String handle = "100";
-        Device.Session<String> deviceSession = spy(new AbstractDeviceSession(device, handle));
+        Device.Session<String> deviceSession = spy(new AbstractDeviceSession(device, handle){});
         assertThat(deviceSession.getState()).isSameAs(IDLE);
         doReturn(deviceSession).when(device).createSessionFor(handle);
 
@@ -397,7 +397,7 @@ public class AbstractDeviceTest {
         // preparing test data
         String handle = "101";
         DeviceStateValue sessionStateInitValue = IDLE;
-        Device.Session<String> deviceSession = spy(new AbstractDeviceSession(device, handle));
+        Device.Session<String> deviceSession = spy(new AbstractDeviceSession(device, handle){});
         assertThat(deviceSession.getState()).isSameAs(sessionStateInitValue);
         doReturn(deviceSession).when(device).createSessionFor(handle);
         doReturn(handle).when(serviceProvider).openResource(deviceName);
@@ -426,7 +426,7 @@ public class AbstractDeviceTest {
     public void shouldStartSession() throws IOException {
         // preparing test data
         String handle = "102";
-        Device.Session<String> deviceSession = spy(new AbstractDeviceSession(device, handle));
+        Device.Session<String> deviceSession = spy(new AbstractDeviceSession(device, handle){});
         assertThat(deviceSession.getState()).isSameAs(IDLE);
         doReturn(deviceSession).when(device).createSessionFor(handle);
         doReturn(handle).when(serviceProvider).openResource(deviceName);

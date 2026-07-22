@@ -39,6 +39,7 @@ package org.visualcti.core.channel.telephony;
 
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.telephony.adapter.PhoneCallSession;
+import org.visualcti.core.channel.telephony.operation.PhoneCall;
 import org.visualcti.core.channel.telephony.part.CallsPortEngine;
 
 /**
@@ -57,4 +58,23 @@ public interface TelephonyServiceProvider<H>  extends Device.ServiceProvider<H> 
      * @see CallsPortEngine#dropCall(PhoneCallSession)
      */
     boolean dropCall(H handle);
+
+    /**
+     * <action>
+     * To answer to an incoming phone call.
+     *
+     * @param handle the telephony device handle
+     * @return true if operation complete successfully
+     * @see CallsPortEngine#waitForCall(PhoneCallSession, int, int, boolean)
+     */
+    boolean answerCall(H handle);
+
+    /**
+     * <accessor>
+     * To get the caller's phone number
+     *
+     * @param handle the connected telephony device handle
+     * @return caller's phone number value
+     */
+    PhoneCall.Number getCallerID(H handle);
 }

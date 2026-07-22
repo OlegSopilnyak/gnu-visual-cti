@@ -103,7 +103,7 @@ public class AbstractPhoneCallSessionTest {
         assertThat(session.isAlive()).isFalse();
 
         // acting
-        session.alive = true;
+        session.alive(true);
 
         // check results
         assertThat(session.isAlive()).isTrue();
@@ -113,7 +113,7 @@ public class AbstractPhoneCallSessionTest {
     public void shouldGetOperationResult() {
         // preparing test data
         OperationResultValue result = mock(OperationResultValue.class);
-        session.operationResult.getAndSet(result);
+//        session.operationResult.getAndSet(result);
 
         // acting
         OperationResultValue operationResultValue = session.operationResult();
@@ -190,7 +190,7 @@ public class AbstractPhoneCallSessionTest {
     @Test
     public void shouldWaitForOperationComplete_Interrupted() throws InterruptedException {
         // preparing test data
-        session.operationResult.getAndSet(Result.ERROR);
+//        session.operationResult.getAndSet(Result.ERROR);
         Runnable runnable = () -> {
             try {
                 Thread.sleep(100);
@@ -211,7 +211,7 @@ public class AbstractPhoneCallSessionTest {
     @Test
     public void shouldWaitForOperationComplete_TimedOut() throws InterruptedException {
         // preparing test data
-        session.operationResult.getAndSet(Result.ERROR);
+//        session.operationResult.getAndSet(Result.ERROR);
 
         // acting
         session.waitForOperationComplete(200L);
@@ -223,7 +223,7 @@ public class AbstractPhoneCallSessionTest {
     @Test
     public void shouldCompleteTheOperationAndUpdateLastOperationResult() throws InterruptedException {
         // preparing test data
-        session.operationResult.getAndSet(Result.ERROR);
+//        session.operationResult.getAndSet(Result.ERROR);
         executor.execute(() -> {
             try {
                 session.waitForOperationComplete(-1L);

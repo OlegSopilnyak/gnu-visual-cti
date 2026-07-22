@@ -64,10 +64,6 @@ import org.visualcti.server.task.Environment;
 public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
     // the value of type the server unit
     String UNIT_TYPE = "[channel-device]";
-    // parameter name of the quantity of repair attempts
-    ParameterName REPAIR_ATTEMPT = Repair.ATTEMPT;
-    // parameter name of the timeout between repair attempts
-    ParameterName REPAIR_TIMEOUT = Repair.TIMEOUT;
 
     /**
      * <accessor>
@@ -275,9 +271,9 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
     @Override
     default void close() throws IOException {
         // closing device's resource and removing sessions as device events listener
-        for (final Session<H> deviceSession : sessions().toArray(Session[]::new)) {
-            // stopping the opened device session
-            stopAndDetach(deviceSession);
+        for (final Session<H> session : (Iterable<Session<H>>) sessions()::iterator) {
+            // stopping and detaching the opened device session
+            stopAndDetach(session);
         }
     }
 
@@ -331,9 +327,9 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
      * @see TimeUnit#sleep(long)
      */
     default boolean repair() {
-        final ConfigurationParameter attempt = getParameter(REPAIR_ATTEMPT).orElse(null);
+        final ConfigurationParameter attempt = getParameter(Parameter.REPAIR_ATTEMPT).orElse(null);
         final int repairTryAttempts = attempt != null ? attempt.getValue() : 20;
-        final ConfigurationParameter nextTryIn = getParameter(REPAIR_TIMEOUT).orElse(null);
+        final ConfigurationParameter nextTryIn = getParameter(Parameter.REPAIR_TIMEOUT).orElse(null);
         final int nextTryInSeconds = nextTryIn != null ? nextTryIn.getValue() : 3000;
         // repairing sequence
         try {
@@ -376,32 +372,6 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
     }
 
     /**
-     * Enumeration: Parameter names for device repair activity
-     */
-    enum Repair implements ParameterName {
-        ATTEMPT("ATTEMPT"),
-        TIMEOUT("TIMEOUT");
-
-        private final String name;
-
-        Repair(String name) {
-            this.name = name;
-        }
-
-        @Override
-        public String value() {
-            return name.toLowerCase();
-        }
-    }
-
-    /**
-     * The parent of configured parameter names enumerations
-     */
-    interface ParameterName {
-        String value();
-    }
-
-    /**
      * Device States Enumeration: The states of the device
      *
      * @see Session#getState()
@@ -430,6 +400,38 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
     }
 
     /**
+     * The parent of configured parameter names enumerations
+     */
+    interface ParameterName {
+        String value();
+    }
+
+    /**
+     * Enumeration: Parameter names for device activity
+     */
+    enum Parameter implements ParameterName {
+        NAME("DEVICE-NAME"),
+        HANDLE("DEVICE-SESSION-HANDLE"),
+        STATE("DEVICE-SESSION-STATE"),
+        ALIVE("DEVICE-SESSION-CONNECTED"),
+        TERMINATE("DEVICE-SESSION-TERMINATED"),
+        OPEN("DEVICE-SESSION-OPENED"),
+        REPAIR_ATTEMPT("DEVICE-REPAIR-ATTEMPT"),
+        REPAIR_TIMEOUT("DEVICE-REPAIR-TIMEOUT");
+        private final String name;
+
+        Parameter(String name) {
+            this.name = name;
+        }
+
+        @Override
+        public String value() {
+            return name.toLowerCase();
+        }
+
+    }
+
+    /**
      * Device Activity Session: The session of device's activity for the task
      *
      * @param <H> the type of the device's low-level operations handle
@@ -445,11 +447,24 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
 
         /**
          * <accessor>
+         * To get access to device's internal name
+         *
+         * @return device's name
+         * @see Device#getName()
+         */
+        default String getDeviceName() {
+            return parameter(Parameter.NAME);
+        }
+
+        /**
+         * <accessor>
          * To get access to opened device's internal handle
          *
          * @return device's handle
          */
-        H getDeviceHandle();
+        default H getDeviceHandle() {
+            return parameter(Parameter.HANDLE);
+        }
 
         /**
          * <accessor>
@@ -457,16 +472,9 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
          *
          * @return true if it's opened
          */
-        boolean isOpened();
-
-        /**
-         * <accessor>
-         * To get access to device's internal name
-         *
-         * @return device's name
-         * @see Device#getName()
-         */
-        String getDeviceName();
+        default boolean isOpened() {
+            return parameterOrDefault(Parameter.OPEN, false);
+        }
 
         /**
          * <accessor>
@@ -474,7 +482,9 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
          *
          * @return the flag's value
          */
-        boolean isTerminated();
+        default boolean isTerminated() {
+            return parameterOrDefault(Parameter.TERMINATE, false);
+        }
 
         /**
          * <action>
@@ -494,7 +504,9 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
          * @see DeviceStateValue#getValue()
          * @see Device.State
          */
-        DeviceStateValue getState();
+        default DeviceStateValue getState() {
+            return parameter(Parameter.STATE);
+        }
 
         /**
          * <mutator>
@@ -511,8 +523,50 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
          *
          * @return true if the device context is in service (connected)
          */
-        boolean isAlive();
+        default boolean isAlive() {
+            return parameterOrDefault(Parameter.ALIVE, false);
+        }
 
+        /**
+         * <accessor>
+         * To get the session parameter's value
+         *
+         * @param name the name of the session's parameter
+         * @param <T>  the type of the session's parameter value
+         * @return the value of the session's parameter
+         */
+        <T> T parameter(ParameterName name);
+
+        /**
+         * <accessor>
+         * To get the session parameter's value
+         *
+         * @param name the name of the session's parameter
+         * @param <T>  the type of the session's parameter value
+         * @return the value of the session's parameter
+         */
+        <T> T parameterOrDefault(ParameterName name, T defaultValue);
+
+        /**
+         * <mutator>
+         * To set up the new session parameter's value
+         *
+         * @param name  the name of the session's parameter
+         * @param value the value of the session's parameter
+         * @return reference to the updated session
+         * @param <T> the type of the session's parameter value
+         */
+        <T> Session<H> parameter(ParameterName name, T value);
+
+        /**
+         * <mutator>
+         * To remove the session parameter's value
+         *
+         * @param name  the name of the session's parameter
+         * @return previous parameter's value
+         * @param <T> the type of the session's parameter value
+         */
+        <T> T remove(ParameterName name);
     }
 
     /**

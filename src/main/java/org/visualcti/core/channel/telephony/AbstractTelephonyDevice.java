@@ -42,21 +42,19 @@ import static org.visualcti.core.channel.telephony.TelephonyDevice.State.GTDIG;
 import static org.visualcti.core.channel.telephony.TelephonyDevice.State.PLAY;
 import static org.visualcti.core.channel.telephony.TelephonyDevice.State.RECORD;
 import static org.visualcti.core.channel.telephony.TelephonyDevice.State.TONE;
-import static org.visualcti.core.channel.telephony.TelephonyDevice.State.WAIT;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
-import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceStateValue;
 import org.visualcti.core.channel.device.adapter.AbstractDevice;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
+import org.visualcti.core.channel.telephony.adapter.PhoneCallSession;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
 import org.visualcti.core.channel.telephony.operation.Result;
 import org.visualcti.core.channel.telephony.operation.ToneId;
@@ -184,21 +182,6 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
 
     /**
      * <accessor>
-     * To get access to the channel-device configured parameter value
-     *
-     * @param name the name of configured parameter
-     * @return the parameter value or empty
-     * @see ConfigurationParameter
-     * @see ParameterName
-     * @see Optional
-     */
-//    @Override
-//    public Optional<ConfigurationParameter> getParameter(ParameterName name) {
-//        return Optional.ofNullable(parameters.get(name));
-//    }
-
-    /**
-     * <accessor>
      * To get access to the current device's telephony events provider
      *
      * @return the reference to the events provider singleton
@@ -211,42 +194,47 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
 
     /**
      * <action>
-     * Opening and activation of the channel-device.
+     * To create and start device's session
      *
-     * @throws IOException if channel device cannot be opened or activated
-     * @see #isOpened()
-     * @see #close()
-     * @see #getName()
-     * @see TelephonyServiceProvider#openResource(String)
-     * @see AbstractDevice#open()
-     * @see #dropCall()
-     * @see TelephonyServiceProvider#enableEvents(Object, OperationResultValue)
+     * @return opened device's session
+     * @throws IOException if device cannot start the session
+     * @see Device#open()
      */
     @Override
-    public void open() throws IOException {
-        if (isOpened()) {
-            // device is opened already, closing it
-            close();
+    public Session<H> startSession() throws IOException {
+        final Session<H> session = super.startSession();
+        // analyzing the opened device session
+        if (session != null && session.isOpened()) {
+            // to get the device's handle from the session
+            final H handle = session.getDeviceHandle();
+            // disabling any event for the opened device handle
+            getProvider().disableEvents(handle);
+            // opening the fax-machine part
+            faxes.open(session);
+            // enabling device's incoming call events producing for particular device andle
+            getProvider().enableEvents(handle, Result.CALL.RINGS);
         }
-        // trying to open the telephony resource by the name and get the handle to the resource
-        final H handle = getProvider().openResource(getName());
-        // checking the resource's handle
-        if (validResourceHandle.test(handle)) {
-            // setting up the state of te device
-            super.open();
-            // storing resource's handle
-            handleHolder.getAndSet(handle);
-            // dropping the call if any
-            dropCall();
-            // enabling device's incoming call events producing
-//            getProvider().enableEvents(getHandle(), Result.CALL.RINGS);
-//            // opening fax-machine engine
-//            try {
-//                faxes.open();
-//            } catch (IOException e) {
-//                dispatchError(e, "Failed to open fax-machine for: " + getName());
-//            }
+        return session;
+    }
+
+    /**
+     * <action>
+     * To stop device's session and detach it from device events stream
+     *
+     * @param session opened device's session
+     */
+    @Override
+    public void stopAndDetach(final Session<H> session) {
+        // analyzing the opened device session
+        if (session != null && session.isOpened()) {
+            // to get the device's handle from the session
+            final H handle = session.getDeviceHandle();
+            // disabling any event for the opened device handle
+            getProvider().disableEvents(handle);
+            // opening the fax-machine part
+            faxes.close(session);
         }
+        super.stopAndDetach(session);
     }
 
     /**
@@ -254,33 +242,14 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      * Closing the device
      *
      * @throws IOException if an I/O error occurs
-//     * @see #getHandle()
-     * @see #terminate()
-     * @see #dropCall()
-     * @see AbstractDevice#close()
+     * @see Device#close()
      * @see TelephonyServiceProvider#disableEvents(Object)
      */
-    @Override
-    public void close() throws IOException {
-//        if (isDeviceOpened()) {
-//            // to terminate the current device's operation
-//            terminate();
-//            // dropping the call if any
-//            dropCall();
-//            // setting up the state of the device
-//            super.close();
-//            // disabling any events producing
-//            provider.disableEvents(getHandle());
-//            // closing the resource
-//            provider.closeResource(getHandle());
-//            // closing fax-machine engine
-//            try {
-//                faxes.close();
-//            } catch (IOException e) {
-//                dispatchError(e, "Failed to close fax-machine for: " + getName());
-//            }
-//        }
-    }
+//    @Override
+//    public void close() throws IOException {
+//        super.close();
+////        faxes.close();
+//    }
 
     /**
      * <action>
@@ -288,109 +257,161 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      * 1. operations with telephony calls (waiting or making call, connect, etc.)
      * 2. exchanges of the data (voice or fax)
      *
+     * @param session the phone call's session, device is working with
      * @throws IOException If the device can't terminate current operation
+     * @see PhoneCallSession
      */
     @Override
-    public void terminate() throws IOException {
-//        if (isDeviceOpened()) {
-//            final DeviceStateValue deviceState = getState();
-//            if (deviceState == PLAY || deviceState == RECORD) {
-//                media.terminate();
-//            } else if (deviceState == SENDFAX || deviceState == RECVFAX) {
-//                faxes.terminate();
-//            } else if (deviceState == DIAL || deviceState == TONE || deviceState == GTDIG) {
-//                tones.terminate();
-//            } else if (calls != null) {
-//                calls.terminate();
-//            }
-//            setState(Device.State.STOPD);
-//        }
+    public void terminate(PhoneCallSession<H> session) throws IOException {
+        calls.terminate(session);
+        tones.terminate(session);
+        media.terminate(session);
+        faxes.terminate(session);
     }
 
     /**
      * <action>
-     * To break off telephony connection using delegation.
+     * To end a phone call.
      *
-     * @see CallsPortEngine#dropCall()
+     * @param session the phone call's session, device is working with
+     * @return true if operation complete successfully
+     * @see PhoneCallSession
      */
-    @Override
-    public void dropCall() {
-        calls.dropCall();
-//        currentState.getAndSet(Device.State.IDLE);
+    public boolean dropCall(PhoneCallSession<H> session) {
+        return calls.dropCall(session);
     }
 
     /**
      * <action>
      * The incoming call is expected. For a user's telephone line a call is deemed accepted after
      * receipt rings of bells.
+     * For connecting interstation line, after receipt of a call, in a line is reproduced
+     * (rings-1) of time a signal {@link ToneId#RINGBACK1} and then the method returns call with {@link Result.CALL#ALERTING}
+     * <p>
+     * If the telephony device is authorized to use it for outgoing calls, (is established in properties
+     * of device (only for Telco Edition)), the system can interrupt expectation of the incoming call and
+     * can execute outgoing call, using it. If the connection was unsuccessful, the method returns
+     * {@link Result.CALL#DISCONNECT}.
+     * <p>
+     * The information on a call can be received by methods getCalledNumber (), getCallingNumber ().
+     * Returned values (operation result):
+     * <p>
+     * {@link Result#TIMEOUT} - the waiting time was expired,<BR/>
+     * {@link Result.CALL#ALERTING} - the incoming call (entering ring) has arrived.
+     * <p>
+     * <p>
+     * ??????????????????????????????????? need to finish the method's call
+     * TERM_CONNECT - (only for Telco Edition) the port was involved by system
+     * for performance of an outgoing call also is in a mode
+     * switching. The given value comes back after the analysis
+     * result of an outgoing call, in case of successful connection with the subscriber.
+     * ??????????????????????????????????? need to finish the method's call
+     * <p>
+     * <p>
+     * {@link Result.CALL#DISCONNECT} - unsuccessful incoming or outgoing call,
+     * or disconnect detected during simple waiting (rings==0).<BR/>
+     * {@link Result#TERMINATED} - the operation is interrupted by system.
      *
+     * @param session the phone call's session, device is working with
      * @param rings   the quantity of ring signals before answering the call
      * @param timeout waiting time (seconds) how many seconds wait before timeout status returned
      * @param answer  flag is needed answer to an incoming call
-     * @return the phone call with appropriate operation result
-     * @see PhoneCall
-     * @see PhoneCall#operationResult()
-     * @see PhoneCall#FAILED
-     * @see CallsPortEngine#waitForCall(int, int, boolean)
+     * @return true if operation complete successfully
+     * @see PhoneCallSession
+     * @see PhoneCallSession#operationResult()
      */
-    @Override
-    public PhoneCall waitForCall(int rings, int timeout, boolean answer) {
-        return calls.canAcceptCall()
-                // to delegate call to the particular device's part engine
-                ? delegatePhoneCallOperation(WAIT, () -> calls.waitForCall(rings, timeout, answer), waitForCallExpected)
-                // failed answer
-                : PhoneCall.FAILED;
-    }
-
-    // to delegate call to the particular device's part engine
-    private PhoneCall delegateWaitForCall(int rings, int timeout, boolean answer) {
-        return delegatePhoneCallOperation(WAIT, () -> calls.waitForCall(rings, timeout, answer), waitForCallExpected);
+    public boolean waitForCall(PhoneCallSession<H> session, int rings, int timeout, boolean answer) {
+        return calls.waitForCall(session, rings, timeout, answer);
     }
 
     /**
      * <action>
      * To make the outgoing call. A mode of a set (pulse or tone) and others
      * the necessary parameters are set by installations of port.
+     * <p>
+     * Possible values of {@link PhoneCall#operationResult()}:
+     * <p>
+     * {@link Result.CALL.Analysis#VOICE}         - the Man's voice is answered<BR/>
+     * {@link Result.CALL.Analysis#FAX}           - the fax - device has answered<BR/>
+     * {@link Result.CALL.Analysis#BUSY}          - calling number is engaged<BR/>
+     * {@link Result.CALL.Analysis#NO_ANSWER}     - the telephone number does not answer<BR/>
+     * {@link Result.CALL.Analysis#NO_DIAL_TONE}  - phone line is not capable to execute an outgoing call<BR/>
+     * because of the line's condition<BR/>
+     * {@link Result.CALL.Analysis#SIT}           - special information signal on a line<BR/>
+     * {@link Result.CALL.Analysis#NO_RESPONDING} - there is no signal after a phone number dialing up<BR/>
+     * {@link Result.CALL.Analysis#BAN}           - the dialing phone number is forbidden
      *
+     * @param session the phone call's session, device is working with
      * @param number  telephone number
      * @param timeout maximal waiting time for the answer (sec) after which call with
-     *                {@link PhoneCall#operationResult()} equals {@link Result.CALL.Analysis#NO_ANSWER} will be returned.
-     * @return the phone call with appropriate operation result
-     * @see PhoneCall
-     * @see PhoneCall#operationResult()
-     * @see PhoneCall#FAILED
-     * @see CallsPortEngine#makeCall(String, int)
+     *                {@link PhoneCallSession#operationResult()} equals {@link Result.CALL.Analysis#NO_ANSWER} will be returned.
+     * @return true if operation complete successfully
+     * @see PhoneCallSession
+     * @see PhoneCallSession#operationResult()
+     * @see Result.CALL.Analysis
      */
     @Override
-    public PhoneCall makeCall(String number, int timeout) {
-        return calls.canMakeCall()
-                // to delegate call to the particular device's part engine
-                ? delegatePhoneCallOperation(DIAL, () -> calls.makeCall(number, timeout), makeCallExpected)
-                // failed answer
-                : PhoneCall.FAILED;
+    public boolean makeCall(PhoneCallSession<H> session, String number, int timeout) {
+        return calls.makeCall(session, number, timeout);
     }
-
 
     /**
      * <action>
      * Inquiry connection to another phone number (conference).
+     * <p>
+     * Inquiry to system for performing the connection with the specified
+     * telephone number. Having received inquiry, the system chooses free
+     * telephony port and makes outgoing call on the given telephone number.
+     * (For a choice of port the table of routing can be used.)
+     * <p>
+     * On the chosen phone port operation <b>makeCall (number, timeout)</b>
+     * automatically is carried out. The result of this operation also
+     * will be returned result of operation <b>connect (...)</b>.
+     * In case of result call with {@link PhoneCall#operationResult()}
+     * {@link Result.CALL.Analysis#VOICE} or {@link Result.CALL.Analysis#FAX} the joining of two ports is made.
+     * <p>
+     * If the telephone number coincides with internal number of one of ports
+     * systems (internal number of port is established in properties of port):
+     * <p>
+     * 1) If the port is in a condition <b>offhook</b>, the connection is made
+     * and the operation returns {@link Result.CALL.Analysis#VOICE};<BR/>
+     * 2) If the port is in a condition <b>onhook</b> and type of port - <b>POTS</b>,
+     * on connected to him the telephone device the signals of a call
+     * are sent. If hook on the telephone device will be lifted,
+     * the connection is made and the operation returns {@link Result.CALL.Analysis#VOICE}.
+     * If in time of timeout hook will not be removed(taken off), the operation
+     * returns {@link Result.CALL.Analysis#NO_ANSWER}.<BR/>
+     * 3) If port is in condition <b>onhook</b> and type of port - <b>PSTN</b>, it
+     * is translated in the condition <b>offhook</b> also is checked presence
+     * of a signal from telephone station ({@link ToneId#DIAL}).
+     * At presence of a signal the operation returns VOICE,
+     * otherwise - {@link Result.CALL.Analysis#NO_DIAL_TONE}.<BR/>
+     * <p>
+     * Possible values of {@link PhoneCall#operationResult()}:
+     * <p>
+     * {@link Result.CALL.Analysis#VOICE}         - the Man's voice is answered<BR/>
+     * {@link Result.CALL.Analysis#FAX}           - the fax - device has answered<BR/>
+     * {@link Result.CALL.Analysis#BUSY}          - calling number is engaged<BR/>
+     * {@link Result.CALL.Analysis#NO_ANSWER}     - the telephone number does not answer<BR/>
+     * {@link Result.CALL.Analysis#NO_DIAL_TONE}  - system is not capable to execute an outgoing call<BR/>
+     * (There is no free port to perform an outgoing call)<BR/>
+     * {@link Result.CALL.Analysis#SIT}           - special information signal on a line<BR/>
+     * {@link Result.CALL.Analysis#NO_RESPONDING} - there is no signal after a phone number dialing up<BR/>
+     * {@link Result.CALL.Analysis#BAN}           - the calling phone number is forbidden
      *
+     * @param session the phone call's session, device is working with
      * @param number  telephone number
      * @param timeout maximal waiting time for the answer (sec) after which call with
-     *                {@link PhoneCall#operationResult()} equals {@link Result.CALL.Analysis#NO_ANSWER} will be returned.
+     *                {@link PhoneCallSession#operationResult()} equals {@link Result.CALL.Analysis#NO_ANSWER} will be returned.
      * @param toPlay  The sound which is playing during the connect operation
-     * @return the phone call with appropriate operation result
-     * @see PhoneCall
-     * @see PhoneCall#FAILED
-     * @see CallsPortEngine#connect(String, int, Sound)
+     * @return true if operation complete successfully
+     * @see PhoneCallSession
+     * @see PhoneCallSession#operationResult()
+     * @see Result.CALL.Analysis
      */
     @Override
-    public PhoneCall connect(String number, int timeout, Sound toPlay) {
-        return calls.canBeConnected()
-                // to delegate call to the particular device's part engine
-                ? delegatePhoneCallOperation(DIAL, () -> calls.connect(number, timeout, toPlay), makeCallExpected)
-                // failed answer
-                : PhoneCall.FAILED;
+    public boolean connect(PhoneCallSession<H> session, String number, int timeout, Sound toPlay) {
+        return calls.connect(session, number, timeout, toPlay);
     }
 
     /**
@@ -402,8 +423,7 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      */
     @Override
     public int getTransferredPages() {
-        return  0;
-//        return isDeviceOpened() && faxes.isOpened() ? faxes.getTransferredPages() : 0;
+        return faxes.getTransferredPages();
     }
 
     /**
@@ -743,7 +763,6 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
 
     // to check is device has valid handle
     private boolean isDeviceOpened() {
-        return true;
-//        return validResourceHandle.test(getHandle());
+        return super.isOpened();
     }
 }

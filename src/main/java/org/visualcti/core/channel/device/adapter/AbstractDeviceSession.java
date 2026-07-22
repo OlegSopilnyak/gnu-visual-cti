@@ -38,11 +38,9 @@ Fax number: 217-356-3356
 package org.visualcti.core.channel.device.adapter;
 
 
-import static org.visualcti.core.channel.device.Device.State.IDLE;
-
 import java.io.IOException;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.DeviceStateValue;
@@ -55,19 +53,12 @@ import org.visualcti.core.channel.device.DeviceStateValue;
  * @see Device#findSessionByHandle(Object)
  * @see Device#createSessionFor(Object)
  */
-public class AbstractDeviceSession<H> implements Device.Session<H> {
+@SuppressWarnings("unchecked")
+public abstract class AbstractDeviceSession<H> implements Device.Session<H> {
     // the device-owner reference
-    protected final Device<H, ?> device;
-    // the holder of device's handle
-    protected final AtomicReference<H> deviceHandle = new AtomicReference<>();
-    // the flag is device resource opened
-    private final AtomicBoolean opened = new AtomicBoolean();
-    // the flag is context terminated
-    private final AtomicBoolean terminated = new AtomicBoolean();
-    // the flag is context connected with external resource
-    private final AtomicBoolean alive = new AtomicBoolean();
-    // the current status of the device's context
-    protected final AtomicReference<DeviceStateValue> sessionState = new AtomicReference<>(IDLE);
+    protected Device<H, ?> device;
+    // the holder of the device session's parameters
+    private final Map<Device.ParameterName, Object> parametersMap = new ConcurrentHashMap<>();
 
     /**
      * <builder>
@@ -79,10 +70,14 @@ public class AbstractDeviceSession<H> implements Device.Session<H> {
      */
     protected AbstractDeviceSession(Device<H, ?> deviceOwner, H deviceHandle) {
         this.device = deviceOwner;
-        this.deviceHandle.getAndSet(deviceHandle);
-        opened.getAndSet(true);
-        terminated.getAndSet(false);
-        alive.getAndSet(false);
+        // the parameter value of device's name
+        parameter(Device.Parameter.NAME, deviceOwner.getName());
+        // the parameter value of device's handle
+        parameter(Device.Parameter.HANDLE, deviceHandle);
+        // the flag is device resource opened
+        parameter(Device.Parameter.OPEN, true);
+        // the parameter value of device session's state
+        parameter(Device.Parameter.STATE, Device.State.IDLE);
     }
 
     /**
@@ -97,23 +92,10 @@ public class AbstractDeviceSession<H> implements Device.Session<H> {
     }
 
     /**
-     * <accessor>
-     * To get access to opened device's internal handle
-     *
-     * @return device's handle
-     * @see Device.ServiceProvider#openResource(String)
-     */
-    @Override
-    public H getDeviceHandle() {
-        return deviceHandle.get();
-    }
-
-    /**
      * <checker>
      * Whether context's device handle valid or not
      *
      * @return true if device handle value is valid
-     * @see #deviceHandle
      * @see #isOpened()
      */
     protected boolean isValidDeviceHandle() {
@@ -125,33 +107,12 @@ public class AbstractDeviceSession<H> implements Device.Session<H> {
      * Check, is device already opened
      *
      * @return true if it's opened
+     * @see #isValidDeviceHandle()
+     * @see Device.Session#isOpened()
      */
     @Override
     public boolean isOpened() {
-        return isValidDeviceHandle() && opened.get();
-    }
-
-    /**
-     * <accessor>
-     * To get access to device's internal name
-     *
-     * @return device's name
-     * @see Device#getName()
-     */
-    @Override
-    public String getDeviceName() {
-        return device.getName();
-    }
-
-    /**
-     * <accessor>
-     * To get access to context's termination flag
-     *
-     * @return the flag's value
-     */
-    @Override
-    public boolean isTerminated() {
-        return terminated.get();
+        return isValidDeviceHandle() && Device.Session.super.isOpened();
     }
 
     /**
@@ -164,20 +125,7 @@ public class AbstractDeviceSession<H> implements Device.Session<H> {
      */
     @Override
     public void terminate() throws IOException {
-        terminated.getAndSet(true);
-    }
-
-    /**
-     * <accessor>
-     * To get access to the state of the channel-device context
-     *
-     * @return value of device state
-     * @see DeviceStateValue#getValue()
-     * @see Device.State
-     */
-    @Override
-    public DeviceStateValue getState() {
-        return sessionState.get();
+        parameter(Device.Parameter.TERMINATE, true);
     }
 
     /**
@@ -188,10 +136,10 @@ public class AbstractDeviceSession<H> implements Device.Session<H> {
      * @see DeviceStateValue#getValue()
      */
     @Override
-    public void setState(DeviceStateValue state) {
-        if (state != sessionState.get()) {
+    public void setState(final DeviceStateValue state) {
+        if (state != getState()) {
             // updating state value
-            sessionState.getAndSet(state);
+            parameter(Device.Parameter.STATE, state);
             // sending event (unit state is changed)
             device.dispatchEvent(state.getValue());
             // notifying about device state changed
@@ -200,14 +148,55 @@ public class AbstractDeviceSession<H> implements Device.Session<H> {
     }
 
     /**
-     * <accssor>
-     * To check up the condition of the channel-device context
+     * <accessor>
+     * To get the session parameter's value
      *
-     * @return true if the device context is in service (connected)
+     * @param name the name of the session's parameter
+     * @return the value of the session's parameter
      */
     @Override
-    public boolean isAlive() {
-        return alive.get();
+    public <T> T parameter(Device.ParameterName name) {
+        return (T) parametersMap.get(name);
+    }
+
+    /**
+     * <accessor>
+     * To get the session parameter's value
+     *
+     * @param name         the name of the session's parameter
+     * @param defaultValue the value of parameters by default
+     * @return the value of the session's parameter
+     */
+    @Override
+    public <T> T parameterOrDefault(Device.ParameterName name, T defaultValue) {
+        return (T) parametersMap.getOrDefault(name, defaultValue);
+    }
+
+    /**
+     * <mutator>
+     * To set up the new session parameter's value
+     *
+     * @param name  the name of the session's parameter
+     * @param value the value of the session's parameter
+     * @return reference to the updated session
+     */
+    @Override
+    public <T> Device.Session<H> parameter(final Device.ParameterName name, final T value) {
+        parametersMap.put(name, value);
+        return this;
+    }
+
+    /**
+     * <mutator>
+     * To remove the session parameter's value
+     *
+     * @param name  the name of the session's parameter
+     * @return previous parameter's value
+     * @param <T> the type of the session's parameter value
+     */
+    @Override
+    public <T> T remove(Device.ParameterName name) {
+        return (T) parametersMap.remove(name);
     }
 
     /**
@@ -225,9 +214,8 @@ public class AbstractDeviceSession<H> implements Device.Session<H> {
      */
     @Override
     public void close() throws IOException {
-        opened.getAndSet(false);
-        alive.getAndSet(false);
-        terminated.getAndSet(false);
+        device = null;
+        parametersMap.clear();
     }
 
     /**

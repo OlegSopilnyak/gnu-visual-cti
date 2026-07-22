@@ -38,11 +38,15 @@ Fax number: 217-356-3356
 package org.visualcti.core.channel.telephony;
 
 
+import java.util.Optional;
+import org.visualcti.core.ConfigurationParameter;
+import org.visualcti.core.channel.device.Device;
+
 /**
  * Device of the Telephony Channel: The core part of the telephony device type
  *
- * @see TelephonyServiceProvider
  * @param <H> the type of the device's low-level operations handle
+ * @see TelephonyServiceProvider
  */
 public interface TelephonyDeviceCore<H> {
     /**
@@ -53,4 +57,17 @@ public interface TelephonyDeviceCore<H> {
      * @see TelephonyServiceProvider
      */
     TelephonyServiceProvider<H> getProvider();
+
+    /**
+     * <accessor>
+     * To get access to the channel-device configured parameter value
+     *
+     * @param name the name of configured parameter
+     * @return the parameter value or empty
+     * @see ConfigurationParameter
+     * @see Device.ParameterName
+     * @see Optional
+     * @see Device#getParameter(Device.ParameterName)
+     */
+    Optional<ConfigurationParameter> getParameter(Device.ParameterName name);
 }

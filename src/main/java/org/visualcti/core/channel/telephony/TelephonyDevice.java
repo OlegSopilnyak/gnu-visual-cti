@@ -145,7 +145,6 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      * @see ParameterName
      * @see Optional
      * @see Device#getParameter(ParameterName)
-     * @see CallsPortEngine.CallParameter
      */
     @Override
     Optional<ConfigurationParameter> getParameter(ParameterName name);
@@ -197,7 +196,7 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      */
     @Override
     default boolean canAcceptCall() {
-        return (boolean) getParameter(CallParameter.ACCEPT_CALL_ALLOWED)
+        return (boolean) getParameter(CallsPortEngine.Parameter.ACCEPT_CALL_ALLOWED)
                 .map(ConfigurationParameter::getValue).orElse(false);
     }
 
@@ -232,17 +231,15 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      * or disconnect detected during simple waiting (rings==0).<BR/>
      * {@link Result#TERMINATED} - the operation is interrupted by system.
      *
+     * @param session the phone call's session, device is working with
      * @param rings   the quantity of ring signals before answering the call
      * @param timeout waiting time (seconds) how many seconds wait before timeout status returned
      * @param answer  flag is needed answer to an incoming call
-     * @return the phone call with appropriate operation result
-     * @see PhoneCall
-     * @see PhoneCall#operationResult()
+     * @return true if operation complete successfully
+     * @see PhoneCallSession
+     * @see PhoneCallSession#operationResult()
      */
-    @Override
-    default PhoneCall waitForCall(int rings, int timeout, boolean answer) {
-        return null;
-    }
+    boolean waitForCall(PhoneCallSession<H> session, int rings, int timeout, boolean answer);
 
     /**
      * <accessor>
@@ -254,7 +251,7 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      */
     @Override
     default boolean canMakeCall() {
-        return (boolean) getParameter(CallParameter.MAKE_CALL_ALLOWED)
+        return (boolean) getParameter(CallsPortEngine.Parameter.MAKE_CALL_ALLOWED)
                 .map(ConfigurationParameter::getValue).orElse(false);
     }
 
@@ -275,18 +272,16 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      * {@link Result.CALL.Analysis#NO_RESPONDING} - there is no signal after a phone number dialing up<BR/>
      * {@link Result.CALL.Analysis#BAN}           - the dialing phone number is forbidden
      *
+     * @param session the phone call's session, device is working with
      * @param number  telephone number
      * @param timeout maximal waiting time for the answer (sec) after which call with
-     *                {@link PhoneCall#operationResult()} equals {@link Result.CALL.Analysis#NO_ANSWER} will be returned.
-     * @return the phone call with appropriate operation result
-     * @see PhoneCall
-     * @see PhoneCall#operationResult()
+     *                {@link PhoneCallSession#operationResult()} equals {@link Result.CALL.Analysis#NO_ANSWER} will be returned.
+     * @return true if operation complete successfully
+     * @see PhoneCallSession
+     * @see PhoneCallSession#operationResult()
      * @see Result.CALL.Analysis
      */
-    @Override
-    default PhoneCall makeCall(String number, int timeout) {
-        return null;
-    }
+    boolean makeCall(PhoneCallSession<H> session, String number, int timeout);
 
     /**
      * <accessor>
@@ -298,7 +293,7 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      */
     @Override
     default boolean canBeConnected() {
-        return (boolean) getParameter(CallParameter.SHARE_CALL_ALLOWED)
+        return (boolean) getParameter(CallsPortEngine.Parameter.SHARE_CALL_ALLOWED)
                 .map(ConfigurationParameter::getValue).orElse(false);
     }
 
@@ -346,19 +341,17 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      * {@link Result.CALL.Analysis#NO_RESPONDING} - there is no signal after a phone number dialing up<BR/>
      * {@link Result.CALL.Analysis#BAN}           - the calling phone number is forbidden
      *
+     * @param session the phone call's session, device is working with
      * @param number  telephone number
      * @param timeout maximal waiting time for the answer (sec) after which call with
-     *                {@link PhoneCall#operationResult()} equals {@link Result.CALL.Analysis#NO_ANSWER} will be returned.
-     * @param toPlay  The sound which is playing during the connect operation
-     * @return the phone call with appropriate operation result
-     * @see PhoneCall
-     * @see PhoneCall#operationResult()
+     *                {@link PhoneCallSession#operationResult()} equals {@link Result.CALL.Analysis#NO_ANSWER} will be returned.
+     * @param toPlay The sound which is playing during the connect operation
+     * @return true if operation complete successfully
+     * @see PhoneCallSession
+     * @see PhoneCallSession#operationResult()
      * @see Result.CALL.Analysis
      */
-    @Override
-    default PhoneCall connect(String number, int timeout, Sound toPlay) {
-        return null;
-    }
+    boolean connect(PhoneCallSession<H> session, String number, int timeout, Sound toPlay);
 
     /**
      * <accessor>
@@ -370,8 +363,7 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      */
     @Override
     default boolean canFax() {
-        dispatchError(null, "");
-        return (boolean) getParameter(CallParameter.FAX_ALLOWED)
+        return (boolean) getParameter(FaxMachineEngine.Parameter.FAX_ALLOWED)
                 .map(ConfigurationParameter::getValue).orElse(false);
     }
 
@@ -775,10 +767,11 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      * 1. operations with telephony calls (waiting or making call, connect, etc.)
      * 2. exchanges of the data (voice or fax)
      *
+     * @param session the phone call's session, device is working with
      * @throws IOException If the device can't terminate current operation
+     * @see PhoneCallSession
      */
-    @Override
-    default void terminate() throws IOException {
+    default void terminate(PhoneCallSession<H> session) throws IOException {
 
     }
 

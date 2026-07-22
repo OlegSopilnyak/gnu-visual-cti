@@ -68,7 +68,7 @@ public interface CallsPortEngine<H> extends TelephonyDevicePart<H> {
      * This flag, the factory may set in properties of the device
      *
      * @return true if device can accept the incoming phone call
-     * @see CallParameter#ACCEPT_CALL_ALLOWED
+     * @see Parameter#ACCEPT_CALL_ALLOWED
      */
     default boolean canAcceptCall() {
         return false;
@@ -122,7 +122,7 @@ public interface CallsPortEngine<H> extends TelephonyDevicePart<H> {
      *
      * @return true if device can make outgoing calls
      * @see TelephonyDeviceFactory
-     * @see CallParameter#MAKE_CALL_ALLOWED
+     * @see Parameter#MAKE_CALL_ALLOWED
      */
     boolean canMakeCall();
 
@@ -161,7 +161,7 @@ public interface CallsPortEngine<H> extends TelephonyDevicePart<H> {
      *
      * @return true if device can be shared for another device
      * @see TelephonyDeviceFactory
-     * @see CallParameter#SHARE_CALL_ALLOWED
+     * @see Parameter#SHARE_CALL_ALLOWED
      */
     boolean canBeConnected();
 
@@ -224,15 +224,13 @@ public interface CallsPortEngine<H> extends TelephonyDevicePart<H> {
     /**
      * Configured Parameter Names Enumeration: The parameter names of call parts of the telephony device
      */
-    enum CallParameter implements Device.ParameterName {
+    enum Parameter implements Device.ParameterName {
         // whether device can accept incoming calls
         ACCEPT_CALL_ALLOWED("IN"),
         // whether device can make the outgoing call
         MAKE_CALL_ALLOWED("OUT"),
         // whether device can be used in operations of connections (conference)
         SHARE_CALL_ALLOWED("SHARE"),
-        // whether device can operate with fax machines
-        FAX_ALLOWED("FAX"),
         // the additional information about telephone number of this device
         ORIGIN("ORIGIN"),
         // the additional information about telephone number of the caused subscriber
@@ -242,7 +240,7 @@ public interface CallsPortEngine<H> extends TelephonyDevicePart<H> {
 
         private final String name;
 
-        CallParameter(String name) {
+        Parameter(String name) {
             this.name = name;
         }
 

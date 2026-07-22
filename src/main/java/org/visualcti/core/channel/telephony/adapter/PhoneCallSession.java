@@ -45,20 +45,20 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.DeviceStateValue;
 import org.visualcti.core.channel.device.adapter.AbstractDeviceSession;
+import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.TelephonyDevice;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
-import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.operation.Result;
 
 /**
@@ -74,17 +74,10 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
     private final Predicate<DeviceEvent<?>> thisSessionEvent = event -> event != DeviceEvent.EMPTY
             && Objects.equals(event.getDeviceName(), getDeviceName())
             && Objects.equals(event.getDeviceHandle(), getDeviceHandle());
-    // flag shows phone call is connected
-    protected boolean alive = false;
-    protected AtomicReference<OperationResultValue> operationResult = new AtomicReference<>(Result.NONE);
-    protected AtomicReference<Collection<PhoneCall>> jointSessions = new AtomicReference<>(Collections.emptyList());
-    // the reference to the latch of running operation
-    private final AtomicReference<CountDownLatch> operationLatch = new AtomicReference<>(null);
-    private Number calledNumber = Number.EMPTY;
-    private Number callingNumber = Number.EMPTY;
 
     protected PhoneCallSession(TelephonyDevice<H, ?> deviceOwner, H deviceHandle) {
         super(deviceOwner, deviceHandle);
+        parameter(Parameter.JOINT, Collections.emptyList());
     }
 
     /**
@@ -107,7 +100,7 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
      */
     @Override
     public String getDeviceName() {
-        return device.getName();
+        return super.getDeviceName();
     }
 
     /**
@@ -119,7 +112,7 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
      */
     @Override
     public boolean isAlive() {
-        return alive;
+        return super.isAlive();
     }
 
     /**
@@ -127,13 +120,11 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
      * To set up the alive flag
      *
      * @param alive new value
-     * @return updated phone call instance
      * @see OperationResultValue
      * @see #isAlive()
      */
-    public PhoneCallSession<H> alive(boolean alive) {
-        this.alive = alive;
-        return this;
+    public void alive(boolean alive) {
+        parameter(Device.Parameter.ALIVE, alive);
     }
 
     /**
@@ -147,7 +138,7 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
      */
     @Override
     public OperationResultValue operationResult() {
-        return operationResult.get();
+        return parameter(Parameter.RESULT);
     }
 
     /**
@@ -160,7 +151,7 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
      * @see #operationResult()
      */
     public PhoneCallSession<H> operationResult(OperationResultValue operationResult) {
-        this.operationResult.getAndSet(operationResult);
+        parameter(Parameter.RESULT, operationResult);
         return this;
     }
 
@@ -174,7 +165,7 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
      */
     @Override
     public Number getCalledNumber() {
-        return calledNumber;
+        return parameterOrDefault(Parameter.CALLED, Number.EMPTY);
     }
 
     /**
@@ -187,7 +178,7 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
      * @see #getCalledNumber()
      */
     public PhoneCallSession<H> calledNumber(Number calledNumber) {
-        this.calledNumber = calledNumber;
+        parameter(Parameter.CALLED, calledNumber);
         return this;
     }
 
@@ -201,7 +192,7 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
      */
     @Override
     public Number getCallingNumber() {
-        return callingNumber;
+        return parameterOrDefault(Parameter.CALLING, Number.EMPTY);
     }
 
     /**
@@ -214,7 +205,7 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
      * @see #getCallingNumber()
      */
     public PhoneCallSession<H> callingNumber(Number callingNumber) {
-        this.callingNumber = callingNumber;
+        parameter(Parameter.CALLING, callingNumber);
         return this;
     }
 
@@ -224,6 +215,7 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
      *
      * @param timeout how long to wait
      * @throws InterruptedException if operation is interrupted outside
+     * @see #operationComplete(OperationResultValue)
      * @see CountDownLatch
      * @see CountDownLatch#await(long, TimeUnit)
      * @see CountDownLatch#await()
@@ -232,11 +224,17 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
     public void waitForOperationComplete(long timeout) throws InterruptedException {
         // preparing running operation's latch
         final CountDownLatch latch = new CountDownLatch(1);
-        operationLatch.getAndSet(latch);
+        parameter(Parameter.LATCH, latch);
         operationResult(Result.NONE);
         if (timeout > 0) {
             // start waiting until operation complete or timeout
-            latch.await(timeout, TimeUnit.MILLISECONDS);
+            if (latch.await(timeout, TimeUnit.MILLISECONDS)) {
+                // latch was notified outside
+                device.dispatchEvent("Operation was completed");
+            } else {
+                // latch wasn't notified outside
+                device.dispatchEvent("Operation was timed out");
+            }
         } else {
             // start waiting until operation complete no limits
             latch.await();
@@ -256,7 +254,7 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
         // updating session's operation result
         operationResult(completionReason);
         // completing the running operation
-        final CountDownLatch completeOperationLatch = this.operationLatch.getAndSet(null);
+        final CountDownLatch completeOperationLatch = remove(Parameter.LATCH);
         if (completeOperationLatch != null) {
             // releasing the latch of running operation
             completeOperationLatch.countDown();
@@ -272,7 +270,8 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
      */
     @Override
     public Stream<PhoneCall> joint() {
-        return new ArrayList<>(jointSessions.get()).stream();
+        final Collection<PhoneCall> joint = parameterOrDefault(Parameter.JOINT, Collections.emptyList());
+        return joint.stream();
     }
 
     /**
@@ -283,9 +282,9 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
      */
     @Override
     public void join(PhoneCall anotherCall) {
-        final Collection<PhoneCall> joint = new ArrayList<>(jointSessions.get());
+        final List<PhoneCall> joint = new ArrayList<>(parameterOrDefault(Parameter.JOINT, Collections.emptyList()));
         joint.add(anotherCall);
-        jointSessions.getAndSet(joint);
+        parameter(Parameter.JOINT, Collections.unmodifiableList(joint));
     }
 
     /**
@@ -300,7 +299,11 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
         // terminate current operation if it's waiting
         operationComplete(Result.TERMINATED);
         // closing joint phone call sessions
-        jointSessions.getAndSet(Collections.emptyList()).forEach(PhoneCallSession::closeJoint);
+        final List<PhoneCall> joint = new ArrayList<>(parameterOrDefault(Parameter.JOINT, Collections.emptyList()));
+        parameter(Parameter.JOINT, Collections.emptyList());
+        joint.forEach(PhoneCallSession::closeJoint);
+        // releasing common using session's parameters
+        super.close();
     }
 
     /**
@@ -359,6 +362,27 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
             } else if (reason == Result.TERMINATED) {
                 terminationDetected(event);
             }
+        }
+    }
+
+    /**
+     * Enumeration: Parameter names for telephony device activity
+     */
+    enum Parameter implements Device.ParameterName {
+        RESULT("OPERATION-RESULT"),
+        LATCH("OPERATION-LATCH"),
+        JOINT("JOINT-SESSIONS-SET"),
+        CALLED("PHONE-CALL-CALLED-NUMBER"),
+        CALLING("PHONE-CALL-CALLING-NUMBER");
+        private final String name;
+
+        Parameter(String name) {
+            this.name = name;
+        }
+
+        @Override
+        public String value() {
+            return name.toLowerCase();
         }
     }
 
