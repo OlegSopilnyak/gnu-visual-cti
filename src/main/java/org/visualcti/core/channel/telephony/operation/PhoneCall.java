@@ -91,6 +91,11 @@ public interface PhoneCall extends Closeable {
         }
 
         @Override
+        public void detach(PhoneCall anotherCall) {
+
+        }
+
+        @Override
         public Number getCalledNumber() {
             return null;
         }
@@ -166,17 +171,6 @@ public interface PhoneCall extends Closeable {
 
     /**
      * <action>
-     * To wait the running operation complete
-     *
-     * @throws InterruptedException if operation is interrupted outside
-     * @see #waitForOperationComplete(long)
-     */
-    default void waitForOperationComplete() throws InterruptedException {
-        waitForOperationComplete(-1L);
-    }
-
-    /**
-     * <action>
      * To notify about the previously running in the phone-call-session operation is completed
      *
      * @param completionReason the reason of the operation's complete
@@ -200,6 +194,14 @@ public interface PhoneCall extends Closeable {
      * @param anotherCall another session value
      */
     void join(PhoneCall anotherCall);
+
+    /**
+     * <mutator>
+     * To detach the phone-call-session
+     *
+     * @param anotherCall another session value
+     */
+    void detach(PhoneCall anotherCall);
 
     /**
      * Call Number: Keep all information about phone number of the call

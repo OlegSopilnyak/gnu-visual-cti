@@ -43,6 +43,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
@@ -64,7 +65,7 @@ import org.visualcti.core.channel.telephony.operation.PhoneCall;
 import org.visualcti.core.channel.telephony.operation.Result;
 
 @SuppressWarnings({"unchecked", "rawtypes"})
-public class AbstractPhoneCallSessionTest {
+public class PhoneCallSessionTest {
     PhoneCallSession<String> session;
     TelephonyDevice<String, ?> device;
     String deviceName = "device-name";
@@ -74,6 +75,7 @@ public class AbstractPhoneCallSessionTest {
     @Before
     public void setUp() throws Exception {
         device = mock(TelephonyDevice.class);
+        doReturn(deviceName).when(device).getName();
         session = spy(new PhoneCallSession(device, handle) {
         });
         executor = Executors.newSingleThreadExecutor();
@@ -113,7 +115,7 @@ public class AbstractPhoneCallSessionTest {
     public void shouldGetOperationResult() {
         // preparing test data
         OperationResultValue result = mock(OperationResultValue.class);
-//        session.operationResult.getAndSet(result);
+        session.operationResult(result);
 
         // acting
         OperationResultValue operationResultValue = session.operationResult();
@@ -273,8 +275,63 @@ public class AbstractPhoneCallSessionTest {
         // acting
         session.join(anotherCall);
 
+        // check the behavior
+        verify(anotherCall).join(session);
         // check results
         assertThat(session.joint().toArray()).containsExactly(anotherCall);
+    }
+
+    @Test
+    public void shouldNotJoin_AlreadyThere() {
+        // preparing test data
+        PhoneCall anotherCall = mock(PhoneCall.class);
+        session.join(anotherCall);
+        assertThat(session.joint().toArray()).hasSize(1);
+        reset(anotherCall);
+
+        // acting
+        session.join(anotherCall);
+
+        // check the behavior
+        verify(anotherCall, never()).join(session);
+        // check results
+        assertThat(session.joint().toArray()).hasSize(1);
+    }
+
+    @Test
+    public void shouldDetach_MockedSession() {
+        // preparing test data
+        PhoneCall anotherCall = mock(PhoneCall.class);
+        session.join(anotherCall);
+        assertThat(session.joint().toArray()).hasSize(1);
+        reset(anotherCall);
+
+        // acting
+        session.detach(anotherCall);
+
+        // check the behavior
+        verify(anotherCall).detach(session);
+        // check results
+        assertThat(session.joint().toArray()).isEmpty();
+    }
+
+    @Test
+    public void shouldDetach_RealSession() {
+        // preparing test data
+        PhoneCall anotherCall = spy(new PhoneCallSession(device, handle) {
+        });
+        session.join(anotherCall);
+        verify(anotherCall).join(session);
+        assertThat(session.joint().toArray()).hasSize(1);
+        reset(anotherCall);
+
+        // acting
+        session.detach(anotherCall);
+
+        // check the behavior
+        verify(anotherCall).detach(session);
+        // check results
+        assertThat(session.joint().toArray()).isEmpty();
     }
 
     @Test
@@ -290,7 +347,7 @@ public class AbstractPhoneCallSessionTest {
         verify(anotherCall).close();
         // check results
         assertThat(session.joint().toArray()).isEmpty();
-        assertThat(session.operationResult()).isSameAs(Result.TERMINATED);
+        assertThat(session.operationResult()).isNull();
     }
 
     @Test

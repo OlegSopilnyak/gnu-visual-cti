@@ -78,6 +78,21 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
     protected PhoneCallSession(TelephonyDevice<H, ?> deviceOwner, H deviceHandle) {
         super(deviceOwner, deviceHandle);
         parameter(Parameter.JOINT, Collections.emptyList());
+        // the parameter value of device operation result
+        parameter(Parameter.RESULT, Result.NONE);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof PhoneCallSession)) return false;
+        PhoneCallSession<H> that = (PhoneCallSession<H>) o;
+        return Objects.equals(getDevice(), that.getDevice())
+                && Objects.equals(getDeviceHandle(), that.getDeviceHandle());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(getDevice(), getDeviceHandle());
     }
 
     /**
@@ -283,8 +298,37 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
     @Override
     public void join(PhoneCall anotherCall) {
         final List<PhoneCall> joint = new ArrayList<>(parameterOrDefault(Parameter.JOINT, Collections.emptyList()));
-        joint.add(anotherCall);
-        parameter(Parameter.JOINT, Collections.unmodifiableList(joint));
+        if (!joint.contains(anotherCall)) {
+            // adding another phone call to the joint collection
+            joint.add(anotherCall);
+            // saving updated joint sessions collection
+            parameter(Parameter.JOINT, Collections.unmodifiableList(joint));
+            // joining the phone call session to the added one
+            anotherCall.join(this);
+        }
+    }
+
+    /**
+     * <mutator>
+     * To detach the phone-call-session
+     *
+     * @param anotherCall another session value
+     */
+    @Override
+    public void detach(PhoneCall anotherCall) {
+        final List<PhoneCall> joint = new ArrayList<>(parameterOrDefault(Parameter.JOINT, Collections.emptyList()));
+        // looking for the phone call session to detach, among joint ones
+        final int index = joint.indexOf(anotherCall);
+        if (index >= 0) {
+            // there is the joint phone call session, let's detach it from joint ones
+            final PhoneCall detached = joint.remove(index);
+            if (detached != null) {
+                // saving updated joint sessions collection
+                parameter(Parameter.JOINT, Collections.unmodifiableList(joint));
+                // detaching the phone call session from the detached one
+                detached.detach(this);
+            }
+        }
     }
 
     /**

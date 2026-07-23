@@ -77,4 +77,17 @@ public interface TelephonyServiceProvider<H>  extends Device.ServiceProvider<H> 
      * @return caller's phone number value
      */
     PhoneCall.Number getCallerID(H handle);
+
+
+    /**
+     * <action>
+     * To start making the outgoing phone call
+     *
+     * @param handle the telephony device handle
+     * @param number the called phone number
+     * @param timeout maximal waiting time for the answer (sec) to outgoing call
+     * @return true if operation started successfully
+     * @see CallsPortEngine#makeCall(PhoneCallSession, PhoneCall.Number, int)
+     */
+    boolean startCalling(H handle, PhoneCall.Number number, int timeout);
 }

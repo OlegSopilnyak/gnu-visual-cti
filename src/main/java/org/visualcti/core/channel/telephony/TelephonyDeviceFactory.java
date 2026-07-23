@@ -38,11 +38,16 @@ Fax number: 217-356-3356
 package org.visualcti.core.channel.telephony;
 
 import java.util.Collection;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Stream;
 import org.visualcti.core.channel.Channel;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.Factory;
+import org.visualcti.core.channel.telephony.adapter.PhoneCallSession;
+import org.visualcti.core.channel.telephony.operation.PhoneCall.Number;
+import org.visualcti.core.channel.telephony.operation.Result;
+import org.visualcti.media.Sound;
 
 /**
  * The Factory of the Telephony Devices: The factory of the telephony channel-devices
@@ -106,4 +111,72 @@ public interface TelephonyDeviceFactory<H, D extends TelephonyDevice<?, ?>> exte
      */
     @Override
     Collection<Channel<?>> channels();
+
+    /**
+     * <action>
+     * To share active phone call session for the connection feature
+     *
+     * @param handle the phone call's session's device handle, device is working with
+     * @param delay  maximum time (milliseconds) of device session sharing or forever for negative value,
+     *               waiting for usage in connect(...) feature
+     * @see TelephonyDevice#connect(PhoneCallSession, Number, int, Sound)
+     */
+    @SuppressWarnings("unchecked")
+    default void shareDevice(H handle, long delay) {
+        devices()
+                .filter(device -> deviceContainsHandle(device, handle))
+                .map(device -> sessionForHandle(device, handle))
+                .filter(Objects::nonNull).findFirst()
+                .ifPresent(session -> shareDevice(session, delay));
+    }
+
+    /**
+     * <action>
+     * To share opened phone call session for the connection feature
+     *
+     * @param session the phone call's session, device is working with
+     * @param delay  maximum time (milliseconds) of device session sharing or forever for negative value,
+     *               waiting for usage in connect(...) feature
+     * @see TelephonyDevice#connect(PhoneCallSession, Number, int, Sound)
+     */
+    default void shareDevice(PhoneCallSession<H> session, long delay) {
+        // feature isn't supported here
+        session.operationResult(Result.CALL.Analysis.NO_DIAL_TONE);
+    }
+
+    /**
+     * <action>
+     * To un-share active phone call session for the connection feature
+     *
+     * @param handle the phone call's session's device handle, device is working with
+     * @see TelephonyDevice#connect(PhoneCallSession, Number, int, Sound)
+     */
+    default void unShareDevice(H handle) {
+        devices()
+                .filter(device -> deviceContainsHandle(device, handle))
+                .map(device -> sessionForHandle(device, handle))
+                .filter(Objects::nonNull).findFirst()
+                .ifPresent(this::unShareDevice);
+    }
+
+    /**
+     * <action>
+     * To un-share opened phone call session for the connection feature
+     *
+     * @param session the phone call's session, device is working with
+     * @see TelephonyDevice#connect(PhoneCallSession, Number, int, Sound)
+     */
+    default void unShareDevice(PhoneCallSession<H> session) {
+        // doing nothing here
+    }
+
+    // to check is device has the session with the handle
+    static <H> boolean deviceContainsHandle(TelephonyDevice device, H handle) {
+        return device.findSessionByHandle(handle).isPresent();
+    }
+
+    // to get the session with handle of the device
+    static <H> PhoneCallSession sessionForHandle(TelephonyDevice device, H handle) {
+        return (PhoneCallSession) device.findSessionByHandle(handle).orElse(null);
+    }
 }

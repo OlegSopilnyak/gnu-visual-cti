@@ -273,15 +273,16 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      * {@link Result.CALL.Analysis#BAN}           - the dialing phone number is forbidden
      *
      * @param session the phone call's session, device is working with
-     * @param number  telephone number
+     * @param number  the telephone number is calling to
      * @param timeout maximal waiting time for the answer (sec) after which call with
      *                {@link PhoneCallSession#operationResult()} equals {@link Result.CALL.Analysis#NO_ANSWER} will be returned.
      * @return true if operation complete successfully
      * @see PhoneCallSession
      * @see PhoneCallSession#operationResult()
      * @see Result.CALL.Analysis
+     * @see PhoneCall.Number
      */
-    boolean makeCall(PhoneCallSession<H> session, String number, int timeout);
+    boolean makeCall(PhoneCallSession<H> session, PhoneCall.Number number, int timeout);
 
     /**
      * <accessor>
@@ -342,7 +343,7 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      * {@link Result.CALL.Analysis#BAN}           - the calling phone number is forbidden
      *
      * @param session the phone call's session, device is working with
-     * @param number  telephone number
+     * @param number  the telephone number is calling to
      * @param timeout maximal waiting time for the answer (sec) after which call with
      *                {@link PhoneCallSession#operationResult()} equals {@link Result.CALL.Analysis#NO_ANSWER} will be returned.
      * @param toPlay The sound which is playing during the connect operation
@@ -350,12 +351,13 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      * @see PhoneCallSession
      * @see PhoneCallSession#operationResult()
      * @see Result.CALL.Analysis
+     * @see PhoneCall.Number
      */
-    boolean connect(PhoneCallSession<H> session, String number, int timeout, Sound toPlay);
+    boolean connect(PhoneCallSession<H> session, PhoneCall.Number number, int timeout, Sound toPlay);
 
     /**
      * <accessor>
-     * To check, whether device can operate with fax-machhines
+     * To check, whether device can operate with fax-machines
      * This flag, the factory may set in properties of the device
      *
      * @return true if device can accept the incoming phone call
@@ -559,18 +561,6 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
     @Override
     default Map<String, Object> getProperties() {
         return Collections.emptyMap();
-    }
-
-    /**
-     * <mutator>
-     * To assign properties to ServerUnit instance
-     * Properties may be changed in GUI
-     *
-     * @param properties server unit properties
-     */
-    @Override
-    default void setProperties(Map<String, Object> properties) {
-
     }
 
     /**

@@ -202,7 +202,7 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      */
     @Override
     public Session<H> startSession() throws IOException {
-        final Session<H> session = super.startSession();
+        final TelephonyDevice.Session<H> session = super.startSession();
         // analyzing the opened device session
         if (session != null && session.isOpened()) {
             // to get the device's handle from the session
@@ -213,6 +213,11 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
             faxes.open(session);
             // enabling device's incoming call events producing for particular device andle
             getProvider().enableEvents(handle, Result.CALL.RINGS);
+            // sharing started session if it's possible
+            if (canBeConnected() && canMakeCall()) {
+                // sharing the device's session for connection forever
+                getFactory().shareDevice(handle, -1L);
+            }
         }
         return session;
     }
@@ -342,16 +347,17 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      * {@link Result.CALL.Analysis#BAN}           - the dialing phone number is forbidden
      *
      * @param session the phone call's session, device is working with
-     * @param number  telephone number
+     * @param number  called telephone number
      * @param timeout maximal waiting time for the answer (sec) after which call with
      *                {@link PhoneCallSession#operationResult()} equals {@link Result.CALL.Analysis#NO_ANSWER} will be returned.
      * @return true if operation complete successfully
      * @see PhoneCallSession
      * @see PhoneCallSession#operationResult()
      * @see Result.CALL.Analysis
+     * @see PhoneCall.Number
      */
     @Override
-    public boolean makeCall(PhoneCallSession<H> session, String number, int timeout) {
+    public boolean makeCall(PhoneCallSession<H> session, PhoneCall.Number number, int timeout) {
         return calls.makeCall(session, number, timeout);
     }
 
@@ -400,7 +406,7 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      * {@link Result.CALL.Analysis#BAN}           - the calling phone number is forbidden
      *
      * @param session the phone call's session, device is working with
-     * @param number  telephone number
+     * @param number  called telephone number
      * @param timeout maximal waiting time for the answer (sec) after which call with
      *                {@link PhoneCallSession#operationResult()} equals {@link Result.CALL.Analysis#NO_ANSWER} will be returned.
      * @param toPlay  The sound which is playing during the connect operation
@@ -408,9 +414,10 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      * @see PhoneCallSession
      * @see PhoneCallSession#operationResult()
      * @see Result.CALL.Analysis
+     * @see PhoneCall.Number
      */
     @Override
-    public boolean connect(PhoneCallSession<H> session, String number, int timeout, Sound toPlay) {
+    public boolean connect(PhoneCallSession<H> session, PhoneCall.Number number, int timeout, Sound toPlay) {
         return calls.connect(session, number, timeout, toPlay);
     }
 
