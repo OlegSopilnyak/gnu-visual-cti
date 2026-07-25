@@ -35,13 +35,16 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.core.channel.telephony;
+package org.visualcti.core.channel.telephony.adapter;
 
 import java.util.concurrent.Executor;
 import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.adapter.AbstractFactory;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.Factory;
+import org.visualcti.core.channel.telephony.TelephonyChannel;
+import org.visualcti.core.channel.telephony.TelephonyDevice;
+import org.visualcti.core.channel.telephony.TelephonyDeviceFactory;
 
 
 /**

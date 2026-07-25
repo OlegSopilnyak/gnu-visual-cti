@@ -46,6 +46,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
@@ -58,13 +59,16 @@ import org.junit.Test;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
-import org.visualcti.core.channel.telephony.adapter.PhoneCallSession;
+import org.visualcti.core.channel.telephony.adapter.AbstractTelephonyDevice;
+import org.visualcti.core.channel.telephony.adapter.AbstractTelephonyDeviceFactory;
+import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.core.channel.telephony.operation.Result;
 import org.visualcti.core.channel.telephony.part.CallsPortEngine;
 import org.visualcti.core.channel.telephony.part.FaxMachineEngine;
 import org.visualcti.core.channel.telephony.part.MultiMedeaEngine;
 import org.visualcti.core.channel.telephony.part.TonesEngine;
 
+@SuppressWarnings({"unchecked", "rawtypes"})
 public class AbstractTelephonyDeviceTest<H> {
     String telephonyDeviceName = "telephony-device";
     TelephonyServiceProvider<H> provider;
@@ -112,11 +116,11 @@ public class AbstractTelephonyDeviceTest<H> {
     }
 
     @Test
-    public void shouldStartSession_WithoutDeviceSharing() throws IOException {
+    public void shouldStartSession_NoDeviceSharing() throws IOException {
         // preparing test data
 
         // acting
-        Device.Session<H> session = device.startSession();
+        PhoneCallSession<H> session = (PhoneCallSession<H>) device.startSession();
 
         // check the behavior
         verify(provider).openResource(telephonyDeviceName);
@@ -128,6 +132,7 @@ public class AbstractTelephonyDeviceTest<H> {
         verify(provider).enableEvents(eq(deviceHandle), any(OperationResultValue.class));
         verify(device).canBeConnected();
         // sharing device part
+        verify(factory, never()).devices();
         verify(factory, never()).shareDevice((H) any(), anyLong());
         verify(factory, never()).shareDevice(any(PhoneCallSession.class), anyLong());
         // check results
@@ -139,11 +144,62 @@ public class AbstractTelephonyDeviceTest<H> {
         assertThat(session.getDeviceName()).isSameAs(telephonyDeviceName);
         assertThat(session.getDeviceHandle()).isSameAs(deviceHandle);
         assertThat(session.getState()).isSameAs(Device.State.IDLE);
-        assertThat(((PhoneCallSession)session).operationResult()).isSameAs(Result.NONE);
+        assertThat(session.operationResult()).isSameAs(Result.NONE);
     }
 
     @Test
-    public void stopAndDetach() {
+    public void shouldStartSession_WithDeviceSharing() throws IOException {
+        // preparing test data
+        doReturn(true).when(device).canBeConnected();
+        doReturn(true).when(device).canMakeCall();
+
+        // acting
+        PhoneCallSession<H> session = (PhoneCallSession<H>) device.startSession();
+
+        // check the behavior
+        verify(provider).openResource(telephonyDeviceName);
+        verify(device).createSessionFor(deviceHandle);
+        verify(session).isOpened();
+        verify(session, atLeastOnce()).getDeviceHandle();
+        verify(faxes).open(session);
+        verify(provider).disableEvents(deviceHandle);
+        verify(provider).enableEvents(eq(deviceHandle), any(OperationResultValue.class));
+        verify(device).canBeConnected();
+        // sharing device part
+        verify(factory).devices();
+        verify(factory).shareDevice(deviceHandle, -1L);
+        verify(factory).shareDevice(session, -1L);
+        // check results
+        assertThat(session).isInstanceOf(TelephonyDevice.Session.class).isInstanceOf(PhoneCallSession.class);
+        assertThat(session.isOpened()).isTrue();
+        assertThat(session.isAlive()).isFalse();
+        assertThat(session.isTerminated()).isFalse();
+        assertThat(session.getDevice()).isSameAs(device);
+        assertThat(session.getDeviceName()).isSameAs(telephonyDeviceName);
+        assertThat(session.getDeviceHandle()).isSameAs(deviceHandle);
+        assertThat(session.getState()).isSameAs(Device.State.IDLE);
+        assertThat(session.operationResult()).isSameAs(Result.CALL.Analysis.NO_DIAL_TONE);
+    }
+
+    @Test
+    public void shouldDetachAndCloseSession() throws IOException {
+        // preparing test data
+        PhoneCallSession<H> session = (PhoneCallSession<H>) device.startSession();
+        assertThat(session.isOpened()).isTrue();
+        reset(device, session, provider);
+
+        // acting
+        device.detachAndClose(session);
+
+        // check the behavior
+        verify(session).isOpened();
+        verify(session, atLeastOnce()).getDeviceHandle();
+        verify(factory).unShareDevice(deviceHandle);
+        verify(factory).unShareDevice(session);
+        verify(provider).disableEvents(deviceHandle);
+        verify(faxes).close(session);
+        // check results
+        assertThat(session.isOpened()).isFalse();
     }
 
     /// / inner classes

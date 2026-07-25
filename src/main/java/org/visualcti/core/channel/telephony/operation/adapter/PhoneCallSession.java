@@ -35,7 +35,7 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.core.channel.telephony.adapter;
+package org.visualcti.core.channel.telephony.operation.adapter;
 
 import static org.visualcti.core.channel.device.Device.State.IDLE;
 import static org.visualcti.core.channel.device.adapter.AbstractDeviceEvent.incoming;
@@ -340,11 +340,11 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
      */
     @Override
     public void close() throws IOException {
-        // terminate current operation if it's waiting
-        operationComplete(Result.TERMINATED);
         // closing joint phone call sessions
         final List<PhoneCall> joint = new ArrayList<>(parameterOrDefault(Parameter.JOINT, Collections.emptyList()));
+        // saving empty joint sessions collection
         parameter(Parameter.JOINT, Collections.emptyList());
+        // closing joint sessions if any
         joint.forEach(PhoneCallSession::closeJoint);
         // releasing common using session's parameters
         super.close();

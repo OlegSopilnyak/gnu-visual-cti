@@ -38,8 +38,10 @@ Fax number: 217-356-3356
 package org.visualcti.core.channel.telephony;
 
 import org.visualcti.core.channel.device.Device;
-import org.visualcti.core.channel.telephony.adapter.PhoneCallSession;
+import org.visualcti.core.channel.device.DeviceEvent;
+import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
+import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.core.channel.telephony.part.CallsPortEngine;
 
 /**
@@ -49,6 +51,22 @@ import org.visualcti.core.channel.telephony.part.CallsPortEngine;
  * @see Device.ServiceProvider
  */
 public interface TelephonyServiceProvider<H>  extends Device.ServiceProvider<H> {
+    /**
+     * <action>
+     * To disable ALL events producing for particular device from the events provider
+     *
+     *
+     * @param deviceHandle device handle of the device for which events producing is disabled
+     * @see Device.Session#getDeviceHandle()
+     * @see DeviceEvent.Provider#disableEvents(H)
+     * @see #disableEvents(H, OperationResultValue)
+     * @see EventType#ALL
+     */
+    @Override
+    default void disableEvents(H deviceHandle) {
+        disableEvents(deviceHandle, EventType.ALL);
+    }
+
     /**
      * <action>
      * To end a phone call.
@@ -90,4 +108,126 @@ public interface TelephonyServiceProvider<H>  extends Device.ServiceProvider<H> 
      * @see CallsPortEngine#makeCall(PhoneCallSession, PhoneCall.Number, int)
      */
     boolean startCalling(H handle, PhoneCall.Number number, int timeout);
+
+    /**
+     * <accessor>
+     * To check, whether service provider can accept incoming calls for device by handle
+     *
+     * @param handle the device's opened handle to check the feature in the service provider
+     * @return true if device can accept incoming phone calls
+     * @see TelephonyDevice#getName()
+     * @see TelephonyDevice#canAcceptCall()
+     */
+    default boolean canAcceptCall(H handle) {
+        return false;
+    }
+
+    /**
+     * <accessor>
+     * To check, whether service provider can accept incoming calls for device with name
+     *
+     * @param name the device's name to check in the provider
+     * @return true if device can accept incoming phone calls
+     * @see TelephonyDevice#getName()
+     * @see TelephonyDevice#canAcceptCall()
+     */
+    default boolean canAcceptCall(String name) {
+        return handleByName(name).map(this::canAcceptCall).orElse(false);
+    }
+
+    /**
+     * <accessor>
+     * To check, whether service provider can make the outgoing calls for device by handle
+     *
+     * @param handle the device's opened handle to check the feature in the service provider
+     * @return true if device can make the outgoing phone calls
+     * @see TelephonyDevice#getName()
+     * @see TelephonyDevice#canMakeCall()
+     */
+    default boolean canMakeCall(H handle) {
+        return false;
+    }
+
+    /**
+     * <accessor>
+     * To check, whether service provider can make the outgoing calls for device with name
+     *
+     * @param name the device's name to check in the provider
+     * @return true if device can make the outgoing phone calls
+     * @see TelephonyDevice#getName()
+     * @see TelephonyDevice#canMakeCall()
+     */
+    default boolean canMakeCall(String name) {
+        return handleByName(name).map(this::canMakeCall).orElse(false);
+    }
+
+    /**
+     * <accessor>
+     * To check, whether device can be used in operations of connections (conference)
+     *
+     * @param handle the device's opened handle to check the feature in the service provider
+     * @return true if device can be shared for another device
+     * @see TelephonyDevice#getName()
+     * @see TelephonyDevice#canBeConnected()
+     */
+    default boolean canBeConnected(H handle) {
+        return false;
+    }
+
+    /**
+     * <accessor>
+     * To check, whether device can be used in operations of connections (conference)
+     *
+     * @param name the device's name to check in the provider
+     * @return true if device can be shared for another device
+     * @see TelephonyDevice#getName()
+     * @see TelephonyDevice#canBeConnected()
+     */
+    default boolean canBeConnected(String name) {
+        return handleByName(name).map(this::canBeConnected).orElse(false);
+    }
+
+    /**
+     * <accessor>
+     * To check, whether device can operate with fax-machines
+     *
+     * @param handle the device's opened handle to check the feature in the service provider
+     * @return true if device can operate with fax-machines
+     * @see TelephonyDevice#getName()
+     * @see TelephonyDevice#canFax()
+     */
+    default boolean canFax(H handle) {
+        return false;
+    }
+
+    /**
+     * <accessor>
+     * To check, whether device can operate with fax-machines
+     *
+     * @param name the device's name to check in the provider
+     * @return true if device can operate with fax-machines
+     * @see TelephonyDevice#getName()
+     * @see TelephonyDevice#canFax()
+     */
+    default boolean canFax(String name) {
+        return handleByName(name).map(this::canFax).orElse(false);
+    }
+
+    /**
+     * EventType Enumeration: The results of all events type
+     */
+    enum EventType implements OperationResultValue {
+        ALL("ALL");
+        // status value
+        private final String status;
+
+        EventType(String status) {
+            this.status = status;
+        }
+
+        @Override
+        public String getValue() {
+            return status;
+        }
+    }
 }

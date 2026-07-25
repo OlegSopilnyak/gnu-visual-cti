@@ -140,7 +140,7 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
         // opening the device provider resource
         final H deviceHandle = serviceProvider().openResource(getName());
         // stopping and detach the old session, if it exists
-        findSessionByHandle(deviceHandle).ifPresent(this::stopAndDetach);
+        findSessionByHandle(deviceHandle).ifPresent(this::detachAndClose);
         // building new session for the device handle
         final Session<H> session = createSessionFor(deviceHandle);
         // add the device session as device events listener
@@ -156,8 +156,16 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
      * To stop device's session and detach it from device events stream
      *
      * @param session opened device's session
+     * @see Session#terminate()
+     * @see Session#close()
+     * @see Session#getDeviceHandle()
+     * @see ServiceProvider#closeResource(Object)
+     * @see #getFactory()
+     * @see #getName()
+     * @see Factory#getHub()
+     * @see DeviceEvent.Listener.Hub#removeDeviceEventListenerFor(String, DeviceEvent.Listener)
      */
-    default void stopAndDetach(final Session<H> session) {
+    default void detachAndClose(final Session<H> session) {
         try {
             // terminating current device activities of the session
             session.terminate();
@@ -261,19 +269,14 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
      * the expectation of the end of current operation still executing
      *
      * @throws IOException if channel cannot be closed
-     * @see #getName()
-     * @see #getFactory()
-     * @see #serviceProvider()
-     * @see DeviceEvent.Listener.Hub#eventListeners(String)
-     * @see ServiceProvider#closeResource(Object)
-     * @see DeviceEvent.Listener.Hub#removeDeviceEventListenerFor(String, DeviceEvent.Listener)
+     * @see #detachAndClose(Session)
      */
     @Override
     default void close() throws IOException {
         // closing device's resource and removing sessions as device events listener
         for (final Session<H> session : (Iterable<Session<H>>) sessions()::iterator) {
-            // stopping and detaching the opened device session
-            stopAndDetach(session);
+            // detaching  and closing the opened device session
+            detachAndClose(session);
         }
     }
 
@@ -595,5 +598,19 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
          * @see Session#getDeviceHandle()
          */
         void closeResource(H handle) throws IOException;
+
+        /**
+         * <acessor>
+         * To find any handler for the resource by name
+         *
+         * @param name the name of the opened resource
+         * @return handle to opened resource or empty
+         * @see Optional
+         * @see #openResource(String)
+         * @see #open()
+         */
+        default Optional<H> handleByName(String name) {
+            return Optional.empty();
+        }
     }
 }

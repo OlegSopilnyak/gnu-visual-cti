@@ -39,7 +39,7 @@ package org.visualcti.core.channel.telephony.part;
 
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.telephony.TelephonyDeviceFactory;
-import org.visualcti.core.channel.telephony.adapter.PhoneCallSession;
+import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
 import org.visualcti.core.channel.telephony.operation.Result;
 import org.visualcti.core.channel.telephony.operation.ToneId;

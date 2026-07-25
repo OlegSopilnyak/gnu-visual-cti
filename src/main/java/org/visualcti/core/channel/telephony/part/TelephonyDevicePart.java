@@ -40,7 +40,7 @@ package org.visualcti.core.channel.telephony.part;
 import java.io.IOException;
 import org.visualcti.core.channel.telephony.TelephonyDevice;
 import org.visualcti.core.channel.telephony.TelephonyDeviceCore;
-import org.visualcti.core.channel.telephony.adapter.PhoneCallSession;
+import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 
 /**
  * The Part of the Telephony Channel Device: The common used part of the device

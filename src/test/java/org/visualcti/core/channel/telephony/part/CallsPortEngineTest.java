@@ -38,19 +38,16 @@ Fax number: 217-356-3356
 package org.visualcti.core.channel.telephony.part;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 
 import org.junit.Before;
 import org.junit.Test;
-import org.visualcti.core.channel.device.operation.OperationResultValue;
-import org.visualcti.core.channel.telephony.adapter.PhoneCallSession;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
+import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.media.Sound;
 
+@SuppressWarnings("unchecked")
 public class CallsPortEngineTest<H> {
     CallsPortEngine<H> engine;
     PhoneCallSession<H> session;
@@ -99,21 +96,15 @@ public class CallsPortEngineTest<H> {
     @Test
     public void shouldWaitForCall() {
         // preparing test data
-        PhoneCall call = mock(PhoneCall.class);
-        OperationResultValue resultValue = mock(OperationResultValue.class);
-        doReturn(resultValue).when(call).operationResult();
         int rings = 3;
         int timeout = 5;
         boolean answer = true;
-        doReturn(call).when(engine).waitForCall(session, anyInt(), anyInt(), anyBoolean());
 
         // acting
         boolean result = engine.waitForCall(session, rings, timeout, answer);
 
         // check results
-        assertThat(result).isTrue();
-//        assertThat(result).isSameAs(call);
-//        assertThat(result.operationResult()).isSameAs(resultValue);
+        assertThat(result).isFalse();
     }
 
     @Test
@@ -142,19 +133,14 @@ public class CallsPortEngineTest<H> {
     @Test
     public void shouldMakeCall() {
         // preparing test data
-        PhoneCall call = mock(PhoneCall.class);
-        OperationResultValue resultValue = mock(OperationResultValue.class);
-        doReturn(resultValue).when(call).operationResult();
-        String phoneNumber = "phone-number";
+        PhoneCall.Number phoneNumber = mock(PhoneCall.Number.class);
         int timeout = 5;
-        doReturn(call).when(engine).makeCall(session, any(PhoneCall.Number.class), anyInt());
 
         // acting
-//        boolean result = engine.makeCall(session, phoneNumber, timeout);
+        boolean result = engine.makeCall(session, phoneNumber, timeout);
 
         // check results
-//        assertThat(result).isSameAs(call);
-//        assertThat(result.operationResult()).isSameAs(resultValue);
+        assertThat(result).isFalse();
     }
 
     @Test
@@ -183,19 +169,14 @@ public class CallsPortEngineTest<H> {
     @Test
     public void shouldConnect() {
         // preparing test data
-        PhoneCall call = mock(PhoneCall.class);
-        OperationResultValue resultValue = mock(OperationResultValue.class);
-        doReturn(resultValue).when(call).operationResult();
+        PhoneCall.Number phoneNumber = mock(PhoneCall.Number.class);
         Sound playBefore = mock(Sound.class);
-        String phoneNumber = "phone-number";
         int timeout = 5;
-        doReturn(call).when(engine).connect(session, any(PhoneCall.Number.class), anyInt(), any(Sound.class));
 
         // acting
-//        boolean result = engine.connect(session, phoneNumber, timeout, playBefore);
+        boolean result = engine.connect(session, phoneNumber, timeout, playBefore);
 
         // check results
-//        assertThat(result).isSameAs(call);
-//        assertThat(result.operationResult()).isSameAs(resultValue);
+        assertThat(result).isFalse();
     }
 }

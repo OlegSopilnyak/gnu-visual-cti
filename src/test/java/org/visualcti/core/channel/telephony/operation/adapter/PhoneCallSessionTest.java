@@ -35,7 +35,7 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.core.channel.telephony.adapter;
+package org.visualcti.core.channel.telephony.operation.adapter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
@@ -73,7 +73,7 @@ public class PhoneCallSessionTest {
     ExecutorService executor;
 
     @Before
-    public void setUp() throws Exception {
+    public void setUp() {
         device = mock(TelephonyDevice.class);
         doReturn(deviceName).when(device).getName();
         session = spy(new PhoneCallSession(device, handle) {
@@ -192,7 +192,6 @@ public class PhoneCallSessionTest {
     @Test
     public void shouldWaitForOperationComplete_Interrupted() throws InterruptedException {
         // preparing test data
-//        session.operationResult.getAndSet(Result.ERROR);
         Runnable runnable = () -> {
             try {
                 Thread.sleep(100);
@@ -213,7 +212,6 @@ public class PhoneCallSessionTest {
     @Test
     public void shouldWaitForOperationComplete_TimedOut() throws InterruptedException {
         // preparing test data
-//        session.operationResult.getAndSet(Result.ERROR);
 
         // acting
         session.waitForOperationComplete(200L);
@@ -223,9 +221,8 @@ public class PhoneCallSessionTest {
     }
 
     @Test
-    public void shouldCompleteTheOperationAndUpdateLastOperationResult() throws InterruptedException {
+    public void shouldCompleteTheOperationAndUpdateLastOperationResult() {
         // preparing test data
-//        session.operationResult.getAndSet(Result.ERROR);
         executor.execute(() -> {
             try {
                 session.waitForOperationComplete(-1L);

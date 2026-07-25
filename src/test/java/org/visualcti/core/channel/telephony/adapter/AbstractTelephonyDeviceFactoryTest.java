@@ -35,7 +35,7 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.core.channel.telephony;
+package org.visualcti.core.channel.telephony.adapter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doReturn;
@@ -47,7 +47,10 @@ import org.junit.Before;
 import org.junit.Test;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceEvent;
+import org.visualcti.core.channel.telephony.TelephonyChannel;
+import org.visualcti.core.channel.telephony.TelephonyDevice;
 
+@SuppressWarnings({"unchecked", "rawtypes"})
 public class AbstractTelephonyDeviceFactoryTest {
     static String deviceVendor = "device-vendor";
     static String deviceVendorVersion = "device-vendor-version";
@@ -88,7 +91,7 @@ public class AbstractTelephonyDeviceFactoryTest {
 
     /// / inner classes
     private static class TestFactory<H, T extends TelephonyDevice<H, ?>> extends AbstractTelephonyDeviceFactory<H, T> {
-        public TestFactory(Executor deviceEventExecutor, DeviceEvent.Provider eventsProvider) {
+        public TestFactory(Executor deviceEventExecutor, DeviceEvent.Provider<H> eventsProvider) {
             super(deviceEventExecutor, eventsProvider);
         }
 
@@ -101,11 +104,6 @@ public class AbstractTelephonyDeviceFactoryTest {
         public String getVersion() {
             return deviceVendorVersion;
         }
-
-//        @Override
-//        protected void reject(DeviceEvent event) {
-//            // doing nothing here
-//        }
 
         @Override
         protected TelephonyChannel<T> makeChannelFor(Device<?, ?> device) {

@@ -50,7 +50,7 @@ import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceStateValue;
 import org.visualcti.core.channel.device.adapter.AbstractDeviceEvent;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
-import org.visualcti.core.channel.telephony.adapter.PhoneCallSession;
+import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
 import org.visualcti.core.channel.telephony.operation.Result;
 import org.visualcti.core.channel.telephony.operation.ToneId;
@@ -193,11 +193,13 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      *
      * @return true if device can accept incoming phone calls
      * @see CallsPortEngine#canAcceptCall()
+     * @see TelephonyServiceProvider#canAcceptCall(String)
+     * @see #getName()
      */
     @Override
     default boolean canAcceptCall() {
-        return (boolean) getParameter(CallsPortEngine.Parameter.ACCEPT_CALL_ALLOWED)
-                .map(ConfigurationParameter::getValue).orElse(false);
+        return getProvider().canAcceptCall(getName()) && getParameter(CallsPortEngine.Parameter.ACCEPT_CALL_ALLOWED)
+                .<Boolean>map(ConfigurationParameter::getValue).orElse(false);
     }
 
     /**
@@ -248,11 +250,13 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      *
      * @return true if device can make outgoing calls
      * @see CallsPortEngine#canMakeCall()
+     * @see TelephonyServiceProvider#canMakeCall(String)
+     * @see #getName()
      */
     @Override
     default boolean canMakeCall() {
-        return (boolean) getParameter(CallsPortEngine.Parameter.MAKE_CALL_ALLOWED)
-                .map(ConfigurationParameter::getValue).orElse(false);
+        return getProvider().canMakeCall(getName()) && getParameter(CallsPortEngine.Parameter.MAKE_CALL_ALLOWED)
+                .<Boolean>map(ConfigurationParameter::getValue).orElse(false);
     }
 
     /**
@@ -291,11 +295,13 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      *
      * @return true if device can be shared for another device
      * @see CallsPortEngine#canBeConnected()
+     * @see TelephonyServiceProvider#canBeConnected(String)
+     * @see #getName()
      */
     @Override
     default boolean canBeConnected() {
-        return (boolean) getParameter(CallsPortEngine.Parameter.SHARE_CALL_ALLOWED)
-                .map(ConfigurationParameter::getValue).orElse(false);
+        return getProvider().canBeConnected(getName()) && getParameter(CallsPortEngine.Parameter.SHARE_CALL_ALLOWED)
+                .<Boolean>map(ConfigurationParameter::getValue).orElse(false);
     }
 
     /**
@@ -346,7 +352,7 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      * @param number  the telephone number is calling to
      * @param timeout maximal waiting time for the answer (sec) after which call with
      *                {@link PhoneCallSession#operationResult()} equals {@link Result.CALL.Analysis#NO_ANSWER} will be returned.
-     * @param toPlay The sound which is playing during the connect operation
+     * @param toPlay  The sound which is playing during the connect operation
      * @return true if operation complete successfully
      * @see PhoneCallSession
      * @see PhoneCallSession#operationResult()
@@ -362,11 +368,13 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      *
      * @return true if device can accept the incoming phone call
      * @see FaxMachineEngine#canFax()
+     * @see TelephonyServiceProvider#canFax(String)
+     * @see #getName()
      */
     @Override
     default boolean canFax() {
-        return (boolean) getParameter(FaxMachineEngine.Parameter.FAX_ALLOWED)
-                .map(ConfigurationParameter::getValue).orElse(false);
+        return getProvider().canFax(getName()) && getParameter(FaxMachineEngine.Parameter.FAX_ALLOWED)
+                .<Boolean>map(ConfigurationParameter::getValue).orElse(false);
     }
 
     /**
@@ -816,6 +824,7 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
             super(deviceOwner, deviceHandle);
         }
     }
+
     /**
      * Default Implementation: The event from the telephony channel-device side
      *

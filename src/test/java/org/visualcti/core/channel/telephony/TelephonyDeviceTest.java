@@ -43,16 +43,19 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import java.io.IOException;
 import java.util.Optional;
+import java.util.stream.Stream;
 import org.junit.Before;
 import org.junit.Test;
 import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceStateValue;
 import org.visualcti.core.channel.telephony.part.CallsPortEngine;
+import org.visualcti.core.channel.telephony.part.FaxMachineEngine;
 import org.visualcti.server.core.unit.message.MessageFamilyType;
 import org.visualcti.server.core.unit.message.MessageType;
 import org.visualcti.server.core.unit.message.UnitMessageFactory;
@@ -60,10 +63,15 @@ import org.visualcti.server.core.unit.message.action.UnitActionError;
 
 public class TelephonyDeviceTest {
     TelephonyDevice<?, ?> device;
+    String deviceName = "device-name";
+    TelephonyServiceProvider<?> provider;
 
     @Before
     public void setUp() {
         device = mock(TelephonyDevice.class);
+        doReturn(deviceName).when(device).getName();
+        provider = mock(TelephonyServiceProvider.class);
+        doReturn(provider).when(device).getProvider();
     }
 
     @Test
@@ -97,11 +105,12 @@ public class TelephonyDeviceTest {
         Device.ParameterName parameterName = mock(Device.ParameterName.class);
         ConfigurationParameter parameter = mock(ConfigurationParameter.class);
         doReturn(Optional.of(parameter)).when(device).getParameter(parameterName);
+
         // acting
         Optional<ConfigurationParameter> deviceParameter = device.getParameter(parameterName);
 
         // check results
-        assertThat(deviceParameter).isPresent().contains(parameter);
+        assertThat(deviceParameter).contains(parameter);
     }
 
     @Test
@@ -117,46 +126,79 @@ public class TelephonyDeviceTest {
     }
 
     @Test
-    public void shouldGetState() {
+    public void shouldGetStates() {
         // preparing test data
         DeviceStateValue state = mock(DeviceStateValue.class);
-//        doReturn(state).when(device).getState();
+        doReturn(Stream.of(state)).when(device).getStates();
 
         // acting
-//        DeviceStateValue deviceState = device.getState();
+        Stream<DeviceStateValue> states = device.getStates();
 
         // check results
-//        assertThat(deviceState).isSameAs(state);
+        assertThat(states.toArray()).contains(state);
+    }
+
+    @Test
+    public void shouldNotGetStates() {
+        // preparing test data
+
+        // acting
+        Stream<DeviceStateValue> states = device.getStates();
+
+        // check results
+        assertThat(states.toArray()).isEmpty();
     }
 
     @Test
     public void shouldCanAcceptCall() {
         // preparing test data
-        CallsPortEngine.Parameter parameter = CallsPortEngine.Parameter.ACCEPT_CALL_ALLOWED;
+        Device.ParameterName parameter = CallsPortEngine.Parameter.ACCEPT_CALL_ALLOWED;
         ConfigurationParameter configurationParameter = ConfigurationParameter.of("in", true);
-        doCallRealMethod().when(device).canAcceptCall();
         doReturn(Optional.of(configurationParameter)).when(device).getParameter(parameter);
+        doReturn(true).when(provider).canAcceptCall(deviceName);
+        doCallRealMethod().when(device).canAcceptCall();
 
         // acting
         boolean can = device.canAcceptCall();
 
         // check the behavior
+        verify(device).getProvider();
+        verify(provider).canAcceptCall(deviceName);
         verify(device).getParameter(parameter);
         // check results
         assertThat(can).isTrue();
     }
 
     @Test
-    public void shouldCantAcceptCall() {
+    public void shouldCantAcceptCall_NotConfiguredFeature() {
         // preparing test data
-        CallsPortEngine.Parameter parameter = CallsPortEngine.Parameter.ACCEPT_CALL_ALLOWED;
+        Device.ParameterName parameter = CallsPortEngine.Parameter.ACCEPT_CALL_ALLOWED;
+        doReturn(true).when(provider).canAcceptCall(deviceName);
         doCallRealMethod().when(device).canAcceptCall();
 
         // acting
         boolean can = device.canAcceptCall();
 
         // check the behavior
+        verify(device).getProvider();
+        verify(provider).canAcceptCall(deviceName);
         verify(device).getParameter(parameter);
+        // check results
+        assertThat(can).isFalse();
+    }
+
+    @Test
+    public void shouldCantAcceptCall_ProviderIssue() {
+        // preparing test data
+        doCallRealMethod().when(device).canAcceptCall();
+
+        // acting
+        boolean can = device.canAcceptCall();
+
+        // check the behavior
+        verify(device).getProvider();
+        verify(provider).canAcceptCall(deviceName);
+        verify(device, never()).getParameter(any(Device.ParameterName.class));
         // check results
         assertThat(can).isFalse();
     }
@@ -164,31 +206,53 @@ public class TelephonyDeviceTest {
     @Test
     public void shouldCanMakeCall() {
         // preparing test data
-        CallsPortEngine.Parameter parameter = CallsPortEngine.Parameter.MAKE_CALL_ALLOWED;
+        Device.ParameterName parameter = CallsPortEngine.Parameter.MAKE_CALL_ALLOWED;
         ConfigurationParameter configurationParameter = ConfigurationParameter.of("out", true);
-        doCallRealMethod().when(device).canMakeCall();
         doReturn(Optional.of(configurationParameter)).when(device).getParameter(parameter);
+        doReturn(true).when(provider).canMakeCall(deviceName);
+        doCallRealMethod().when(device).canMakeCall();
 
         // acting
         boolean can = device.canMakeCall();
 
         // check the behavior
+        verify(device).getProvider();
+        verify(provider).canMakeCall(deviceName);
         verify(device).getParameter(parameter);
         // check results
         assertThat(can).isTrue();
     }
 
     @Test
-    public void shouldCantMakeCall() {
+    public void shouldCantMakeCall_NotConfiguredFeature() {
         // preparing test data
-        CallsPortEngine.Parameter parameter = CallsPortEngine.Parameter.MAKE_CALL_ALLOWED;
+        Device.ParameterName parameter = CallsPortEngine.Parameter.MAKE_CALL_ALLOWED;
+        doReturn(true).when(provider).canMakeCall(deviceName);
         doCallRealMethod().when(device).canMakeCall();
 
         // acting
         boolean can = device.canMakeCall();
 
         // check the behavior
+        verify(device).getProvider();
+        verify(provider).canMakeCall(deviceName);
         verify(device).getParameter(parameter);
+        // check results
+        assertThat(can).isFalse();
+    }
+
+    @Test
+    public void shouldCantMakeCall_ProviderIssue() {
+        // preparing test data
+        doCallRealMethod().when(device).canMakeCall();
+
+        // acting
+        boolean can = device.canMakeCall();
+
+        // check the behavior
+        verify(device).getProvider();
+        verify(provider).canMakeCall(deviceName);
+        verify(device, never()).getParameter(any(Device.ParameterName.class));
         // check results
         assertThat(can).isFalse();
     }
@@ -196,31 +260,53 @@ public class TelephonyDeviceTest {
     @Test
     public void shouldCanBeConnected() {
         // preparing test data
-        CallsPortEngine.Parameter parameter = CallsPortEngine.Parameter.SHARE_CALL_ALLOWED;
+        Device.ParameterName parameter = CallsPortEngine.Parameter.SHARE_CALL_ALLOWED;
         ConfigurationParameter configurationParameter = ConfigurationParameter.of("share", true);
-        doCallRealMethod().when(device).canBeConnected();
         doReturn(Optional.of(configurationParameter)).when(device).getParameter(parameter);
+        doReturn(true).when(provider).canBeConnected(deviceName);
+        doCallRealMethod().when(device).canBeConnected();
 
         // acting
         boolean can = device.canBeConnected();
 
         // check the behavior
+        verify(device).getProvider();
+        verify(provider).canBeConnected(deviceName);
         verify(device).getParameter(parameter);
         // check results
         assertThat(can).isTrue();
     }
 
     @Test
-    public void shouldCantBeConnected() {
+    public void shouldCantBeConnected_NotConfiguredFeature() {
         // preparing test data
         CallsPortEngine.Parameter parameter = CallsPortEngine.Parameter.SHARE_CALL_ALLOWED;
+        doReturn(true).when(provider).canBeConnected(deviceName);
         doCallRealMethod().when(device).canBeConnected();
 
         // acting
         boolean can = device.canBeConnected();
 
         // check the behavior
+        verify(device).getProvider();
+        verify(provider).canBeConnected(deviceName);
         verify(device).getParameter(parameter);
+        // check results
+        assertThat(can).isFalse();
+    }
+
+    @Test
+    public void shouldCantBeConnected_ProviderIssue() {
+        // preparing test data
+        doCallRealMethod().when(device).canBeConnected();
+
+        // acting
+        boolean can = device.canBeConnected();
+
+        // check the behavior
+        verify(device).getProvider();
+        verify(provider).canBeConnected(deviceName);
+        verify(device, never()).getParameter(any(Device.ParameterName.class));
         // check results
         assertThat(can).isFalse();
     }
@@ -228,31 +314,53 @@ public class TelephonyDeviceTest {
     @Test
     public void shouldCanFax() {
         // preparing test data
-//        CallsPortEngine.Parameter parameter = CallsPortEngine.Parameter.FAX_ALLOWED;
+        Device.ParameterName parameter = FaxMachineEngine.Parameter.FAX_ALLOWED;
         ConfigurationParameter configurationParameter = ConfigurationParameter.of("fax", true);
         doCallRealMethod().when(device).canFax();
-//        doReturn(Optional.of(configurationParameter)).when(device).getParameter(parameter);
+        doReturn(true).when(provider).canFax(deviceName);
+        doReturn(Optional.of(configurationParameter)).when(device).getParameter(parameter);
 
         // acting
         boolean can = device.canFax();
 
         // check the behavior
-//        verify(device).getParameter(parameter);
+        verify(device).getProvider();
+        verify(provider).canFax(deviceName);
+        verify(device).getParameter(parameter);
         // check results
         assertThat(can).isTrue();
     }
 
     @Test
-    public void shouldCantFax() {
+    public void shouldCantFax_NotConfiguredFeature() {
         // preparing test data
-//        CallsPortEngine.Parameter parameter = CallsPortEngine.Parameter.FAX_ALLOWED;
+        Device.ParameterName parameter = FaxMachineEngine.Parameter.FAX_ALLOWED;
+        doReturn(true).when(provider).canFax(deviceName);
         doCallRealMethod().when(device).canFax();
 
         // acting
         boolean can = device.canFax();
 
         // check the behavior
-//        verify(device).getParameter(parameter);
+        verify(device).getProvider();
+        verify(provider).canFax(deviceName);
+        verify(device).getParameter(parameter);
+        // check results
+        assertThat(can).isFalse();
+    }
+
+    @Test
+    public void shouldCantFax_ProviderIssue() {
+        // preparing test data
+        doCallRealMethod().when(device).canFax();
+
+        // acting
+        boolean can = device.canFax();
+
+        // check the behavior
+        verify(device).getProvider();
+        verify(provider).canFax(deviceName);
+        verify(device, never()).getParameter(any(Device.ParameterName.class));
         // check results
         assertThat(can).isFalse();
     }
@@ -274,19 +382,5 @@ public class TelephonyDeviceTest {
         // check the behavior
         verify(device).dispatch(unitError);
         // check results
-    }
-
-    @Test
-    public void shouldGetHandle() {
-        // preparing test data
-        int handle = 10;
-//        doReturn(handle).when(device).getHandle();
-        doCallRealMethod().when(device).getType();
-
-        // acting
-//        int deviceHandle = device.getHandle();
-
-        // check results
-//        assertThat(deviceHandle).isEqualTo(handle);
     }
 }

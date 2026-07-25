@@ -35,7 +35,7 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.core.channel.telephony;
+package org.visualcti.core.channel.telephony.adapter;
 
 import static org.visualcti.core.channel.telephony.TelephonyDevice.State.DIAL;
 import static org.visualcti.core.channel.telephony.TelephonyDevice.State.GTDIG;
@@ -47,17 +47,20 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceStateValue;
 import org.visualcti.core.channel.device.adapter.AbstractDevice;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
-import org.visualcti.core.channel.telephony.adapter.PhoneCallSession;
+import org.visualcti.core.channel.telephony.TelephonyDevice;
+import org.visualcti.core.channel.telephony.TelephonyDeviceCore;
+import org.visualcti.core.channel.telephony.TelephonyDeviceFactory;
+import org.visualcti.core.channel.telephony.TelephonyServiceProvider;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
 import org.visualcti.core.channel.telephony.operation.Result;
 import org.visualcti.core.channel.telephony.operation.ToneId;
+import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.core.channel.telephony.part.CallsPortEngine;
 import org.visualcti.core.channel.telephony.part.FaxMachineEngine;
 import org.visualcti.core.channel.telephony.part.MultiMedeaEngine;
@@ -86,20 +89,8 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
         extends AbstractDevice<H, T> implements TelephonyDevice<H, T> {
     // the name of the device in the device factory
     private final String name;
-    // The opened device handle for the low level telephony operations
-    private final AtomicReference<H> handleHolder = new AtomicReference<>(wrongHandle());
     private final Predicate<H> validResourceHandle =
             handle -> !Objects.equals(handle, wrongHandle()) || !Objects.equals(handle, errorHandle());
-    // predicate for valid result values of wait for call operation
-    private static Predicate<OperationResultValue> waitForCallExpected = value -> value == Result.CALL.RINGS
-            || value == Result.CALL.ALERTING || value == Result.TIMEOUT;
-    // predicate for valid result values of make call operation
-    private static Predicate<OperationResultValue> makeCallExpected = value -> value == Result.CALL.Analysis.VOICE
-            || value == Result.CALL.Analysis.FAX
-            || value == Result.CALL.Analysis.BUSY
-            || value == Result.CALL.Analysis.NO_ANSWER
-            || value == Result.CALL.Analysis.NO_RESPONDING
-            || value == Result.CALL.Analysis.NO_DIAL_TONE;
     // device part of the telephony calls management
     private final CallsPortEngine<H> calls;
     // device part of the telephony signals and tones management
@@ -227,34 +218,28 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      * To stop device's session and detach it from device events stream
      *
      * @param session opened device's session
+     * @see Device#detachAndClose(Session)
      */
     @Override
-    public void stopAndDetach(final Session<H> session) {
+    public void detachAndClose(final Session<H> session) {
+        if (session == null) {
+            // nothing to do
+            return;
+        }
         // analyzing the opened device session
-        if (session != null && session.isOpened()) {
+        if (session.isOpened()) {
             // to get the device's handle from the session
             final H handle = session.getDeviceHandle();
+            // unsharing the device's session for connection
+            getFactory().unShareDevice(handle);
             // disabling any event for the opened device handle
             getProvider().disableEvents(handle);
             // opening the fax-machine part
             faxes.close(session);
         }
-        super.stopAndDetach(session);
+        // terminating and closing the session
+        super.detachAndClose(session);
     }
-
-    /**
-     * <action>
-     * Closing the device
-     *
-     * @throws IOException if an I/O error occurs
-     * @see Device#close()
-     * @see TelephonyServiceProvider#disableEvents(Object)
-     */
-//    @Override
-//    public void close() throws IOException {
-//        super.close();
-////        faxes.close();
-//    }
 
     /**
      * <action>
