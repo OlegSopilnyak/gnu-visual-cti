@@ -52,6 +52,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import java.io.IOException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -59,12 +60,17 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.visualcti.core.channel.device.Device;
+import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.DeviceStateValue;
+import org.visualcti.core.channel.telephony.TelephonyChannel;
 import org.visualcti.core.channel.telephony.TelephonyDevice;
+import org.visualcti.core.channel.telephony.TelephonyDeviceFactory;
 import org.visualcti.core.channel.telephony.TelephonyServiceProvider;
+import org.visualcti.core.channel.telephony.adapter.AbstractTelephonyDeviceFactory;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
 import org.visualcti.core.channel.telephony.operation.Result;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
+import org.visualcti.media.Sound;
 
 @SuppressWarnings({"unchecked", "rawtypes"})
 public class AbstractCallsPortEngineTest<H> {
@@ -76,10 +82,12 @@ public class AbstractCallsPortEngineTest<H> {
     TelephonyServiceProvider<H> provider;
     String deviceName = "device-name";
     H deviceHandle = (H) "handle";
-
+    TelephonyDeviceFactory<H, ?> factory;
+    Executor deviceEventExecutor;
+    DeviceEvent.Provider<H> eventsProvider;
 
     @Before
-    public void setUp() throws Exception {
+    public void setUp() {
         provider = mock(TelephonyServiceProvider.class);
         device = mock(TelephonyDevice.class);
         doReturn(deviceName).when(device).getName();
@@ -88,6 +96,15 @@ public class AbstractCallsPortEngineTest<H> {
         });
         engine = spy(new AbstractCallsPortEngine());
         executor = Executors.newSingleThreadScheduledExecutor();
+        deviceEventExecutor = Executors.newSingleThreadExecutor();
+        eventsProvider = mock(DeviceEvent.Provider.class);
+        factory = spy(new AbstractTelephonyDeviceFactory(executor, deviceEventExecutor, eventsProvider) {
+            @Override
+            protected TelephonyChannel makeChannelFor(Device device) {
+                return null;
+            }
+        });
+        doReturn(factory).when(device).getFactory();
     }
 
     @After
@@ -501,7 +518,38 @@ public class AbstractCallsPortEngineTest<H> {
     }
 
     @Test
-    public void connect() {
+    public void shouldConnect_ConnectableIsAlive() {
+        // preparing test data
+        doReturn(true).when(engine).canBeConnected();
+        engine.uses(device);
+        PhoneCall.Number number = mock(PhoneCall.Number.class);
+        int timeout = 1;
+        Sound sound = mock(Sound.class);
+        H sharedHandle = (H) "mock()";
+        TelephonyDevice sharedDevice = mock(TelephonyDevice.class);
+        doReturn(true).when(sharedDevice).canBeConnected();
+        PhoneCallSession<H> sharedSession = mock(PhoneCallSession.class);
+        doReturn(sharedDevice).when(sharedSession).getDevice();
+        doReturn(sharedHandle).when(sharedSession).getDeviceHandle();
+        doReturn(true).when(sharedSession).isAlive();
+        doReturn(true).when(sharedSession).hasNumber(number);
+        factory.shareDevice(sharedSession, -1L);
+        doReturn(true).when(provider).joinResources(sharedHandle, deviceHandle);
+
+        // acting
+        boolean done = engine.connect(session, number, timeout, sound);
+
+        // check the behavior
+        verify(session, atLeastOnce()).getDeviceHandle();
+        verify(engine).canBeConnected();
+        verify(session).getDevice();
+        verify(device).getFactory();
+        verify(factory).findConnectableFor(number);
+        verify(sharedSession, atLeastOnce()).isAlive();
+        verify(provider).joinResources(sharedHandle, deviceHandle);
+        verify(sharedSession).join(session);
+        // check results
+        assertThat(done).isTrue();
     }
 
     @Test

@@ -498,7 +498,7 @@ public class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> implements
                 // just connecting two alive session by their handles
                 connectableSession.join(leadingSession);
                 return true;
-            } else {
+            } else if (connectableSession.isDisconnected()) {
                 // start playing the melody sound during outgoing phone call's making
                 startPlaying(leadingSession, toPlay, timeout);
                 // making outgoing telephony call using shared session and

@@ -41,6 +41,7 @@ import java.io.Closeable;
 import java.util.stream.Stream;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.TelephonyDevice;
+import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 
 /**
  * Phone Call: Keep all information about phone call
@@ -92,6 +93,11 @@ public interface PhoneCall extends Closeable {
 
         @Override
         public void detach(PhoneCall anotherCall) {
+
+        }
+
+        @Override
+        public void detachAll() {
 
         }
 
@@ -212,6 +218,14 @@ public interface PhoneCall extends Closeable {
      * @param anotherCall another session value
      */
     void detach(PhoneCall anotherCall);
+
+    /**
+     * <mutator>
+     * To detach the all joint phone-call-sessions
+     *
+     * @see TelephonyDevice#dropCall(PhoneCallSession)
+     */
+    void detachAll();
 
     /**
      * Call Number: Keep all information about phone number of the call

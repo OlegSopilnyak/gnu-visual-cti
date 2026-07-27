@@ -43,6 +43,7 @@ import static org.visualcti.core.channel.telephony.TelephonyDevice.State.WAIT;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -332,6 +333,18 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
     }
 
     /**
+     * <mutator>
+     * To detach the all joint phone-call-sessions
+     *
+     * @see TelephonyDevice#dropCall(PhoneCallSession)
+     */
+    @Override
+    public void detachAll() {
+        List<PhoneCall> jointList = Arrays.asList(joint().toArray(PhoneCall[]::new));
+        jointList.forEach(this::detach);
+    }
+
+    /**
      * Closes this PhoneCall session and releases any system resources associated
      * with it. If the session is already closed then invoking this
      * method has no effect.
@@ -340,12 +353,8 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
      */
     @Override
     public void close() throws IOException {
-        // closing joint phone call sessions
-        final List<PhoneCall> joint = new ArrayList<>(parameterOrDefault(Parameter.JOINT, Collections.emptyList()));
-        // saving empty joint sessions collection
-        parameter(Parameter.JOINT, Collections.emptyList());
-        // closing joint sessions if any
-        joint.forEach(PhoneCallSession::closeJoint);
+        // detaching joint phone-calls
+        detachAll();
         // releasing common using session's parameters
         super.close();
     }
@@ -458,14 +467,5 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
     // telephony operation termination detected
     private void terminationDetected(DeviceEvent<?> event) {
 
-    }
-
-    // to close joint phone call
-    private static void closeJoint(PhoneCall call) {
-        try {
-            call.close();
-        } catch (IOException e) {
-            // just ignoring it
-        }
     }
 }

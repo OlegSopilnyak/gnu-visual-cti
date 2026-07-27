@@ -40,6 +40,7 @@ package org.visualcti.core.channel.telephony.operation.adapter;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -48,8 +49,9 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
 import java.io.IOException;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import org.junit.After;
 import org.junit.Before;
@@ -70,7 +72,7 @@ public class PhoneCallSessionTest {
     TelephonyDevice<String, ?> device;
     String deviceName = "device-name";
     String handle = "device-handle";
-    ExecutorService executor;
+    ScheduledExecutorService executor;
 
     @Before
     public void setUp() {
@@ -78,7 +80,7 @@ public class PhoneCallSessionTest {
         doReturn(deviceName).when(device).getName();
         session = spy(new PhoneCallSession(device, handle) {
         });
-        executor = Executors.newSingleThreadExecutor();
+        executor = Executors.newSingleThreadScheduledExecutor();
     }
 
     @After
@@ -192,15 +194,7 @@ public class PhoneCallSessionTest {
     @Test
     public void shouldWaitForOperationComplete_Interrupted() throws InterruptedException {
         // preparing test data
-        Runnable runnable = () -> {
-            try {
-                Thread.sleep(100);
-            } catch (InterruptedException e) {
-                // doing nothing
-            }
-            session.operationComplete(Result.OK);
-        };
-        executor.execute(runnable);
+        executor.schedule(() -> session.operationComplete(Result.OK), 50, TimeUnit.MILLISECONDS);
 
         // acting
         session.waitForOperationComplete(200L);
@@ -332,6 +326,41 @@ public class PhoneCallSessionTest {
     }
 
     @Test
+    public void shouldDetachAll() {
+        // preparing test data
+        PhoneCall anotherCall = spy(new PhoneCallSession(device, handle) {
+        });
+        PhoneCall anotherCall2 = spy(new PhoneCallSession(device, handle) {
+        });
+        PhoneCall anotherCall3 = spy(new PhoneCallSession(device, handle) {
+        });
+        session.join(anotherCall);
+        session.join(anotherCall2);
+        session.join(anotherCall3);
+        verify(anotherCall).join(session);
+        assertThat(session.joint().toArray()).hasSize(3);
+        assertThat(anotherCall.joint().toArray()).hasSize(1).contains(session);
+        assertThat(anotherCall2.joint().toArray()).hasSize(1).contains(session);
+        assertThat(anotherCall3.joint().toArray()).hasSize(1).contains(session);
+
+        // acting
+        session.detachAll();
+
+        // check the behavior
+        verify(session, atLeastOnce()).detach(anotherCall);
+        verify(session, atLeastOnce()).detach(anotherCall2);
+        verify(session, atLeastOnce()).detach(anotherCall3);
+        verify(anotherCall).detach(session);
+        verify(anotherCall2).detach(session);
+        verify(anotherCall).detach(session);
+        // check results
+        assertThat(session.joint().toArray()).isEmpty();
+        assertThat(anotherCall.joint().toArray()).isEmpty();
+        assertThat(anotherCall2.joint().toArray()).isEmpty();
+        assertThat(anotherCall3.joint().toArray()).isEmpty();
+    }
+
+    @Test
     public void shouldClose() throws IOException {
         // preparing test data
         PhoneCall anotherCall = mock(PhoneCall.class);
@@ -341,7 +370,7 @@ public class PhoneCallSessionTest {
         session.close();
 
         // check the behavior
-        verify(anotherCall).close();
+        verify(session).detachAll();
         // check results
         assertThat(session.joint().toArray()).isEmpty();
         assertThat(session.operationResult()).isNull();
