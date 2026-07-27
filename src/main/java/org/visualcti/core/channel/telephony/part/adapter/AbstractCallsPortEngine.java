@@ -47,10 +47,10 @@ import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.TelephonyDevice;
 import org.visualcti.core.channel.telephony.TelephonyDeviceCore;
 import org.visualcti.core.channel.telephony.TelephonyServiceProvider;
-import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
 import org.visualcti.core.channel.telephony.operation.Result;
 import org.visualcti.core.channel.telephony.operation.ToneId;
+import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.core.channel.telephony.part.CallsPortEngine;
 import org.visualcti.media.Sound;
 
@@ -59,15 +59,15 @@ import org.visualcti.media.Sound;
  */
 public class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> implements CallsPortEngine<H> {
     // predicate for valid result values of wait for call operation
-    private static Predicate<OperationResultValue>
+    private static final Predicate<OperationResultValue>
             waitForCallOperationResultExpected = value -> value == Result.CALL.RINGS
             || value == Result.CALL.ALERTING || value == Result.TIMEOUT;
     // predicate for connected phone call's operation
-    private static Predicate<OperationResultValue>
-            connectedCallOperationResult =
-            value -> value == Result.CALL.Analysis.VOICE || value == Result.CALL.Analysis.FAX;
+    private static final Predicate<OperationResultValue>
+            connectedCallOperationResult = value -> value == Result.CALL.Analysis.VOICE
+            || value == Result.CALL.Analysis.FAX;
     // predicate for valid result values of make call operation
-    private static Predicate<OperationResultValue>
+    private static final Predicate<OperationResultValue>
             makeCallOperationResultExpected = value -> connectedCallOperationResult.test(value)
             || value == Result.CALL.Analysis.BUSY
             || value == Result.CALL.Analysis.NO_RESPONDING
@@ -109,21 +109,27 @@ public class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> implements
             final TelephonyServiceProvider<H> serviceProvider = device.getProvider();
             // dropping telephony call on the device service provider site
             if (serviceProvider.dropCall(handle)) {
-                // operation is finished well
-                session.setState(Device.State.IDLE);
                 // saving last operation result
                 session.operationComplete(Result.CALL.DISCONNECT);
                 // disable all events producing for the opened handle
                 serviceProvider.disableEvents(handle);
                 // enable producing incoming call events for the opened handle
                 serviceProvider.enableEvents(handle, Result.CALL.RINGS);
+            } else {
+                // saving last operation result
+                session.operationComplete(Result.ERROR);
+                // drop call didn't work properly on service provider side
+                device.dispatchError("Cannot drop call on the service provider side.");
+                return false;
             }
+            // operation is finished
+            session.setState(Device.State.IDLE);
             // marking session as not alive (disconnected)
             session.alive(false);
             // the operation is successfully completed
             return true;
         } else {
-            // handle had wrong value or session isn't alive
+            // device handle has wrong value or session isn't alive yet
             return false;
         }
     }
@@ -181,8 +187,10 @@ public class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> implements
             int tryCount = timeout;
             do {
                 try {
-                    // un-sharing the device session
-                    session.getDevice().getFactory().unShareDevice(session);
+                    if (canBeConnected()) {// TODO check it later
+                        // un-sharing the device session
+                        session.getDevice().getFactory().unShareDevice(session);
+                    }
                     // preparing the session for wait for incoming call
                     preparingWaitForCall(session, serviceProvider);
                     // waiting for incoming call 1 second of the timeout's seconds
@@ -192,7 +200,7 @@ public class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> implements
                         // incoming call for the session is detected
                         session.getDevice().dispatchEvent("Wait for call operation is completed.");
                         // to check is it possible to share the phone call session
-                        if (canBeConnected()) {
+                        if (canBeConnected()) {// TODO check it later
                             // sharing the device's session for connection forever if it's possible
                             session.getDevice().getFactory().shareDevice(session, -1L);
                         }
@@ -206,14 +214,18 @@ public class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> implements
                 }
                 //
                 // trying to share the device session for the connect feature if it's possible
-                if (canBeConnected() && canMakeCall()) {
+                if (canBeConnected() && canMakeCall()) {// TODO check it later
                     // sharing the device for 0.5 second
                     session.getDevice().getFactory().shareDevice(session.getDeviceHandle(), 500L);
                 }
             } while (--tryCount > 0);
+            // setting up the appropriate operation result
+            session.operationComplete(Result.TIMEOUT);
+            // wait for call operation is complete
+            session.setState(Device.State.IDLE);
             return true;
         } else {
-            // handle had wrong value or session isn't disconnected
+            // handle has wrong value or session isn't disconnected
             return false;
         }
     }
@@ -235,11 +247,11 @@ public class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> implements
      * {@link Result.CALL.Analysis#NO_RESPONDING} - there is no signal after a phone number dialing up<BR/>
      * {@link Result.CALL.Analysis#BAN}           - the dialing phone number is forbidden
      *
-     * @param session           the phone call's session, device is working with
-     * @param calledPhoneNumber telephone number for make call to
-     * @param timeout           maximal waiting time for the answer (sec) after which session with
-     *                          {@link PhoneCallSession#operationResult()} equals {@link Result.CALL.Analysis#NO_ANSWER}
-     *                          will be returned.
+     * @param session     the phone call's session, device is working with
+     * @param phoneNumber telephone number for make call to
+     * @param timeout     maximal waiting time for the answer (sec) after which session with
+     *                    {@link PhoneCallSession#operationResult()} equals {@link Result.CALL.Analysis#NO_ANSWER}
+     *                    will be returned.
      * @return true if operation complete successfully
      * @see PhoneCallSession
      * @see PhoneCallSession#operationResult()
@@ -247,29 +259,31 @@ public class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> implements
      * @see #canMakeCall()
      */
     @Override
-    public boolean makeCall(PhoneCallSession<H> session, PhoneCall.Number calledPhoneNumber, int timeout) {
+    public boolean makeCall(final PhoneCallSession<H> session, final PhoneCall.Number phoneNumber, final int timeout) {
         // checking the operation's allowance and session's state
         if (isOpened(session) && canMakeCall() && session.isDisconnected()) {
             //
-            // un-sharing the device session
-            session.getDevice().getFactory().unShareDevice(session);
+            if (canBeConnected()) {// TODO check it later
+                // un-sharing the device session
+                session.getDevice().getFactory().unShareDevice(session);
+            }
             // getting device service provider
             final TelephonyServiceProvider<H> serviceProvider = deviceCore.getProvider();
             // preparing the session for make outgoing call
-            preparingCallMaker(session, serviceProvider, calledPhoneNumber);
+            preparingCallMaker(session, serviceProvider, phoneNumber);
             // start outgoing call making
-            if (!serviceProvider.startCalling(session.getDeviceHandle(), calledPhoneNumber, timeout)) {
+            if (!startCalling(session, phoneNumber, timeout)) {
                 session.getDevice().dispatchError("Cannot start calling phone number");
                 return false;
             }
             // waiting for an answer from the called number side 'timeout' seconds
             try {
                 session.waitForOperationComplete(timeout * 1000L);
-                if (isThereOutgoingCallCompleted(session, serviceProvider)) {
+                if (isThereOutgoingCallCompleted(session)) {
                     // outgoing call for the session is made
                     session.getDevice().dispatchEvent("Make call operation complete.");
                     // to check is it possible to share the phone call session
-                    if (canBeConnected()) {
+                    if (canBeConnected()) {// TODO check it later
                         // sharing the device's session for connection forever if it's possible
                         session.getDevice().getFactory().shareDevice(session, -1L);
                     }
@@ -279,6 +293,8 @@ public class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> implements
                     session.operationComplete(Result.CALL.Analysis.NO_ANSWER);
                     session.getDevice().dispatchEvent("Make call operation is failed.");
                 }
+                // make call operation is complete
+                session.setState(Device.State.IDLE);
                 // operation finished well
                 return true;
             } catch (InterruptedException e) {
@@ -347,23 +363,18 @@ public class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> implements
      */
     @Override
     public boolean connect(PhoneCallSession<H> session, PhoneCall.Number calledPhoneNumber, int timeout, Sound toPlay) {
-        // getting the device's handle
-        final H handle = session.getDeviceHandle();
         if (!isOpened(session)) {
             // session isn't opened yet
+            session.operationComplete(Result.ERROR);
             return false;
-        } else if (this.canBeConnected() && connectedTo(calledPhoneNumber, timeout, toPlay, session)) {
-            // device can be linked with another one
+        } else if (canBeConnected() && connectedTo(calledPhoneNumber, timeout, toPlay, session)) {
+            // device phone call session is linked with another one
             return true;
         } else {
-            // device doesn't support linking with another one
+            // device doesn't support linking with another one or not connected to allowed one
             session.operationComplete(Result.CALL.Analysis.NO_DIAL_TONE);
             return false;
         }
-    }
-
-    private boolean connectedTo(PhoneCall.Number calledPhoneNumber, int timeout, Sound toPlay, PhoneCallSession<H> session) {
-        return false;
     }
 
     /**
@@ -378,6 +389,10 @@ public class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> implements
      */
     @Override
     public void terminate(PhoneCallSession<H> session) throws IOException {
+        final DeviceStateValue state = session.getState();
+        if (state == TelephonyDevice.State.WAIT || state == TelephonyDevice.State.DIAL) {
+            session.operationComplete(Result.TERMINATED);
+        }
         session.terminate();
     }
 
@@ -424,12 +439,12 @@ public class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> implements
         if (answer) {
             // to answer to the incoming call and mark the session as alive
             session.alive(serviceProvider.answerCall(handle));
-            // setting up the appropriate session's state
+            // setting up the appropriate operation result
             session.operationComplete(Result.CALL.ALERTING);
             // enabling call's disconnect events producing for the opened handle
             serviceProvider.enableEvents(handle, Result.CALL.DISCONNECT);
         } else {
-            // setting up the appropriate session's state
+            // setting up the appropriate operation result
             session.operationComplete(Result.CALL.RINGS);
         }
         // wait for call operation is complete
@@ -455,9 +470,13 @@ public class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> implements
         session.operationComplete(Result.NONE);
     }
 
+    // to start building outgoing phone call to the phone number
+    private boolean startCalling(PhoneCallSession<H> session, PhoneCall.Number phoneNumber, int timeout) {
+        return deviceCore.getProvider().startCalling(session.getDeviceHandle(), phoneNumber, timeout);
+    }
+
     // checking wait for call operation results
-    private static <H> boolean isThereOutgoingCallCompleted(final PhoneCallSession<H> session,
-                                                            final TelephonyServiceProvider<H> serviceProvider) {
+    private boolean isThereOutgoingCallCompleted(final PhoneCallSession<H> session) {
         if (makeCallOperationResultExpected.negate().test(session.operationResult())) {
             // noting is happened, meaning there is no any expected operation result
             return false;
@@ -465,7 +484,52 @@ public class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> implements
         // mark the session as alive depends on operation result
         session.alive(connectedCallOperationResult.test(session.operationResult()));
         // enabling call's disconnect events producing for the opened handle
-        serviceProvider.enableEvents(session.getDeviceHandle(), Result.CALL.DISCONNECT);
+        deviceCore.getProvider().enableEvents(session.getDeviceHandle(), Result.CALL.DISCONNECT);
         return true;
+    }
+
+    // making the connection to the shared session using phone call number
+    private boolean connectedTo(final PhoneCall.Number phoneNumber,
+                                final int timeout, final Sound toPlay,
+                                final PhoneCallSession<H> leadingSession) {
+        return leadingSession.getDevice().getFactory().findConnectableFor(phoneNumber).map(connectableSession -> {
+            // low-level connections joining if leading session is alive
+            if (connectableSession.isAlive() && lowLevelJoin(connectableSession, leadingSession)) {
+                // just connecting two alive session by their handles
+                connectableSession.join(leadingSession);
+                return true;
+            } else {
+                // start playing the melody sound during outgoing phone call's making
+                startPlaying(leadingSession, toPlay, timeout);
+                // making outgoing telephony call using shared session and
+                // low-level connections joining if outgoing pone call is made
+                if (makeCall(connectableSession, phoneNumber, timeout) && lowLevelJoin(connectableSession, leadingSession)) {
+                    // stop playing the melody sound
+                    stopPlaying(leadingSession);
+                    // just connecting two alive session by their handles
+                    connectableSession.join(leadingSession);
+                    return true;
+                }
+                // stop playing the melody sound
+                stopPlaying(leadingSession);
+            }
+            // the connection isn't successful
+            return false;
+        }).orElse(false);
+    }
+
+    // low-level telephony call session connections joining by their handles
+    private boolean lowLevelJoin(PhoneCallSession<H> connectable, PhoneCallSession<H> leading) {
+        return deviceCore.getProvider().joinResources(connectable.getDeviceHandle(), leading.getDeviceHandle());
+    }
+
+    private void startPlaying(PhoneCallSession<H> session, Sound sound, int timeout) {
+        final TelephonyDevice<H, ?> device = session.getDevice();
+        // doing nothing fore while
+        device.playbackAudio(sound, "", timeout);
+    }
+
+    private void stopPlaying(PhoneCallSession<H> session) {
+        // doing nothing fore while
     }
 }

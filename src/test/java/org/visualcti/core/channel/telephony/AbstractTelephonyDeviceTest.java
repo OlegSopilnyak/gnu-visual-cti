@@ -205,7 +205,7 @@ public class AbstractTelephonyDeviceTest<H> {
     /// / inner classes
     private static class TestFactory<H, T extends TelephonyDevice<H, ?>> extends AbstractTelephonyDeviceFactory<H, T> {
         public TestFactory(Executor deviceEventExecutor, DeviceEvent.Provider eventsProvider) {
-            super(deviceEventExecutor, eventsProvider);
+            super(Executors.newSingleThreadScheduledExecutor(), deviceEventExecutor, eventsProvider);
         }
 
         @Override

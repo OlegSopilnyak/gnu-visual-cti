@@ -45,7 +45,7 @@ import org.visualcti.core.channel.Channel;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.Factory;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
-import org.visualcti.core.channel.telephony.operation.PhoneCall.Number;
+import org.visualcti.core.channel.telephony.operation.PhoneCall;
 import org.visualcti.core.channel.telephony.operation.Result;
 import org.visualcti.media.Sound;
 
@@ -57,7 +57,7 @@ import org.visualcti.media.Sound;
  * @see TelephonyDevice
  * @see Factory
  */
-@SuppressWarnings("uncecked")
+@SuppressWarnings({"unchecked", "rawtypes"})
 public interface TelephonyDeviceFactory<H, D extends TelephonyDevice<?, ?>> extends Factory<H, D> {
     // the value of type the server unit
     String UNIT_TYPE = "[telephony-channel-devices-board]";
@@ -119,9 +119,8 @@ public interface TelephonyDeviceFactory<H, D extends TelephonyDevice<?, ?>> exte
      * @param handle the phone call's session's device handle, device is working with
      * @param delay  maximum time (milliseconds) of device session sharing or forever for negative value,
      *               waiting for usage in connect(...) feature
-     * @see TelephonyDevice#connect(PhoneCallSession, Number, int, Sound)
+     * @see TelephonyDevice#connect(PhoneCallSession, PhoneCall.Number, int, Sound)
      */
-    @SuppressWarnings("unchecked")
     default void shareDevice(H handle, long delay) {
         devices()
                 .filter(device -> deviceContainsHandle(device, handle))
@@ -137,7 +136,7 @@ public interface TelephonyDeviceFactory<H, D extends TelephonyDevice<?, ?>> exte
      * @param session the phone call's session, device is working with
      * @param delay  maximum time (milliseconds) of device session sharing or forever for negative value,
      *               waiting for usage in connect(...) feature
-     * @see TelephonyDevice#connect(PhoneCallSession, Number, int, Sound)
+     * @see TelephonyDevice#connect(PhoneCallSession, PhoneCall.Number, int, Sound)
      */
     default void shareDevice(PhoneCallSession<H> session, long delay) {
         // feature isn't supported here
@@ -149,7 +148,7 @@ public interface TelephonyDeviceFactory<H, D extends TelephonyDevice<?, ?>> exte
      * To un-share active phone call session for the connection feature
      *
      * @param handle the phone call's session's device handle, device is working with
-     * @see TelephonyDevice#connect(PhoneCallSession, Number, int, Sound)
+     * @see TelephonyDevice#connect(PhoneCallSession, PhoneCall.Number, int, Sound)
      */
     default void unShareDevice(H handle) {
         devices()
@@ -164,11 +163,24 @@ public interface TelephonyDeviceFactory<H, D extends TelephonyDevice<?, ?>> exte
      * To un-share opened phone call session for the connection feature
      *
      * @param session the phone call's session, device is working with
-     * @see TelephonyDevice#connect(PhoneCallSession, Number, int, Sound)
+     * @see TelephonyDevice#connect(PhoneCallSession, PhoneCall.Number, int, Sound)
      */
     default void unShareDevice(PhoneCallSession<H> session) {
         // doing nothing here
     }
+
+    /**
+     * <finder>
+     * To find shared telephony device session for the connection feature
+     *
+     * @param callableNumber the number to connect to
+     * @return the ready for connect session or empty if not exists
+     * @see Optional
+     * @see PhoneCallSession
+     * @see PhoneCall.Number
+     * @see TelephonyDevice#connect(PhoneCallSession, PhoneCall.Number, int, Sound)
+     */
+    Optional<PhoneCallSession<H>> findConnectableFor(PhoneCall.Number callableNumber);
 
     // to check is device has the session with the handle
     static <H> boolean deviceContainsHandle(TelephonyDevice device, H handle) {
@@ -176,7 +188,7 @@ public interface TelephonyDeviceFactory<H, D extends TelephonyDevice<?, ?>> exte
     }
 
     // to get the session with handle of the device
-    static <H> PhoneCallSession sessionForHandle(TelephonyDevice device, H handle) {
+    static <H> PhoneCallSession<H> sessionForHandle(TelephonyDevice device, H handle) {
         return (PhoneCallSession) device.findSessionByHandle(handle).orElse(null);
     }
 }

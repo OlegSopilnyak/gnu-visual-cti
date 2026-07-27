@@ -43,6 +43,7 @@ import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.core.channel.telephony.part.CallsPortEngine;
+import org.visualcti.media.Sound;
 
 /**
  * Provider Facade: The telephony service provider facade (for manufacturer implementation)
@@ -211,6 +212,19 @@ public interface TelephonyServiceProvider<H>  extends Device.ServiceProvider<H> 
      */
     default boolean canFax(String name) {
         return handleByName(name).map(this::canFax).orElse(false);
+    }
+
+    /**
+     * <action>
+     * To join two resources on the low-level for the conference connection
+     *
+     * @param secondHandle the second resource's handle
+     * @param primaryHandle the primary resource's handle
+     * @return true if they are joint well
+     * @see TelephonyDevice#connect(PhoneCallSession, PhoneCall.Number, int, Sound)
+     */
+    default boolean joinResources(H secondHandle, H primaryHandle) {
+        return false;
     }
 
     /**

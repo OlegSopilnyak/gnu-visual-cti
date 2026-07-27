@@ -71,7 +71,7 @@ public interface PhoneCall extends Closeable {
         }
 
         @Override
-        public void waitForOperationComplete(long timeout) throws InterruptedException {
+        public void waitForOperationComplete(long timeout) {
 
         }
 
@@ -159,6 +159,16 @@ public interface PhoneCall extends Closeable {
      * @see PhoneCall.Number
      */
     PhoneCall.Number getCallingNumber();
+
+    /**
+     * <accssor>
+     * To check is the session has the telephony number
+     *
+     * @return true if the call has the number
+     */
+    default boolean hasNumber(PhoneCall.Number number) {
+        return isAlive() && (getCalledNumber().equals(number) || getCallingNumber().equals(number));
+    }
 
     /**
      * <action>

@@ -622,6 +622,15 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
         return null;
     }
 
+    default OperationResultValue playbackAudio(Sound sound, String terminationSymbolsMask, int timeout) {
+        try {
+            return playbackAudio(sound.getInputStream(), terminationSymbolsMask, timeout, sound.getFormat());
+        } catch (IOException e) {
+            dispatchError(e, "Cannot play audio");
+            return Result.ERROR;
+        }
+    }
+
     /**
      * <accessor>
      * Returns the array of supported audio formats for recording,

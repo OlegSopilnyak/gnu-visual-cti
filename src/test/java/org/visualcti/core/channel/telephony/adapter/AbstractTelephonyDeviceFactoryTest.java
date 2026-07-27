@@ -43,6 +43,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 
 import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import org.junit.Before;
 import org.junit.Test;
 import org.visualcti.core.channel.device.Device;
@@ -92,7 +93,7 @@ public class AbstractTelephonyDeviceFactoryTest {
     /// / inner classes
     private static class TestFactory<H, T extends TelephonyDevice<H, ?>> extends AbstractTelephonyDeviceFactory<H, T> {
         public TestFactory(Executor deviceEventExecutor, DeviceEvent.Provider<H> eventsProvider) {
-            super(deviceEventExecutor, eventsProvider);
+            super(Executors.newSingleThreadScheduledExecutor(), deviceEventExecutor, eventsProvider);
         }
 
         @Override
