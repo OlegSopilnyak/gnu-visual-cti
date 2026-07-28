@@ -205,7 +205,7 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
             // enabling device's incoming call events producing for particular device andle
             getProvider().enableEvents(handle, Result.CALL.RINGS);
             // sharing started session if it's possible
-            if (canBeConnected() && canMakeCall()) {
+            if (canBeConnected()) {
                 // sharing the device's session for connection forever
                 getFactory().shareDevice(handle, -1L);
             }

@@ -43,7 +43,6 @@ import static org.visualcti.core.channel.telephony.TelephonyDevice.State.WAIT;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -113,6 +112,7 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
      *
      * @return the value
      * @see PhoneCall#getDeviceName()
+     * @see Device.Session#getDeviceName()
      */
     @Override
     public String getDeviceName() {
@@ -125,6 +125,7 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
      *
      * @return true if the call is in service
      * @see PhoneCall#isAlive()
+     * @see Device.Session#isAlive()
      */
     @Override
     public boolean isAlive() {
@@ -258,6 +259,21 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
     }
 
     /**
+     * <checker>
+     * To check is operation in progress (waiting for completion or timeout)
+     * For tests purposes
+     *
+     * @return true if operation is waiting for completion
+     * @see #waitForOperationComplete(long)
+     * @see #operationComplete(OperationResultValue)
+     */
+    @Override
+    public boolean operationIsActive() {
+        final CountDownLatch completeOperationLatch = parameter(Parameter.LATCH);
+        return completeOperationLatch != null && completeOperationLatch.getCount() > 0;
+    }
+
+    /**
      * <action>
      * To notify about the previously running in the phone-call-session operation is completed
      *
@@ -330,18 +346,6 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
                 detached.detach(this);
             }
         }
-    }
-
-    /**
-     * <mutator>
-     * To detach the all joint phone-call-sessions
-     *
-     * @see TelephonyDevice#dropCall(PhoneCallSession)
-     */
-    @Override
-    public void detachAll() {
-        List<PhoneCall> jointList = Arrays.asList(joint().toArray(PhoneCall[]::new));
-        jointList.forEach(this::detach);
     }
 
     /**

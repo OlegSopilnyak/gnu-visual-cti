@@ -38,6 +38,7 @@ Fax number: 217-356-3356
 package org.visualcti.core.channel.telephony.operation;
 
 import java.io.Closeable;
+import java.util.Arrays;
 import java.util.stream.Stream;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.TelephonyDevice;
@@ -53,7 +54,7 @@ public interface PhoneCall extends Closeable {
     PhoneCall FAILED = new PhoneCall() {
         @Override
         public void close() {
-
+            // doing nothing here
         }
 
         @Override
@@ -73,12 +74,12 @@ public interface PhoneCall extends Closeable {
 
         @Override
         public void waitForOperationComplete(long timeout) {
-
+            // doing nothing here
         }
 
         @Override
         public void operationComplete(OperationResultValue completionReason) {
-
+            // doing nothing here
         }
 
         @Override
@@ -88,17 +89,12 @@ public interface PhoneCall extends Closeable {
 
         @Override
         public void join(PhoneCall anotherCall) {
-
+            // doing nothing here
         }
 
         @Override
         public void detach(PhoneCall anotherCall) {
-
-        }
-
-        @Override
-        public void detachAll() {
-
+            // doing nothing here
         }
 
         @Override
@@ -195,6 +191,19 @@ public interface PhoneCall extends Closeable {
     void operationComplete(OperationResultValue completionReason);
 
     /**
+     * <checker>
+     * To check is operation in progress (waiting for completion or timeout)
+     * For tests purposes
+     *
+     * @return true if operation is waiting for completion
+     * @see #waitForOperationComplete(long)
+     * @see #operationComplete(OperationResultValue)
+     */
+    default boolean operationIsActive() {
+        return false;
+    }
+
+    /**
      * <accessor>
      * To get phone calls joint by device connection feature
      *
@@ -225,7 +234,9 @@ public interface PhoneCall extends Closeable {
      *
      * @see TelephonyDevice#dropCall(PhoneCallSession)
      */
-    void detachAll();
+    default void detachAll() {
+        Arrays.asList(joint().toArray(PhoneCall[]::new)).forEach(this::detach);
+    }
 
     /**
      * Call Number: Keep all information about phone number of the call

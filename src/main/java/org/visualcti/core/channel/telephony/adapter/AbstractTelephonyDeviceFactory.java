@@ -41,16 +41,14 @@ import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
-import org.visualcti.core.channel.device.DeviceEvent;
-import org.visualcti.core.channel.device.adapter.AbstractFactory;
 import org.visualcti.core.channel.device.Device;
+import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.Factory;
+import org.visualcti.core.channel.device.adapter.AbstractFactory;
 import org.visualcti.core.channel.telephony.TelephonyChannel;
 import org.visualcti.core.channel.telephony.TelephonyDevice;
 import org.visualcti.core.channel.telephony.TelephonyDeviceFactory;
@@ -72,15 +70,10 @@ public abstract class AbstractTelephonyDeviceFactory<H, D extends TelephonyDevic
     // the set of the shared telephony device sessions
     private final Set<PhoneCallSession<H>> sharedDeviceSessions = new HashSet<>();
     private final Lock sessionsLock = new ReentrantLock();
-    // the executer for expired sessions closing
-    private final ScheduledExecutorService sharedSessionCloser;
-//    = Executors.newSingleThreadScheduledExecutor();
 
-    protected AbstractTelephonyDeviceFactory(final ScheduledExecutorService sharedSessionCloser,
-                                             final Executor deviceEventExecutor,
+    protected AbstractTelephonyDeviceFactory(final Executor eventsExecutor,
                                              final DeviceEvent.Provider<H> eventsProvider) {
-        super(deviceEventExecutor, eventsProvider);
-        this.sharedSessionCloser = sharedSessionCloser;
+        super(eventsExecutor, eventsProvider);
     }
 
     /**
@@ -119,10 +112,10 @@ public abstract class AbstractTelephonyDeviceFactory<H, D extends TelephonyDevic
     public void shareDevice(PhoneCallSession<H> session, long delay) {
         safeOperation(() -> {
             if (!sharedDeviceSessions.contains(session)) {
+                // adding not exists session to shared sessions holder
                 sharedDeviceSessions.add(session);
-                if (delay > 0) {
-                    sharedSessionCloser.schedule(() -> unShareDevice(session), delay, TimeUnit.MILLISECONDS);
-                }
+                // setting up session's operation result by default
+                TelephonyDeviceFactory.super.shareDevice(session, delay);
             }
             return session;
         });

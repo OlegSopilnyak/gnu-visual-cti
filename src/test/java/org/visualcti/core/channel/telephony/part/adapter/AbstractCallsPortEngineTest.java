@@ -38,11 +38,13 @@ Fax number: 217-356-3356
 package org.visualcti.core.channel.telephony.part.adapter;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -52,7 +54,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import java.io.IOException;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -83,7 +85,7 @@ public class AbstractCallsPortEngineTest<H> {
     String deviceName = "device-name";
     H deviceHandle = (H) "handle";
     TelephonyDeviceFactory<H, ?> factory;
-    Executor deviceEventExecutor;
+    ExecutorService deviceEventExecutor;
     DeviceEvent.Provider<H> eventsProvider;
 
     @Before
@@ -96,9 +98,9 @@ public class AbstractCallsPortEngineTest<H> {
         });
         engine = spy(new AbstractCallsPortEngine());
         executor = Executors.newSingleThreadScheduledExecutor();
-        deviceEventExecutor = Executors.newSingleThreadExecutor();
+        deviceEventExecutor = mock(ExecutorService.class);
         eventsProvider = mock(DeviceEvent.Provider.class);
-        factory = spy(new AbstractTelephonyDeviceFactory(executor, deviceEventExecutor, eventsProvider) {
+        factory = spy(new AbstractTelephonyDeviceFactory(deviceEventExecutor, eventsProvider) {
             @Override
             protected TelephonyChannel makeChannelFor(Device device) {
                 return null;
@@ -110,9 +112,9 @@ public class AbstractCallsPortEngineTest<H> {
     @After
     public void tearDown() {
         if (executor != null) {
-            executor.shutdown();
+            executor.shutdownNow();
+            executor = null;
         }
-        executor = null;
     }
 
     @Test
@@ -131,6 +133,9 @@ public class AbstractCallsPortEngineTest<H> {
         verify(device).terminate(session);
         verify(device).getProvider();
         verify(provider).dropCall(deviceHandle);
+        verify(session, atLeastOnce()).joint();
+        verify(provider, never()).breakConnection(any(), any());
+        verify(session).detachAll();
         verify(session).operationComplete(Result.CALL.DISCONNECT);
         verify(provider).disableEvents(deviceHandle);
         verify(provider).enableEvents(deviceHandle, Result.CALL.RINGS);
@@ -523,7 +528,7 @@ public class AbstractCallsPortEngineTest<H> {
         doReturn(true).when(engine).canBeConnected();
         engine.uses(device);
         PhoneCall.Number number = mock(PhoneCall.Number.class);
-        int timeout = 1;
+        int timeout = 10;
         Sound sound = mock(Sound.class);
         H sharedHandle = (H) "mock()";
         TelephonyDevice sharedDevice = mock(TelephonyDevice.class);
@@ -534,7 +539,7 @@ public class AbstractCallsPortEngineTest<H> {
         doReturn(true).when(sharedSession).isAlive();
         doReturn(true).when(sharedSession).hasNumber(number);
         factory.shareDevice(sharedSession, -1L);
-        doReturn(true).when(provider).joinResources(sharedHandle, deviceHandle);
+        doReturn(true).when(provider).makeConnection(sharedHandle, deviceHandle);
 
         // acting
         boolean done = engine.connect(session, number, timeout, sound);
@@ -546,13 +551,147 @@ public class AbstractCallsPortEngineTest<H> {
         verify(device).getFactory();
         verify(factory).findConnectableFor(number);
         verify(sharedSession, atLeastOnce()).isAlive();
-        verify(provider).joinResources(sharedHandle, deviceHandle);
+        verify(provider).makeConnection(sharedHandle, deviceHandle);
         verify(sharedSession).join(session);
         // check results
         assertThat(done).isTrue();
     }
 
     @Test
-    public void terminate() {
+    public void shouldConnect_ConnectableIsDisconnected_WaitingForCall() {
+        // preparing test data
+        doReturn(true).when(engine).canBeConnected();
+        engine.uses(device);
+        PhoneCall.Number number = mock(PhoneCall.Number.class);
+        int timeout = 10;
+        Sound sound = mock(Sound.class);
+        H sharedHandle = (H) "mock()";
+        TelephonyDevice sharedDevice = mock(TelephonyDevice.class);
+        doReturn(true).when(sharedDevice).canBeConnected();
+        doReturn(true).when(sharedDevice).canMakeCall();
+        PhoneCallSession<H> sharedSession = mock(PhoneCallSession.class);
+        doReturn(TelephonyDevice.State.WAIT).when(sharedSession).getState();
+        doReturn(sharedDevice).when(sharedSession).getDevice();
+        doReturn(sharedHandle).when(sharedSession).getDeviceHandle();
+        doCallRealMethod().when(sharedSession).isDisconnected();
+        doReturn(true).when(sharedSession).hasNumber(number);
+        factory.shareDevice(sharedSession, -1L);
+        doReturn(true).when(provider).makeConnection(sharedHandle, deviceHandle);
+        doReturn(true).when(engine).makeCall(sharedSession, number, timeout);
+
+        // acting
+        boolean done = engine.connect(session, number, timeout, sound);
+
+        // check the behavior
+        verify(session, atLeastOnce()).getDeviceHandle();
+        verify(engine).canBeConnected();
+        verify(session, atLeastOnce()).getDevice();
+        verify(device).getFactory();
+        verify(factory).findConnectableFor(number);
+        verify(sharedSession, atLeastOnce()).isAlive();
+        verify(engine).makeCall(sharedSession, number, timeout);
+        verify(provider).makeConnection(sharedHandle, deviceHandle);
+        verify(sharedSession).join(session);
+        // check results
+        assertThat(done).isTrue();
+        assertThat(session.isAlive()).isFalse();
+        assertThat(session.getState()).isEqualTo(Device.State.IDLE);
+        assertThat(session.operationResult()).isEqualTo(Result.NONE);
+    }
+
+    @Test
+    public void shouldConnect_ConnectableIsDisconnected_Idle() {
+        // preparing test data
+        doReturn(true).when(engine).canBeConnected();
+        engine.uses(device);
+        PhoneCall.Number number = mock(PhoneCall.Number.class);
+        int timeout = 10;
+        Sound sound = mock(Sound.class);
+        H sharedHandle = (H) "mock()";
+        TelephonyDevice sharedDevice = mock(TelephonyDevice.class);
+        doReturn(true).when(sharedDevice).canBeConnected();
+        doReturn(true).when(sharedDevice).canMakeCall();
+        PhoneCallSession<H> sharedSession = mock(PhoneCallSession.class);
+        doReturn(Device.State.IDLE).when(sharedSession).getState();
+        doReturn(sharedDevice).when(sharedSession).getDevice();
+        doReturn(sharedHandle).when(sharedSession).getDeviceHandle();
+        doCallRealMethod().when(sharedSession).isDisconnected();
+        doReturn(true).when(sharedSession).hasNumber(number);
+        factory.shareDevice(sharedSession, -1L);
+        doReturn(true).when(provider).makeConnection(sharedHandle, deviceHandle);
+        doReturn(true).when(engine).makeCall(sharedSession, number, timeout);
+
+        // acting
+        boolean done = engine.connect(session, number, timeout, sound);
+
+        // check the behavior
+        verify(session, atLeastOnce()).getDeviceHandle();
+        verify(engine).canBeConnected();
+        verify(session, atLeastOnce()).getDevice();
+        verify(device).getFactory();
+        verify(factory).findConnectableFor(number);
+        verify(sharedSession, atLeastOnce()).isAlive();
+        verify(engine).makeCall(sharedSession, number, timeout);
+        verify(provider).makeConnection(sharedHandle, deviceHandle);
+        verify(sharedSession).join(session);
+        // check results
+        assertThat(done).isTrue();
+        assertThat(session.isAlive()).isFalse();
+        assertThat(session.getState()).isEqualTo(Device.State.IDLE);
+        assertThat(session.operationResult()).isEqualTo(Result.NONE);
+    }
+
+    @Test
+    public void shouldTerminate_WaitForCall() throws IOException {
+        // preparing test data
+        doReturn(true).when(engine).canAcceptCall();
+        engine.uses(device);
+        int rings = 2;
+        int timeout = 10;
+        boolean answer = true;
+        executor.execute(() -> engine.waitForCall(session, rings, timeout, answer));
+        await().until(() -> session.getState() == TelephonyDevice.State.WAIT && session.operationIsActive());
+        assertThat(session.isTerminated()).isFalse();
+        reset(engine, session);
+
+        // acting
+        engine.terminate(session);
+        await().until(() -> session.getState() == Device.State.IDLE);
+
+        // check the behavior
+        verify(session).operationResult(Result.TERMINATED);
+        verify(session).isTerminated();
+        verify(session).setState(Device.State.IDLE);
+        // check results
+        assertThat(session.isTerminated()).isTrue();
+        assertThat(session.getState()).isSameAs(Device.State.IDLE);
+        assertThat(session.operationResult()).isSameAs(Result.TERMINATED);
+    }
+
+    @Test
+    public void shouldTerminate_MakeCall() throws IOException {
+        // preparing test data
+        doReturn(true).when(engine).canMakeCall();
+        engine.uses(device);
+        PhoneCall.Number number = mock(PhoneCall.Number.class);
+        int timeout = 10;
+        doReturn(true).when(provider).startCalling(deviceHandle, number, timeout);
+        executor.execute(() -> engine.makeCall(session, number, timeout));
+        await().until(() -> session.getState() == TelephonyDevice.State.DIAL && session.operationIsActive());
+        assertThat(session.isTerminated()).isFalse();
+        reset(engine, session);
+
+        // acting
+        engine.terminate(session);
+        await().until(() -> session.getState() == Device.State.IDLE);
+
+        // check the behavior
+        verify(session).operationResult(Result.TERMINATED);
+        verify(session).isTerminated();
+        verify(session).setState(Device.State.IDLE);
+        // check results
+        assertThat(session.isTerminated()).isTrue();
+        assertThat(session.getState()).isSameAs(Device.State.IDLE);
+        assertThat(session.operationResult()).isSameAs(Result.TERMINATED);
     }
 }

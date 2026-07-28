@@ -151,7 +151,6 @@ public class AbstractTelephonyDeviceTest<H> {
     public void shouldStartSession_WithDeviceSharing() throws IOException {
         // preparing test data
         doReturn(true).when(device).canBeConnected();
-        doReturn(true).when(device).canMakeCall();
 
         // acting
         PhoneCallSession<H> session = (PhoneCallSession<H>) device.startSession();
@@ -205,7 +204,7 @@ public class AbstractTelephonyDeviceTest<H> {
     /// / inner classes
     private static class TestFactory<H, T extends TelephonyDevice<H, ?>> extends AbstractTelephonyDeviceFactory<H, T> {
         public TestFactory(Executor deviceEventExecutor, DeviceEvent.Provider eventsProvider) {
-            super(Executors.newSingleThreadScheduledExecutor(), deviceEventExecutor, eventsProvider);
+            super(deviceEventExecutor, eventsProvider);
         }
 
         @Override

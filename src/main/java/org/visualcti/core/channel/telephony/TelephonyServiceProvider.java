@@ -216,6 +216,18 @@ public interface TelephonyServiceProvider<H>  extends Device.ServiceProvider<H> 
 
     /**
      * <action>
+     * To separate two resources on the low-level after the conference connection finished
+     *
+     * @param secondHandle the second resource's handle
+     * @param primaryHandle the primary resource's handle
+     * @see TelephonyDevice#connect(PhoneCallSession, PhoneCall.Number, int, Sound)
+     */
+    default void breakConnection(H secondHandle, H primaryHandle) {
+        // doing nothing here
+    }
+
+    /**
+     * <action>
      * To join two resources on the low-level for the conference connection
      *
      * @param secondHandle the second resource's handle
@@ -223,7 +235,7 @@ public interface TelephonyServiceProvider<H>  extends Device.ServiceProvider<H> 
      * @return true if they are joint well
      * @see TelephonyDevice#connect(PhoneCallSession, PhoneCall.Number, int, Sound)
      */
-    default boolean joinResources(H secondHandle, H primaryHandle) {
+    default boolean makeConnection(H secondHandle, H primaryHandle) {
         return false;
     }
 
