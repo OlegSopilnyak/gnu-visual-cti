@@ -193,7 +193,7 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      */
     @Override
     public Session<H> startSession() throws IOException {
-        final TelephonyDevice.Session<H> session = super.startSession();
+        final PhoneCallSession<H> session = (PhoneCallSession<H>) super.startSession();
         // analyzing the opened device session
         if (session != null && session.isOpened()) {
             // to get the device's handle from the session
@@ -235,7 +235,7 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
             // disabling any event for the opened device handle
             getProvider().disableEvents(handle);
             // opening the fax-machine part
-            faxes.close(session);
+            faxes.close((PhoneCallSession<H>) session);
         }
         // terminating and closing the session
         super.detachAndClose(session);
@@ -410,65 +410,69 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      * <accessor>
      * To get the quantity of the transferred fax-pages
      *
+     * @param session the phone call's session, device is working with
      * @return how many pages transferred
-     * @see FaxMachineEngine#getTransferredPages()
+     * @see FaxMachineEngine#getTransferredPages(PhoneCallSession)
      */
     @Override
-    public int getTransferredPages() {
-        return faxes.getTransferredPages();
+    public int getTransferredPages(PhoneCallSession<H> session) {
+        return faxes.getTransferredPages(session);
     }
 
     /**
      * <accessor>
      * To get the local ID of the remote fax machine
      *
+     * @param session the phone call's session, device is working with
      * @return localId of the remote fax-machine
-     * @see FaxMachineEngine#getRemoteID()
+     * @see FaxMachineEngine#getRemoteID(PhoneCallSession)
      */
     @Override
-    public String getRemoteID() {
-        return "";
-//        return isDeviceOpened() && faxes.isOpened() ? faxes.getRemoteID() : "";
+    public String getRemoteID(PhoneCallSession<H> session) {
+        return faxes.getRemoteID(session);
     }
 
     /**
      * <mutator>
      * To set up the header of the fax-document's pages
      *
+     * @param session the phone call's session, device is working with
      * @param header the new value
-     * @see FaxMachineEngine#setFaxHeader(String)
+     * @see FaxMachineEngine#setFaxHeader(PhoneCallSession, String)
      */
     @Override
-    public void setFaxHeader(String header) {
-        faxes.setFaxHeader(header);
+    public void setFaxHeader(PhoneCallSession<H> session, String header) {
+        faxes.setFaxHeader(session, header);
     }
 
     /**
      * <mutator>
      * To set up fax local ID for fax machine
      *
+     * @param session the phone call's session, device is working with
      * @param localID new value of device's fax-machine localId
-     * @see FaxMachineEngine#setFaxLocalID(String)
+     * @see FaxMachineEngine#setFaxLocalID(PhoneCallSession, String)
      */
     @Override
-    public void setFaxLocalID(String localID) {
-        faxes.setFaxLocalID(localID);
+    public void setFaxLocalID(PhoneCallSession<H> session, String localID) {
+        faxes.setFaxLocalID(session, localID);
     }
 
     /**
      * <action>
      * To receive the fax document.
      *
+     * @param session the phone call's session, device is working with
      * @param target            the stream for saving data of the received fax document in a TIFF format
      * @param pollingMode       flag, to initiate receive of a fax in a polling mode;
      * @param issueVoiceRequest upon termination of receive to give out a
      *                          sound signal on the remote fax-device
      * @return the operation's result
-     * @see FaxMachineEngine#receive(OutputStream, boolean, boolean)
+     * @see FaxMachineEngine#receive(PhoneCallSession, OutputStream, boolean, boolean)
      * @see Result#ERROR
      */
     @Override
-    public OperationResultValue receive(OutputStream target, boolean pollingMode, boolean issueVoiceRequest) {
+    public OperationResultValue receive(PhoneCallSession<H> session, OutputStream target, boolean pollingMode, boolean issueVoiceRequest) {
         return isDeviceOpened() && faxes.canFax()
                 ? delegateFaxReceive(target, pollingMode, issueVoiceRequest)
                 : Result.ERROR;
@@ -478,7 +482,7 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
     private OperationResultValue delegateFaxReceive(OutputStream target, boolean pollingMode, boolean issueVoiceRequest) {
 //        setState(RECVFAX);
         try {
-            return faxes.receive(target, pollingMode, issueVoiceRequest);
+            return faxes.receive(null, target, pollingMode, issueVoiceRequest);
         } finally {
 //            setState(Device.State.IDLE);
         }
@@ -488,17 +492,18 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      * <action>
      * To transmit the fax document.
      *
+     * @param session the phone call's session, device is working with
      * @param source            stream to fax data
      * @param format            format of data in the stream(resolution is a field)
      * @param issueVoiceRequest upon termination of reception to give out a
      *                          sound signal on the remote fax-device
      * @return the operation's result
      * @see Fax
-     * @see FaxMachineEngine#transmit(InputStream, Fax, boolean)
+     * @see FaxMachineEngine#transmit(PhoneCallSession, InputStream, Fax, boolean)
      * @see Result#ERROR
      */
     @Override
-    public OperationResultValue transmit(InputStream source, Fax format, boolean issueVoiceRequest) {
+    public OperationResultValue transmit(PhoneCallSession<H> session, InputStream source, Fax format, boolean issueVoiceRequest) {
         return isDeviceOpened() && faxes.canFax()
                 ? delegateFaxTransmit(source, format, issueVoiceRequest)
                 : Result.ERROR;
@@ -508,7 +513,7 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
     private OperationResultValue delegateFaxTransmit(InputStream source, Fax format, boolean issueVoiceRequest) {
 //        setState(SENDFAX);
         try {
-            return faxes.transmit(source, format, issueVoiceRequest);
+            return faxes.transmit(null, source, format, issueVoiceRequest);
         } finally {
 //            setState(Device.State.IDLE);
         }

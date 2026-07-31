@@ -126,7 +126,7 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
      * @see Session
      */
     default Session<H> createSessionFor(H openedDeviceHandle) throws IOException {
-        throw new UnsupportedOperationException("Not supported yet.");
+        throw new IOException("Not supported yet.");
     }
 
     /**
@@ -259,8 +259,8 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
      * @see #sessions()
      * @see #open()
      */
-    default Optional<Session<H>> findSessionByHandle(H deviceHandle) {
-        return sessions().filter(context -> Objects.equals(context.getDeviceHandle(), deviceHandle)).findFirst();
+    default Optional<Session<H>> findSessionByHandle(final H deviceHandle) {
+        return sessions().filter(session -> session.hasDeviceHandle(deviceHandle)).findFirst();
     }
 
     /**
@@ -414,7 +414,8 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
      */
     enum Parameter implements ParameterName {
         NAME("DEVICE-NAME"),
-        HANDLE("DEVICE-SESSION-HANDLE"),
+        DEVICE_HANDLE("DEVICE-SESSION-HANDLE"),
+        FAX_DEVICE_HANDLE("FAX-SESSION-HANDLE"),
         STATE("DEVICE-SESSION-STATE"),
         ALIVE("DEVICE-SESSION-CONNECTED"),
         TERMINATE("DEVICE-SESSION-TERMINATED"),
@@ -466,7 +467,18 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
          * @return device's handle
          */
         default H getDeviceHandle() {
-            return parameter(Parameter.HANDLE);
+            return parameter(Parameter.DEVICE_HANDLE);
+        }
+
+        /**
+         * <checker>
+         * To test whether session has the device's internal handle
+         *
+         * @return true if session as the device handle
+         */
+        default boolean hasDeviceHandle(H deviceHandle) {
+            return Objects.equals(parameter(Parameter.DEVICE_HANDLE), deviceHandle)
+                    || Objects.equals(parameter(Parameter.FAX_DEVICE_HANDLE), deviceHandle);
         }
 
         /**
@@ -556,8 +568,8 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
          *
          * @param name  the name of the session's parameter
          * @param value the value of the session's parameter
+         * @param <T>   the type of the session's parameter value
          * @return reference to the updated session
-         * @param <T> the type of the session's parameter value
          */
         <T> Session<H> parameter(ParameterName name, T value);
 
@@ -565,9 +577,9 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
          * <mutator>
          * To remove the session parameter's value
          *
-         * @param name  the name of the session's parameter
+         * @param name the name of the session's parameter
+         * @param <T>  the type of the session's parameter value
          * @return previous parameter's value
-         * @param <T> the type of the session's parameter value
          */
         <T> T remove(ParameterName name);
     }
@@ -591,7 +603,7 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
 
         /**
          * <action>
-         * To open the device related resource
+         * To close the device related resource
          *
          * @param handle the handle of the opened resource (device's implementation)
          * @throws IOException if channel's resource cannot be closed

@@ -73,7 +73,7 @@ public abstract class AbstractDeviceSession<H> implements Device.Session<H> {
         // the parameter value of device's name
         parameter(Device.Parameter.NAME, deviceOwner.getName());
         // the parameter value of device's handle
-        parameter(Device.Parameter.HANDLE, deviceHandle);
+        parameter(Device.Parameter.DEVICE_HANDLE, deviceHandle);
         // the flag is device resource opened
         parameter(Device.Parameter.OPEN, true);
         // the parameter value of device session's state
@@ -182,7 +182,11 @@ public abstract class AbstractDeviceSession<H> implements Device.Session<H> {
      */
     @Override
     public <T> Device.Session<H> parameter(final Device.ParameterName name, final T value) {
-        parametersMap.put(name, value);
+        if (value != null) {
+            parametersMap.put(name, value);
+        } else {
+            parametersMap.remove(name);
+        }
         return this;
     }
 

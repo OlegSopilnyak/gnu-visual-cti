@@ -70,4 +70,14 @@ public interface TelephonyDeviceCore<H> {
      * @see Device#getParameter(Device.ParameterName)
      */
     Optional<ConfigurationParameter> getParameter(Device.ParameterName name);
+
+    /**
+     * <action>
+     * To create and dispatch the error-type message from the device
+     *
+     * @param exception   the cause of the error
+     * @param description the description of the error
+     * @see org.visualcti.server.core.unit.ServerUnit#dispatchError(Throwable, String)
+     */
+    void dispatchError(Throwable exception, String description);
 }

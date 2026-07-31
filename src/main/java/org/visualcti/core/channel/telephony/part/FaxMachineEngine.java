@@ -43,6 +43,7 @@ import java.io.OutputStream;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.operation.Result;
+import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.media.Document;
 import org.visualcti.media.Fax;
 
@@ -57,11 +58,25 @@ public interface FaxMachineEngine<H> extends TelephonyDevicePart<H> {
      * <action>
      * To open and activate the fax-machine on the opened telephony device session
      *
-     * @param openedDeviceSession the session of the opened device
+     * @param session the session of the opened device
      * @throws IOException if device cannot open fax-machine for the telephony device session
+     * @see PhoneCallSession
      */
-    default void open(Device.Session<H> openedDeviceSession) throws IOException {
+    default void open(Device.Session<H> session) throws IOException {
         throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    /**
+     * <accessor>
+     * To check, whether device's fax-machine opened or not
+     *
+     * @param session the session of the opened device
+     * @return true if device's fax-machine is already opened
+     * @see PhoneCallSession#parameter(Device.ParameterName)
+     * @see Device.Parameter#FAX_DEVICE_HANDLE
+     */
+    default boolean isOpened(PhoneCallSession<H> session) {
+        return session.parameter(Device.Parameter.FAX_DEVICE_HANDLE) != null;
     }
 
     /**
@@ -69,8 +84,9 @@ public interface FaxMachineEngine<H> extends TelephonyDevicePart<H> {
      * Closing the fax-machine part of the device
      *
      * @param session the session of the opened device
+     * @see PhoneCallSession
      */
-    default void close(Device.Session<H> session) {
+    default void close(PhoneCallSession<H> session) {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
@@ -82,44 +98,67 @@ public interface FaxMachineEngine<H> extends TelephonyDevicePart<H> {
      * @return true if device can operate with fax-machine
      * @see FaxMachineEngine.Parameter#FAX_ALLOWED
      */
-    boolean canFax();
+    default boolean canFax() {
+        return false;
+    }
 
     /**
      * <accessor>
      * To get the quantity of the transferred fax-pages
      *
+     * @param session the phone call's session, device is working with
      * @return how many pages transferred
+     * @see FaxMachineEngine.Parameter#TRANSFERRED_FAX_PAGES
      */
-    int getTransferredPages();
+    default int getTransferredPages(final PhoneCallSession<H> session) {
+        return canFax() ? session.parameterOrDefault(Parameter.TRANSFERRED_FAX_PAGES, 0) : 0;
+    }
 
     /**
      * <accessor>
      * To get the local ID of the remote fax machine
      *
+     * @param session the phone call's session, device is working with
      * @return localId of the remote fax-machine
+     * @see FaxMachineEngine.Parameter#REMOTE_FAX_ID
      */
-    String getRemoteID();
+    default String getRemoteID(PhoneCallSession<H> session) {
+        return canFax() ? session.parameterOrDefault(Parameter.REMOTE_FAX_ID , "") : "";
+    }
 
     /**
      * <mutator>
      * To set up the heading of page of the fax-document
      *
-     * @param header the new value
+     * @param session the phone call's session, device is working with
+     * @param header  the new value
+     * @see FaxMachineEngine.Parameter#FAX_PAGE_HEADER
      */
-    void setFaxHeader(String header);
+    default void setFaxHeader(PhoneCallSession<H> session, String header) {
+        if (canFax()) {
+            session.parameter(Parameter.FAX_PAGE_HEADER, header);
+        }
+    }
 
     /**
      * <mutator>
      * To set up fax local ID for fax machine
      *
+     * @param session the phone call's session, device is working with
      * @param localID new value of device's fax-machine localId
+     * @see FaxMachineEngine.Parameter#LOCAL_FAX_ID
      */
-    void setFaxLocalID(String localID);
+    default void setFaxLocalID(PhoneCallSession<H> session, String localID) {
+        if (canFax()) {
+            session.parameter(Parameter.LOCAL_FAX_ID, localID);
+        }
+    }
 
     /**
      * <action>
      * To receive the fax document.
      *
+     * @param session           the phone call's session, device is working with
      * @param target            the stream for saving data of the received fax document in a TIFF format
      * @param pollingMode       flag, to initiate receive of a fax in a polling mode;
      * @param issueVoiceRequest upon termination of receive to give out a
@@ -135,12 +174,13 @@ public interface FaxMachineEngine<H> extends TelephonyDevicePart<H> {
      * {@link Result.FAX#COMPATIBILITY} - the remote fax-machine is not compatible with device's one
      * @see OperationResultValue
      */
-    OperationResultValue receive(OutputStream target, boolean pollingMode, boolean issueVoiceRequest);
+    OperationResultValue receive(PhoneCallSession<H> session, OutputStream target, boolean pollingMode, boolean issueVoiceRequest);
 
     /**
      * <action>
      * To transmit the fax document.
      *
+     * @param session           the phone call's session, device is working with
      * @param source            stream to fax data
      * @param format            format of data in the stream(resolution is a field)
      * @param issueVoiceRequest upon termination of reception to give out a
@@ -157,12 +197,13 @@ public interface FaxMachineEngine<H> extends TelephonyDevicePart<H> {
      * @see Fax
      * @see OperationResultValue
      */
-    OperationResultValue transmit(InputStream source, Fax format, boolean issueVoiceRequest);
+    OperationResultValue transmit(PhoneCallSession<H> session, InputStream source, Fax format, boolean issueVoiceRequest);
 
     /**
      * <action>
      * To transmit the fax document
      *
+     * @param session           the phone call's session, device is working with
      * @param doc               The fax-document (the pair fax data InputStream & Format)
      * @param issueVoiceRequest upon termination of reception to give out a
      *                          sound signal on the remote fax-device
@@ -178,15 +219,15 @@ public interface FaxMachineEngine<H> extends TelephonyDevicePart<H> {
      * {@link Result#TERMINATED} - the fax-document has broken data input stream<br>
      * @see Document#getFormat()
      * @see Document#getInputStream()
-     * @see #transmit(InputStream, Fax, boolean)
+     * @see #transmit(PhoneCallSession, InputStream, Fax, boolean)
      * @see #dispatchError(Throwable, String)
      */
-    default OperationResultValue transmit(Document doc, boolean issueVoiceRequest) {
+    default OperationResultValue transmit(PhoneCallSession<H> session, Document doc, boolean issueVoiceRequest) {
         try {
-            return transmit(doc.getInputStream(), doc.getFormat(), issueVoiceRequest);
+            return transmit(session, doc.getInputStream(), doc.getFormat(), issueVoiceRequest);
         } catch (IOException e) {
             dispatchError(e, "Cannot get input stream of the Fax Document.");
-            return Result.TERMINATED;
+            return Result.ERROR;
         }
     }
 
@@ -204,8 +245,11 @@ public interface FaxMachineEngine<H> extends TelephonyDevicePart<H> {
      */
     enum Parameter implements Device.ParameterName {
         // whether device can operate with the fax machines
-        FAX_ALLOWED("FAX-SUPPORTED")
-        ;
+        FAX_ALLOWED("FAX"),
+        TRANSFERRED_FAX_PAGES("TRANSFERRED PAGES"),
+        REMOTE_FAX_ID("REMOTE FAX LOCAL ID"),
+        FAX_PAGE_HEADER("FAX PAGE HEADER"),
+        LOCAL_FAX_ID("FAX LOCAL ID");
         private final String name;
 
         Parameter(String name) {

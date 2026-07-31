@@ -381,10 +381,11 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      * <accessor>
      * To get the quantity of the transferred fax-pages
      *
+     * @param session the phone call's session, device is working with
      * @return how many pages transferred
      */
     @Override
-    default int getTransferredPages() {
+    default int getTransferredPages(PhoneCallSession<H> session) {
         return 0;
     }
 
@@ -392,10 +393,11 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      * <accessor>
      * To get the local ID of the remote fax machine
      *
+     * @param session the phone call's session, device is working with
      * @return localId of the remote fax-machine
      */
     @Override
-    default String getRemoteID() {
+    default String getRemoteID(PhoneCallSession<H> session) {
         return "";
     }
 
@@ -403,10 +405,11 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      * <mutator>
      * To set up the heading of page of the fax-document
      *
+     * @param session the phone call's session, device is working with
      * @param header the new value
      */
     @Override
-    default void setFaxHeader(String header) {
+    default void setFaxHeader(PhoneCallSession<H> session, String header) {
 
     }
 
@@ -414,10 +417,11 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      * <mutator>
      * To set up fax local ID for fax machine
      *
+     * @param session the phone call's session, device is working with
      * @param localID new value of device's fax-machine localId
      */
     @Override
-    default void setFaxLocalID(String localID) {
+    default void setFaxLocalID(PhoneCallSession<H> session, String localID) {
 
     }
 
@@ -425,6 +429,7 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      * <action>
      * To receive the fax document.
      *
+     * @param session the phone call's session, device is working with
      * @param target            the stream for saving data of the received fax document in a TIFF format
      * @param pollingMode       flag, to initiate receive of a fax in a polling mode;
      * @param issueVoiceRequest upon termination of receive to give out a
@@ -441,7 +446,7 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      * @see OperationResultValue
      */
     @Override
-    default OperationResultValue receive(OutputStream target, boolean pollingMode, boolean issueVoiceRequest) {
+    default OperationResultValue receive(PhoneCallSession<H> session, OutputStream target, boolean pollingMode, boolean issueVoiceRequest) {
         return null;
     }
 
@@ -449,6 +454,7 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      * <action>
      * To transmit the fax document.
      *
+     * @param session the phone call's session, device is working with
      * @param source            stream to fax data
      * @param format            format of data in the stream(resolution is a field)
      * @param issueVoiceRequest upon termination of reception to give out a
@@ -466,7 +472,7 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      * @see OperationResultValue
      */
     @Override
-    default OperationResultValue transmit(InputStream source, Fax format, boolean issueVoiceRequest) {
+    default OperationResultValue transmit(PhoneCallSession<H> session, InputStream source, Fax format, boolean issueVoiceRequest) {
         return null;
     }
 

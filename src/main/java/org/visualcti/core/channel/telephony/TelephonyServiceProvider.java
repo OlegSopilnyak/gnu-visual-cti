@@ -37,12 +37,17 @@ Fax number: 217-356-3356
 */
 package org.visualcti.core.channel.telephony;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.core.channel.telephony.part.CallsPortEngine;
+import org.visualcti.core.channel.telephony.part.FaxMachineEngine;
+import org.visualcti.media.Fax;
 import org.visualcti.media.Sound;
 
 /**
@@ -51,11 +56,38 @@ import org.visualcti.media.Sound;
  * @param <H> the type of the device's low-level operations handle
  * @see Device.ServiceProvider
  */
-public interface TelephonyServiceProvider<H>  extends Device.ServiceProvider<H> {
+public interface TelephonyServiceProvider<H> extends Device.ServiceProvider<H> {
+    /**
+     * <action>
+     * To open the device related resource (device's implementation)
+     *
+     * @param name the name of the resource
+     * @return handle for the opened resource
+     * @throws IOException if channel's fax resource cannot be opened or activated
+     * @see Device#getName()
+     * @see Device.Session#parameter(Device.ParameterName, Object)
+     * @see Device.Parameter#FAX_DEVICE_HANDLE
+     */
+    default H openFaxResource(String name) throws IOException {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    /**
+     * <action>
+     * To close the device related resource
+     *
+     * @param handle the handle of the opened resource (device's implementation)
+     * @see Device.Session#getDeviceHandle()
+     * @see Device.Session#parameter(Device.ParameterName, Object)
+     * @see Device.Parameter#FAX_DEVICE_HANDLE
+     */
+    default void closeFaxResource(H handle) {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
     /**
      * <action>
      * To disable ALL events producing for particular device from the events provider
-     *
      *
      * @param deviceHandle device handle of the device for which events producing is disabled
      * @see Device.Session#getDeviceHandle()
@@ -102,8 +134,8 @@ public interface TelephonyServiceProvider<H>  extends Device.ServiceProvider<H> 
      * <action>
      * To start making the outgoing phone call
      *
-     * @param handle the telephony device handle
-     * @param number the called phone number
+     * @param handle  the telephony device handle
+     * @param number  the called phone number
      * @param timeout maximal waiting time for the answer (sec) to outgoing call
      * @return true if operation started successfully
      * @see CallsPortEngine#makeCall(PhoneCallSession, PhoneCall.Number, int)
@@ -218,7 +250,7 @@ public interface TelephonyServiceProvider<H>  extends Device.ServiceProvider<H> 
      * <action>
      * To separate two resources on the low-level after the conference connection finished
      *
-     * @param secondHandle the second resource's handle
+     * @param secondHandle  the second resource's handle
      * @param primaryHandle the primary resource's handle
      * @see TelephonyDevice#connect(PhoneCallSession, PhoneCall.Number, int, Sound)
      */
@@ -230,13 +262,70 @@ public interface TelephonyServiceProvider<H>  extends Device.ServiceProvider<H> 
      * <action>
      * To join two resources on the low-level for the conference connection
      *
-     * @param secondHandle the second resource's handle
+     * @param secondHandle  the second resource's handle
      * @param primaryHandle the primary resource's handle
      * @return true if they are joint well
      * @see TelephonyDevice#connect(PhoneCallSession, PhoneCall.Number, int, Sound)
      */
     default boolean makeConnection(H secondHandle, H primaryHandle) {
         return false;
+    }
+
+    /**
+     * <action>
+     * To start receiving fax document
+     *
+     * @param handle            the telephony device handle
+     * @param filePath          the path to the file for the receiving fax document content
+     * @param issueVoiceRequest upon termination of receive to give out a
+     *                          sound signal on the remote fax-device
+     * @return true if operation started successfully
+     * @see FaxMachineEngine#receive(PhoneCallSession, OutputStream, boolean, boolean)
+     */
+    default boolean startFaxReceiving(H handle, String filePath, boolean issueVoiceRequest) {
+        return false;
+    }
+
+    /**
+     * <action>
+     * To stop (interrupt) receiving fax document
+     *
+     * @param handle the telephony device handle
+     * @see FaxMachineEngine#transmit(PhoneCallSession, InputStream, Fax, boolean)
+     */
+    default void stopFaxReceiving(H handle) {
+
+    }
+
+    /**
+     * <action>
+     * To start transmitting fax document
+     *
+     * @param handle            the telephony device handle
+     * @param filePath          the path to the file, fax document content
+     * @param issueVoiceRequest upon termination of receive to give out a
+     * @param isTiff            the parameter of transmitting document page
+     * @param isHighResolution  the parameter of transmitting document page
+     * @param firstPageNumber   transmit from page
+     * @param totalPages        transmit pages (negative value means all available pages)
+     *                          sound signal on the remote fax-device
+     * @return true if operation started successfully
+     * @see FaxMachineEngine#transmit(PhoneCallSession, InputStream, Fax, boolean)
+     */
+    default boolean startFaxTransmitting(H handle, String filePath, boolean issueVoiceRequest,
+                                 boolean isTiff, boolean isHighResolution, int firstPageNumber, int totalPages){
+        return false;
+    }
+
+    /**
+     * <action>
+     * To stop (interrupt) transmitting fax document
+     *
+     * @param handle the telephony device handle
+     * @see FaxMachineEngine#transmit(PhoneCallSession, InputStream, Fax, boolean)
+     */
+    default void stopFaxTransmitting(H handle) {
+
     }
 
     /**

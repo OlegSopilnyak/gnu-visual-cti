@@ -197,12 +197,12 @@ public class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> implements
             final TelephonyServiceProvider<H> serviceProvider = deviceCore.getProvider();
             // waiting for incoming call during the timeout value
             int tryCount = timeout;
-            final long oneSecondMilliseconds = TimeUnit.SECONDS.toMillis(1);
+            final long halfSecondMilliseconds = TimeUnit.MILLISECONDS.toMillis(500);
             do {
                 try {
                     // preparing the session for wait for incoming call and
                     // waiting for incoming call 1 second of the timeout's seconds
-                    preparingWaitForCall(session, serviceProvider, oneSecondMilliseconds);
+                    preparingWaitForCall(session, serviceProvider, halfSecondMilliseconds);
                     // checking wait for call operation results
                     if (isThereIncomingCallDetected(session, serviceProvider, answer)) {
                         // incoming call for the telephony device is detected
@@ -217,12 +217,12 @@ public class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> implements
                         // checking is it possible to share the phone call session during wait for call operation
                     } else if (canBeConnected()) {
                         // waiting for incoming call or make call 1 second of the timeout's seconds
-                        if (sharedForConnectWasUsed(session, oneSecondMilliseconds)) {
+                        if (sharedForConnectWasUsed(session, halfSecondMilliseconds)) {
                             // the operation is completed by any reason
                             return true;
                         } else {
                             // nothing is happened
-                            tryCount--;
+//                            tryCount--;
                         }
                     }
                 } catch (InterruptedException e) {
@@ -393,6 +393,8 @@ public class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> implements
      * @param session the phone call's session, device is working with
      * @throws IOException If the device can't terminate current operation
      * @see PhoneCallSession
+     * @see TelephonyDevice.State#WAIT
+     * @see TelephonyDevice.State#DIAL
      */
     @Override
     public void terminate(PhoneCallSession<H> session) throws IOException {

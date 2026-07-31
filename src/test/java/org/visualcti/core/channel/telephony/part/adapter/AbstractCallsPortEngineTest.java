@@ -204,7 +204,7 @@ public class AbstractCallsPortEngineTest<H> {
         verify(provider, times(timeout)).enableEvents(deviceHandle, Result.CALL.RINGS);
         verify(session, times(timeout)).setState(TelephonyDevice.State.WAIT);
         verify(session, times(timeout)).operationComplete(Result.NONE);
-        verify(session, times(timeout)).waitForOperationComplete(1000L);
+        verify(session, times(timeout)).waitForOperationComplete(500L);
         verify(session, times(timeout)).operationResult();
         verify(session).operationComplete(Result.TIMEOUT);
         verify(session).setState(Device.State.IDLE);
@@ -240,7 +240,7 @@ public class AbstractCallsPortEngineTest<H> {
         verify(provider).enableEvents(deviceHandle, Result.CALL.RINGS);
         verify(session).setState(TelephonyDevice.State.WAIT);
         verify(session).operationComplete(Result.NONE);
-        verify(session).waitForOperationComplete(1000L);
+        verify(session).waitForOperationComplete(500L);
         verify(session).operationResult();
         verify(provider).disableEvents(deviceHandle, Result.CALL.RINGS);
         verify(provider).getCallerID(deviceHandle);
@@ -283,7 +283,7 @@ public class AbstractCallsPortEngineTest<H> {
         verify(provider).enableEvents(deviceHandle, Result.CALL.RINGS);
         verify(session).setState(TelephonyDevice.State.WAIT);
         verify(session).operationComplete(Result.NONE);
-        verify(session).waitForOperationComplete(1000L);
+        verify(session).waitForOperationComplete(500L);
         verify(session).operationResult();
         verify(provider).disableEvents(deviceHandle, Result.CALL.RINGS);
         verify(provider).getCallerID(deviceHandle);

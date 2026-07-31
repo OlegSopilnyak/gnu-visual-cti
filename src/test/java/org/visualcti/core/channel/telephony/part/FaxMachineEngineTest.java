@@ -57,15 +57,19 @@ import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.visualcti.core.channel.telephony.operation.Result;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
+import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.media.Document;
 import org.visualcti.media.Fax;
 
-public class FaxMachineEngineTest {
-    FaxMachineEngine engine;
+@SuppressWarnings({"unchecked"})
+public class FaxMachineEngineTest<H> {
+    FaxMachineEngine<H> engine;
+    PhoneCallSession<H> session;
 
     @Before
     public void setUp() {
         engine = mock(FaxMachineEngine.class);
+        session = mock(PhoneCallSession.class);
     }
 
     @Test
@@ -95,10 +99,10 @@ public class FaxMachineEngineTest {
     public void shouldGetTransferredPages() {
         // preparing test data
         int pages = 10;
-        doReturn(pages).when(engine).getTransferredPages();
+        doReturn(pages).when(engine).getTransferredPages(session);
 
         // acting
-        int transferred = engine.getTransferredPages();
+        int transferred = engine.getTransferredPages(session);
 
         // check results
         assertThat(transferred).isEqualTo(pages);
@@ -108,10 +112,10 @@ public class FaxMachineEngineTest {
     public void shouldGetRemoteID() {
         // preparing test data
         String faxId = "fax-id";
-        doReturn(faxId).when(engine).getRemoteID();
+        doReturn(faxId).when(engine).getRemoteID(session);
 
         // acting
-        String remoteFaxId = engine.getRemoteID();
+        String remoteFaxId = engine.getRemoteID(session);
 
         // check results
         assertThat(remoteFaxId).isEqualTo(faxId);
@@ -123,10 +127,10 @@ public class FaxMachineEngineTest {
         String faxHeader = "fax-header";
 
         // acting
-        engine.setFaxHeader(faxHeader);
+        engine.setFaxHeader(session, faxHeader);
 
         // check results
-        verify(engine).setFaxHeader(faxHeader);
+        verify(engine).setFaxHeader(session, faxHeader);
     }
 
     @Test
@@ -135,10 +139,10 @@ public class FaxMachineEngineTest {
         String faxId = "fax-id";
 
         // acting
-        engine.setFaxLocalID(faxId);
+        engine.setFaxLocalID(session, faxId);
 
         // check results
-        verify(engine).setFaxLocalID(faxId);
+        verify(engine).setFaxLocalID(session, faxId);
     }
 
     @Test
@@ -148,14 +152,14 @@ public class FaxMachineEngineTest {
         OutputStream stream = mock(OutputStream.class);
         boolean pollingMode = true;
         boolean issueVoiceRequest = true;
-        doReturn(resultValue).when(engine).receive(any(OutputStream.class), eq(true), anyBoolean());
+        doReturn(resultValue).when(engine).receive(any(PhoneCallSession.class), any(OutputStream.class), eq(true), anyBoolean());
 
         // acting
-        OperationResultValue result = engine.receive(stream, pollingMode, issueVoiceRequest);
+        OperationResultValue result = engine.receive(session, stream, pollingMode, issueVoiceRequest);
 
         // check the behavior
         ArgumentCaptor<OutputStream> captor = ArgumentCaptor.forClass(OutputStream.class);
-        verify(engine).receive(captor.capture(), anyBoolean(), anyBoolean());
+        verify(engine).receive(any(PhoneCallSession.class), captor.capture(), anyBoolean(), anyBoolean());
         // check results
         assertThat(captor.getValue()).isSameAs(stream);
         assertThat(result).isSameAs(resultValue);
@@ -168,14 +172,14 @@ public class FaxMachineEngineTest {
         InputStream stream = mock(InputStream.class);
         Fax faxFormat = Fax.TIFF;
         boolean issueVoiceRequest = true;
-        doReturn(resultValue).when(engine).transmit(eq(stream), eq(faxFormat), anyBoolean());
+        doReturn(resultValue).when(engine).transmit(eq(session), eq(stream), eq(faxFormat), anyBoolean());
 
         // acting
-        OperationResultValue result = engine.transmit(stream, faxFormat, issueVoiceRequest);
+        OperationResultValue result = engine.transmit(session, stream, faxFormat, issueVoiceRequest);
 
         // check the behavior
         ArgumentCaptor<Fax> captor = ArgumentCaptor.forClass(Fax.class);
-        verify(engine).transmit(eq(stream), captor.capture(), anyBoolean());
+        verify(engine).transmit(eq(session), eq(stream), captor.capture(), anyBoolean());
         // check results
         assertThat(captor.getValue()).isSameAs(faxFormat);
         assertThat(result).isSameAs(resultValue);
@@ -191,15 +195,15 @@ public class FaxMachineEngineTest {
         doReturn(stream).when(document).getInputStream();
         doReturn(faxFormat).when(document).getFormat();
         boolean issueVoiceRequest = true;
-        doCallRealMethod().when(engine).transmit(eq(document), anyBoolean());
-        doReturn(resultValue).when(engine).transmit(stream, faxFormat, true);
+        doCallRealMethod().when(engine).transmit(eq(session), eq(document), anyBoolean());
+        doReturn(resultValue).when(engine).transmit(session, stream, faxFormat, true);
 
         // acting
-        OperationResultValue result = engine.transmit(document, issueVoiceRequest);
+        OperationResultValue result = engine.transmit(session, document, issueVoiceRequest);
 
         // check the behavior
         ArgumentCaptor<Fax> captor = ArgumentCaptor.forClass(Fax.class);
-        verify(engine).transmit(eq(stream), captor.capture(), anyBoolean());
+        verify(engine).transmit(eq(session), eq(stream), captor.capture(), anyBoolean());
         // check results
         assertThat(captor.getValue()).isSameAs(faxFormat);
         assertThat(result).isSameAs(resultValue);
@@ -214,18 +218,18 @@ public class FaxMachineEngineTest {
         doThrow(exception).when(document).getInputStream();
         doReturn(faxFormat).when(document).getFormat();
         boolean issueVoiceRequest = true;
-        doCallRealMethod().when(engine).transmit(eq(document), anyBoolean());
+        doCallRealMethod().when(engine).transmit(eq(session), eq(document), anyBoolean());
 
         // acting
-        OperationResultValue result = engine.transmit(document, issueVoiceRequest);
+        OperationResultValue result = engine.transmit(session, document, issueVoiceRequest);
 
         // check the behavior
         verify(document, never()).getFormat();
-        verify(engine, never()).transmit(any(InputStream.class), any(Fax.class), anyBoolean());
+        verify(engine, never()).transmit(any(PhoneCallSession.class), any(InputStream.class), any(Fax.class), anyBoolean());
         ArgumentCaptor<Throwable> captor = ArgumentCaptor.forClass(Throwable.class);
         verify(engine).dispatchError(captor.capture(), anyString());
         // check results
         assertThat(captor.getValue()).isSameAs(exception);
-        assertThat(result).isSameAs(Result.TERMINATED);
+        assertThat(result).isSameAs(Result.ERROR);
     }
 }
