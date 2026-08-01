@@ -70,8 +70,7 @@ public class AbstractFaxMachineEngine<H> extends AbstractDevicePart<H> implement
     private static final Predicate<OperationResultValue> faxOperationFailed =
             value -> value == Result.TIMEOUT
                     || value == Result.FAX.COMMUNICATION_ERROR || value == Result.FAX.COMPATIBILITY
-                    || value == Result.FAX.NO_POLL || value == Result.FAX.USER_STOP
-            ;
+                    || value == Result.FAX.NO_POLL || value == Result.FAX.USER_STOP;
 
     /**
      * <action>
@@ -137,9 +136,6 @@ public class AbstractFaxMachineEngine<H> extends AbstractDevicePart<H> implement
     public OperationResultValue receive(final PhoneCallSession<H> session, final OutputStream target,
                                         final boolean pollingMode, final boolean issueVoiceRequest) {
         if (isOpened(session)) {
-            // staring fax document receiving
-            session.getDevice().dispatchEvent("Receiving fax is starting...");
-            session.setState(TelephonyDevice.State.RECVFAX);
             // getting device service provider
             final TelephonyServiceProvider<H> serviceProvider = deviceCore.getProvider();
             final H faxDeviceHandle = session.parameter(Device.Parameter.FAX_DEVICE_HANDLE);
@@ -149,13 +145,19 @@ public class AbstractFaxMachineEngine<H> extends AbstractDevicePart<H> implement
             if (pollingMode) {
                 serviceProvider.enableEvents(faxDeviceHandle, Result.FAX.POLLING);
             }
+            // staring fax document receiving
+            session.getDevice().dispatchEvent("Receiving fax is starting...");
+            session.setState(TelephonyDevice.State.RECVFAX);
             try {
-                final File targetFile = File.createTempFile(session.getDevice().getName(), ".fax");
+                final File tempFile = File.createTempFile(session.getDevice().getName(), ".fax");
+                tempFile.deleteOnExit();
+                // saving the file for tests purposes
+                session.parameter(Parameter.FAX_TEMPORARY, tempFile);
                 // starting fax receiving operation
                 final boolean starting = serviceProvider.startFaxReceiving(
-                        faxDeviceHandle, targetFile.getAbsolutePath(), issueVoiceRequest
+                        faxDeviceHandle, tempFile.getAbsolutePath(), issueVoiceRequest
                 );
-                if (!starting) {
+                if (!starting && tempFile.delete()) {
                     throw new IOException("Cannot start FAX receiving");
                 }
                 // start to wait for the operation result
@@ -169,18 +171,32 @@ public class AbstractFaxMachineEngine<H> extends AbstractDevicePart<H> implement
                         // operation is complete
                         session.getDevice().dispatchEvent("Receive fax document is completed.");
                         // copying received data to the target output stream and deleting temporary file
-                        copyReceivedData(targetFile, target);
-                        targetFile.delete();
-                        break;
+                        copyReceivedData(tempFile, target);
+                        if (tempFile.delete()) {
+                            break;
+                        }
                     } else if (session.isTerminated()) {
                         // operation termination is detected
-                        break;
-                    } else if (session.isDisconnected() || faxOperationFailed.test(operationResult)) {
+                        // stop fax's transmitting
+                        serviceProvider.stopFaxReceiving(faxDeviceHandle);
+                        return Result.TERMINATED;
+                    } else if (session.isDisconnected()) {
+                        session.getDevice().dispatchError("Receive fax document is failed.");
+                        // stop fax's transmitting
+                        serviceProvider.stopFaxReceiving(faxDeviceHandle);
+                        session.operationResult(Result.CALL.DISCONNECT);
+                        session.setState(Device.State.ERROR);
+                        return Result.CALL.DISCONNECT;
+                    } else if (faxOperationFailed.test(operationResult)) {
                         session.getDevice().dispatchError("Receive fax document is failed.");
                         session.setState(Device.State.ERROR);
+                        // stop fax's transmitting
+                        serviceProvider.stopFaxReceiving(faxDeviceHandle);
                         return operationResult;
                     }
                 }
+                // stop fax's transmitting
+                serviceProvider.stopFaxReceiving(faxDeviceHandle);
                 // disabling any events producing for opened fax resource
                 serviceProvider.disableEvents(faxDeviceHandle);
                 // make receive fax operation is complete
@@ -188,12 +204,13 @@ public class AbstractFaxMachineEngine<H> extends AbstractDevicePart<H> implement
                 return session.operationResult();
             } catch (IOException e) {
                 session.getDevice().dispatchError(e, "Cannot  receive fax file");
-                return Result.ERROR;
             } catch (InterruptedException e) {
                 session.getDevice().dispatchError(e, "Cannot  wait receive fax completion.");
-                return Result.ERROR;
             }
+            // disabling any events producing for opened fax resource
+            serviceProvider.disableEvents(faxDeviceHandle);
         }
+        session.setState(Device.State.ERROR);
         return Result.ERROR;
     }
 
@@ -230,13 +247,14 @@ public class AbstractFaxMachineEngine<H> extends AbstractDevicePart<H> implement
             // adjusting events producing rules
             serviceProvider.disableEvents(faxDeviceHandle);
             serviceProvider.enableEvents(faxDeviceHandle, Result.CALL.DISCONNECT);
-            final File targetFile;
+            final File tempFile;
             try {
-                targetFile = File.createTempFile(session.getDevice().getName(), ".fax");
-                copyTransmittingData(targetFile, source);
+                tempFile = File.createTempFile(session.getDevice().getName(), ".fax");
+                copyTransmittingData(tempFile, source);
+                tempFile.deleteOnExit();
                 // starting fax receiving operation
                 final boolean starting = serviceProvider.startFaxTransmitting(
-                        faxDeviceHandle, targetFile.getAbsolutePath(), issueVoiceRequest,
+                        faxDeviceHandle, tempFile.getAbsolutePath(), issueVoiceRequest,
                         format.isTIFF(), format.isHighResolution(), 0, -1
                 );
                 if (!starting) {
@@ -253,30 +271,45 @@ public class AbstractFaxMachineEngine<H> extends AbstractDevicePart<H> implement
                         // operation is complete
                         session.getDevice().dispatchEvent("Send fax document is completed.");
                         // deleting temporary file
-                        targetFile.delete();
-                        break;
+                        if (tempFile.delete()) {
+                            break;
+                        }
                     } else if (session.isTerminated()) {
                         // operation termination is detected
-                        break;
-                    } else if (session.isDisconnected() || faxOperationFailed.test(operationResult)) {
+                        // stop fax's transmitting
+                        serviceProvider.stopFaxTransmitting(faxDeviceHandle);
+                        return Result.TERMINATED;
+                    } else if (session.isDisconnected()) {
+                        session.getDevice().dispatchError("Send fax document is failed.");
+                        // stop fax's transmitting
+                        serviceProvider.stopFaxTransmitting(faxDeviceHandle);
+                        session.operationResult(Result.CALL.DISCONNECT);
+                        session.setState(Device.State.ERROR);
+                        return Result.CALL.DISCONNECT;
+                    } else if (faxOperationFailed.test(operationResult)) {
                         session.getDevice().dispatchError("Send fax document is failed.");
                         session.setState(Device.State.ERROR);
+                        // stop fax's transmitting
+                        serviceProvider.stopFaxTransmitting(faxDeviceHandle);
                         return operationResult;
                     }
                 }
+                // stop fax's transmitting
+                serviceProvider.stopFaxTransmitting(faxDeviceHandle);
                 // disabling any events producing for opened fax resource
                 serviceProvider.disableEvents(faxDeviceHandle);
                 // make receive fax operation is complete
                 session.setState(Device.State.IDLE);
                 return session.operationResult();
             } catch (IOException e) {
-                session.getDevice().dispatchError(e, "Cannot  send fax file");
-                return Result.ERROR;
+                session.getDevice().dispatchError(e, "Cannot send fax file");
             } catch (InterruptedException e) {
                 session.getDevice().dispatchError(e, "Cannot wait fax transmitting completion.");
-                return Result.ERROR;
             }
+            // disabling any events producing for opened fax resource
+            serviceProvider.disableEvents(faxDeviceHandle);
         }
+        session.setState(Device.State.ERROR);
         return Result.ERROR;
     }
 

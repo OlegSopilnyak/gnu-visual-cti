@@ -246,6 +246,8 @@ public interface FaxMachineEngine<H> extends TelephonyDevicePart<H> {
     enum Parameter implements Device.ParameterName {
         // whether device can operate with the fax machines
         FAX_ALLOWED("FAX"),
+        FAX_TEMPORARY("FAX-TEMP-FILE"),
+        FAX_DEVICE_HANDLE("FAX"),
         TRANSFERRED_FAX_PAGES("TRANSFERRED PAGES"),
         REMOTE_FAX_ID("REMOTE FAX LOCAL ID"),
         FAX_PAGE_HEADER("FAX PAGE HEADER"),
