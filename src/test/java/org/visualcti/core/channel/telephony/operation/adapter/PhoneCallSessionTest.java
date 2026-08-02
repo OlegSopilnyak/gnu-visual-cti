@@ -465,4 +465,23 @@ public class PhoneCallSessionTest {
         // check results
         assertThat(session.getState()).isSameAs(TelephonyDevice.State.WAIT);
     }
+
+    @Test
+    public void shouldProceedDeviceSpecificEvent_Terminated() throws IOException {
+        // preparing test data
+        doReturn(deviceName).when(device).getName();
+        TelephonyDeviceFactory<String, ?> factory = mock(TelephonyDeviceFactory.class);
+        doReturn(factory).when(device).getFactory();
+        DeviceEvent<String> event = spy(AbstractDeviceEvent.<String>of(DeviceEvent.Type.DEVICE_SPECIFIC)
+                .deviceName(deviceName).deviceHandle(handle)
+                .option(DeviceEvent.Option.REASON, Result.TERMINATED)
+        );
+
+        // acting
+        session.proceedDeviceSpecificEvent(event);
+
+        // check the behavior
+        verify(device).terminate(session);
+        // check results
+    }
 }

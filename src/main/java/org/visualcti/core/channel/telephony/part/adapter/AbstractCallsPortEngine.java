@@ -203,8 +203,13 @@ public class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> implements
                     // preparing the session for wait for incoming call and
                     // waiting for incoming call 1 second of the timeout's seconds
                     preparingWaitForCall(session, serviceProvider, halfSecondMilliseconds);
-                    // checking wait for call operation results
-                    if (isThereIncomingCallDetected(session, serviceProvider, answer)) {
+                    // checking the operation result value after waiting operation complete
+                    if (session.operationResult() == Result.ERROR) {
+                        // device error is detected
+                        session.setState(Device.State.ERROR);
+                        return false;
+                        // checking wait for call operation results
+                    } else if (isThereIncomingCallDetected(session, serviceProvider, answer)) {
                         // incoming call for the telephony device is detected
                         session.getDevice().dispatchEvent("Wait for call operation is completed.");
                         // operation is completed successfully
@@ -286,7 +291,14 @@ public class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> implements
             // waiting for an answer from the called number side 'timeout' seconds
             try {
                 session.waitForOperationComplete(timeout * 1000L);
-                if (isThereOutgoingCallCompleted(session)) {
+                // checking the operation result value after waiting operation complete
+                if (session.operationResult() == Result.ERROR) {
+                    // device error is detected
+                    session.setState(Device.State.ERROR);
+                    session.getDevice().dispatchEvent("Make call operation is failed.");
+                    return false;
+                    // checking wait for call operation results
+                } else if (isThereOutgoingCallCompleted(session)) {
                     // outgoing call for the session is made
                     session.getDevice().dispatchEvent("Make call operation complete.");
                     // checking is operation terminated

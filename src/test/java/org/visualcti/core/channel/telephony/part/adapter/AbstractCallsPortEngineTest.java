@@ -205,7 +205,7 @@ public class AbstractCallsPortEngineTest<H> {
         verify(session, times(timeout)).setState(TelephonyDevice.State.WAIT);
         verify(session, times(timeout)).operationComplete(Result.NONE);
         verify(session, times(timeout)).waitForOperationComplete(500L);
-        verify(session, times(timeout)).operationResult();
+        verify(session, atLeastOnce()).operationResult();
         verify(session).operationComplete(Result.TIMEOUT);
         verify(session).setState(Device.State.IDLE);
         // check results
@@ -241,7 +241,7 @@ public class AbstractCallsPortEngineTest<H> {
         verify(session).setState(TelephonyDevice.State.WAIT);
         verify(session).operationComplete(Result.NONE);
         verify(session).waitForOperationComplete(500L);
-        verify(session).operationResult();
+        verify(session, atLeastOnce()).operationResult();
         verify(provider).disableEvents(deviceHandle, Result.CALL.RINGS);
         verify(provider).getCallerID(deviceHandle);
         verify(session).callingNumber(callingNumber);
@@ -284,7 +284,7 @@ public class AbstractCallsPortEngineTest<H> {
         verify(session).setState(TelephonyDevice.State.WAIT);
         verify(session).operationComplete(Result.NONE);
         verify(session).waitForOperationComplete(500L);
-        verify(session).operationResult();
+        verify(session, atLeastOnce()).operationResult();
         verify(provider).disableEvents(deviceHandle, Result.CALL.RINGS);
         verify(provider).getCallerID(deviceHandle);
         verify(session).callingNumber(callingNumber);
@@ -298,6 +298,42 @@ public class AbstractCallsPortEngineTest<H> {
         assertThat(session.isAlive()).isFalse();
         assertThat(session.getState()).isEqualTo(Device.State.IDLE);
         assertThat(session.operationResult()).isEqualTo(Result.CALL.RINGS);
+    }
+
+    @Test
+    public void shouldNotWaitForCall_DeviceError() throws InterruptedException {
+        // preparing test data
+        doReturn(true).when(engine).canAcceptCall();
+        PhoneCall.Number callingNumber = mock(PhoneCall.Number.class);
+        doReturn(callingNumber).when(provider).getCallerID(deviceHandle);
+        doReturn(true).when(provider).answerCall(deviceHandle);
+        engine.uses(device);
+        int rings = 2;
+        int timeout = 10;
+        boolean answer = false;
+        executor.schedule(() -> session.operationComplete(Result.ERROR), 50, TimeUnit.MILLISECONDS);
+
+        // acting
+        boolean done = engine.waitForCall(session, rings, timeout, answer);
+
+        // check the behavior
+        verify(session, atLeastOnce()).getDeviceHandle();
+        verify(engine).canAcceptCall();
+        verify(session).isAlive();
+        verify(device).getProvider();
+        verify(device).getParameter(any(Device.ParameterName.class));
+        verify(provider).enableEvents(deviceHandle, Result.CALL.RINGS);
+        verify(session).setState(TelephonyDevice.State.WAIT);
+        verify(session).operationComplete(Result.NONE);
+        verify(session).waitForOperationComplete(500L);
+        verify(session).operationResult();
+        verify(session).operationComplete(Result.ERROR);
+        verify(session).setState(Device.State.ERROR);
+        // check results
+        assertThat(done).isFalse();
+        assertThat(session.isAlive()).isFalse();
+        assertThat(session.getState()).isEqualTo(Device.State.ERROR);
+        assertThat(session.operationResult()).isEqualTo(Result.ERROR);
     }
 
     @Test
@@ -362,7 +398,7 @@ public class AbstractCallsPortEngineTest<H> {
         verify(session).operationComplete(Result.NONE);
         verify(provider).startCalling(deviceHandle, number, timeout);
         verify(session).waitForOperationComplete(timeout * 1000L);
-        verify(session).operationResult();
+        verify(session, atLeastOnce()).operationResult();
         verify(session).alive(anyBoolean());
         verify(provider, never()).enableEvents(any(), eq(Result.CALL.DISCONNECT));
         verify(device, atLeastOnce()).dispatchEvent(anyString());
@@ -443,6 +479,42 @@ public class AbstractCallsPortEngineTest<H> {
         assertThat(session.isAlive()).isTrue();
         assertThat(session.getState()).isEqualTo(Device.State.IDLE);
         assertThat(session.operationResult()).isEqualTo(Result.CALL.Analysis.FAX);
+    }
+
+    @Test
+    public void shouldNotMakeCall_DeviceError() throws InterruptedException {
+        // preparing test data
+        doReturn(true).when(engine).canMakeCall();
+        PhoneCall.Number callingNumber = mock(PhoneCall.Number.class);
+        doReturn(callingNumber).when(provider).getCallerID(deviceHandle);
+        doReturn(true).when(provider).answerCall(deviceHandle);
+        engine.uses(device);
+        PhoneCall.Number number = mock(PhoneCall.Number.class);
+        int timeout = 10;
+        doReturn(true).when(provider).startCalling(deviceHandle, number, timeout);
+        executor.schedule(() -> session.operationComplete(Result.ERROR), 50, TimeUnit.MILLISECONDS);
+
+        // acting
+        boolean done = engine.makeCall(session, number, timeout);
+
+        // check the behavior
+        verify(session, atLeastOnce()).getDeviceHandle();
+        verify(engine).canMakeCall();
+        verify(session).calledNumber(number);
+        verify(device).getParameter(any(Device.ParameterName.class));
+        verify(provider).disableEvents(deviceHandle);
+        verify(session).setState(TelephonyDevice.State.DIAL);
+        verify(session).operationComplete(Result.NONE);
+        verify(provider).startCalling(deviceHandle, number, timeout);
+        verify(session).waitForOperationComplete(timeout * 1000L);
+        verify(session).operationResult();
+        verify(session).operationComplete(Result.ERROR);
+        verify(session).setState(Device.State.ERROR);
+        // check results
+        assertThat(done).isFalse();
+        assertThat(session.isAlive()).isFalse();
+        assertThat(session.getState()).isEqualTo(Device.State.ERROR);
+        assertThat(session.operationResult()).isEqualTo(Result.ERROR);
     }
 
     @Test

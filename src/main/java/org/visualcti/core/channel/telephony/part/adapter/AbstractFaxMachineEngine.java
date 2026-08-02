@@ -167,7 +167,14 @@ public class AbstractFaxMachineEngine<H> extends AbstractDevicePart<H> implement
                     // waiting for an event during the fax document transmit
                     session.waitForOperationComplete(1000L);
                     final OperationResultValue operationResult = session.operationResult();
-                    if (operationResult == Result.IO.EOF) {
+                    // checking the operation result value after waiting operation complete
+                    if (operationResult == Result.ERROR) {
+                        // device error is detected
+                        session.setState(Device.State.ERROR);
+                        session.getDevice().dispatchError("Receive fax document is failed.");
+                        return operationResult;
+                        // checking wait for call operation results
+                    } else if (operationResult == Result.IO.EOF) {
                         // operation is complete
                         session.getDevice().dispatchEvent("Receive fax document is completed.");
                         // copying received data to the target output stream and deleting temporary file
@@ -277,7 +284,14 @@ public class AbstractFaxMachineEngine<H> extends AbstractDevicePart<H> implement
                     // waiting for an event during the fax document transmitting
                     session.waitForOperationComplete(1000L);
                     final OperationResultValue operationResult = session.operationResult();
-                    if (operationResult == Result.IO.EOF) {
+                    // checking the operation result value after waiting operation complete
+                    if (operationResult == Result.ERROR) {
+                        // device error is detected
+                        session.setState(Device.State.ERROR);
+                        session.getDevice().dispatchError("Send fax document is failed.");
+                        return operationResult;
+                        // checking wait for call operation results
+                    } else if (operationResult == Result.IO.EOF) {
                         // operation is complete
                         session.getDevice().dispatchEvent("Send fax document is completed.");
                         // deleting temporary file

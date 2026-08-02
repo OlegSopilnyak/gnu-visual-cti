@@ -70,6 +70,27 @@ import org.visualcti.core.channel.telephony.operation.Result;
  */
 @SuppressWarnings("unchecked")
 public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> implements PhoneCall {
+    /**
+     * Enumeration: Parameter names for telephony device activity
+     */
+    enum Parameter implements Device.ParameterName {
+        RESULT("OPERATION-RESULT"),
+        LATCH("OPERATION-LATCH"),
+        JOINT("JOINT-SESSIONS-SET"),
+        CALLED("PHONE-CALL-CALLED-NUMBER"),
+        CALLING("PHONE-CALL-CALLING-NUMBER");
+        private final String name;
+
+        Parameter(String name) {
+            this.name = name;
+        }
+
+        @Override
+        public String value() {
+            return name.toLowerCase();
+        }
+    }
+
     // predicate to be sure that device is delivered to the correct events listener(phone-call-session)
     private final Predicate<DeviceEvent<?>> thisSessionEvent = event -> event != DeviceEvent.EMPTY
             && Objects.equals(event.getDeviceName(), getDeviceName())
@@ -260,7 +281,7 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
     /**
      * <checker>
      * To check is operation in progress (waiting for completion or timeout)
-     * For tests purposes
+     * For tests purposes only!!!!!!!
      *
      * @return true if operation is waiting for completion
      * @see #waitForOperationComplete(long)
@@ -276,7 +297,9 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
      * <action>
      * To notify about the previously running in the phone-call-session operation is completed
      *
+     * @param completionReason the reason of completing the operation which is waiting for complete
      * @see #waitForOperationComplete(long)
+     * @see #operationResult(OperationResultValue)
      * @see CountDownLatch
      * @see CountDownLatch#countDown()
      */
@@ -284,9 +307,9 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
     public void operationComplete(final OperationResultValue completionReason) {
         // updating session's operation result
         operationResult(completionReason);
-        // completing the running operation
-        final CountDownLatch completeOperationLatch = remove(Parameter.LATCH);
-        if (completeOperationLatch != null) {
+        // completing the operation which is waiting for complete
+        final CountDownLatch completeOperationLatch;
+        if ((completeOperationLatch = remove(Parameter.LATCH)) != null) {
             // releasing the latch of running operation
             completeOperationLatch.countDown();
         }
@@ -312,7 +335,7 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
      * @param anotherCall another session value
      */
     @Override
-    public void join(PhoneCall anotherCall) {
+    public void join(final PhoneCall anotherCall) {
         final List<PhoneCall> joint = new ArrayList<>(parameterOrDefault(Parameter.JOINT, Collections.emptyList()));
         if (!joint.contains(anotherCall)) {
             // adding another phone call to the joint collection
@@ -328,13 +351,13 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
      * <mutator>
      * To detach the phone-call-session
      *
-     * @param anotherCall another session value
+     * @param attachedCall another session value
      */
     @Override
-    public void detach(PhoneCall anotherCall) {
+    public void detach(final PhoneCall attachedCall) {
         final List<PhoneCall> joint = new ArrayList<>(parameterOrDefault(Parameter.JOINT, Collections.emptyList()));
         // looking for the phone call session to detach, among joint ones
-        final int index = joint.indexOf(anotherCall);
+        final int index = joint.indexOf(attachedCall);
         if (index >= 0) {
             // there is the joint phone call session, let's detach it from joint ones
             final PhoneCall detached = joint.remove(index);
@@ -348,18 +371,19 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
     }
 
     /**
-     * Closes this PhoneCall session and releases any system resources associated
-     * with it. If the session is already closed then invoking this
-     * method has no effect.
+     * Closes this PhoneCall session and releases any system resources associated with it.
+     * If the session is already closed then invoking this method has no effect.
      *
      * @throws IOException if an I/O error occurs
      */
     @Override
     public void close() throws IOException {
-        // detaching joint phone-calls
-        detachAll();
-        // releasing common using session's parameters
-        super.close();
+        if (device != null) {
+            // detaching joint phone-calls
+            detachAll();
+            // releasing common using session's parameters
+            super.close();
+        }
     }
 
     /**
@@ -383,10 +407,10 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
         }
         // analyzing the device event
         if (event.getEventType() == DeviceEvent.Type.DEVICE_SPECIFIC) {
-            // some telephony operation event received, processing it
+            // the telephony operation's event accepted, processing it
             proceedDeviceSpecificEvent((DeviceEvent<H>) event);
         }
-        // event processed well
+        // accepted event is processed well
         return true;
     }
 
@@ -400,75 +424,51 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
      * @see DeviceEvent#getOption(Device.ParameterName)
      * @see OperationResultValue
      * @see Result.CALL#RINGS
-     * @see Result.CALL#DISCONNECT
-     * @see Result#TIMEOUT
      * @see Result#TERMINATED
      */
     protected void proceedDeviceSpecificEvent(final DeviceEvent<H> event) {
         final Optional<OperationResultValue> eventReason = event.getOption(DeviceEvent.Option.REASON);
         if (eventReason.isPresent()) {
-            // getting event's reason
+            // getting the event's reason
             final OperationResultValue reason = eventReason.get();
+            // analyze it
             if (reason == Result.CALL.RINGS) {
-                incomingCallDetected(event);
-            } else if (reason == Result.CALL.DISCONNECT) {
-                disconnectedCallDetected(event);
-            } else if (reason == Result.TIMEOUT) {
-                timeoutDetected(event);
+                // detected incoming telephony call
+                incomingCallIsDetected(event);
             } else if (reason == Result.TERMINATED) {
-                terminationDetected(event);
+                // terminating the current operation
+                operationTerminationIsDetected();
+            } else {
+                // other event types just completing the operation which is waiting for complete
+                operationComplete(reason);
             }
         }
     }
 
-    /**
-     * Enumeration: Parameter names for telephony device activity
-     */
-    enum Parameter implements Device.ParameterName {
-        RESULT("OPERATION-RESULT"),
-        LATCH("OPERATION-LATCH"),
-        JOINT("JOINT-SESSIONS-SET"),
-        CALLED("PHONE-CALL-CALLED-NUMBER"),
-        CALLING("PHONE-CALL-CALLING-NUMBER");
-        private final String name;
-
-        Parameter(String name) {
-            this.name = name;
-        }
-
-        @Override
-        public String value() {
-            return name.toLowerCase();
-        }
-    }
 
     /// private methods
     // detected incoming telephony call
-    private void incomingCallDetected(final DeviceEvent<H> event) {
+    // accepted event with 'rings' reason
+    private void incomingCallIsDetected(final DeviceEvent<H> event) {
         final DeviceStateValue currentState = getState();
         if (currentState == WAIT) {
             // detected incoming call event for session in WAIT state
             // completing the wait for call operation
             operationComplete(Result.CALL.RINGS);
-        } else if (currentState == IDLE) {
+        } else if (currentState == IDLE && isDisconnected()) {
             // detected incoming call event for session in IDLE state
+            // and phone call isn't alive as well
             // rethrowing the device event as incoming one
             getDevice().getFactory().onDeviceEvent(incoming(event));
         }
     }
 
-    // detected telephony call disconnection
-    private void disconnectedCallDetected(DeviceEvent<?> event) {
-
-    }
-
-    // telephony operation timeout detected
-    private void timeoutDetected(DeviceEvent<?> event) {
-
-    }
-
-    // telephony operation termination detected
-    private void terminationDetected(DeviceEvent<?> event) {
-
+    // accepted event with 'terminate' reason
+    private void operationTerminationIsDetected() {
+        try {
+            getDevice().terminate(this);
+        } catch (IOException e) {
+            getDevice().dispatchError(e, "Cannot process termination event");
+        }
     }
 }
