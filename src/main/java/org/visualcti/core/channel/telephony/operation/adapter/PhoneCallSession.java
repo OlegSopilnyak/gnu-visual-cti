@@ -242,7 +242,6 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
         // preparing running operation's latch
         final CountDownLatch latch = new CountDownLatch(1);
         parameter(Parameter.LATCH, latch);
-        operationResult(Result.NONE);
         if (timeout > 0) {
             // start waiting until operation complete or timeout
             if (latch.await(timeout, TimeUnit.MILLISECONDS)) {

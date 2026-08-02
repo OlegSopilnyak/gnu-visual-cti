@@ -230,6 +230,7 @@ public class AbstractFaxMachineEngineTest<H> {
         verify(session).setState(Device.State.IDLE);
         verify(provider).stopFaxReceiving(deviceHandle);
         // check results
+        assertThat(session.isTerminated()).isFalse();
         assertThat(result).isSameAs(Result.IO.EOF);
         assertThat(output.exists()).isTrue();
         try (BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(output)))) {
@@ -552,6 +553,69 @@ public class AbstractFaxMachineEngineTest<H> {
     }
 
     @Test
+    public void shouldTerminateFaxReceiving() throws InterruptedException, IOException {
+        // preparing test data
+        String faxContent = "Fax Document Content";
+        boolean poolingMode = true;
+        boolean issueVoiceRequest = true;
+        OperationResultValue result;
+        File output = File.createTempFile("fax-document", ".fax");
+        output.deleteOnExit();
+        Runnable completeRunnable = () -> {
+            File tempFaxFile = session.parameter(FaxMachineEngine.Parameter.FAX_TEMPORARY);
+            try (OutputStream out = new FileOutputStream(tempFaxFile)) {
+                out.write(faxContent.getBytes());
+                // terminating fax document transmitting operation
+                engine.terminate(session);
+            } catch (IOException e) {
+                // doing nothing here
+            }
+        };
+        engine.uses(device);
+        doReturn(true).when(engine).canFax();
+        doReturn(deviceHandle).when(provider).openFaxResource(deviceName);
+        engine.open(session);
+        assertThat(engine.isOpened(session)).isTrue();
+        session.alive(true);
+        reset(engine, provider);
+        doReturn(true).when(provider).startFaxReceiving(eq(deviceHandle), anyString(), eq(issueVoiceRequest));
+
+        // acting
+        executor.schedule(completeRunnable, 100, TimeUnit.MILLISECONDS);
+        try (OutputStream out = new FileOutputStream(output)) {
+            result = engine.receive(session, out, poolingMode, issueVoiceRequest);
+        }
+
+        // check the behavior
+        verify(engine, atLeastOnce()).isOpened(session);
+        verify(device, atLeastOnce()).getProvider();
+        verify(session, atLeastOnce()).parameter(Device.Parameter.FAX_DEVICE_HANDLE);
+        verify(provider, atLeastOnce()).disableEvents(deviceHandle);
+        verify(provider).enableEvents(deviceHandle, Result.CALL.DISCONNECT);
+        if (poolingMode) {
+            verify(provider).enableEvents(deviceHandle, Result.FAX.POLLING);
+        }
+        verify(session).setState(TelephonyDevice.State.RECVFAX);
+        verify(session).parameter(eq(FaxMachineEngine.Parameter.FAX_TEMPORARY), any(File.class));
+        verify(provider).startFaxReceiving(eq(deviceHandle), anyString(), eq(issueVoiceRequest));
+        verify(session).waitForOperationComplete(anyLong());
+        verify(engine).terminate(session);
+        verify(session).operationComplete(Result.TERMINATED);
+        verify(session).terminate();
+        verify(session).setState(Device.State.IDLE);
+        verify(provider).stopFaxReceiving(deviceHandle);
+        // check results
+        assertThat(session.isTerminated()).isTrue();
+        assertThat(result).isSameAs(Result.TERMINATED);
+        assertThat(output.exists()).isTrue();
+        try (BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(output)))) {
+            assertThat(in.readLine()).isNull();
+        }
+        assertThat(output.delete()).isTrue();
+        assertThat(session.getState()).isEqualTo(Device.State.IDLE);
+    }
+
+    @Test
     public void shouldTransmitFaxDocument() throws IOException, InterruptedException {
         // preparing test data
         String faxContent = "Fax Document Content";
@@ -590,6 +654,7 @@ public class AbstractFaxMachineEngineTest<H> {
         verify(provider, atLeastOnce()).disableEvents(deviceHandle);
         verify(provider).enableEvents(deviceHandle, Result.CALL.DISCONNECT);
         verify(session).setState(TelephonyDevice.State.SENDFAX);
+        verify(session).parameter(eq(FaxMachineEngine.Parameter.FAX_TEMPORARY), any(File.class));
         verify(provider).startFaxTransmitting(eq(deviceHandle), anyString(), eq(issueVoiceRequest),
                 eq(format.isTIFF()), eq(format.isHighResolution()), anyInt(), anyInt());
         verify(session).operationComplete(Result.NONE);
@@ -598,6 +663,7 @@ public class AbstractFaxMachineEngineTest<H> {
         verify(session).setState(Device.State.IDLE);
         verify(provider).stopFaxTransmitting(deviceHandle);
         // check results
+        assertThat(session.isTerminated()).isFalse();
         assertThat(result).isSameAs(Result.IO.EOF);
         assertThat(tempFile.exists()).isTrue();
         try (BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(tempFile)))) {
@@ -630,7 +696,7 @@ public class AbstractFaxMachineEngineTest<H> {
         Fax format = Fax.TEXT;
         boolean issueVoiceRequest = true;
         OperationResultValue result;
-                File tempFile = File.createTempFile("fax-document", ".tiff");
+        File tempFile = File.createTempFile("fax-document", ".tiff");
         try (OutputStream out = new FileOutputStream(tempFile)) {
             out.write(faxContent.getBytes());
         }
@@ -655,6 +721,7 @@ public class AbstractFaxMachineEngineTest<H> {
         verify(provider, atLeastOnce()).disableEvents(deviceHandle);
         verify(provider).enableEvents(deviceHandle, Result.CALL.DISCONNECT);
         verify(session).setState(TelephonyDevice.State.SENDFAX);
+        verify(session).parameter(eq(FaxMachineEngine.Parameter.FAX_TEMPORARY), any(File.class));
         verify(provider).startFaxTransmitting(eq(deviceHandle), anyString(), eq(issueVoiceRequest),
                 eq(format.isTIFF()), eq(format.isHighResolution()), anyInt(), anyInt());
         ArgumentCaptor<Exception> exceptionCaptor = ArgumentCaptor.forClass(Exception.class);
@@ -670,6 +737,394 @@ public class AbstractFaxMachineEngineTest<H> {
     }
 
     @Test
-    public void terminate() {
+    public void shouldNotTransmitFaxDocument_Disconnected() throws IOException, ExecutionException, InterruptedException {
+        // preparing test data
+        String faxContent = "Fax Document Content";
+        Fax format = Fax.TEXT;
+        boolean issueVoiceRequest = true;
+        OperationResultValue reason = Result.CALL.DISCONNECT;
+        OperationResultValue result;
+        File tempFile = File.createTempFile("fax-document", ".tiff");
+        try (OutputStream out = new FileOutputStream(tempFile)) {
+            out.write(faxContent.getBytes());
+        }
+        tempFile.deleteOnExit();
+        engine.uses(device);
+        doReturn(true).when(engine).canFax();
+        doReturn(deviceHandle).when(provider).openFaxResource(deviceName);
+        engine.open(session);
+        assertThat(engine.isOpened(session)).isTrue();
+        session.alive(true);
+        reset(engine, provider);
+        doReturn(true).when(provider).startFaxTransmitting(eq(deviceHandle), anyString(), eq(issueVoiceRequest),
+                eq(format.isTIFF()), eq(format.isHighResolution()), anyInt(), anyInt());
+
+        // acting
+        Future<OperationResultValue> acting = executor.submit(() -> {
+            try (InputStream in = new FileInputStream(tempFile)) {
+                return engine.transmit(session, in, format, issueVoiceRequest);
+            } catch (IOException e) {
+                return Result.ERROR;
+            }
+        });
+        await().until(() -> session.operationIsActive());
+        executor.schedule(() -> {
+            session.alive(false);
+            session.operationComplete(reason);
+        }, 50, TimeUnit.MILLISECONDS);
+        result = acting.get();
+
+        // check the behavior
+        verify(engine).isOpened(session);
+        verify(device, atLeastOnce()).getProvider();
+        verify(session, atLeastOnce()).parameter(Device.Parameter.FAX_DEVICE_HANDLE);
+        verify(provider, atLeastOnce()).disableEvents(deviceHandle);
+        verify(provider).enableEvents(deviceHandle, reason);
+        verify(session).setState(TelephonyDevice.State.SENDFAX);
+        verify(session).parameter(eq(FaxMachineEngine.Parameter.FAX_TEMPORARY), any(File.class));
+        verify(provider).startFaxTransmitting(eq(deviceHandle), anyString(), eq(issueVoiceRequest),
+                eq(format.isTIFF()), eq(format.isHighResolution()), anyInt(), anyInt());
+        verify(session).alive(false);
+        verify(session).operationComplete(reason);
+        verify(session).setState(Device.State.ERROR);
+        verify(device).dispatchError("Send fax document is failed.");
+        verify(provider).stopFaxTransmitting(deviceHandle);
+        // check results
+        assertThat(result).isSameAs(session.operationResult()).isSameAs(reason);
+        assertThat(session.getState()).isEqualTo(Device.State.ERROR);
+    }
+
+    @Test
+    public void shouldNotTransmitFaxDocument_FaxTransmittingTimeout() throws IOException, ExecutionException, InterruptedException {
+        // preparing test data
+        String faxContent = "Fax Document Content";
+        Fax format = Fax.TEXT;
+        boolean issueVoiceRequest = true;
+        OperationResultValue reason = Result.TIMEOUT;
+        OperationResultValue result;
+        File tempFile = File.createTempFile("fax-document", ".tiff");
+        try (OutputStream out = new FileOutputStream(tempFile)) {
+            out.write(faxContent.getBytes());
+        }
+        tempFile.deleteOnExit();
+        engine.uses(device);
+        doReturn(true).when(engine).canFax();
+        doReturn(deviceHandle).when(provider).openFaxResource(deviceName);
+        engine.open(session);
+        assertThat(engine.isOpened(session)).isTrue();
+        session.alive(true);
+        reset(engine, provider);
+        doReturn(true).when(provider).startFaxTransmitting(eq(deviceHandle), anyString(), eq(issueVoiceRequest),
+                eq(format.isTIFF()), eq(format.isHighResolution()), anyInt(), anyInt());
+
+        // acting
+        Future<OperationResultValue> acting = executor.submit(() -> {
+            try (InputStream in = new FileInputStream(tempFile)) {
+                return engine.transmit(session, in, format, issueVoiceRequest);
+            } catch (IOException e) {
+                return Result.ERROR;
+            }
+        });
+        await().until(() -> session.operationIsActive());
+        executor.schedule(() -> session.operationComplete(reason), 50, TimeUnit.MILLISECONDS);
+        result = acting.get();
+
+        // check the behavior
+        verify(engine).isOpened(session);
+        verify(device, atLeastOnce()).getProvider();
+        verify(session, atLeastOnce()).parameter(Device.Parameter.FAX_DEVICE_HANDLE);
+        verify(provider, atLeastOnce()).disableEvents(deviceHandle);
+        verify(provider).enableEvents(deviceHandle, Result.CALL.DISCONNECT);
+        verify(session).setState(TelephonyDevice.State.SENDFAX);
+        verify(session).parameter(eq(FaxMachineEngine.Parameter.FAX_TEMPORARY), any(File.class));
+        verify(provider).startFaxTransmitting(eq(deviceHandle), anyString(), eq(issueVoiceRequest),
+                eq(format.isTIFF()), eq(format.isHighResolution()), anyInt(), anyInt());
+        verify(session).operationComplete(reason);
+        verify(session).setState(Device.State.ERROR);
+        verify(device).dispatchError("Send fax document is failed.");
+        verify(provider).stopFaxTransmitting(deviceHandle);
+        // check results
+        assertThat(result).isSameAs(session.operationResult()).isSameAs(reason);
+        assertThat(session.getState()).isEqualTo(Device.State.ERROR);
+    }
+
+    @Test
+    public void shouldNotTransmitFaxDocument_FailedCommunicationError() throws IOException, ExecutionException, InterruptedException {
+        // preparing test data
+        String faxContent = "Fax Document Content";
+        Fax format = Fax.TEXT;
+        boolean issueVoiceRequest = true;
+        OperationResultValue reason = Result.FAX.COMMUNICATION_ERROR;
+        OperationResultValue result;
+        File tempFile = File.createTempFile("fax-document", ".tiff");
+        try (OutputStream out = new FileOutputStream(tempFile)) {
+            out.write(faxContent.getBytes());
+        }
+        tempFile.deleteOnExit();
+        engine.uses(device);
+        doReturn(true).when(engine).canFax();
+        doReturn(deviceHandle).when(provider).openFaxResource(deviceName);
+        engine.open(session);
+        assertThat(engine.isOpened(session)).isTrue();
+        session.alive(true);
+        reset(engine, provider);
+        doReturn(true).when(provider).startFaxTransmitting(eq(deviceHandle), anyString(), eq(issueVoiceRequest),
+                eq(format.isTIFF()), eq(format.isHighResolution()), anyInt(), anyInt());
+
+        // acting
+        Future<OperationResultValue> acting = executor.submit(() -> {
+            try (InputStream in = new FileInputStream(tempFile)) {
+                return engine.transmit(session, in, format, issueVoiceRequest);
+            } catch (IOException e) {
+                return Result.ERROR;
+            }
+        });
+        await().until(() -> session.operationIsActive());
+        executor.schedule(() -> session.operationComplete(reason), 50, TimeUnit.MILLISECONDS);
+        result = acting.get();
+
+        // check the behavior
+        verify(engine).isOpened(session);
+        verify(device, atLeastOnce()).getProvider();
+        verify(session, atLeastOnce()).parameter(Device.Parameter.FAX_DEVICE_HANDLE);
+        verify(provider, atLeastOnce()).disableEvents(deviceHandle);
+        verify(provider).enableEvents(deviceHandle, Result.CALL.DISCONNECT);
+        verify(session).setState(TelephonyDevice.State.SENDFAX);
+        verify(session).parameter(eq(FaxMachineEngine.Parameter.FAX_TEMPORARY), any(File.class));
+        verify(provider).startFaxTransmitting(eq(deviceHandle), anyString(), eq(issueVoiceRequest),
+                eq(format.isTIFF()), eq(format.isHighResolution()), anyInt(), anyInt());
+        verify(session).operationComplete(reason);
+        verify(session).setState(Device.State.ERROR);
+        verify(device).dispatchError("Send fax document is failed.");
+        verify(provider).stopFaxTransmitting(deviceHandle);
+        // check results
+        assertThat(result).isSameAs(session.operationResult()).isSameAs(reason);
+        assertThat(session.getState()).isEqualTo(Device.State.ERROR);
+    }
+
+    @Test
+    public void shouldNotTransmitFaxDocument_FailedCompatibility() throws IOException, ExecutionException, InterruptedException {
+        // preparing test data
+        String faxContent = "Fax Document Content";
+        Fax format = Fax.TEXT;
+        boolean issueVoiceRequest = true;
+        OperationResultValue reason = Result.FAX.COMPATIBILITY;
+        OperationResultValue result;
+        File tempFile = File.createTempFile("fax-document", ".tiff");
+        try (OutputStream out = new FileOutputStream(tempFile)) {
+            out.write(faxContent.getBytes());
+        }
+        tempFile.deleteOnExit();
+        engine.uses(device);
+        doReturn(true).when(engine).canFax();
+        doReturn(deviceHandle).when(provider).openFaxResource(deviceName);
+        engine.open(session);
+        assertThat(engine.isOpened(session)).isTrue();
+        session.alive(true);
+        reset(engine, provider);
+        doReturn(true).when(provider).startFaxTransmitting(eq(deviceHandle), anyString(), eq(issueVoiceRequest),
+                eq(format.isTIFF()), eq(format.isHighResolution()), anyInt(), anyInt());
+
+        // acting
+        Future<OperationResultValue> acting = executor.submit(() -> {
+            try (InputStream in = new FileInputStream(tempFile)) {
+                return engine.transmit(session, in, format, issueVoiceRequest);
+            } catch (IOException e) {
+                return Result.ERROR;
+            }
+        });
+        await().until(() -> session.operationIsActive());
+        executor.schedule(() -> session.operationComplete(reason), 50, TimeUnit.MILLISECONDS);
+        result = acting.get();
+
+        // check the behavior
+        verify(engine).isOpened(session);
+        verify(device, atLeastOnce()).getProvider();
+        verify(session, atLeastOnce()).parameter(Device.Parameter.FAX_DEVICE_HANDLE);
+        verify(provider, atLeastOnce()).disableEvents(deviceHandle);
+        verify(provider).enableEvents(deviceHandle, Result.CALL.DISCONNECT);
+        verify(session).setState(TelephonyDevice.State.SENDFAX);
+        verify(session).parameter(eq(FaxMachineEngine.Parameter.FAX_TEMPORARY), any(File.class));
+        verify(provider).startFaxTransmitting(eq(deviceHandle), anyString(), eq(issueVoiceRequest),
+                eq(format.isTIFF()), eq(format.isHighResolution()), anyInt(), anyInt());
+        verify(session).operationComplete(reason);
+        verify(session).setState(Device.State.ERROR);
+        verify(device).dispatchError("Send fax document is failed.");
+        verify(provider).stopFaxTransmitting(deviceHandle);
+        // check results
+        assertThat(result).isSameAs(session.operationResult()).isSameAs(reason);
+        assertThat(session.getState()).isEqualTo(Device.State.ERROR);
+    }
+
+    @Test
+    public void shouldNotTransmitFaxDocument_FailedNoPoll() throws IOException, ExecutionException, InterruptedException {
+        // preparing test data
+        String faxContent = "Fax Document Content";
+        Fax format = Fax.TEXT;
+        boolean issueVoiceRequest = true;
+        OperationResultValue reason = Result.FAX.NO_POLL;
+        OperationResultValue result;
+        File tempFile = File.createTempFile("fax-document", ".tiff");
+        try (OutputStream out = new FileOutputStream(tempFile)) {
+            out.write(faxContent.getBytes());
+        }
+        tempFile.deleteOnExit();
+        engine.uses(device);
+        doReturn(true).when(engine).canFax();
+        doReturn(deviceHandle).when(provider).openFaxResource(deviceName);
+        engine.open(session);
+        assertThat(engine.isOpened(session)).isTrue();
+        session.alive(true);
+        reset(engine, provider);
+        doReturn(true).when(provider).startFaxTransmitting(eq(deviceHandle), anyString(), eq(issueVoiceRequest),
+                eq(format.isTIFF()), eq(format.isHighResolution()), anyInt(), anyInt());
+
+        // acting
+        Future<OperationResultValue> acting = executor.submit(() -> {
+            try (InputStream in = new FileInputStream(tempFile)) {
+                return engine.transmit(session, in, format, issueVoiceRequest);
+            } catch (IOException e) {
+                return Result.ERROR;
+            }
+        });
+        await().until(() -> session.operationIsActive());
+        executor.schedule(() -> session.operationComplete(reason), 50, TimeUnit.MILLISECONDS);
+        result = acting.get();
+
+        // check the behavior
+        verify(engine).isOpened(session);
+        verify(device, atLeastOnce()).getProvider();
+        verify(session, atLeastOnce()).parameter(Device.Parameter.FAX_DEVICE_HANDLE);
+        verify(provider, atLeastOnce()).disableEvents(deviceHandle);
+        verify(provider).enableEvents(deviceHandle, Result.CALL.DISCONNECT);
+        verify(session).setState(TelephonyDevice.State.SENDFAX);
+        verify(session).parameter(eq(FaxMachineEngine.Parameter.FAX_TEMPORARY), any(File.class));
+        verify(provider).startFaxTransmitting(eq(deviceHandle), anyString(), eq(issueVoiceRequest),
+                eq(format.isTIFF()), eq(format.isHighResolution()), anyInt(), anyInt());
+        verify(session).operationComplete(reason);
+        verify(session).setState(Device.State.ERROR);
+        verify(device).dispatchError("Send fax document is failed.");
+        verify(provider).stopFaxTransmitting(deviceHandle);
+        // check results
+        assertThat(result).isSameAs(session.operationResult()).isSameAs(reason);
+        assertThat(session.getState()).isEqualTo(Device.State.ERROR);
+    }
+
+    @Test
+    public void shouldNotTransmitFaxDocument_FailedUserStop() throws IOException, ExecutionException, InterruptedException {
+        // preparing test data
+        String faxContent = "Fax Document Content";
+        Fax format = Fax.TEXT;
+        boolean issueVoiceRequest = true;
+        OperationResultValue reason = Result.FAX.USER_STOP;
+        OperationResultValue result;
+        File tempFile = File.createTempFile("fax-document", ".tiff");
+        try (OutputStream out = new FileOutputStream(tempFile)) {
+            out.write(faxContent.getBytes());
+        }
+        tempFile.deleteOnExit();
+        engine.uses(device);
+        doReturn(true).when(engine).canFax();
+        doReturn(deviceHandle).when(provider).openFaxResource(deviceName);
+        engine.open(session);
+        assertThat(engine.isOpened(session)).isTrue();
+        session.alive(true);
+        reset(engine, provider);
+        doReturn(true).when(provider).startFaxTransmitting(eq(deviceHandle), anyString(), eq(issueVoiceRequest),
+                eq(format.isTIFF()), eq(format.isHighResolution()), anyInt(), anyInt());
+
+        // acting
+        Future<OperationResultValue> acting = executor.submit(() -> {
+            try (InputStream in = new FileInputStream(tempFile)) {
+                return engine.transmit(session, in, format, issueVoiceRequest);
+            } catch (IOException e) {
+                return Result.ERROR;
+            }
+        });
+        await().until(() -> session.operationIsActive());
+        executor.schedule(() -> session.operationComplete(reason), 50, TimeUnit.MILLISECONDS);
+        result = acting.get();
+
+        // check the behavior
+        verify(engine).isOpened(session);
+        verify(device, atLeastOnce()).getProvider();
+        verify(session, atLeastOnce()).parameter(Device.Parameter.FAX_DEVICE_HANDLE);
+        verify(provider, atLeastOnce()).disableEvents(deviceHandle);
+        verify(provider).enableEvents(deviceHandle, Result.CALL.DISCONNECT);
+        verify(session).setState(TelephonyDevice.State.SENDFAX);
+        verify(session).parameter(eq(FaxMachineEngine.Parameter.FAX_TEMPORARY), any(File.class));
+        verify(provider).startFaxTransmitting(eq(deviceHandle), anyString(), eq(issueVoiceRequest),
+                eq(format.isTIFF()), eq(format.isHighResolution()), anyInt(), anyInt());
+        verify(session).operationComplete(reason);
+        verify(session).setState(Device.State.ERROR);
+        verify(device).dispatchError("Send fax document is failed.");
+        verify(provider).stopFaxTransmitting(deviceHandle);
+        // check results
+        assertThat(result).isSameAs(session.operationResult()).isSameAs(reason);
+        assertThat(session.getState()).isEqualTo(Device.State.ERROR);
+    }
+
+    @Test
+    public void shouldTerminateFaxTransmitting() throws IOException, InterruptedException {
+        // preparing test data
+        String faxContent = "Fax Document Content";
+        Fax format = Fax.TEXT;
+        boolean issueVoiceRequest = true;
+        OperationResultValue result;
+        File tempFile = File.createTempFile("fax-document", ".tiff");
+        try (OutputStream out = new FileOutputStream(tempFile)) {
+            out.write(faxContent.getBytes());
+        }
+        tempFile.deleteOnExit();
+        Runnable completeRunnable = () -> {
+            try {
+                // terminating fax document transmitting operation
+                engine.terminate(session);
+            } catch (IOException e) {
+                // doing nothing here
+            }
+        };
+        engine.uses(device);
+        doReturn(true).when(engine).canFax();
+        doReturn(deviceHandle).when(provider).openFaxResource(deviceName);
+        engine.open(session);
+        assertThat(engine.isOpened(session)).isTrue();
+        session.alive(true);
+        reset(engine, provider);
+        doReturn(true).when(provider).startFaxTransmitting(eq(deviceHandle), anyString(), eq(issueVoiceRequest),
+                eq(format.isTIFF()), eq(format.isHighResolution()), anyInt(), anyInt());
+
+        // acting
+        executor.schedule(completeRunnable, 100, TimeUnit.MILLISECONDS);
+        try (InputStream in = new FileInputStream(tempFile)) {
+            result = engine.transmit(session, in, format, issueVoiceRequest);
+        }
+
+        // check the behavior
+        verify(engine, atLeastOnce()).isOpened(session);
+        verify(device, atLeastOnce()).getProvider();
+        verify(session, atLeastOnce()).parameter(Device.Parameter.FAX_DEVICE_HANDLE);
+        verify(provider, atLeastOnce()).disableEvents(deviceHandle);
+        verify(provider).enableEvents(deviceHandle, Result.CALL.DISCONNECT);
+        verify(session).setState(TelephonyDevice.State.SENDFAX);
+        verify(session).parameter(eq(FaxMachineEngine.Parameter.FAX_TEMPORARY), any(File.class));
+        verify(provider).startFaxTransmitting(eq(deviceHandle), anyString(), eq(issueVoiceRequest),
+                eq(format.isTIFF()), eq(format.isHighResolution()), anyInt(), anyInt());
+        verify(session).operationComplete(Result.NONE);
+        verify(session).waitForOperationComplete(anyLong());
+        verify(engine).terminate(session);
+        verify(session).operationComplete(Result.TERMINATED);
+        verify(session).terminate();
+        verify(session).setState(Device.State.IDLE);
+        verify(provider).stopFaxTransmitting(deviceHandle);
+        // check results
+        assertThat(session.isTerminated()).isTrue();
+        assertThat(result).isSameAs(Result.TERMINATED);
+        assertThat(tempFile.exists()).isTrue();
+        try (BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(tempFile)))) {
+            assertThat(in.readLine()).isEqualTo(faxContent);
+        }
+        assertThat(tempFile.delete()).isTrue();
+        assertThat(session.getState()).isEqualTo(Device.State.IDLE);
     }
 }

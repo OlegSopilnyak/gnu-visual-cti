@@ -177,22 +177,29 @@ public class AbstractFaxMachineEngine<H> extends AbstractDevicePart<H> implement
                         }
                     } else if (session.isTerminated()) {
                         // operation termination is detected
-                        // stop fax's transmitting
-                        serviceProvider.stopFaxReceiving(faxDeviceHandle);
+                        // removing unnecessary temp file
+                        if (tempFile.delete()) {
+                            session.operationResult(Result.TERMINATED);
+                            session.setState(Device.State.IDLE);
+                        }
                         return Result.TERMINATED;
                     } else if (session.isDisconnected()) {
                         session.getDevice().dispatchError("Receive fax document is failed.");
                         // stop fax's transmitting
                         serviceProvider.stopFaxReceiving(faxDeviceHandle);
-                        session.operationResult(Result.CALL.DISCONNECT);
-                        session.setState(Device.State.ERROR);
+                        // removing unnecessary temp file
+                        if (tempFile.delete()) {
+                            session.operationResult(Result.CALL.DISCONNECT);
+                            session.setState(Device.State.ERROR);
+                        }
                         return Result.CALL.DISCONNECT;
                     } else if (faxOperationFailed.test(operationResult)) {
                         session.getDevice().dispatchError("Receive fax document is failed.");
                         session.setState(Device.State.ERROR);
                         // stop fax's transmitting
                         serviceProvider.stopFaxReceiving(faxDeviceHandle);
-                        return operationResult;
+                        // removing unnecessary temp file
+                        return tempFile.delete() ? operationResult : Result.ERROR;
                     }
                 }
                 // stop fax's transmitting
@@ -201,6 +208,7 @@ public class AbstractFaxMachineEngine<H> extends AbstractDevicePart<H> implement
                 serviceProvider.disableEvents(faxDeviceHandle);
                 // make receive fax operation is complete
                 session.setState(Device.State.IDLE);
+                // removing unnecessary temp file
                 return session.operationResult();
             } catch (IOException e) {
                 session.getDevice().dispatchError(e, "Cannot  receive fax file");
@@ -252,6 +260,8 @@ public class AbstractFaxMachineEngine<H> extends AbstractDevicePart<H> implement
                 tempFile = File.createTempFile(session.getDevice().getName(), ".fax");
                 copyTransmittingData(tempFile, source);
                 tempFile.deleteOnExit();
+                // saving the file for tests purposes
+                session.parameter(Parameter.FAX_TEMPORARY, tempFile);
                 // starting fax receiving operation
                 final boolean starting = serviceProvider.startFaxTransmitting(
                         faxDeviceHandle, tempFile.getAbsolutePath(), issueVoiceRequest,
@@ -276,8 +286,11 @@ public class AbstractFaxMachineEngine<H> extends AbstractDevicePart<H> implement
                         }
                     } else if (session.isTerminated()) {
                         // operation termination is detected
-                        // stop fax's transmitting
-                        serviceProvider.stopFaxTransmitting(faxDeviceHandle);
+                        // removing unnecessary temp file
+                        if (tempFile.delete()) {
+                            session.operationResult(Result.TERMINATED);
+                            session.setState(Device.State.IDLE);
+                        }
                         return Result.TERMINATED;
                     } else if (session.isDisconnected()) {
                         session.getDevice().dispatchError("Send fax document is failed.");
