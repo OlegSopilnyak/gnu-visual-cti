@@ -484,4 +484,45 @@ public class PhoneCallSessionTest {
         verify(device).terminate(session);
         // check results
     }
+
+    @Test
+    public void shouldAccept_MalfunctionEvent() {
+        // preparing test data
+        doReturn(deviceName).when(device).getName();
+        TelephonyDeviceFactory<String, ?> factory = mock(TelephonyDeviceFactory.class);
+        doReturn(factory).when(device).getFactory();
+        DeviceEvent<String> event = spy(AbstractDeviceEvent.<String>of(DeviceEvent.Type.MALFUNCTION)
+                .deviceName(deviceName).deviceHandle(handle)
+                .option(DeviceEvent.Option.REASON, Result.CALL.RINGS)
+        );
+
+        // acting
+        boolean succeed = session.accept(event);
+
+        // check the behavior
+        verify(session, never()).proceedDeviceSpecificEvent(event);
+        // check results
+        assertThat(succeed).isTrue();
+    }
+
+    @Test
+    public void shouldProceedDeviceMalfunctionEvent() {
+        // preparing test data
+        String errorDescription = "error description";
+        doReturn(deviceName).when(device).getName();
+        TelephonyDeviceFactory<String, ?> factory = mock(TelephonyDeviceFactory.class);
+        doReturn(factory).when(device).getFactory();
+        DeviceEvent<String> event = spy(AbstractDeviceEvent.<String>of(DeviceEvent.Type.MALFUNCTION)
+                .deviceName(deviceName).deviceHandle(handle).description(errorDescription)
+        );
+
+        // acting
+        boolean accepted = session.accept(event);
+
+        // check the behavior
+        verify(device).dispatchError(errorDescription);
+        verify(session).operationComplete(Result.ERROR);
+        // check results
+        assertThat(accepted).isTrue();
+    }
 }

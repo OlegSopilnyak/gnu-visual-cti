@@ -409,6 +409,11 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
         if (event.getEventType() == DeviceEvent.Type.DEVICE_SPECIFIC) {
             // the telephony operation's event accepted, processing it
             proceedDeviceSpecificEvent((DeviceEvent<H>) event);
+        } else if (event.getEventType() == DeviceEvent.Type.MALFUNCTION) {
+            // signaling about device's malfunction
+            device.dispatchError(String.valueOf(event.getDescription()));
+            // the malfunction is detected during device's operation
+            operationComplete(Result.ERROR);
         }
         // accepted event is processed well
         return true;
