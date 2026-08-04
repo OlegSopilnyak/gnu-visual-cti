@@ -119,12 +119,13 @@ public class AbstractTonesEngine<H> extends AbstractDevicePart<H> implements Ton
                 // calculating the timeout time
                 final long timeout = (long) (time * 1000L);
                 if (timeout <= 0) {
-                    // start the operation is failed (wrong tone sending timeout) Exception won't throw
-                    onDeviceError(session, "Tone sending time is too short.", false);
                     // stopping tone generation
                     serviceProvider.stopToneSending(deviceHandle);
+                    // start the operation is failed (wrong tone sending timeout) Exception won't throw
+                    onDeviceError(session, "Tone sending time is too short.", false);
                     // make send tone operation is complete
                     session.setState(Device.State.IDLE);
+                    session.operationResult(Result.ERROR);
                     return;
                 }
                 // waiting for the timeout time
@@ -132,6 +133,8 @@ public class AbstractTonesEngine<H> extends AbstractDevicePart<H> implements Ton
                     session.waitForOperationComplete(timeout);
                     // checking the operation result value after waiting operation complete
                     if (session.operationResult() == Result.ERROR) {
+                        // stopping tone generation
+                        serviceProvider.stopToneSending(deviceHandle);
                         // device error is detected
                         onDeviceError(session, "Tone sending is failed.");
                         return;
@@ -148,6 +151,7 @@ public class AbstractTonesEngine<H> extends AbstractDevicePart<H> implements Ton
             } else {
                 // start the operation is failed Exception won't throw
                 onDeviceError(session, "Start tone sending is failed.", false);
+                session.operationResult(Result.ERROR);
                 return;
             }
             // operation is complete

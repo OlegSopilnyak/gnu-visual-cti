@@ -52,13 +52,17 @@ import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.operation.ToneId;
+import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 
-public class TonesEngineTest {
+@SuppressWarnings({"unchecked", "rawtypes"})
+public class TonesEngineTest<H> {
     TonesEngine engine;
+    PhoneCallSession<H> session;
 
     @Before
     public void setUp() {
         engine = mock(TonesEngine.class);
+        session = mock(PhoneCallSession.class);
     }
 
     @Test
@@ -67,10 +71,10 @@ public class TonesEngineTest {
         String phoneNumber = "123456";
 
         // acting
-        engine.dial(phoneNumber);
+        engine.dial(session, phoneNumber);
 
         // check results
-        verify(engine).dial(phoneNumber);
+        verify(engine).dial(session, phoneNumber);
     }
 
     @Test
@@ -80,24 +84,24 @@ public class TonesEngineTest {
         float duration = 0.5F;
 
         // acting
-        engine.playTone(toneId , duration);
+        engine.playTone(session, toneId , duration);
 
         // check results
-        verify(engine).playTone(toneId , duration);
+        verify(engine).playTone(session, toneId , duration);
     }
 
     @Test
     public void shouldPlayToneWithDefaultDuration() {
         // preparing test data
         ToneId toneId = ToneId.BEEP;
-        doCallRealMethod().when(engine).playTone(any(ToneId.class));
+        doCallRealMethod().when(engine).playTone(eq(session), any(ToneId.class));
 
         // acting
-        engine.playTone(toneId);
+        engine.playTone(session, toneId);
 
         // check results
         ArgumentCaptor<Float> argumentCaptor = ArgumentCaptor.forClass(Float.class);
-        verify(engine).playTone(eq(toneId) , argumentCaptor.capture());
+        verify(engine).playTone(eq(session), eq(toneId) , argumentCaptor.capture());
         assertThat(argumentCaptor.getValue()).isEqualTo(0.5F);
     }
 
@@ -108,15 +112,15 @@ public class TonesEngineTest {
         int count = 1;
         int timeout = 5;
         String mask = "#";
-        doReturn(resultValue).when(engine).inputDigits(anyInt(), anyInt(), anyString());
+        doReturn(resultValue).when(engine).inputDigits(eq(session), anyInt(), anyInt(), anyString());
 
         // acting
-        OperationResultValue result = engine.inputDigits(count, timeout, mask);
+        OperationResultValue result = engine.inputDigits(session, count, timeout, mask);
 
         // check results
         assertThat(result).isSameAs(resultValue);
         ArgumentCaptor<String> argumentCaptor = ArgumentCaptor.forClass(String.class);
-        verify(engine).inputDigits(eq(count), eq(timeout), argumentCaptor.capture());
+        verify(engine).inputDigits(eq(session), eq(count), eq(timeout), argumentCaptor.capture());
         assertThat(argumentCaptor.getValue()).isSameAs(mask);
     }
 
@@ -124,10 +128,10 @@ public class TonesEngineTest {
     public void shouldGetInputSymbols() {
         // preparing test data
         String digitsBuffer = "1234567890";
-        doReturn(digitsBuffer).when(engine).getInputSymbols();
+        doReturn(digitsBuffer).when(engine).getInputSymbols(session);
 
         // acting
-        String inputSymbols = engine.getInputSymbols();
+        String inputSymbols = engine.getInputSymbols(session);
 
         // check results
         assertThat(inputSymbols).isSameAs(digitsBuffer);
