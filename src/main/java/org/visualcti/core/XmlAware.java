@@ -69,6 +69,8 @@ public interface XmlAware extends Serializable {
      *
      * @param value string to test
      * @return true if value is empty
+     * @deprecated
+     * @see org.visualcti.server.core.unit.ServerUnit#isEmptyString
      */
     @Deprecated
     default boolean isEmpty(String value) {

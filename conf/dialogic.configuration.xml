@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+##############################################################################
+##
+##  DO NOT REMOVE THIS LICENSE AND COPYRIGHT NOTICE FOR ANY REASON
+##
+##############################################################################
+
+GNU VisualCTI - A Java multi-platform Computer Telephony Application Server
+Copyright (C) 2002 by Oleg Sopilnyak.
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+
+Contact oleg@visualcti.org or gennady@visualcti.org for more information.
+
+Ukraine point of contact: Oleg Sopilnyak - oleg@visualcti.org
+Home Phone:	380-62-3851086 (russian)
+
+USA point of contact: Justin Kuntz - jkuntz@prominic.com
+Prominic Technologies, Inc.
+PO Box 3233
+Champaign, IL 61826-3233
+Fax number: 217-356-3356
+##############################################################################
+
+-->
+<Dialogic>
+  <default>
+    <network>
+      <parameter name="in" type="boolean" value="true" />
+      <parameter name="out" type="boolean" value="true" />
+      <parameter name="share" type="boolean" value="true" />
+    </network>
+    <media>
+      <tone name = "dial" value = "250,400,125,400,125,0,0,0,0,0"/>
+      <tone name = "busy" value = "253,500,200,0,0,55,40,55,40,4"/>
+      <tone name = "ringback" value = "254,450,150,0,0,150,100,550,400,0"/>
+      <tone name = "disconnect" value = "257,900,700,0,0,90,70,90,70,2"/>
+      <format type = "record" value = "OKI/6000" />
+      <format type = "play" value = "OKI/8000" />
+    </media>
+  </default>
+  <device name = "dxxxB1C1" type = "analog">
+    <network>
+      <parameter name="in" type="boolean" value="true" />
+      <parameter name="out" type="boolean" value="true" />
+      <parameter name="share" type="boolean" value="true" />
+      <parameter name="origin" type="string" value="007" />
+    </network>
+    <media>
+      <tone name = "dial" value = "250,400,125,400,125,0,0,0,0,0"/>
+      <tone name = "busy" value = "253,500,200,0,0,55,40,55,40,4"/>
+      <tone name = "ringback" value = "254,450,150,0,0,150,100,550,400,0"/>
+      <tone name = "disconnect" value = "257,900,700,0,0,90,70,90,70,2"/>
+      <format type = "record" value = "ULAW/8000" />
+      <format type = "play" value = "OKI/8000" />
+    </media>
+  </device>
+  <device name = "dxxxB1C2" type = "analog">
+    <network>
+      <parameter name="in" type="boolean" value="true" />
+      <parameter name="out" type="boolean" value="true" />
+      <parameter name="share" type="boolean" value="true" />
+      <parameter name="origin" type="string" value="007" />
+    </network>
+    <media>
+      <tone name = "dial" value = "250,400,125,400,125,0,0,0,0,0"/>
+      <tone name = "busy" value = "253,500,200,0,0,55,40,55,40,4"/>
+      <tone name = "ringback" value = "254,450,150,0,0,150,100,550,400,0"/>
+      <tone name = "disconnect" value = "257,900,700,0,0,90,70,90,70,2"/>
+      <format type = "record" value = "ULAW/8000" />
+      <format type = "play" value = "OKI/8000" />
+    </media>
+  </device>
+  <device name = "dxxxB1C3" type = "analog">
+    <network>
+      <parameter name="in" type="boolean" value="true" />
+      <parameter name="out" type="boolean" value="true" />
+      <parameter name="share" type="boolean" value="true" />
+      <parameter name="origin" type="string" value="007" />
+    </network>
+    <media>
+      <tone name = "dial" value = "250,400,125,400,125,0,0,0,0,0"/>
+      <tone name = "busy" value = "253,500,200,0,0,55,40,55,40,4"/>
+      <tone name = "ringback" value = "254,450,150,0,0,150,100,550,400,0"/>
+      <tone name = "disconnect" value = "257,900,700,0,0,90,70,90,70,2"/>
+      <format type = "record" value = "ULAW/8000" />
+      <format type = "play" value = "OKI/8000" />
+    </media>
+  </device>
+  <device name = "dxxxB1C4" type = "analog">
+    <network>
+      <parameter name="in" type="boolean" value="true" />
+      <parameter name="out" type="boolean" value="true" />
+      <parameter name="share" type="boolean" value="true" />
+      <parameter name="origin" type="string" value="007" />
+    </network>
+    <media>
+      <tone name = "dial" value = "250,400,125,400,125,0,0,0,0,0"/>
+      <tone name = "busy" value = "253,500,200,0,0,55,40,55,40,4"/>
+      <tone name = "ringback" value = "254,450,150,0,0,150,100,550,400,0"/>
+      <tone name = "disconnect" value = "257,900,700,0,0,90,70,90,70,2"/>
+      <format type = "record" value = "LINEAR/8000" />
+      <format type = "play" value = "OKI/8000" />
+    </media>
+  </device>
+</Dialogic>

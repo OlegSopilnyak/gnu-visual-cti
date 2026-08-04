@@ -55,6 +55,30 @@ import org.visualcti.media.Fax;
  */
 public interface FaxMachineEngine<H> extends TelephonyDevicePart<H> {
     /**
+     * Configured Parameter Names Enumeration: The parameter names of call parts of the telephony device
+     */
+    enum Parameter implements Device.ParameterName {
+        // whether device can operate with the fax machines
+        FAX_ALLOWED("FAX"),
+        FAX_TEMPORARY("FAX-TEMP-FILE"),
+        FAX_DEVICE_HANDLE("FAX"),
+        TRANSFERRED_FAX_PAGES("TRANSFERRED PAGES"),
+        REMOTE_FAX_ID("REMOTE FAX LOCAL ID"),
+        FAX_PAGE_HEADER("FAX PAGE HEADER"),
+        LOCAL_FAX_ID("FAX LOCAL ID");
+        private final String name;
+
+        Parameter(String name) {
+            this.name = name;
+        }
+
+        @Override
+        public String value() {
+            return name.toLowerCase();
+        }
+    }
+
+    /**
      * <action>
      * To open and activate the fax-machine on the opened telephony device session
      *
@@ -123,7 +147,7 @@ public interface FaxMachineEngine<H> extends TelephonyDevicePart<H> {
      * @see FaxMachineEngine.Parameter#REMOTE_FAX_ID
      */
     default String getRemoteID(PhoneCallSession<H> session) {
-        return canFax() ? session.parameterOrDefault(Parameter.REMOTE_FAX_ID , "") : "";
+        return canFax() ? session.parameterOrDefault(Parameter.REMOTE_FAX_ID, "") : "";
     }
 
     /**
@@ -239,28 +263,4 @@ public interface FaxMachineEngine<H> extends TelephonyDevicePart<H> {
      * @param description the description of the error
      */
     void dispatchError(Throwable exception, String description);
-
-    /**
-     * Configured Parameter Names Enumeration: The parameter names of call parts of the telephony device
-     */
-    enum Parameter implements Device.ParameterName {
-        // whether device can operate with the fax machines
-        FAX_ALLOWED("FAX"),
-        FAX_TEMPORARY("FAX-TEMP-FILE"),
-        FAX_DEVICE_HANDLE("FAX"),
-        TRANSFERRED_FAX_PAGES("TRANSFERRED PAGES"),
-        REMOTE_FAX_ID("REMOTE FAX LOCAL ID"),
-        FAX_PAGE_HEADER("FAX PAGE HEADER"),
-        LOCAL_FAX_ID("FAX LOCAL ID");
-        private final String name;
-
-        Parameter(String name) {
-            this.name = name;
-        }
-
-        @Override
-        public String value() {
-            return name.toLowerCase();
-        }
-    }
 }

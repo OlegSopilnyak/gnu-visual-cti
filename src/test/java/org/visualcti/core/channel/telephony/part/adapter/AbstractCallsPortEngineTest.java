@@ -96,7 +96,8 @@ public class AbstractCallsPortEngineTest<H> {
         doReturn(provider).when(device).getProvider();
         session = spy(new PhoneCallSession(device, deviceHandle) {
         });
-        engine = spy(new AbstractCallsPortEngine());
+        engine = spy(new AbstractCallsPortEngine() {
+        });
         executor = Executors.newSingleThreadScheduledExecutor();
         deviceEventExecutor = mock(ExecutorService.class);
         eventsProvider = mock(DeviceEvent.Provider.class);
@@ -434,7 +435,7 @@ public class AbstractCallsPortEngineTest<H> {
         verify(session).operationComplete(Result.NONE);
         verify(provider).startCalling(deviceHandle, number, timeout);
         verify(session).waitForOperationComplete(timeout * 1000L);
-        verify(session,atLeastOnce()).operationResult();
+        verify(session, atLeastOnce()).operationResult();
         verify(session).alive(true);
         verify(provider).enableEvents(deviceHandle, Result.CALL.DISCONNECT);
         verify(device, atLeastOnce()).dispatchEvent(anyString());
@@ -470,7 +471,7 @@ public class AbstractCallsPortEngineTest<H> {
         verify(session).operationComplete(Result.NONE);
         verify(provider).startCalling(deviceHandle, number, timeout);
         verify(session).waitForOperationComplete(timeout * 1000L);
-        verify(session,atLeastOnce()).operationResult();
+        verify(session, atLeastOnce()).operationResult();
         verify(session).alive(true);
         verify(provider).enableEvents(deviceHandle, Result.CALL.DISCONNECT);
         verify(device, atLeastOnce()).dispatchEvent(anyString());
@@ -542,7 +543,7 @@ public class AbstractCallsPortEngineTest<H> {
         verify(session).operationComplete(Result.NONE);
         verify(provider).startCalling(deviceHandle, number, timeout);
         verify(session).waitForOperationComplete(timeout * 1000L);
-        verify(session,atLeastOnce()).operationResult();
+        verify(session, atLeastOnce()).operationResult();
         verify(session).alive(false);
         verify(provider).enableEvents(deviceHandle, Result.CALL.DISCONNECT);
         verify(device, atLeastOnce()).dispatchEvent(anyString());

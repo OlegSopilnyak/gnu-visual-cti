@@ -53,14 +53,18 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
+import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.media.Audio;
 
-public class MultiMedeaEngineTest {
-    MultiMedeaEngine engine;
+@SuppressWarnings("unchecked")
+public class MultiMedeaEngineTest<H> {
+    MultimediaEngine<H> engine;
+    PhoneCallSession<H> session;
 
     @Before
     public void setUp() {
-        engine = mock(MultiMedeaEngine.class);
+        engine = mock(MultimediaEngine.class);
+        session = mock(PhoneCallSession.class);
     }
 
     @Test
@@ -118,14 +122,14 @@ public class MultiMedeaEngineTest {
         String mask = "*,#";
         Audio audioFormat = Audio.LINEAR_11;
         int timeout = 5;
-        doReturn(resultValue).when(engine).playbackAudio(eq(stream), anyString(), anyInt(), eq(audioFormat));
+        doReturn(resultValue).when(engine).playbackAudio(eq(session), eq(stream), anyString(), anyInt(), eq(audioFormat));
 
         // acting
-        OperationResultValue result = engine.playbackAudio(stream, mask, timeout, audioFormat);
+        OperationResultValue result = engine.playbackAudio(session, stream, mask, timeout, audioFormat);
 
         // check the behavior
         ArgumentCaptor<InputStream> captor = ArgumentCaptor.forClass(InputStream.class);
-        verify(engine).playbackAudio(captor.capture(), anyString(), anyInt(), any(Audio.class));
+        verify(engine).playbackAudio(eq(session), captor.capture(), anyString(), anyInt(), any(Audio.class));
         // check results
         assertThat(captor.getValue()).isSameAs(stream);
         assertThat(result).isSameAs(resultValue);
@@ -187,14 +191,14 @@ public class MultiMedeaEngineTest {
         Audio audioFormat = ULAW_8;
         int silence = 2;
         int timeout = 5;
-        doReturn(resultValue).when(engine).recordAudio(eq(stream), anyString(), anyInt(), anyInt(), eq(audioFormat));
+        doReturn(resultValue).when(engine).recordAudio(eq(session), eq(stream), anyString(), anyInt(), anyInt(), eq(audioFormat));
 
         // acting
-        OperationResultValue result = engine.recordAudio(stream, mask, silence, timeout, audioFormat);
+        OperationResultValue result = engine.recordAudio(session, stream, mask, silence, timeout, audioFormat);
 
         // check the behavior
         ArgumentCaptor<OutputStream> captor = ArgumentCaptor.forClass(OutputStream.class);
-        verify(engine).recordAudio(captor.capture(), anyString(), anyInt(), anyInt(), any(Audio.class));
+        verify(engine).recordAudio(eq(session), captor.capture(), anyString(), anyInt(), anyInt(), any(Audio.class));
         // check results
         assertThat(captor.getValue()).isSameAs(stream);
         assertThat(result).isSameAs(resultValue);

@@ -63,7 +63,7 @@ import org.visualcti.core.channel.telephony.operation.ToneId;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.core.channel.telephony.part.CallsPortEngine;
 import org.visualcti.core.channel.telephony.part.FaxMachineEngine;
-import org.visualcti.core.channel.telephony.part.MultiMedeaEngine;
+import org.visualcti.core.channel.telephony.part.MultimediaEngine;
 import org.visualcti.core.channel.telephony.part.TelephonyDevicePart;
 import org.visualcti.core.channel.telephony.part.TonesEngine;
 import org.visualcti.media.Audio;
@@ -82,7 +82,7 @@ import org.visualcti.media.Sound;
  * @see TelephonyDeviceFactory
  * @see CallsPortEngine
  * @see TonesEngine
- * @see MultiMedeaEngine
+ * @see MultimediaEngine
  * @see FaxMachineEngine
  */
 public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
@@ -96,7 +96,7 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
     // device part of the telephony signals and tones management
     private final TonesEngine<H> tones;
     // device part of the telephony multi-medea (playback/record) management
-    private final MultiMedeaEngine<H> media;
+    private final MultimediaEngine<H> media;
     // device part of the telephony fax-document exchange management
     private final FaxMachineEngine<H> faxes;
 
@@ -114,7 +114,7 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
     protected AbstractTelephonyDevice(
             final String name, final TelephonyServiceProvider<H> provider,
             final CallsPortEngine<H> calls, final TonesEngine<H> tones,
-            final MultiMedeaEngine<H> media, final FaxMachineEngine<H> faxes
+            final MultimediaEngine<H> media, final FaxMachineEngine<H> faxes
     ) {
         super(provider);
         this.name = name;
@@ -139,17 +139,6 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
     public String getName() {
         return name;
     }
-
-    /**
-     * <accessor>
-     * To get access to device's low-level handle
-     *
-     * @return the handle to manipulate the device features
-     */
-//    @Override
-//    public H getHandle() {
-//        return handleHolder.get();
-//    }
 
     /**
      * <accessor>
@@ -437,7 +426,7 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      * To set up the header of the fax-document's pages
      *
      * @param session the phone call's session, device is working with
-     * @param header the new value
+     * @param header  the new value
      * @see FaxMachineEngine#setFaxHeader(PhoneCallSession, String)
      */
     @Override
@@ -462,7 +451,7 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      * <action>
      * To receive the fax document.
      *
-     * @param session the phone call's session, device is working with
+     * @param session           the phone call's session, device is working with
      * @param target            the stream for saving data of the received fax document in a TIFF format
      * @param pollingMode       flag, to initiate receive of a fax in a polling mode;
      * @param issueVoiceRequest upon termination of receive to give out a
@@ -492,7 +481,7 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      * <action>
      * To transmit the fax document.
      *
-     * @param session the phone call's session, device is working with
+     * @param session           the phone call's session, device is working with
      * @param source            stream to fax data
      * @param format            format of data in the stream(resolution is a field)
      * @param issueVoiceRequest upon termination of reception to give out a
@@ -526,7 +515,7 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      *
      * @return the array of the formats supported by device or null
      * @see Audio
-     * @see MultiMedeaEngine#canPlay()
+     * @see MultimediaEngine#canPlay()
      */
     @Override
     public Audio[] canPlay() {
@@ -539,7 +528,7 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      *
      * @return the format for the play or null if device can't play back
      * @see Audio
-     * @see MultiMedeaEngine#getRawFormat()
+     * @see MultimediaEngine#getRawFormat()
      */
     @Override
     public Audio getRawFormat() {
@@ -548,25 +537,40 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
 
     /**
      * <action>
-     * Playback the audio stream.
+     * Playback the audio data stream.
      *
-     * @param source                 the input stream, from which undertake sound data for playback in a telephone line
+     * @param session                the phone call's session, device is working with
+     * @param source                 the input stream, from which undertake sound data for playback to the telephone line
      * @param terminationSymbolsMask set of symbols finishing up the playing (mask). The mask is passed to the method
      *                               as any combination of comma separated symbols<BR/>(0-9,*,#), for example: " 1, 2, #, 0 ".
      * @param timeout                maximum time of playing back in seconds (-1 for unlimited, waiting for end of stream)
      * @param format                 parameter determining type of the decoder for transformation the sound data
      * @return the operation's result
-     * @see MultiMedeaEngine#playbackAudio(InputStream, String, int, Audio)
+     * @see MultimediaEngine#canPlay(Audio)
+     * @see MultimediaEngine#playbackAudio(PhoneCallSession, InputStream, String, int, Audio)
      * @see Result#ERROR
      */
     @Override
-    public OperationResultValue playbackAudio(final InputStream source, final String terminationSymbolsMask,
-                                              final int timeout, final Audio format) {
+    public OperationResultValue playbackAudio(final PhoneCallSession<H> session, final InputStream source,
+                                              final String terminationSymbolsMask, final int timeout, final Audio format
+    ) {
         return media.canPlay(format)
-                ? delegateMediaOperation(PLAY, () -> media.playbackAudio(source, terminationSymbolsMask, timeout, format))
+                ? delegateMediaOperation(PLAY, () -> media.playbackAudio(session, source, terminationSymbolsMask, timeout, format))
                 : Result.ERROR;
     }
 
+    /**
+     * <action>
+     * Playback the audio stream data in asynchronous mode.
+     *
+     * @param session the phone call's session, device is working with
+     * @param sound   the audio sound playing back in a telephone line asynchronously
+     * @return true if start playing the sound
+     */
+    @Override
+    public boolean asyncPlaybackAudio(PhoneCallSession<H> session, Sound sound) {
+        return media.canPlay(sound.getFormat()) && media.asyncPlaybackAudio(session, sound);
+    }
 
     /**
      * <accessor>
@@ -575,7 +579,7 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      *
      * @return the array of the record formats supported by device or null
      * @see Audio
-     * @see MultiMedeaEngine#canRecord()
+     * @see MultimediaEngine#canRecord()
      */
     @Override
     public Audio[] canRecord() {
@@ -588,7 +592,7 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      *
      * @return the default format for the voice record operation or null if device can't record
      * @see Audio
-     * @see MultiMedeaEngine#getRecordFormat()
+     * @see MultimediaEngine#getRecordFormat()
      */
     @Override
     public Audio getRecordFormat() {
@@ -597,8 +601,9 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
 
     /**
      * <action>
-     * Recording the audio from telephone line.
+     * Recording the audio data from the telephone line.
      *
+     * @param session                the phone call's session, device is working with
      * @param target                 the output stream where recorded data will be placed
      * @param terminationSymbolsMask set of symbols finishing up the recording (mask). The mask is passed to the method
      *                               as any combination of comma separated symbols<BR/>(0-9,*,#), for example: " 1, 2, #, 0 ".
@@ -606,14 +611,15 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      * @param timeout                maximum time of recording in seconds
      * @param format                 parameter determining type of the record audio data
      * @return the operation's result
-     * @see MultiMedeaEngine#recordAudio(OutputStream, String, int, int, Audio)
+     * @see MultimediaEngine#canRecord(Audio)
+     * @see MultimediaEngine#recordAudio(PhoneCallSession, OutputStream, String, int, int, Audio)
      * @see Result#ERROR
      */
     @Override
-    public OperationResultValue recordAudio(final OutputStream target, final String terminationSymbolsMask,
+    public OperationResultValue recordAudio(final PhoneCallSession<H> session, final OutputStream target, final String terminationSymbolsMask,
                                             final int silence, final int timeout, final Audio format) {
         return media.canRecord(format)
-                ? delegateRecordAudio(target, terminationSymbolsMask, silence, timeout, format)
+                ? delegateRecordAudio(session, target, terminationSymbolsMask, silence, timeout, format)
                 : Result.ERROR;
     }
 
@@ -621,12 +627,13 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      * <action>
      * To dial DTMF symbols to phone line
      *
-     * @param toDial sequence of symbols to dial, like "555#1234*"
-     * @see TonesEngine#dial(String)
+     * @param session the phone call's session, device is working with
+     * @param toDial  sequence of symbols to dial, like "555#1234*"
+     * @see TonesEngine#dial(PhoneCallSession, String)
      */
     @Override
-    public void dial(String toDial) {
-        delegateToneAction(DIAL, () -> tones.dial(toDial));
+    public void dial(PhoneCallSession<H> session, String toDial) {
+        delegateToneAction(DIAL, () -> tones.dial(session, toDial));
     }
 
     /**
@@ -635,20 +642,35 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      * The parameters of a signal should be present in the properties port<BR/>
      * under the appropriate identifier of a signal.
      *
-     * @param toneId identifier of the signal
-     * @param time   duration in seconds
+     * @param session the phone call's session, device is working with
+     * @param toneId  identifier of the signal
+     * @param time    duration in seconds
      * @see ToneId
-     * @see TonesEngine#playTone(ToneId, float)
+     * @see TonesEngine#playTone(PhoneCallSession, ToneId, float)
      */
     @Override
-    public void playTone(ToneId toneId, float time) {
-        delegateToneAction(TONE, () -> tones.playTone(toneId, time));
+    public void playTone(PhoneCallSession<H> session, ToneId toneId, float time) {
+        delegateToneAction(TONE, () -> tones.playTone(session, toneId, time));
     }
 
     /**
      * <action>
      * To receive the user input from the telephony line.
+     * <p>
+     * Possible values of the user input operation result:
+     * <p>
+     * {@link Result.IO#DTMF} - the sequence of symbols is accepted it's in the digits buffer of the detector.<BR/>
+     * For reception of value from buffer, it is necessary to call {@link #getInputSymbols(PhoneCallSession)}.<BR/>
+     * {@link Result#TIMEOUT} - in time of timeout there is no any symbol accepted.<BR/>
+     * {@link Result.CALL#DISCONNECT} - the operation is interrupted owing to break of telephony connection;<BR/>
+     * {@link Result#TERMINATED} - the operation is interrupted by system.<BR/>
+     * {@link Result.CALL.Analysis#FAX} - signal of a fax-machine is in the line.
+     * <p>
+     * At reception of symbol from an array determined by a mask input
+     * interrupts and come back symbols which are entered up to
+     * interruptions by a symbol from a mask
      *
+     * @param session                the phone call's session, device is working with
      * @param digitsCount            quantity of expected symbols
      * @param timeout                maximal waiting time (seconds) of input of next symbol
      * @param terminationSymbolsMask set of symbols finishing up the user input (mask). The mask is passed to the method
@@ -656,16 +678,15 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      *                               The symbol finished up the input from the <b>terminationSymbolsMask</b>
      *                               will not be placed to the buffer of input symbols
      * @return the operation's result
-     * @see TonesEngine#inputDigits(int, int, String)
-     * @see Result#ERROR
+     * @see OperationResultValue
+     * @see TonesEngine#inputDigits(PhoneCallSession, int, int, String)
      */
     @Override
-    public OperationResultValue inputDigits(int digitsCount, int timeout, String terminationSymbolsMask) {
+    public OperationResultValue inputDigits(PhoneCallSession<H> session, int digitsCount, int timeout, String terminationSymbolsMask) {
         return isDeviceOpened()
-                ? delegateMediaOperation(GTDIG, () -> tones.inputDigits(digitsCount, timeout, terminationSymbolsMask))
+                ? delegateMediaOperation(GTDIG, () -> tones.inputDigits(session, digitsCount, timeout, terminationSymbolsMask))
                 : Result.ERROR;
     }
-
 
     /**
      * <accessor>
@@ -673,19 +694,20 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      * The string of the input symbols from the buffer comes back.<BR/>
      * Internal input buffer will be cleaned
      *
+     * @param session the phone call's session, device is working with
      * @return digits sequence accepted by user's input
-     * @see TonesEngine#inputDigits(int, int, String)
+     * @see TonesEngine#getInputSymbols(PhoneCallSession)
      */
     @Override
-    public String getInputSymbols() {
-        return isDeviceOpened() ? delegateInputSymbols() : "";
+    public String getInputSymbols(PhoneCallSession<H> session) {
+        return isDeviceOpened() ? delegateInputSymbols(session) : "";
     }
 
     // to delegate call to the particular device's part engine
-    private String delegateInputSymbols() {
+    private String delegateInputSymbols(PhoneCallSession<H> session) {
 //        setState(GTDIG);
         try {
-            return tones.getInputSymbols();
+            return tones.getInputSymbols(session);
         } finally {
 //            setState(Device.State.IDLE);
         }
@@ -729,10 +751,11 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
     }
 
     // to delegate call to the particular device's part engine
-    private OperationResultValue delegateRecordAudio(final OutputStream target, final String terminationSymbolsMask,
+    private OperationResultValue delegateRecordAudio(final PhoneCallSession<H> session, final OutputStream target,
+                                                     final String terminationSymbolsMask,
                                                      final int silence, final int timeout, final Audio format) {
         return delegateMediaOperation(RECORD,
-                () -> media.recordAudio(target, terminationSymbolsMask, silence, timeout, format)
+                () -> media.recordAudio(session, target, terminationSymbolsMask, silence, timeout, format)
         );
     }
 

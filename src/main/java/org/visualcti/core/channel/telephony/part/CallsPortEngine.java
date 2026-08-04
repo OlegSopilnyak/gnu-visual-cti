@@ -53,6 +53,35 @@ import org.visualcti.media.Sound;
  */
 public interface CallsPortEngine<H> extends TelephonyDevicePart<H> {
     /**
+     * Configured Parameter Names Enumeration: The parameter names of call parts of the telephony device
+     */
+    enum Parameter implements Device.ParameterName {
+        // whether device can accept incoming calls
+        ACCEPT_CALL_ALLOWED("IN"),
+        // whether device can make the outgoing call
+        MAKE_CALL_ALLOWED("OUT"),
+        // whether device can be used in operations of connections (conference)
+        SHARE_CALL_ALLOWED("SHARE"),
+        // the additional information about telephone number of this device
+        ORIGIN("ORIGIN"),
+        // the additional information about telephone number of the caused subscriber
+        CALLED("DNIS"),
+        // the additional information about telephone number of initiator of a call
+        CALLING("ANI");
+
+        private final String name;
+
+        Parameter(String name) {
+            this.name = name;
+        }
+
+        @Override
+        public String value() {
+            return name.toLowerCase();
+        }
+    }
+
+    /**
      * <action>
      * To end a phone call.
      *
@@ -225,33 +254,4 @@ public interface CallsPortEngine<H> extends TelephonyDevicePart<H> {
      * @see Result.CALL.Analysis
      */
     boolean connect(PhoneCallSession<H> session, PhoneCall.Number number, int timeout, Sound toPlay);
-
-    /**
-     * Configured Parameter Names Enumeration: The parameter names of call parts of the telephony device
-     */
-    enum Parameter implements Device.ParameterName {
-        // whether device can accept incoming calls
-        ACCEPT_CALL_ALLOWED("IN"),
-        // whether device can make the outgoing call
-        MAKE_CALL_ALLOWED("OUT"),
-        // whether device can be used in operations of connections (conference)
-        SHARE_CALL_ALLOWED("SHARE"),
-        // the additional information about telephone number of this device
-        ORIGIN("ORIGIN"),
-        // the additional information about telephone number of the caused subscriber
-        CALLED("DNIS"),
-        // the additional information about telephone number of initiator of a call
-        CALLING("ANI");
-
-        private final String name;
-
-        Parameter(String name) {
-            this.name = name;
-        }
-
-        @Override
-        public String value() {
-            return name.toLowerCase();
-        }
-    }
 }

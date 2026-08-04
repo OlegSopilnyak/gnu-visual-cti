@@ -56,10 +56,14 @@ import org.visualcti.core.channel.telephony.part.CallsPortEngine;
 import org.visualcti.media.Sound;
 
 /**
- * The Part of the Telephony Channel Device: The device part adapter of the telephony call management
+ * Adapter: The Part of the Telephony Channel Device: The device part adapter of the telephony call management
+ *
+ * @param <H> the type for low-level telephony operations device handle
+ * @see CallsPortEngine
+ * @see AbstractDevicePart
  */
 @SuppressWarnings({"unchecked"})
-public class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> implements CallsPortEngine<H> {
+public abstract class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> implements CallsPortEngine<H> {
     // predicate for valid session's state for completed operation
     private static final Predicate<DeviceStateValue> operationCompleteState =
             state -> state == Device.State.IDLE || state == Device.State.ERROR;
@@ -524,7 +528,7 @@ public class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> implements
                 return true;
             } else if (connectableSession.isDisconnected()) {
                 // start playing the melody sound during outgoing phone call's making
-                startPlaying(leadingSession, toPlay, timeout);
+                startPlaying(leadingSession, toPlay);
                 // making outgoing telephony call using shared session and
                 // low-level connections joining if outgoing pone call is made
                 if (makeCall(connectableSession, phoneNumber, timeout) && lowLevelJoin(connectableSession, leadingSession)) {
@@ -555,13 +559,11 @@ public class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> implements
         return deviceCore.getProvider().makeConnection(connectable.getDeviceHandle(), leading.getDeviceHandle());
     }
 
-    private void startPlaying(PhoneCallSession<H> session, Sound sound, int timeout) {
-        final TelephonyDevice<H, ?> device = session.getDevice();
-        // doing nothing fore while
-        device.playbackAudio(sound, "", timeout);
+    private void startPlaying(final PhoneCallSession<H> session, final Sound sound) {
+        session.getDevice().asyncPlaybackAudio(session, sound);
     }
 
-    private void stopPlaying(PhoneCallSession<H> session) {
-        // doing nothing fore while
+    private void stopPlaying(final PhoneCallSession<H> session) {
+        deviceCore.getProvider().stopAudioPlaying(session.getDeviceHandle());
     }
 }

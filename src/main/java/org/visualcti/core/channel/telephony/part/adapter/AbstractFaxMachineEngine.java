@@ -56,21 +56,20 @@ import org.visualcti.core.channel.telephony.TelephonyServiceProvider;
 import org.visualcti.core.channel.telephony.operation.Result;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.core.channel.telephony.part.FaxMachineEngine;
-import org.visualcti.core.channel.telephony.part.TelephonyDevicePart;
 import org.visualcti.media.Fax;
 
 /**
  * Adapter: The Part of the Telephony Channel Device: The root device part of the telephony fax-document exchange management
  *
- * @param <H> the type of low-level telephony operations handle
- * @see TelephonyDevicePart
+ * @param <H> the type for low-level telephony operations device handle
+ * @see FaxMachineEngine
+ * @see AbstractDevicePart
  */
-public class AbstractFaxMachineEngine<H> extends AbstractDevicePart<H> implements FaxMachineEngine<H> {
+public abstract class AbstractFaxMachineEngine<H> extends AbstractDevicePart<H> implements FaxMachineEngine<H> {
     // predicate for connected phone call's operation
     private static final Predicate<OperationResultValue> faxOperationFailed =
-            value -> value == Result.TIMEOUT
-                    || value == Result.FAX.COMMUNICATION_ERROR || value == Result.FAX.COMPATIBILITY
-                    || value == Result.FAX.NO_POLL || value == Result.FAX.USER_STOP;
+            value -> value == Result.TIMEOUT || value == Result.FAX.COMMUNICATION_ERROR
+                    || value == Result.FAX.COMPATIBILITY || value == Result.FAX.NO_POLL || value == Result.FAX.USER_STOP;
 
     /**
      * <action>

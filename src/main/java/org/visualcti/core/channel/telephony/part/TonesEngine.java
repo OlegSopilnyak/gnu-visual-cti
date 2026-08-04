@@ -37,9 +37,11 @@ Fax number: 217-356-3356
 */
 package org.visualcti.core.channel.telephony.part;
 
+import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.operation.Result;
 import org.visualcti.core.channel.telephony.operation.ToneId;
+import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 
 /**
  * The Part of the Telephony Channel Device: The root device part of the telephony signals and tones management
@@ -52,22 +54,11 @@ public interface TonesEngine<H> extends TelephonyDevicePart<H> {
      * <action>
      * To dial DTMF symbols to phone line
      *
-     * @param toDial sequence of symbols to dial, like "555#1234*"
+     * @param session the phone call's session, device is working with
+     * @param toDial  sequence of symbols to dial, like "555#1234*"
      */
-    void dial(String toDial);
-
-    /**
-     * <action>
-     * To play out a sound signal to the phone line.<BR/>
-     * The parameters of a signal should be present in the properties port<BR/>
-     * under the appropriate identifier of a signal.
-     *
-     * @param toneId identifier of the signal
-     * @see ToneId
-     * @see #playTone(ToneId, float)
-     */
-    default void playTone(ToneId toneId) {
-        playTone(toneId, 0.5F);
+    default void dial(PhoneCallSession<H> session, String toDial) {
+        // doing nothing here
     }
 
     /**
@@ -76,11 +67,29 @@ public interface TonesEngine<H> extends TelephonyDevicePart<H> {
      * The parameters of a signal should be present in the properties port<BR/>
      * under the appropriate identifier of a signal.
      *
-     * @param toneId identifier of the signal
-     * @param time   duration in seconds
+     * @param session the phone call's session, device is working with
+     * @param toneId  identifier of the signal
+     * @see ToneId
+     * @see #playTone(PhoneCallSession, ToneId, float)
+     */
+    default void playTone(PhoneCallSession<H> session, ToneId toneId) {
+        playTone(session, toneId, 0.5F);
+    }
+
+    /**
+     * <action>
+     * To play out a sound signal to the phone line.<BR/>
+     * The parameters of a signal should be present in the properties port<BR/>
+     * under the appropriate identifier of a signal.
+     *
+     * @param session the phone call's session, device is working with
+     * @param toneId  identifier of the signal
+     * @param time    duration in seconds
      * @see ToneId
      */
-    void playTone(ToneId toneId, float time);
+    default void playTone(PhoneCallSession<H> session, ToneId toneId, float time) {
+        // doing nothing here
+    }
 
     /**
      * <action>
@@ -89,7 +98,7 @@ public interface TonesEngine<H> extends TelephonyDevicePart<H> {
      * Possible values of the user input operation result:
      * <p>
      * {@link Result.IO#DTMF} - the sequence of symbols is accepted it's in the digits buffer of the detector.<BR/>
-     * For reception of value from buffer, it is necessary to call {@link #getInputSymbols()}.<BR/>
+     * For reception of value from buffer, it is necessary to call {@link #getInputSymbols(PhoneCallSession)}.<BR/>
      * {@link Result#TIMEOUT} - in time of timeout there is no any symbol accepted.<BR/>
      * {@link Result.CALL#DISCONNECT} - the operation is interrupted owing to break of telephony connection;<BR/>
      * {@link Result#TERMINATED} - the operation is interrupted by system.<BR/>
@@ -99,6 +108,7 @@ public interface TonesEngine<H> extends TelephonyDevicePart<H> {
      * interrupts and come back symbols which are entered up to
      * interruptions by a symbol from a mask
      *
+     * @param session                the phone call's session, device is working with
      * @param digitsCount            quantity of expected symbols
      * @param timeout                maximal waiting time (seconds) of input of next symbol
      * @param terminationSymbolsMask set of symbols finishing up the user input (mask). The mask is passed to the method
@@ -107,9 +117,12 @@ public interface TonesEngine<H> extends TelephonyDevicePart<H> {
      *                               will not be placed to the buffer of input symbols
      * @return the operation's result
      * @see OperationResultValue
-     * @see #getInputSymbols()
+     * @see #getInputSymbols(PhoneCallSession)
      */
-    OperationResultValue inputDigits(int digitsCount, int timeout, String terminationSymbolsMask);
+    default OperationResultValue inputDigits(PhoneCallSession<H> session, int digitsCount,
+                                             int timeout, String terminationSymbolsMask) {
+        return Result.ERROR;
+    }
 
     /**
      * <accessor>
@@ -117,8 +130,17 @@ public interface TonesEngine<H> extends TelephonyDevicePart<H> {
      * The string of the input symbols from the buffer comes back.<BR/>
      * Internal input buffer will be cleaned
      *
+     * @param session the phone call's session, device is working with
      * @return digits sequence accepted by user's input
-     * @see #inputDigits(int, int, String)
+     * @see #inputDigits(PhoneCallSession, int, int, String)
      */
-    String getInputSymbols();
+    default String getInputSymbols(PhoneCallSession<H> session) {
+        try {
+            return session.isOpened() && session.isAlive()
+                    ? session.parameterOrDefault(Device.Parameter.USER_INPUT, "")
+                    : "";
+        } finally {
+            session.parameter(Device.Parameter.USER_INPUT, "");
+        }
+    }
 }

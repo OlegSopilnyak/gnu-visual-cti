@@ -97,7 +97,8 @@ public class AbstractFaxMachineEngineTest<H> {
         doReturn(provider).when(device).getProvider();
         session = spy(new PhoneCallSession(device, deviceHandle) {
         });
-        engine = spy(new AbstractFaxMachineEngine());
+        engine = spy(new AbstractFaxMachineEngine() {
+        });
         executor = Executors.newScheduledThreadPool(2);
     }
 

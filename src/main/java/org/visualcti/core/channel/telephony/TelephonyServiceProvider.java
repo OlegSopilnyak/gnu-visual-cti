@@ -44,9 +44,13 @@ import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
+import org.visualcti.core.channel.telephony.operation.ToneId;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.core.channel.telephony.part.CallsPortEngine;
 import org.visualcti.core.channel.telephony.part.FaxMachineEngine;
+import org.visualcti.core.channel.telephony.part.MultimediaEngine;
+import org.visualcti.core.channel.telephony.part.TonesEngine;
+import org.visualcti.media.Audio;
 import org.visualcti.media.Fax;
 import org.visualcti.media.Sound;
 
@@ -326,6 +330,68 @@ public interface TelephonyServiceProvider<H> extends Device.ServiceProvider<H> {
      */
     default void stopFaxTransmitting(H handle) {
 
+    }
+
+    /**
+     * <action>
+     * To start playing media from temporary file with particular media format
+     *
+     * @param handle the telephony device handle
+     * @param filePath          the path to the file which contents the media data
+     * @param timeout                maximum time of playing back in seconds (-1 for unlimited, waiting for end of stream)
+     * @param format                 parameter determining type of the decoder for transformation the sound data
+     * @return true if operation started successfully
+     * @see MultimediaEngine#playbackAudio(PhoneCallSession, InputStream, String, int, Audio)
+     */
+    default boolean startAudioPlaying(H handle, String filePath, int timeout, Audio format) {
+        return false;
+    }
+
+    /**
+     * <action>
+     * To stop (interrupt) playing media
+     *
+     * @param handle the telephony device handle
+     * @see #startAudioPlaying(H, String, int, Audio)
+     */
+    default void stopAudioPlaying(H handle) {
+
+    }
+
+    /**
+     * <action>
+     * To dial DTMF symbols to the phone line
+     *
+     * @param handle the telephony device handle
+     * @param toDial the symbols to dial
+     * @see TonesEngine#dial(PhoneCallSession, String)
+     */
+    default void dialingDtmf(H handle, String toDial) {
+
+    }
+
+    /**
+     * <action>
+     * To start sending the tone to the connected phone line
+     *
+     * @param handle the telephony device handle
+     * @param toneId          the id of tone to send
+     * @return true if operation started successfully
+     * @see TonesEngine#playTone(PhoneCallSession, ToneId, float)
+     */
+    default boolean startToneSending(H handle, ToneId toneId) {
+        return false;
+    }
+
+    /**
+     * <action>
+     * To stop (interrupt) sending the tone
+     *
+     * @param handle the telephony device handle
+     * @see #startToneSending(H, ToneId)
+     */
+    default void stopToneSending(H handle) {
+        // doing nothing here
     }
 
     /**

@@ -65,7 +65,7 @@ import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.core.channel.telephony.operation.Result;
 import org.visualcti.core.channel.telephony.part.CallsPortEngine;
 import org.visualcti.core.channel.telephony.part.FaxMachineEngine;
-import org.visualcti.core.channel.telephony.part.MultiMedeaEngine;
+import org.visualcti.core.channel.telephony.part.MultimediaEngine;
 import org.visualcti.core.channel.telephony.part.TonesEngine;
 
 @SuppressWarnings({"unchecked", "rawtypes"})
@@ -74,7 +74,7 @@ public class AbstractTelephonyDeviceTest<H> {
     TelephonyServiceProvider<H> provider;
     CallsPortEngine<H> calls;
     TonesEngine<H> tones;
-    MultiMedeaEngine<H> media;
+    MultimediaEngine<H> media;
     FaxMachineEngine<H> faxes;
 
     static String deviceVendor = "device-vendor";
@@ -94,7 +94,7 @@ public class AbstractTelephonyDeviceTest<H> {
         doReturn(calls).when(calls).uses(any(TelephonyDeviceCore.class));
         tones = mock(TonesEngine.class);
         doReturn(tones).when(tones).uses(any(TelephonyDeviceCore.class));
-        media = mock(MultiMedeaEngine.class);
+        media = mock(MultimediaEngine.class);
         doReturn(media).when(media).uses(any(TelephonyDeviceCore.class));
         faxes = mock(FaxMachineEngine.class);
         doReturn(faxes).when(faxes).uses(any(TelephonyDeviceCore.class));

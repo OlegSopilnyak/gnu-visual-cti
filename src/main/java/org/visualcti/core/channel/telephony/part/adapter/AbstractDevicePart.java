@@ -40,8 +40,11 @@ package org.visualcti.core.channel.telephony.part.adapter;
 import java.util.Objects;
 import java.util.function.Predicate;
 import org.visualcti.core.XmlAware;
+import org.visualcti.core.channel.device.Device;
+import org.visualcti.core.channel.device.DeviceMalfunction;
 import org.visualcti.core.channel.telephony.TelephonyDeviceCore;
 import org.visualcti.core.channel.telephony.TelephonyDeviceFactory;
+import org.visualcti.core.channel.telephony.operation.Result;
 import org.visualcti.core.channel.telephony.part.TelephonyDevicePart;
 
 /**
@@ -68,6 +71,37 @@ public abstract class AbstractDevicePart<H> implements TelephonyDevicePart<H>, X
         return (P) this;
     }
 
+    /**
+     * <action>
+     * To process the error operation complete during device's call
+     *
+     * @param session the phone call's session, device is working with
+     * @param reason the reason of malfunction
+     * @see #onDeviceError(Device.Session, String, boolean)
+     * @see Result#ERROR
+     */
+    protected void onDeviceError(Device.Session<H> session, String reason) {
+        onDeviceError(session, reason, true);
+    }
+
+    /**
+     * <action>
+     * To process the error operation complete during device's call
+     *
+     * @param session the phone call's session, device is working with
+     * @param reason the reason of malfunction
+     * @param throwException the flag is it should throw the Error
+     * @see Result#ERROR
+     * @see DeviceMalfunction
+     */
+    protected void onDeviceError(Device.Session<H> session, String reason, boolean throwException) {
+        session.setState(Device.State.ERROR);
+        session.getDevice().dispatchError(reason);
+        if (throwException) {
+            throw new DeviceMalfunction(session.getDevice(), reason);
+        }
+
+    }
     /**
      * <accessor>
      * To get access to the wrong value device's low-level handle

@@ -56,7 +56,7 @@ import org.visualcti.core.channel.telephony.operation.Result;
 import org.visualcti.core.channel.telephony.operation.ToneId;
 import org.visualcti.core.channel.telephony.part.CallsPortEngine;
 import org.visualcti.core.channel.telephony.part.FaxMachineEngine;
-import org.visualcti.core.channel.telephony.part.MultiMedeaEngine;
+import org.visualcti.core.channel.telephony.part.MultimediaEngine;
 import org.visualcti.core.channel.telephony.part.TelephonyDevicePart;
 import org.visualcti.core.channel.telephony.part.TonesEngine;
 import org.visualcti.media.Audio;
@@ -84,7 +84,7 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
         // phone line's the tones generator and the user input getter
         TonesEngine<H>,
         // phone line's playback record features engine
-        MultiMedeaEngine<H>,
+        MultimediaEngine<H>,
         // phone line's fax-machine features engine
         FaxMachineEngine<H> {
     //
@@ -586,7 +586,7 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      */
     @Override
     default Audio[] canPlay() {
-        return new Audio[0];
+        return null;
     }
 
     /**
@@ -602,51 +602,65 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
 
     /**
      * <action>
+     * Playback the audio stream data.
+     *
+     * @param session                the phone call's session, device is working with
+     * @param source                 the input stream, from which undertake sound data for playback in a telephone line
+     * @param terminationSymbolsMask set of symbols finishing up the playing (mask). The mask is passed to the method
+     *                               as any combination of comma separated symbols<BR/>(0-9,*,#), for example: " 1, 2, #, 0 ".
+     * @param timeout                maximum time of playing back in seconds (-1 for unlimited, waiting for end of stream)
+     * @param format                 parameter determining type of the decoder for transformation the sound data
+     * @return the operation's result<p>
+     * {@link Result.IO#EOF} - the playback reached end of stream;
+     * {@link Result.IO#DTMF} - the playback is interrupted by symbol from the termination mask.<BR/>
+     * The symbol, which cause the playback interruption can be got by the {@link TonesEngine#getInputSymbols(PhoneCallSession)};<BR/>
+     * {@link Result#TIMEOUT} - the time of playback was exceeded.<BR/>
+     * {@link Result.CALL#DISCONNECT} - the playback is interrupted by telephony line disconnection;<BR/>
+     * {@link Result.IO#FORMAT} - the format of audio does not support by device.<BR/>
+     * {@link Result#TERMINATED} - the operation is interrupted by system.
+     * @see OperationResultValue
+     */
+    @Override
+    default OperationResultValue playbackAudio(
+            PhoneCallSession<H> session, InputStream source, String terminationSymbolsMask, int timeout, Audio format
+    ) {
+        return Result.ERROR;
+    }
+
+    /**
+     * <action>
      * Playback the audio stream.
      * <p>
      * Possible values of the playing back operation result:
      * <p>
      * {@link Result.IO#EOF} - the playback reached end of stream;
      * {@link Result.IO#DTMF} - the playback is interrupted by symbol from the termination mask.<BR/>
-     * The symbol, which cause the playback interruption can be got by the {@link TonesEngine#getInputSymbols()};<BR/>
+     * The symbol, which cause the playback interruption can be got by the {@link TonesEngine#getInputSymbols(PhoneCallSession)};<BR/>
      * {@link Result#TIMEOUT} - the time of playback was exceeded.<BR/>
      * {@link Result.CALL#DISCONNECT} - the playback is interrupted by telephony line disconnection;<BR/>
      * {@link Result.IO#FORMAT} - the format of audio does not support by device.<BR/>
      * {@link Result#TERMINATED} - the operation is interrupted by system.
      *
-     * @param source                 the input stream, from which undertake sound data for playback in a telephone line
+     * @param session                the phone call's session, device is working with
+     * @param sound                 the audio sound which contains format and input stream to the media data
      * @param terminationSymbolsMask set of symbols finishing up the playing (mask). The mask is passed to the method
      *                               as any combination of comma separated symbols<BR/>(0-9,*,#), for example: " 1, 2, #, 0 ".
      * @param timeout                maximum time of playing back in seconds (-1 for unlimited, waiting for end of stream)
-     * @param format                 parameter determining type of the decoder for transformation the sound data
      * @return the operation's result
      * @see OperationResultValue
-     * @see TonesEngine#getInputSymbols()
+     * @see Sound#getInputStream()
+     * @see Sound#getFormat()
+     * @see #playbackAudio(PhoneCallSession, InputStream, String, int, Audio)
      */
-    @Override
-    default OperationResultValue playbackAudio(InputStream source, String terminationSymbolsMask, int timeout, Audio format) {
-        return null;
-    }
-
-    default OperationResultValue playbackAudio(Sound sound, String terminationSymbolsMask, int timeout) {
+    default OperationResultValue playbackAudio(
+            final PhoneCallSession<H> session, final Sound sound, final String terminationSymbolsMask,
+            final int timeout) {
         try {
-            return playbackAudio(sound.getInputStream(), terminationSymbolsMask, timeout, sound.getFormat());
+            return playbackAudio(session, sound.getInputStream(), terminationSymbolsMask, timeout, sound.getFormat());
         } catch (IOException e) {
-            dispatchError(e, "Cannot play audio");
+            dispatchError(e, "Cannot play audio sound");
             return Result.ERROR;
         }
-    }
-
-    /**
-     * <accessor>
-     * Returns the array of supported audio formats for recording,
-     * null if record is not supported
-     *
-     * @return the array of the record formats supported by device or null if device can't record
-     */
-    @Override
-    default Audio[] canRecord() {
-        return new Audio[0];
     }
 
     /**
@@ -662,18 +676,9 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
 
     /**
      * <action>
-     * Record the audio from telephone line.
-     * <p>
-     * Possible values of the playing back operation result:
-     * <p>
-     * {@link Result#TIMEOUT} - the time of audio record was exceeded.<BR/>
-     * {@link Result.IO#DTMF} - the playback is interrupted by symbol from the termination mask.<BR/>
-     * The symbol, which cause the playback interruption can be got by the {@link TonesEngine#getInputSymbols()};<BR/>
-     * {@link Result.CALL#DISCONNECT} - the record is interrupted by telephony line disconnection;<BR/>
-     * {@link Result.IO#SILENCE} - silence exceeded in a line;<BR/>
-     * {@link Result.IO#FORMAT} - the format is not supported by device.<BR/>
-     * {@link Result#TERMINATED} - the operation is interrupted by system.
+     * Record the audio data from telephone line.
      *
+     * @param session                the phone call's session, device is working with
      * @param target                 the output stream where recorded data will be placed
      * @param terminationSymbolsMask set of symbols finishing up the recording (mask). The mask is passed to the method
      *                               as any combination of comma separated symbols<BR/>(0-9,*,#), for example: " 1, 2, #, 0 ".
@@ -681,23 +686,34 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      * @param timeout                maximum time of recording in seconds
      * @param format                 parameter determining type of the record audio data
      * @return the operation's result
+     * <p>
+     * {@link Result#TIMEOUT} - the time of audio record was exceeded.<BR/>
+     * {@link Result.IO#DTMF} - the playback is interrupted by symbol from the termination mask.<BR/>
+     * The symbol, which cause the playback interruption can be got by the {@link TonesEngine#getInputSymbols(PhoneCallSession)};<BR/>
+     * {@link Result.CALL#DISCONNECT} - the record is interrupted by telephony line disconnection;<BR/>
+     * {@link Result.IO#SILENCE} - silence exceeded in a line;<BR/>
+     * {@link Result.IO#FORMAT} - the format is not supported by device.<BR/>
+     * {@link Result#TERMINATED} - the operation is interrupted by system.
      * @see OperationResultValue
-     * @see TonesEngine#getInputSymbols()
      */
     @Override
-    default OperationResultValue recordAudio(OutputStream target, String terminationSymbolsMask, int silence, int timeout, Audio format) {
-        return null;
+    default OperationResultValue recordAudio(
+            PhoneCallSession<H> session, OutputStream target, String terminationSymbolsMask,
+            int silence, int timeout, Audio format) {
+        return Result.ERROR;
     }
 
     /**
      * <action>
      * To dial DTMF symbols to phone line
      *
-     * @param toDial sequence of symbols to dial, like "555#1234*"
+     * @param session the phone call's session, device is working with
+     * @param toDial  sequence of symbols to dial, like "555#1234*"
+     * @see TonesEngine#dial(PhoneCallSession, String)
      */
     @Override
-    default void dial(String toDial) {
-
+    default void dial(PhoneCallSession<H> session, String toDial){
+        TonesEngine.super.dial(session, toDial);
     }
 
     /**
@@ -706,13 +722,15 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      * The parameters of a signal should be present in the properties port<BR/>
      * under the appropriate identifier of a signal.
      *
-     * @param toneId identifier of the signal
-     * @param time   duration in seconds
+     * @param session the phone call's session, device is working with
+     * @param toneId  identifier of the signal
+     * @param time    duration in seconds
      * @see ToneId
+     * @see TonesEngine#playTone(PhoneCallSession, ToneId, float)
      */
     @Override
-    default void playTone(ToneId toneId, float time) {
-
+    default void playTone(PhoneCallSession<H> session, ToneId toneId, float time) {
+        TonesEngine.super.playTone(session, toneId, time);
     }
 
     /**
@@ -722,7 +740,7 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      * Possible values of the user input operation result:
      * <p>
      * {@link Result.IO#DTMF} - the sequence of symbols is accepted it's in the digits buffer of the detector.<BR/>
-     * For reception of value from buffer, it is necessary to call {@link #getInputSymbols()}.<BR/>
+     * For reception of value from buffer, it is necessary to call {@link #getInputSymbols(PhoneCallSession)}.<BR/>
      * {@link Result#TIMEOUT} - in time of timeout there is no any symbol accepted.<BR/>
      * {@link Result.CALL#DISCONNECT} - the operation is interrupted owing to break of telephony connection;<BR/>
      * {@link Result#TERMINATED} - the operation is interrupted by system.<BR/>
@@ -732,6 +750,7 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      * interrupts and come back symbols which are entered up to
      * interruptions by a symbol from a mask
      *
+     * @param session                the phone call's session, device is working with
      * @param digitsCount            quantity of expected symbols
      * @param timeout                maximal waiting time (seconds) of input of next symbol
      * @param terminationSymbolsMask set of symbols finishing up the user input (mask). The mask is passed to the method
@@ -740,11 +759,11 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      *                               will not be placed to the buffer of input symbols
      * @return the operation's result
      * @see OperationResultValue
-     * @see #getInputSymbols()
+     * @see TonesEngine#inputDigits(PhoneCallSession, int, int, String)
      */
     @Override
-    default OperationResultValue inputDigits(int digitsCount, int timeout, String terminationSymbolsMask) {
-        return null;
+    default OperationResultValue inputDigits(PhoneCallSession<H> session, int digitsCount, int timeout, String terminationSymbolsMask) {
+        return TonesEngine.super.inputDigits(session, digitsCount, timeout, terminationSymbolsMask);
     }
 
     /**
@@ -753,12 +772,13 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      * The string of the input symbols from the buffer comes back.<BR/>
      * Internal input buffer will be cleaned
      *
+     * @param session the phone call's session, device is working with
      * @return digits sequence accepted by user's input
-     * @see #inputDigits(int, int, String)
+     * @see TonesEngine#getInputSymbols(PhoneCallSession)
      */
     @Override
-    default String getInputSymbols() {
-        return "";
+    default String getInputSymbols(PhoneCallSession<H> session) {
+        return TonesEngine.super.getInputSymbols(session);
     }
 
     /**

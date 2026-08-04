@@ -92,9 +92,10 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
     }
 
     // predicate to be sure that device is delivered to the correct events listener(phone-call-session)
-    private final Predicate<DeviceEvent<?>> thisSessionEvent = event -> event != DeviceEvent.EMPTY
-            && Objects.equals(event.getDeviceName(), getDeviceName())
-            && Objects.equals(event.getDeviceHandle(), getDeviceHandle());
+    private final Predicate<DeviceEvent<?>> thisSessionEvent = event ->
+            event != DeviceEvent.EMPTY
+                    && Objects.equals(event.getDeviceName(), getDeviceName())
+                    && hasDeviceHandle((H) event.getDeviceHandle());
 
     protected PhoneCallSession(TelephonyDevice<H, ?> deviceOwner, H deviceHandle) {
         super(deviceOwner, deviceHandle);

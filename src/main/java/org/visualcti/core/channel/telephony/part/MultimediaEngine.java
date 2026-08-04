@@ -40,9 +40,12 @@ package org.visualcti.core.channel.telephony.part;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
+import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.operation.Result;
+import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.media.Audio;
+import org.visualcti.media.Sound;
 
 /**
  * The Part of the Telephony Channel Device: The root device part of the telephony multi-medea (playback/record) management
@@ -50,7 +53,33 @@ import org.visualcti.media.Audio;
  * @param <H> the type of low-level telephony operations handle
  * @see TelephonyDevicePart
  */
-public interface MultiMedeaEngine<H> extends TelephonyDevicePart<H> {
+public interface MultimediaEngine<H> extends TelephonyDevicePart<H> {
+    /**
+     * Configured Parameter Names Enumeration: The parameter names of multimedia part of the telephony device
+     */
+    enum Parameter implements Device.ParameterName {
+        // which format is used for recording by default
+        RECORD_CODEC("RECORD"),
+        // which format is used for playing back by default
+        PLAYBACK_CODEC("PLAY"),
+        // which formats can be used for multimedia
+        ALLOWED_CODECS("AVAILABLE CODECS LIST"),
+        // the temporary file which is used to by media transmitting operations
+        AUDIO_TEMPORARY("AUDIO-TEMP-FILE"),
+        ;
+
+        private final String name;
+
+        Parameter(String name) {
+            this.name = name;
+        }
+
+        @Override
+        public String value() {
+            return name.toLowerCase();
+        }
+    }
+
     /**
      * <accessor>
      * Returns the array of supported audio formats for playing back,
@@ -68,7 +97,7 @@ public interface MultiMedeaEngine<H> extends TelephonyDevicePart<H> {
      * @return true if device can play the audio with format
      */
     default boolean canPlay(Audio audio) {
-        return isComply(canPlay(), audio);
+        return isComplyTo(canPlay(), audio);
     }
 
     /**
@@ -81,28 +110,39 @@ public interface MultiMedeaEngine<H> extends TelephonyDevicePart<H> {
 
     /**
      * <action>
-     * Playback the audio stream.
-     * <p>
-     * Possible values of the playing back operation result:
-     * <p>
-     * {@link Result.IO#EOF} - the playback reached end of stream;
-     * {@link Result.IO#DTMF} - the playback is interrupted by symbol from the termination mask.<BR/>
-     * The symbol, which cause the playback interruption can be got by the {@link TonesEngine#getInputSymbols()};<BR/>
-     * {@link Result#TIMEOUT} - the time of playback was exceeded.<BR/>
-     * {@link Result.CALL#DISCONNECT} - the playback is interrupted by telephony line disconnection;<BR/>
-     * {@link Result.IO#FORMAT} - the format of audio does not support by device.<BR/>
-     * {@link Result#TERMINATED} - the operation is interrupted by system.
+     * Playback the audio stream data in synchronous mode.
      *
+     * @param session                the phone call's session, device is working with
      * @param source                 the input stream, from which undertake sound data for playback in a telephone line
      * @param terminationSymbolsMask set of symbols finishing up the playing (mask). The mask is passed to the method
      *                               as any combination of comma separated symbols<BR/>(0-9,*,#), for example: " 1, 2, #, 0 ".
      * @param timeout                maximum time of playing back in seconds (-1 for unlimited, waiting for end of stream)
      * @param format                 parameter determining type of the decoder for transformation the sound data
-     * @return the operation's result
+     * @return the operation's result<p>
+     * {@link Result.IO#EOF} - the playback reached end of stream;
+     * {@link Result.IO#DTMF} - the playback is interrupted by symbol from the termination mask.<BR/>
+     * The symbol, which cause the playback interruption can be got by the {@link TonesEngine#getInputSymbols(PhoneCallSession)};<BR/>
+     * {@link Result#TIMEOUT} - the time of playback was exceeded.<BR/>
+     * {@link Result.CALL#DISCONNECT} - the playback is interrupted by telephony line disconnection;<BR/>
+     * {@link Result.IO#FORMAT} - the format of audio does not support by device.<BR/>
+     * {@link Result#TERMINATED} - the operation is interrupted by system.
      * @see OperationResultValue
-     * @see TonesEngine#getInputSymbols()
      */
-    OperationResultValue playbackAudio(InputStream source, String terminationSymbolsMask, int timeout, Audio format);
+    OperationResultValue playbackAudio(
+            PhoneCallSession<H> session, InputStream source, String terminationSymbolsMask, int timeout, Audio format
+    );
+
+    /**
+     * <action>
+     * Playback the audio stream data in asynchronous mode.
+     *
+     * @param session the phone call's session, device is working with
+     * @param sound   the audio sound playing back in a telephone line asynchronously
+     * @return true if start playing the sound
+     */
+    default boolean asyncPlaybackAudio(PhoneCallSession<H> session, Sound sound) {
+        return false;
+    }
 
     /**
      * <accessor>
@@ -111,7 +151,10 @@ public interface MultiMedeaEngine<H> extends TelephonyDevicePart<H> {
      *
      * @return the array of the record formats supported by device or null if device can't record
      */
-    Audio[] canRecord();
+    default Audio[] canRecord() {
+        final Audio recordFormat = getRecordFormat();
+        return recordFormat != null ? new Audio[]{recordFormat} : new Audio[]{};
+    }
 
     /**
      * <accessor>
@@ -121,10 +164,10 @@ public interface MultiMedeaEngine<H> extends TelephonyDevicePart<H> {
      * @return true if device can record the audio with format
      */
     default boolean canRecord(final Audio audio) {
-        return isComply(canRecord(), audio);
+        return isComplyTo(canRecord(), audio);
     }
 
-    static boolean isComply(final Audio[] audios, final Audio audio) {
+    static boolean isComplyTo(final Audio[] audios, final Audio audio) {
         return audios != null && Arrays.asList(audios).contains(audio);
     }
 
@@ -138,18 +181,9 @@ public interface MultiMedeaEngine<H> extends TelephonyDevicePart<H> {
 
     /**
      * <action>
-     * Record the audio from telephone line.
-     * <p>
-     * Possible values of the playing back operation result:
-     * <p>
-     * {@link Result#TIMEOUT} - the time of audio record was exceeded.<BR/>
-     * {@link Result.IO#DTMF} - the playback is interrupted by symbol from the termination mask.<BR/>
-     * The symbol, which cause the playback interruption can be got by the {@link TonesEngine#getInputSymbols()};<BR/>
-     * {@link Result.CALL#DISCONNECT} - the record is interrupted by telephony line disconnection;<BR/>
-     * {@link Result.IO#SILENCE} - silence exceeded in a line;<BR/>
-     * {@link Result.IO#FORMAT} - the format is not supported by device.<BR/>
-     * {@link Result#TERMINATED} - the operation is interrupted by system.
+     * Record the audio data from telephone line.
      *
+     * @param session                the phone call's session, device is working with
      * @param target                 the output stream where recorded data will be placed
      * @param terminationSymbolsMask set of symbols finishing up the recording (mask). The mask is passed to the method
      *                               as any combination of comma separated symbols<BR/>(0-9,*,#), for example: " 1, 2, #, 0 ".
@@ -157,8 +191,18 @@ public interface MultiMedeaEngine<H> extends TelephonyDevicePart<H> {
      * @param timeout                maximum time of recording in seconds
      * @param format                 parameter determining type of the record audio data
      * @return the operation's result
+     * <p>
+     * {@link Result#TIMEOUT} - the time of audio record was exceeded.<BR/>
+     * {@link Result.IO#DTMF} - the playback is interrupted by symbol from the termination mask.<BR/>
+     * The symbol, which cause the playback interruption can be got by the {@link TonesEngine#getInputSymbols(PhoneCallSession)};<BR/>
+     * {@link Result.CALL#DISCONNECT} - the record is interrupted by telephony line disconnection;<BR/>
+     * {@link Result.IO#SILENCE} - silence exceeded in a line;<BR/>
+     * {@link Result.IO#FORMAT} - the format is not supported by device.<BR/>
+     * {@link Result#TERMINATED} - the operation is interrupted by system.
      * @see OperationResultValue
-     * @see TonesEngine#getInputSymbols()
      */
-    OperationResultValue recordAudio(OutputStream target, String terminationSymbolsMask, int silence, int timeout, Audio format);
+    OperationResultValue recordAudio(
+            PhoneCallSession<H> session, OutputStream target, String terminationSymbolsMask,
+            int silence, int timeout, Audio format
+    );
 }
