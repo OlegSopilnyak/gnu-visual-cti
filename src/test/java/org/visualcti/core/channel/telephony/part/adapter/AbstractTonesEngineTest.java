@@ -38,8 +38,12 @@ Fax number: 217-356-3356
 package org.visualcti.core.channel.telephony.part.adapter;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.junit.Assert.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -47,13 +51,16 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import java.io.IOException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceMalfunction;
+import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.TelephonyDevice;
 import org.visualcti.core.channel.telephony.TelephonyServiceProvider;
 import org.visualcti.core.channel.telephony.operation.Result;
@@ -82,6 +89,14 @@ public class AbstractTonesEngineTest<H> {
         engine = spy(new AbstractTonesEngine() {
         });
         executor = Executors.newScheduledThreadPool(2);
+    }
+
+    @After
+    public void tearDown() {
+        if (executor != null) {
+            executor.shutdown();
+            executor = null;
+        }
     }
 
     @Test
@@ -257,6 +272,7 @@ public class AbstractTonesEngineTest<H> {
 
     @Test
     public void shouldNotPlayTone_DoesNotStartToneSending() throws InterruptedException {
+        // preparing test data
         String deviceErrorReason = "Start tone sending is failed.";
         ToneId id = ToneId.BEEP;
         float time = -0.5F;
@@ -287,6 +303,7 @@ public class AbstractTonesEngineTest<H> {
 
     @Test
     public void shouldNotPlayTone_WrongTimeoutValue() throws InterruptedException {
+        // preparing test data
         String deviceErrorReason = "Tone sending time is too short.";
         ToneId id = ToneId.BEEP;
         float time = -0.5F;
@@ -320,6 +337,7 @@ public class AbstractTonesEngineTest<H> {
 
     @Test
     public void shouldNotPlayTone_HardwareError() throws InterruptedException {
+        // preparing test data
         String deviceErrorReason = "Tone sending is failed.";
         ToneId id = ToneId.BEEP;
         float time = 0.5F;
@@ -330,7 +348,7 @@ public class AbstractTonesEngineTest<H> {
         executor.schedule(() -> session.operationComplete(Result.ERROR), 100, TimeUnit.MILLISECONDS);
 
         // acting
-        Throwable error = assertThrows(Throwable.class, ()-> engine.playTone(session, id, time));
+        Throwable error = assertThrows(Throwable.class, () -> engine.playTone(session, id, time));
 
         // check the behavior
         verify(session).isOpened();
@@ -355,14 +373,373 @@ public class AbstractTonesEngineTest<H> {
     }
 
     @Test
-    public void inputDigits() {
+    public void shouldInputDigits_TimedOut() throws InterruptedException {
+        // preparing test data
+        int digitsCount = 2;
+        int oneSymbolTimeout = 100;
+        String terminationSymbolsMask = "";
+        engine.uses(device);
+        doReturn(true).when(session).isOpened();
+        doReturn(true).when(session).isAlive();
+
+        // acting
+        OperationResultValue result = engine.inputDigits(session, digitsCount, oneSymbolTimeout, terminationSymbolsMask);
+
+        // check the behavior
+        verify(session).isOpened();
+        verify(session).isAlive();
+        verify(device).dispatchEvent("Getting the user input.");
+        verify(session).setState(TelephonyDevice.State.GTDIG);
+        verify(device).getProvider();
+        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
+        verify(session).parameter(Device.Parameter.USER_INPUT, "");
+        verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
+        verify(session).waitForOperationComplete(oneSymbolTimeout);
+        verify(session, atLeastOnce()).operationResult();
+        verify(session).isTerminated();
+        verify(device).dispatchEvent("User input getting is completed.");
+        verify(provider).disableEvents(deviceHandle, Result.IO.DTMF);
+        verify(session).setState(Device.State.IDLE);
+        // check results
+        assertThat(session.<String>parameter(Device.Parameter.USER_INPUT)).isEmpty();
+        assertThat(result).isSameAs(Result.TIMEOUT);
+        assertThat(session.getState()).isSameAs(Device.State.IDLE);
+        assertThat(session.operationResult()).isSameAs(Result.TIMEOUT);
     }
 
     @Test
-    public void terminate() {
+    public void shouldInputDigits_UserInputPartly() throws InterruptedException {
+        // preparing test data
+        int digitsCount = 2;
+        int oneSymbolTimeout = 500;
+        String terminationSymbolsMask = "#";
+        String userInput = "1";
+        engine.uses(device);
+        doReturn(true).when(session).isOpened();
+        doReturn(true).when(session).isAlive();
+        executor.schedule(() -> {
+            session.parameter(Device.Parameter.USER_INPUT, userInput);
+            session.operationComplete(Result.IO.DTMF);
+        }, 100, TimeUnit.MILLISECONDS);
+
+        // acting
+        OperationResultValue result = engine.inputDigits(session, digitsCount, oneSymbolTimeout, terminationSymbolsMask);
+
+        // check the behavior
+        verify(session).isOpened();
+        verify(session).isAlive();
+        verify(device).dispatchEvent("Getting the user input.");
+        verify(session).setState(TelephonyDevice.State.GTDIG);
+        verify(device).getProvider();
+        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
+        verify(session).parameter(Device.Parameter.USER_INPUT, "");
+        verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
+        verify(session, atLeastOnce()).waitForOperationComplete(oneSymbolTimeout);
+        verify(session, atLeastOnce()).operationResult();
+        verify(session, atLeastOnce()).isTerminated();
+        verify(device).dispatchEvent("User input getting is completed.");
+        verify(provider).disableEvents(deviceHandle, Result.IO.DTMF);
+        verify(session).setState(Device.State.IDLE);
+        // check results
+        assertThat(session.<String>parameter(Device.Parameter.USER_INPUT)).isEqualTo(userInput);
+        assertThat(result).isSameAs(Result.TIMEOUT);
+        assertThat(session.getState()).isSameAs(Device.State.IDLE);
+        assertThat(session.operationResult()).isSameAs(Result.TIMEOUT);
     }
 
     @Test
-    public void getInputSymbols() {
+    public void shouldInputDigits_UserInputExpectedQuantity() throws InterruptedException {
+        // preparing test data
+        final int digitsCount = 2;
+        final int oneSymbolTimeout = 500;
+        final String terminationSymbolsMask = "#";
+        String userInput = "19";
+        engine.uses(device);
+        doReturn(true).when(session).isOpened();
+        doReturn(true).when(session).isAlive();
+        executor.schedule(() -> {
+            session.parameter(Device.Parameter.USER_INPUT, userInput);
+            session.operationComplete(Result.IO.DTMF);
+        }, 100, TimeUnit.MILLISECONDS);
+
+        // acting
+        OperationResultValue result = engine.inputDigits(session, digitsCount, oneSymbolTimeout, terminationSymbolsMask);
+
+        // check the behavior
+        verify(session).isOpened();
+        verify(session).isAlive();
+        verify(device).dispatchEvent("Getting the user input.");
+        verify(session).setState(TelephonyDevice.State.GTDIG);
+        verify(device).getProvider();
+        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
+        verify(session).parameter(Device.Parameter.USER_INPUT, "");
+        verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
+        verify(session, atLeastOnce()).waitForOperationComplete(oneSymbolTimeout);
+        verify(session, atLeastOnce()).operationResult();
+        verify(session, atLeastOnce()).isTerminated();
+        verify(device).dispatchEvent("User input getting is completed.");
+        verify(provider).disableEvents(deviceHandle, Result.IO.DTMF);
+        verify(session).setState(Device.State.IDLE);
+        // check results
+        assertThat(session.<String>parameter(Device.Parameter.USER_INPUT)).isEqualTo(userInput);
+        assertThat(result).isSameAs(Result.IO.DTMF);
+        assertThat(session.getState()).isSameAs(Device.State.IDLE);
+        assertThat(session.operationResult()).isSameAs(Result.IO.DTMF);
+    }
+
+    @Test
+    public void shouldInputDigits_UserInputTerminatedBySymbolsMask() throws InterruptedException {
+        // preparing test data
+        final int digitsCount = 2;
+        final int oneSymbolTimeout = 500;
+        final String terminationSymbolsMask = "#,0";
+        String userInput = "1#";
+        engine.uses(device);
+        doReturn(true).when(session).isOpened();
+        doReturn(true).when(session).isAlive();
+        executor.schedule(() -> {
+            session.parameter(Device.Parameter.USER_INPUT, userInput);
+            session.operationComplete(Result.IO.DTMF);
+        }, 100, TimeUnit.MILLISECONDS);
+
+        // acting
+        OperationResultValue result = engine.inputDigits(session, digitsCount, oneSymbolTimeout, terminationSymbolsMask);
+
+        // check the behavior
+        verify(session).isOpened();
+        verify(session).isAlive();
+        verify(device).dispatchEvent("Getting the user input.");
+        verify(session).setState(TelephonyDevice.State.GTDIG);
+        verify(device).getProvider();
+        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
+        verify(session).parameter(Device.Parameter.USER_INPUT, "");
+        verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
+        verify(session, atLeastOnce()).waitForOperationComplete(oneSymbolTimeout);
+        verify(session, atLeastOnce()).operationResult();
+        verify(session, atLeastOnce()).isTerminated();
+        verify(device).dispatchEvent("User input getting is completed.");
+        verify(provider).disableEvents(deviceHandle, Result.IO.DTMF);
+        verify(session).setState(Device.State.IDLE);
+        // check results
+        assertThat(session.<String>parameter(Device.Parameter.USER_INPUT))
+                .isEqualTo(userInput.substring(0, userInput.length() - 1));
+        assertThat(result).isSameAs(Result.IO.DTMF);
+        assertThat(session.getState()).isSameAs(Device.State.IDLE);
+        assertThat(session.operationResult()).isSameAs(Result.IO.DTMF);
+    }
+
+    @Test
+    public void shouldDoesNotInputDigits_NotOpened() {
+        // preparing test data
+        int digitsCount = 2;
+        int oneSymbolTimeout = 100;
+        String terminationSymbolsMask = "";
+        doReturn(false).when(session).isOpened();
+
+        // acting
+        OperationResultValue result = engine.inputDigits(session, digitsCount, oneSymbolTimeout, terminationSymbolsMask);
+
+        // check the behavior
+        verify(session).isOpened();
+        verify(session, never()).isAlive();
+        verify(session).operationResult(Result.ERROR);
+        verify(session).setState(Device.State.ERROR);
+        // check results
+        assertThat(session.parameterOrDefault(Device.Parameter.USER_INPUT, "")).isEmpty();
+        assertThat(result).isSameAs(Result.ERROR);
+        assertThat(session.getState()).isSameAs(Device.State.ERROR);
+        assertThat(session.operationResult()).isSameAs(Result.ERROR);
+    }
+
+    @Test
+    public void shouldDoesNotInputDigits_Disconnected() {
+        // preparing test data
+        int digitsCount = 2;
+        int oneSymbolTimeout = 100;
+        String terminationSymbolsMask = "";
+        doReturn(true).when(session).isOpened();
+
+        // acting
+        OperationResultValue result = engine.inputDigits(session, digitsCount, oneSymbolTimeout, terminationSymbolsMask);
+
+        // check the behavior
+        verify(session).isOpened();
+        verify(session).isAlive();
+        verify(session).operationResult(Result.ERROR);
+        verify(session).setState(Device.State.ERROR);
+        // check results
+        assertThat(session.parameterOrDefault(Device.Parameter.USER_INPUT, "")).isEmpty();
+        assertThat(result).isSameAs(Result.ERROR);
+        assertThat(session.getState()).isSameAs(Device.State.ERROR);
+        assertThat(session.operationResult()).isSameAs(Result.ERROR);
+    }
+
+    @Test
+    public void shouldDoesNotInputDigits_HardwareError() throws InterruptedException {
+        // preparing test data
+        int digitsCount = 2;
+        int oneSymbolTimeout = 1000;
+        String terminationSymbolsMask = "";
+        String deviceErrorReason = "Getting the user input is failed.";
+        engine.uses(device);
+        doReturn(true).when(session).isOpened();
+        doReturn(true).when(session).isAlive();
+        executor.schedule(() -> session.operationComplete(Result.ERROR), 100, TimeUnit.MILLISECONDS);
+
+        // acting
+        Throwable error = assertThrows(Throwable.class,
+                () -> engine.inputDigits(session, digitsCount, oneSymbolTimeout, terminationSymbolsMask)
+        );
+
+        // check the behavior
+        verify(session).isOpened();
+        verify(session).isAlive();
+        verify(device).dispatchEvent("Getting the user input.");
+        verify(session).setState(TelephonyDevice.State.GTDIG);
+        verify(device).getProvider();
+        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
+        verify(session).parameter(Device.Parameter.USER_INPUT, "");
+        verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
+        verify(session).waitForOperationComplete(oneSymbolTimeout);
+        verify(session, atLeastOnce()).operationResult();
+        verify(engine).onDeviceError(session, deviceErrorReason);
+        verify(engine).onDeviceError(session, deviceErrorReason, true);
+        verify(session).setState(Device.State.ERROR);
+        verify(device).dispatchError(deviceErrorReason);
+        verify(session, never()).isTerminated();
+        // check results
+        assertThat(error).isInstanceOf(DeviceMalfunction.class);
+        assertThat(session.getState()).isSameAs(Device.State.ERROR);
+        assertThat(session.operationResult()).isSameAs(Result.ERROR);
+        assertThat(session.<String>parameter(Device.Parameter.USER_INPUT)).isEmpty();
+    }
+
+    @Test
+    public void shouldGetInputSymbols_EmptyBuffer() {
+        // preparing test data
+        doReturn(true).when(session).isOpened();
+        doReturn(true).when(session).isAlive();
+
+        // acting
+        String result = engine.getInputSymbols(session);
+
+        // check the behavior
+        verify(session).isOpened();
+        verify(session).isAlive();
+        verify(session).parameterOrDefault(Device.Parameter.USER_INPUT, "");
+        verify(session).parameter(Device.Parameter.USER_INPUT, "");
+        // check results
+        assertThat(result).isEmpty();
+        assertThat(session.<String>parameter(Device.Parameter.USER_INPUT)).isEmpty();
+    }
+
+    @Test
+    public void shouldGetInputSymbols_WithUserUnput() {
+        // preparing test data
+        String userInput = "1#";
+        doReturn(true).when(session).isOpened();
+        doReturn(true).when(session).isAlive();
+        session.parameter(Device.Parameter.USER_INPUT, userInput);
+
+        // acting
+        String result = engine.getInputSymbols(session);
+
+        // check the behavior
+        verify(session).isOpened();
+        verify(session).isAlive();
+        verify(session).parameterOrDefault(Device.Parameter.USER_INPUT, "");
+        verify(session).parameter(Device.Parameter.USER_INPUT, "");
+        // check results
+        assertThat(result).isEqualTo(userInput);
+        assertThat(engine.getInputSymbols(session)).isEmpty();
+    }
+
+    @Test
+    public void shouldNotGetInputSymbols_NotOpened() {
+        // preparing test data
+        String userInput = "1#";
+        doReturn(false).when(session).isOpened();
+        doReturn(true).when(session).isAlive();
+        session.parameter(Device.Parameter.USER_INPUT, userInput);
+
+        // acting
+        String result = engine.getInputSymbols(session);
+
+        // check the behavior
+        verify(session).isOpened();
+        verify(session, never()).isAlive();
+        verify(session, never()).parameterOrDefault(any(Device.ParameterName.class), anyString());
+        verify(session).parameter(Device.Parameter.USER_INPUT, "");
+        // check results
+        assertThat(result).isEmpty();
+        assertThat(engine.getInputSymbols(session)).isEmpty();
+    }
+
+    @Test
+    public void shouldNotGetInputSymbols_Disconnected() {
+        // preparing test data
+        String userInput = "1#";
+        doReturn(true).when(session).isOpened();
+        session.parameter(Device.Parameter.USER_INPUT, userInput);
+
+        // acting
+        String result = engine.getInputSymbols(session);
+
+        // check the behavior
+        verify(session).isOpened();
+        verify(session).isAlive();
+        verify(session, never()).parameterOrDefault(any(Device.ParameterName.class), anyString());
+        verify(session).parameter(Device.Parameter.USER_INPUT, "");
+        // check results
+        assertThat(result).isEmpty();
+        assertThat(engine.getInputSymbols(session)).isEmpty();
+    }
+
+    @Test
+    public void shouldTerminatePlayTone() throws IOException {
+        // preparing test data
+        ToneId id = ToneId.BEEP;
+        float time = 0.5F;
+        engine.uses(device);
+        doReturn(true).when(session).isOpened();
+        doReturn(true).when(session).isAlive();
+        doReturn(true).when(provider).startToneSending(deviceHandle, id);
+        executor.execute(() -> engine.playTone(session, id, time));
+        await().until(() -> session.operationIsActive());
+
+        // acting
+        engine.terminate(session);
+        await().until(() -> session.getState() == Device.State.IDLE);
+
+        // check the behavior
+        verify(session).terminate();
+        verify(session).setState(Device.State.IDLE);
+        // check results
+        assertThat(session.getState()).isSameAs(Device.State.IDLE);
+        assertThat(session.operationResult()).isSameAs(Result.TERMINATED);
+    }
+
+    @Test
+    public void shouldTerminateInputDigits() throws IOException {
+        // preparing test data
+        int digitsCount = 2;
+        int oneSymbolTimeout = 500;
+        String terminationSymbolsMask = "#";
+        engine.uses(device);
+        doReturn(true).when(session).isOpened();
+        doReturn(true).when(session).isAlive();
+        executor.execute(() -> engine.inputDigits(session, digitsCount,oneSymbolTimeout, terminationSymbolsMask));
+        await().until(() -> session.operationIsActive());
+
+        // acting
+        engine.terminate(session);
+        await().until(() -> session.getState() == Device.State.IDLE);
+
+        // check the behavior
+        verify(session).terminate();
+        verify(session).setState(Device.State.IDLE);
+        // check results
+        assertThat(session.getState()).isSameAs(Device.State.IDLE);
+        assertThat(session.operationResult()).isSameAs(Result.TERMINATED);
     }
 }

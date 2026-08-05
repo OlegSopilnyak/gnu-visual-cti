@@ -226,19 +226,30 @@ public class AbstractTonesEngine<H> extends AbstractDevicePart<H> implements Ton
                         final String userInput = session.parameter(Device.Parameter.USER_INPUT);
                         if (!isEmpty(userInput)) {
                             // getting last symbol of the user input in the context
-                            final char lastSymbol = userInput.charAt(userInput.length() - 1);
+                            final String lastSymbol = userInput.substring(userInput.length() - 1);
                             // analyzing the last user input symbol
-                            if (terminationSymbolsMask.indexOf(lastSymbol) > 0) {
+                            if (terminationSymbolsMask.contains(lastSymbol)) {
                                 // the last symbol of user input is from the termination symbols mask
-                                // which should be removed from the session and finish up the operation
-                                final String userInputValue = userInput.substring(0, userInput.length() - 2);
-                                session.parameter(Device.Parameter.USER_INPUT, userInputValue);
+                                session.parameter(
+                                        Device.Parameter.USER_INPUT,
+                                        // the last symbol should be removed from the session's user input result
+                                        userInput.substring(0, userInput.length() - 1)
+                                );
                                 // leaving the loop
                                 break;
+                            } else if (userInput.length() >= digitsCount) {
+                                // the expected quantity of symbols are in the user input
+                                // leaving the loop
+                                break;
+                            } else {
+                                // cleaning processed operation result
+                                session.operationResult(Result.NONE);
+                                // the next iteration of the loop
                             }
                         }
                     } else {
                         // operation is timed out
+                        session.operationResult(Result.TIMEOUT);
                         // leaving the loop
                         break;
                     }
@@ -255,7 +266,6 @@ public class AbstractTonesEngine<H> extends AbstractDevicePart<H> implements Ton
             serviceProvider.disableEvents(deviceHandle, Result.IO.DTMF);
             // make send tone operation is complete
             session.setState(Device.State.IDLE);
-            session.operationResult(Result.OK);
         } else {
             session.setState(Device.State.ERROR);
             session.operationResult(Result.ERROR);

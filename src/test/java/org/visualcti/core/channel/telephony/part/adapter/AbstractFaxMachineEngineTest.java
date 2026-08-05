@@ -66,6 +66,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
@@ -102,7 +103,7 @@ public class AbstractFaxMachineEngineTest<H> {
         executor = Executors.newScheduledThreadPool(2);
     }
 
-    //    @After
+    @After
     public void tearDown() {
         if (executor != null) {
             executor.shutdown();
