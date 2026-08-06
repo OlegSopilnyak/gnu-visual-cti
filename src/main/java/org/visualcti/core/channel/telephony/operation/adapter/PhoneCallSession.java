@@ -444,6 +444,9 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
             } else if (reason == Result.TERMINATED) {
                 // terminating the current operation
                 operationTerminationIsDetected();
+            } else if (reason == Result.CALL.DISCONNECT) {
+                // disconnect detected in the current operation
+                operationDisconnectIsDetected();
             } else {
                 // other event types just completing the operation which is waiting for complete
                 operationComplete(reason);
@@ -476,5 +479,11 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
         } catch (IOException e) {
             getDevice().dispatchError(e, "Cannot process termination event");
         }
+    }
+
+    // disconnect detected in the current operation
+    private void operationDisconnectIsDetected() {
+        alive(false);
+        operationComplete(Result.CALL.DISCONNECT);
     }
 }

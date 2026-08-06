@@ -104,15 +104,15 @@ public class AbstractTonesEngineTest<H> {
         // preparing test data
         String toDial = "123#76*5#";
         engine.uses(device);
+        session.alive(true);
         doReturn(true).when(session).isOpened();
-        doReturn(true).when(session).isAlive();
 
         // acting
         engine.dial(session, toDial);
 
         // check the behavior
         verify(session).isOpened();
-        verify(session).isAlive();
+        verify(session, atLeastOnce()).isAlive();
         verify(session, times(2)).getDevice();
         verify(device).dispatchEvent("Dialing [" + toDial + "]");
         verify(session).setState(TelephonyDevice.State.DIAL);
@@ -133,8 +133,8 @@ public class AbstractTonesEngineTest<H> {
         // preparing test data
         String toDial = "123#76*5#";
         engine.uses(device);
+        session.alive(true);
         doReturn(true).when(session).isOpened();
-        doReturn(true).when(session).isAlive();
         doReturn(true).when(session).isTerminated();
 
         // acting
@@ -170,7 +170,6 @@ public class AbstractTonesEngineTest<H> {
         // check the behavior
         verify(session).isOpened();
         verify(session, never()).isAlive();
-        verify(session, never()).getDevice();
         // check results
         assertThat(session.getState()).isSameAs(Device.State.ERROR);
         assertThat(session.operationResult()).isSameAs(Result.ERROR);
@@ -199,8 +198,8 @@ public class AbstractTonesEngineTest<H> {
         ToneId id = ToneId.BEEP;
         float time = 0.5F;
         engine.uses(device);
+        session.alive(true);
         doReturn(true).when(session).isOpened();
-        doReturn(true).when(session).isAlive();
         doReturn(true).when(provider).startToneSending(deviceHandle, id);
 
         // acting
@@ -208,7 +207,7 @@ public class AbstractTonesEngineTest<H> {
 
         // check the behavior
         verify(session).isOpened();
-        verify(session).isAlive();
+        verify(session, atLeastOnce()).isAlive();
         verify(device).dispatchEvent("Sending [" + id + "] tone for '" + time + "' seconds.");
         verify(session).setState(TelephonyDevice.State.TONE);
         verify(device).getProvider();
@@ -217,6 +216,7 @@ public class AbstractTonesEngineTest<H> {
         verify(session).waitForOperationComplete(500L);
         verify(session).operationResult();
         verify(session).isTerminated();
+        verify(session).isDisconnected();
         verify(device).dispatchEvent("Tone sending is completed.");
         verify(provider).stopToneSending(deviceHandle);
         verify(session).setState(Device.State.IDLE);
@@ -249,11 +249,12 @@ public class AbstractTonesEngineTest<H> {
     }
 
     @Test
-    public void shouldNotPlayTone_Disconnected() {
+    public void shouldNotPlayTone_DisconnectedBefore() {
         // preparing test data
         ToneId id = ToneId.BEEP;
         float time = 0.5F;
         engine.uses(device);
+        session.alive(false);
         doReturn(true).when(session).isOpened();
 
         // acting
@@ -277,8 +278,8 @@ public class AbstractTonesEngineTest<H> {
         ToneId id = ToneId.BEEP;
         float time = -0.5F;
         engine.uses(device);
+        session.alive(true);
         doReturn(true).when(session).isOpened();
-        doReturn(true).when(session).isAlive();
 
         // acting
         engine.playTone(session, id, time);
@@ -308,8 +309,8 @@ public class AbstractTonesEngineTest<H> {
         ToneId id = ToneId.BEEP;
         float time = -0.5F;
         engine.uses(device);
+        session.alive(true);
         doReturn(true).when(session).isOpened();
-        doReturn(true).when(session).isAlive();
         doReturn(true).when(provider).startToneSending(deviceHandle, id);
 
         // acting
@@ -342,8 +343,8 @@ public class AbstractTonesEngineTest<H> {
         ToneId id = ToneId.BEEP;
         float time = 0.5F;
         engine.uses(device);
+        session.alive(true);
         doReturn(true).when(session).isOpened();
-        doReturn(true).when(session).isAlive();
         doReturn(true).when(provider).startToneSending(deviceHandle, id);
         executor.schedule(() -> session.operationComplete(Result.ERROR), 100, TimeUnit.MILLISECONDS);
 
@@ -370,6 +371,45 @@ public class AbstractTonesEngineTest<H> {
         assertThat(error).isInstanceOf(DeviceMalfunction.class);
         assertThat(session.getState()).isSameAs(Device.State.ERROR);
         assertThat(session.operationResult()).isSameAs(Result.ERROR);
+    }
+
+    @Test
+    public void shouldNotPlayTone_DisconnectedInAction() throws InterruptedException {
+        // preparing test data
+        String deviceErrorReason = "Tone sending is failed. The connection is lost.";
+        ToneId id = ToneId.BEEP;
+        float time = 0.5F;
+        engine.uses(device);
+        session.alive(true);
+        doReturn(true).when(session).isOpened();
+        doReturn(true).when(provider).startToneSending(deviceHandle, id);
+        executor.schedule(() -> {
+            session.alive(false);
+            session.operationComplete(Result.CALL.DISCONNECT);
+        }, 100, TimeUnit.MILLISECONDS);
+
+        // acting
+        engine.playTone(session, id, time);
+
+        // check the behavior
+        verify(session).isOpened();
+        verify(session, atLeastOnce()).isAlive();
+        verify(device).dispatchEvent("Sending [" + id + "] tone for '" + time + "' seconds.");
+        verify(session).setState(TelephonyDevice.State.TONE);
+        verify(device).getProvider();
+        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
+        verify(provider).startToneSending(deviceHandle, id);
+        verify(session).waitForOperationComplete(500L);
+        verify(session).operationResult();
+        verify(session).isTerminated();
+        verify(session).isDisconnected();
+        verify(device).dispatchError(deviceErrorReason);
+        verify(provider).stopToneSending(deviceHandle);
+        verify(session).setState(Device.State.ERROR);
+        verify(session, atLeastOnce()).operationResult(Result.CALL.DISCONNECT);
+        // check results
+        assertThat(session.getState()).isSameAs(Device.State.ERROR);
+        assertThat(session.operationResult()).isSameAs(Result.CALL.DISCONNECT);
     }
 
     @Test
@@ -552,7 +592,7 @@ public class AbstractTonesEngineTest<H> {
     }
 
     @Test
-    public void shouldDoesNotInputDigits_Disconnected() {
+    public void shouldDoesNotInputDigits_DisconnectedBefore() {
         // preparing test data
         int digitsCount = 2;
         int oneSymbolTimeout = 100;

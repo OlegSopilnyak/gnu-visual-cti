@@ -486,6 +486,26 @@ public class PhoneCallSessionTest {
     }
 
     @Test
+    public void shouldProceedDeviceSpecificEvent_Disconnected() {
+        // preparing test data
+        doReturn(deviceName).when(device).getName();
+        TelephonyDeviceFactory<String, ?> factory = mock(TelephonyDeviceFactory.class);
+        doReturn(factory).when(device).getFactory();
+        DeviceEvent<String> event = spy(AbstractDeviceEvent.<String>of(DeviceEvent.Type.DEVICE_SPECIFIC)
+                .deviceName(deviceName).deviceHandle(handle)
+                .option(DeviceEvent.Option.REASON, Result.CALL.DISCONNECT)
+        );
+
+        // acting
+        session.proceedDeviceSpecificEvent(event);
+
+        // check the behavior
+        verify(session).alive(false);
+        verify(session).operationComplete(Result.CALL.DISCONNECT);
+        // check results
+    }
+
+    @Test
     public void shouldAccept_MalfunctionEvent() {
         // preparing test data
         doReturn(deviceName).when(device).getName();

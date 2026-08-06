@@ -288,8 +288,8 @@ public abstract class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> i
             preparingCallMaker(session, deviceCore.getProvider(), phoneNumber);
             // start outgoing call making
             if (!startCalling(session, phoneNumber, timeout)) {
-                session.getDevice().dispatchError("Cannot start calling phone number");
-                session.setState(Device.State.ERROR);
+                onDeviceError(session, "Cannot start call on the device side.");
+                // unreachable statement
                 return false;
             }
             // waiting for an answer from the called number side 'timeout' seconds
@@ -298,8 +298,8 @@ public abstract class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> i
                 // checking the operation result value after waiting operation complete
                 if (session.operationResult() == Result.ERROR) {
                     // device error is detected
-                    session.setState(Device.State.ERROR);
-                    session.getDevice().dispatchEvent("Make call operation is failed.");
+                    onDeviceError(session, "Make call operation is failed.");
+                    // unreachable statement
                     return false;
                     // checking wait for call operation results
                 } else if (isThereOutgoingCallCompleted(session)) {

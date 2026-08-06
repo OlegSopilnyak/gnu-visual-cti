@@ -37,7 +37,6 @@ Fax number: 217-356-3356
 */
 package org.visualcti.core.channel.telephony.part.adapter;
 
-
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.File;
@@ -136,17 +135,76 @@ public class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> implement
                 tempFile.deleteOnExit();
                 // saving the file for tests purposes
                 session.parameter(Parameter.AUDIO_TEMPORARY, tempFile);
-                // staring audio data transmitting by service producer
+                // staring audio data transmitting by service provider
                 final String tempFileName = tempFile.getAbsolutePath();
                 final boolean starting = serviceProvider.startAudioPlaying(deviceHandle, tempFileName, timeout, format);
                 if (!starting) {
-                    throw new IOException("Cannot start audio playing");
+                    // throwing DeviceMalfunction error here
+                    onDeviceError(session, "Cannot start playing the audio file");
+                    // unreachable statement
+                    return Result.ERROR;
                 }
                 // start to wait for the operation result
                 session.operationComplete(Result.NONE);
+                // waiting for an event during the audio data transmitting
+                session.waitForOperationComplete(timeout * 1000L);
+                final OperationResultValue operationResult = session.operationResult();
+                // checking the operation result value after waiting operation complete
+                if (operationResult == Result.ERROR) {
+                    // device hardware error is detected
+                    // stopping audio data transmitting by service provider
+                    serviceProvider.stopAudioPlaying(deviceHandle);
+                    // throwing DeviceMalfunction error here
+                    onDeviceError(session, "Playback audio is failed.");
+                    // unreachable statement
+                    return operationResult;
+                    // checking for the end of data operation result
+                } else if (operationResult == Result.IO.EOF) {
+                    // operation is complete
+                    session.getDevice().dispatchEvent("Playback audio is completed.");
+                    // deleting temporary file
+                    if (tempFile.delete()) {
+                        // stopping audio data transmitting by service provider
+                        serviceProvider.stopAudioPlaying(deviceHandle);
+                    }
+                    // checking for the termination of the operation
+                } else if (session.isTerminated()) {
+                    // operation termination is detected
+                    // removing unnecessary temp file
+                    if (tempFile.delete()) {
+                        // stopping audio data transmitting by service provider
+                        serviceProvider.stopAudioPlaying(deviceHandle);
+                        session.operationResult(Result.TERMINATED);
+                        session.setState(Device.State.IDLE);
+                    }
+                    return Result.TERMINATED;
+                    // checking for the disconnection during the operation
+                } else if (session.isDisconnected()) {
+                    session.getDevice().dispatchError("Playback audio is failed. The connection is lost.");
+                    // stopping audio data transmitting by service provider
+                    serviceProvider.stopAudioPlaying(deviceHandle);
+                    session.operationResult(Result.CALL.DISCONNECT);
+                    session.setState(Device.State.ERROR);
+                    return Result.CALL.DISCONNECT;
+                }
+            } catch (InterruptedException e) {
+                session.getDevice().dispatchError(e, "Cannot wait audio data transmitting completion.");
+                /* Clean up whatever needs to be handled before interrupting  */
+                Thread.currentThread().interrupt();
+                // stopping audio data transmitting by service provider
+                serviceProvider.stopAudioPlaying(deviceHandle);
+                return Result.ERROR;
             } catch (IOException e) {
-                session.getDevice().dispatchError(e, "Cannot start playing the audio file");
+                session.getDevice().dispatchError(e, "Temporary file creation failed.");
+                return Result.ERROR;
             }
+            // operation is complete
+            session.getDevice().dispatchEvent("Playback audio is finished.");
+            // stopping audio data transmitting by service provider
+            serviceProvider.stopAudioPlaying(deviceHandle);
+            // make send tone operation is complete
+            session.setState(Device.State.IDLE);
+            return session.operationResult();
         }
         session.setState(Device.State.ERROR);
         return Result.ERROR;

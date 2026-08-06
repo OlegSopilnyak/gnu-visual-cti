@@ -39,6 +39,7 @@ package org.visualcti.core.channel.telephony.part.adapter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
+import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -63,6 +64,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceEvent;
+import org.visualcti.core.channel.device.DeviceMalfunction;
 import org.visualcti.core.channel.device.DeviceStateValue;
 import org.visualcti.core.channel.telephony.TelephonyChannel;
 import org.visualcti.core.channel.telephony.TelephonyDevice;
@@ -496,7 +498,7 @@ public class AbstractCallsPortEngineTest<H> {
         executor.schedule(() -> session.operationComplete(Result.ERROR), 50, TimeUnit.MILLISECONDS);
 
         // acting
-        boolean done = engine.makeCall(session, number, timeout);
+        Throwable error = assertThrows(Throwable.class, () -> engine.makeCall(session, number, timeout));
 
         // check the behavior
         verify(session, atLeastOnce()).getDeviceHandle();
@@ -512,7 +514,8 @@ public class AbstractCallsPortEngineTest<H> {
         verify(session).operationComplete(Result.ERROR);
         verify(session).setState(Device.State.ERROR);
         // check results
-        assertThat(done).isFalse();
+        assertThat(error).isInstanceOf(DeviceMalfunction.class);
+        assertThat(error.getMessage()).endsWith("Make call operation is failed.");
         assertThat(session.isAlive()).isFalse();
         assertThat(session.getState()).isEqualTo(Device.State.ERROR);
         assertThat(session.operationResult()).isEqualTo(Result.ERROR);

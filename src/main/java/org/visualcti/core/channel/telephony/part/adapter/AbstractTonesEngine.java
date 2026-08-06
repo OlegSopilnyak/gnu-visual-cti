@@ -56,7 +56,7 @@ import org.visualcti.core.channel.telephony.part.TonesEngine;
  * @see TonesEngine
  * @see AbstractDevicePart
  */
-public class AbstractTonesEngine<H> extends AbstractDevicePart<H> implements TonesEngine<H> {
+public abstract class AbstractTonesEngine<H> extends AbstractDevicePart<H> implements TonesEngine<H> {
     // predicate to check is operation in progress
     private static final Predicate<DeviceStateValue> isOperationInProgress =
             state -> state == TelephonyDevice.State.DIAL
@@ -85,7 +85,7 @@ public class AbstractTonesEngine<H> extends AbstractDevicePart<H> implements Ton
             session.getDevice().dispatchEvent("Dialing is completed.");
             // making dial DTMF operation completed
             session.setState(Device.State.IDLE);
-            if (!session.isTerminated()) {
+            if (!session.isTerminated() && session.isAlive()) {
                 // session wasn't terminated
                 session.operationResult(Result.OK);
             }
@@ -138,9 +138,20 @@ public class AbstractTonesEngine<H> extends AbstractDevicePart<H> implements Ton
                         // device error is detected
                         onDeviceError(session, "Tone sending is failed.");
                         return;
+                        // checking for the termination of the operation
                     } else if (session.isTerminated()) {
+                        // stopping tone generation
+                        serviceProvider.stopToneSending(deviceHandle);
                         // tone send operation is terminated
                         session.setState(Device.State.IDLE);
+                        return;
+                        // checking for the disconnection during the operation
+                    } else if (session.isDisconnected()) {
+                        session.getDevice().dispatchError("Tone sending is failed. The connection is lost.");
+                        // stopping tone generation
+                        serviceProvider.stopToneSending(deviceHandle);
+                        session.operationResult(Result.CALL.DISCONNECT);
+                        session.setState(Device.State.ERROR);
                         return;
                     }
                 } catch (InterruptedException e) {

@@ -71,6 +71,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.visualcti.core.channel.device.Device;
+import org.visualcti.core.channel.device.DeviceMalfunction;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.TelephonyDevice;
 import org.visualcti.core.channel.telephony.TelephonyServiceProvider;
@@ -230,7 +231,7 @@ public class AbstractFaxMachineEngineTest<H> {
         verify(session).waitForOperationComplete(anyLong());
         verify(session).operationComplete(Result.IO.EOF);
         verify(session).setState(Device.State.IDLE);
-        verify(provider).stopFaxReceiving(deviceHandle);
+        verify(provider, atLeastOnce()).stopFaxReceiving(deviceHandle);
         // check results
         assertThat(session.isTerminated()).isFalse();
         assertThat(result).isSameAs(Result.IO.EOF);
@@ -355,13 +356,12 @@ public class AbstractFaxMachineEngineTest<H> {
     }
 
     @Test
-    public void shouldNotReceiveFaxDocument_DeviceError() throws IOException, ExecutionException, InterruptedException {
+    public void shouldNotReceiveFaxDocument_DeviceError() throws IOException, InterruptedException {
         // preparing test data
         boolean poolingMode = true;
         boolean issueVoiceRequest = true;
         OutputStream out = mock(OutputStream.class);
         OperationResultValue reason = Result.ERROR;
-        OperationResultValue result;
         engine.uses(device);
         doReturn(true).when(engine).canFax();
         doReturn(deviceHandle).when(provider).openFaxResource(deviceName);
@@ -370,14 +370,10 @@ public class AbstractFaxMachineEngineTest<H> {
         session.alive(true);
         reset(engine, provider);
         doReturn(true).when(provider).startFaxReceiving(eq(deviceHandle), anyString(), eq(issueVoiceRequest));
+        executor.schedule(() -> session.operationComplete(Result.ERROR), 100, TimeUnit.MILLISECONDS);
 
         // acting
-        Future<OperationResultValue> acting = executor.submit(
-                () -> engine.receive(session, out, poolingMode, issueVoiceRequest)
-        );
-        await().until(() -> session.operationIsActive());
-        executor.schedule(() -> session.operationComplete(reason), 50, TimeUnit.MILLISECONDS);
-        result = acting.get();
+        final Throwable error = assertThrows(Throwable.class, ()->engine.receive(session, out, poolingMode, issueVoiceRequest));
 
         // check the behavior
         verify(engine).isOpened(session);
@@ -398,7 +394,8 @@ public class AbstractFaxMachineEngineTest<H> {
         verify(session).setState(Device.State.ERROR);
         verify(device).dispatchError("Receive fax document is failed.");
         // check results
-        assertThat(result).isSameAs(reason);
+        assertThat(error).isInstanceOf(DeviceMalfunction.class);
+        assertThat(error.getMessage()).endsWith("Receive fax document is failed.");
         assertThat(session.operationResult()).isSameAs(reason);
         assertThat(session.getState()).isEqualTo(Device.State.ERROR);
     }
@@ -654,7 +651,7 @@ public class AbstractFaxMachineEngineTest<H> {
         verify(session).operationComplete(Result.TERMINATED);
         verify(session).terminate();
         verify(session).setState(Device.State.IDLE);
-        verify(provider).stopFaxReceiving(deviceHandle);
+        verify(provider, atLeastOnce()).stopFaxReceiving(deviceHandle);
         // check results
         assertThat(session.isTerminated()).isTrue();
         assertThat(result).isSameAs(Result.TERMINATED);
@@ -712,7 +709,7 @@ public class AbstractFaxMachineEngineTest<H> {
         verify(session).waitForOperationComplete(anyLong());
         verify(session).operationComplete(Result.IO.EOF);
         verify(session).setState(Device.State.IDLE);
-        verify(provider).stopFaxTransmitting(deviceHandle);
+        verify(provider, atLeastOnce()).stopFaxTransmitting(deviceHandle);
         // check results
         assertThat(session.isTerminated()).isFalse();
         assertThat(result).isSameAs(Result.IO.EOF);
@@ -900,7 +897,7 @@ public class AbstractFaxMachineEngineTest<H> {
     }
 
     @Test
-    public void shouldNotTransmitFaxDocument_FaxDeviceError() throws IOException, ExecutionException, InterruptedException {
+    public void shouldNotTransmitFaxDocument_FaxDeviceError() throws IOException {
         // preparing test data
         String faxContent = "Fax Document Content";
         Fax format = Fax.TEXT;
@@ -921,18 +918,13 @@ public class AbstractFaxMachineEngineTest<H> {
         reset(engine, provider);
         doReturn(true).when(provider).startFaxTransmitting(eq(deviceHandle), anyString(), eq(issueVoiceRequest),
                 eq(format.isTIFF()), eq(format.isHighResolution()), anyInt(), anyInt());
+        executor.schedule(() -> session.operationComplete(Result.ERROR), 100, TimeUnit.MILLISECONDS);
 
         // acting
-        Future<OperationResultValue> acting = executor.submit(() -> {
-            try (InputStream in = new FileInputStream(tempFile)) {
-                return engine.transmit(session, in, format, issueVoiceRequest);
-            } catch (IOException e) {
-                return Result.ERROR;
-            }
-        });
-        await().until(() -> session.operationIsActive());
-        executor.schedule(() -> session.operationComplete(reason), 50, TimeUnit.MILLISECONDS);
-        result = acting.get();
+        final Throwable error;
+        try (InputStream in = new FileInputStream(tempFile)) {
+            error = assertThrows(Throwable.class, () -> engine.transmit(session, in, format, issueVoiceRequest));
+        }
 
         // check the behavior
         verify(engine).isOpened(session);
@@ -948,7 +940,8 @@ public class AbstractFaxMachineEngineTest<H> {
         verify(session).setState(Device.State.ERROR);
         verify(device).dispatchError("Send fax document is failed.");
         // check results
-        assertThat(result).isSameAs(session.operationResult()).isSameAs(reason);
+        assertThat(error).isInstanceOf(DeviceMalfunction.class);
+        assertThat(error.getMessage()).endsWith("Send fax document is failed.");
         assertThat(session.getState()).isEqualTo(Device.State.ERROR);
     }
 
@@ -1220,7 +1213,7 @@ public class AbstractFaxMachineEngineTest<H> {
         verify(session).operationComplete(Result.TERMINATED);
         verify(session).terminate();
         verify(session).setState(Device.State.IDLE);
-        verify(provider).stopFaxTransmitting(deviceHandle);
+        verify(provider, atLeastOnce()).stopFaxTransmitting(deviceHandle);
         // check results
         assertThat(session.isTerminated()).isTrue();
         assertThat(result).isSameAs(Result.TERMINATED);

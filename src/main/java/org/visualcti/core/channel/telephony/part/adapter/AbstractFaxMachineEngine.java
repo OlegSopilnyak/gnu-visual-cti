@@ -168,14 +168,17 @@ public abstract class AbstractFaxMachineEngine<H> extends AbstractDevicePart<H> 
                     final OperationResultValue operationResult = session.operationResult();
                     // checking the operation result value after waiting operation complete
                     if (operationResult == Result.ERROR) {
+                        // disabling any events producing for opened fax resource
+                        serviceProvider.disableEvents(faxDeviceHandle);
                         // device error is detected
-                        session.setState(Device.State.ERROR);
-                        session.getDevice().dispatchError("Receive fax document is failed.");
+                        onDeviceError(session, "Receive fax document is failed.");
+                        // unreachable statement
                         return operationResult;
                         // checking wait for call operation results
                     } else if (operationResult == Result.IO.EOF) {
                         // operation is complete
                         session.getDevice().dispatchEvent("Receive fax document is completed.");
+                        stopFaxReceiving(serviceProvider, faxDeviceHandle);
                         // copying received data to the target output stream and deleting temporary file
                         copyReceivedData(tempFile, target);
                         if (tempFile.delete()) {
@@ -183,6 +186,7 @@ public abstract class AbstractFaxMachineEngine<H> extends AbstractDevicePart<H> 
                         }
                     } else if (session.isTerminated()) {
                         // operation termination is detected
+                        stopFaxReceiving(serviceProvider, faxDeviceHandle);
                         // removing unnecessary temp file
                         if (tempFile.delete()) {
                             session.operationResult(Result.TERMINATED);
@@ -191,8 +195,7 @@ public abstract class AbstractFaxMachineEngine<H> extends AbstractDevicePart<H> 
                         return Result.TERMINATED;
                     } else if (session.isDisconnected()) {
                         session.getDevice().dispatchError("Receive fax document is failed.");
-                        // stop fax's transmitting
-                        serviceProvider.stopFaxReceiving(faxDeviceHandle);
+                        stopFaxReceiving(serviceProvider, faxDeviceHandle);
                         // removing unnecessary temp file
                         if (tempFile.delete()) {
                             session.operationResult(Result.CALL.DISCONNECT);
@@ -200,18 +203,15 @@ public abstract class AbstractFaxMachineEngine<H> extends AbstractDevicePart<H> 
                         }
                         return Result.CALL.DISCONNECT;
                     } else if (faxOperationFailed.test(operationResult)) {
+                        stopFaxReceiving(serviceProvider, faxDeviceHandle);
                         session.getDevice().dispatchError("Receive fax document is failed.");
                         session.setState(Device.State.ERROR);
-                        // stop fax's transmitting
-                        serviceProvider.stopFaxReceiving(faxDeviceHandle);
                         // removing unnecessary temp file
                         return tempFile.delete() ? operationResult : Result.ERROR;
                     }
                 }
-                // stop fax's transmitting
-                serviceProvider.stopFaxReceiving(faxDeviceHandle);
-                // disabling any events producing for opened fax resource
-                serviceProvider.disableEvents(faxDeviceHandle);
+                // stop the operation
+                stopFaxReceiving(serviceProvider, faxDeviceHandle);
                 // make receive fax operation is complete
                 session.setState(Device.State.IDLE);
                 // removing unnecessary temp file
@@ -285,20 +285,26 @@ public abstract class AbstractFaxMachineEngine<H> extends AbstractDevicePart<H> 
                     final OperationResultValue operationResult = session.operationResult();
                     // checking the operation result value after waiting operation complete
                     if (operationResult == Result.ERROR) {
+                        // disabling any events producing for opened fax resource
+                        serviceProvider.disableEvents(faxDeviceHandle);
                         // device error is detected
-                        session.setState(Device.State.ERROR);
-                        session.getDevice().dispatchError("Send fax document is failed.");
+                        onDeviceError(session, "Send fax document is failed.");
+                        // unreachable statement
                         return operationResult;
-                        // checking wait for call operation results
+                        // checking end of data operation results
                     } else if (operationResult == Result.IO.EOF) {
                         // operation is complete
                         session.getDevice().dispatchEvent("Send fax document is completed.");
+                        // stop fax's transmitting
+                        stopFaxTransmitting(serviceProvider, faxDeviceHandle);
                         // deleting temporary file
                         if (tempFile.delete()) {
                             break;
                         }
                     } else if (session.isTerminated()) {
                         // operation termination is detected
+                        // stop fax's transmitting
+                        stopFaxTransmitting(serviceProvider, faxDeviceHandle);
                         // removing unnecessary temp file
                         if (tempFile.delete()) {
                             session.operationResult(Result.TERMINATED);
@@ -308,22 +314,19 @@ public abstract class AbstractFaxMachineEngine<H> extends AbstractDevicePart<H> 
                     } else if (session.isDisconnected()) {
                         session.getDevice().dispatchError("Send fax document is failed.");
                         // stop fax's transmitting
-                        serviceProvider.stopFaxTransmitting(faxDeviceHandle);
+                        stopFaxTransmitting(serviceProvider, faxDeviceHandle);
                         session.operationResult(Result.CALL.DISCONNECT);
                         session.setState(Device.State.ERROR);
                         return Result.CALL.DISCONNECT;
                     } else if (faxOperationFailed.test(operationResult)) {
                         session.getDevice().dispatchError("Send fax document is failed.");
                         session.setState(Device.State.ERROR);
-                        // stop fax's transmitting
-                        serviceProvider.stopFaxTransmitting(faxDeviceHandle);
+                        stopFaxTransmitting(serviceProvider, faxDeviceHandle);
                         return operationResult;
                     }
                 }
                 // stop fax's transmitting
-                serviceProvider.stopFaxTransmitting(faxDeviceHandle);
-                // disabling any events producing for opened fax resource
-                serviceProvider.disableEvents(faxDeviceHandle);
+                stopFaxTransmitting(serviceProvider, faxDeviceHandle);
                 // make receive fax operation is complete
                 session.setState(Device.State.IDLE);
                 return session.operationResult();
@@ -406,5 +409,19 @@ public abstract class AbstractFaxMachineEngine<H> extends AbstractDevicePart<H> 
                 target.write(buffer, 0, read);
             }
         }
+    }
+
+    private static <H> void stopFaxReceiving(TelephonyServiceProvider<H> serviceProvider, H faxDeviceHandle) {
+        // stop fax's transmitting
+        serviceProvider.stopFaxReceiving(faxDeviceHandle);
+        // disabling any events producing for opened fax resource
+        serviceProvider.disableEvents(faxDeviceHandle);
+    }
+
+    private static <H> void stopFaxTransmitting(TelephonyServiceProvider<H> serviceProvider, H faxDeviceHandle) {
+        // stop fax's transmitting
+        serviceProvider.stopFaxTransmitting(faxDeviceHandle);
+        // disabling any events producing for opened fax resource
+        serviceProvider.disableEvents(faxDeviceHandle);
     }
 }
