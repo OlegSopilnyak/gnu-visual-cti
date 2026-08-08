@@ -42,6 +42,7 @@ import java.io.OutputStream;
 import java.util.Arrays;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
+import org.visualcti.core.channel.telephony.TelephonyDevice;
 import org.visualcti.core.channel.telephony.operation.Result;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.media.Audio;
@@ -82,10 +83,12 @@ public interface MultimediaEngine<H> extends TelephonyDevicePart<H> {
 
     /**
      * <accessor>
-     * Returns the array of supported audio formats for playing back,
-     * null if playback is not supported
+     * Returns the array of supported audio formats(codecs) for playing back,
+     * empty array if playback is not supported
+     * The codecs will be loading during telephony device session starting process
      *
-     * @return the array of the supported playback formats supported by device or null if device can't play back
+     * @return the array of the supported playback formats supported by device or empty array if device can't play back
+     * @see TelephonyDevice#startSession()
      */
     Audio[] canPlay();
 
@@ -114,10 +117,10 @@ public interface MultimediaEngine<H> extends TelephonyDevicePart<H> {
      *
      * @param session                the phone call's session, device is working with
      * @param source                 the input stream, from which undertake sound data for playback in a telephone line
+     * @param format                 parameter determining type of the decoder for transformation the sound data
      * @param terminationSymbolsMask set of symbols finishing up the playing (mask). The mask is passed to the method
      *                               as any combination of comma separated symbols<BR/>(0-9,*,#), for example: " 1, 2, #, 0 ".
      * @param timeout                maximum time of playing back in seconds (-1 for unlimited, waiting for end of stream)
-     * @param format                 parameter determining type of the decoder for transformation the sound data
      * @return the operation's result<p>
      * {@link Result.IO#EOF} - the playback reached end of stream;
      * {@link Result.IO#DTMF} - the playback is interrupted by symbol from the termination mask.<BR/>
@@ -129,7 +132,7 @@ public interface MultimediaEngine<H> extends TelephonyDevicePart<H> {
      * @see OperationResultValue
      */
     OperationResultValue playbackAudio(
-            PhoneCallSession<H> session, InputStream source, String terminationSymbolsMask, int timeout, Audio format
+            PhoneCallSession<H> session, InputStream source, Audio format, String terminationSymbolsMask, int timeout
     );
 
     /**
@@ -147,9 +150,9 @@ public interface MultimediaEngine<H> extends TelephonyDevicePart<H> {
     /**
      * <accessor>
      * Returns the array of supported audio formats for recording,
-     * null if record is not supported
+     * empty array if record is not supported
      *
-     * @return the array of the record formats supported by device or null if device can't record
+     * @return the array of the record formats supported by device or empty array if device can't record
      */
     default Audio[] canRecord() {
         final Audio recordFormat = getRecordFormat();
@@ -174,8 +177,10 @@ public interface MultimediaEngine<H> extends TelephonyDevicePart<H> {
     /**
      * <accessor>
      * To get access to the default audio format of recording
+     * The codec will be loading during telephony device session starting process
      *
      * @return the default format for the voice record operation or null if device can't record
+     * @see TelephonyDevice#startSession()
      */
     Audio getRecordFormat();
 
@@ -185,11 +190,11 @@ public interface MultimediaEngine<H> extends TelephonyDevicePart<H> {
      *
      * @param session                the phone call's session, device is working with
      * @param target                 the output stream where recorded data will be placed
+     * @param format                 parameter determining type of the record audio data
      * @param terminationSymbolsMask set of symbols finishing up the recording (mask). The mask is passed to the method
      *                               as any combination of comma separated symbols<BR/>(0-9,*,#), for example: " 1, 2, #, 0 ".
      * @param silence                time (seconds) how long silence in a line is allowed, after which the record operation be finished.
      * @param timeout                maximum time of recording in seconds
-     * @param format                 parameter determining type of the record audio data
      * @return the operation's result
      * <p>
      * {@link Result#TIMEOUT} - the time of audio record was exceeded.<BR/>
@@ -202,7 +207,6 @@ public interface MultimediaEngine<H> extends TelephonyDevicePart<H> {
      * @see OperationResultValue
      */
     OperationResultValue recordAudio(
-            PhoneCallSession<H> session, OutputStream target, String terminationSymbolsMask,
-            int silence, int timeout, Audio format
-    );
+            PhoneCallSession<H> session, OutputStream target, Audio format,
+            String terminationSymbolsMask, int silence, int timeout);
 }

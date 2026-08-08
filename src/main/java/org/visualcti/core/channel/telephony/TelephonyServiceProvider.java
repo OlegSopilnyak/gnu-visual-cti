@@ -317,7 +317,7 @@ public interface TelephonyServiceProvider<H> extends Device.ServiceProvider<H> {
      * @see FaxMachineEngine#transmit(PhoneCallSession, InputStream, Fax, boolean)
      */
     default boolean startFaxTransmitting(H handle, String filePath, boolean issueVoiceRequest,
-                                 boolean isTiff, boolean isHighResolution, int firstPageNumber, int totalPages){
+                                         boolean isTiff, boolean isHighResolution, int firstPageNumber, int totalPages) {
         return false;
     }
 
@@ -336,14 +336,14 @@ public interface TelephonyServiceProvider<H> extends Device.ServiceProvider<H> {
      * <action>
      * To start playing media from temporary file with particular media format
      *
-     * @param handle the telephony device handle
-     * @param filePath          the path to the file which contents the media data
-     * @param timeout                maximum time of playing back in seconds (-1 for unlimited, waiting for end of stream)
-     * @param format                 parameter determining type of the decoder for transformation the sound data
+     * @param handle   the telephony device handle
+     * @param filePath the path to the file which contents the media data
+     * @param format   parameter determining type of the decoder for transformation the sound data
+     * @param timeout  maximum time of playing back in seconds (-1 for unlimited, waiting for end of stream)
      * @return true if operation started successfully
-     * @see MultimediaEngine#playbackAudio(PhoneCallSession, InputStream, String, int, Audio)
+     * @see MultimediaEngine#playbackAudio(PhoneCallSession, InputStream, Audio, String, int)
      */
-    default boolean startAudioPlaying(H handle, String filePath, int timeout, Audio format) {
+    default boolean startAudioPlaying(H handle, String filePath, Audio format, int timeout) {
         return false;
     }
 
@@ -352,10 +352,37 @@ public interface TelephonyServiceProvider<H> extends Device.ServiceProvider<H> {
      * To stop (interrupt) playing media
      *
      * @param handle the telephony device handle
-     * @see #startAudioPlaying(H, String, int, Audio)
+     * @see #startAudioPlaying(Object, String, Audio, int)
      */
     default void stopAudioPlaying(H handle) {
+        // doing nothing here
+    }
 
+    /**
+     * <action>
+     * To start recording media to the temporary file with particular media format
+     *
+     * @param handle   the telephony device handle
+     * @param filePath the path to the file which contents the media data
+     * @param format   parameter determining type of the decoder for transformation the sound data
+     * @param silence  time (seconds) how long silence in a line is allowed, after which the record operation will be finished.
+     * @param timeout  maximum time of playing back in seconds (-1 for unlimited, waiting for end of stream)
+     * @return true if operation started successfully
+     * @see MultimediaEngine#recordAudio(PhoneCallSession, OutputStream, Audio, String, int, int)
+     */
+    default boolean startAudioRecording(H handle, String filePath, Audio format, int silence, int timeout) {
+        return false;
+    }
+
+    /**
+     * <action>
+     * To stop (interrupt) playing media
+     *
+     * @param handle the telephony device handle
+     * @see #startAudioRecording(H, String, Audio, int, int)
+     */
+    default void stopAudioRecording(H handle) {
+        // doing nothing here
     }
 
     /**
@@ -367,7 +394,7 @@ public interface TelephonyServiceProvider<H> extends Device.ServiceProvider<H> {
      * @see TonesEngine#dial(PhoneCallSession, String)
      */
     default void dialingDtmf(H handle, String toDial) {
-
+        // doing nothing here
     }
 
     /**
@@ -375,7 +402,7 @@ public interface TelephonyServiceProvider<H> extends Device.ServiceProvider<H> {
      * To start sending the tone to the connected phone line
      *
      * @param handle the telephony device handle
-     * @param toneId          the id of tone to send
+     * @param toneId the id of tone to send
      * @return true if operation started successfully
      * @see TonesEngine#playTone(PhoneCallSession, ToneId, float)
      */

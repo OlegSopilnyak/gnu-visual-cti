@@ -164,7 +164,7 @@ public abstract class AbstractFaxMachineEngine<H> extends AbstractDevicePart<H> 
                 // waiting for operation complete event from the events source for particular device handle
                 while (session.getState() == TelephonyDevice.State.RECVFAX) {
                     // waiting for an event during the fax document transmit
-                    session.waitForOperationComplete(1000L);
+                    session.waitingForTheOperationComplete(1000L);
                     final OperationResultValue operationResult = session.operationResult();
                     // checking the operation result value after waiting operation complete
                     if (operationResult == Result.ERROR) {
@@ -281,7 +281,7 @@ public abstract class AbstractFaxMachineEngine<H> extends AbstractDevicePart<H> 
                 // waiting for operation complete event from the events source for particular device handle
                 while (session.getState() == TelephonyDevice.State.SENDFAX) {
                     // waiting for an event during the fax document transmitting
-                    session.waitForOperationComplete(1000L);
+                    session.waitingForTheOperationComplete(1000L);
                     final OperationResultValue operationResult = session.operationResult();
                     // checking the operation result value after waiting operation complete
                     if (operationResult == Result.ERROR) {

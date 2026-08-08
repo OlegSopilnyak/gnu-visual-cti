@@ -122,14 +122,14 @@ public class MultiMedeaEngineTest<H> {
         String mask = "*,#";
         Audio audioFormat = Audio.LINEAR_11;
         int timeout = 5;
-        doReturn(resultValue).when(engine).playbackAudio(eq(session), eq(stream), anyString(), anyInt(), eq(audioFormat));
+        doReturn(resultValue).when(engine).playbackAudio(eq(session), eq(stream), eq(audioFormat), anyString(), anyInt());
 
         // acting
-        OperationResultValue result = engine.playbackAudio(session, stream, mask, timeout, audioFormat);
+        OperationResultValue result = engine.playbackAudio(session, stream, audioFormat, mask, timeout);
 
         // check the behavior
         ArgumentCaptor<InputStream> captor = ArgumentCaptor.forClass(InputStream.class);
-        verify(engine).playbackAudio(eq(session), captor.capture(), anyString(), anyInt(), any(Audio.class));
+        verify(engine).playbackAudio(eq(session), captor.capture(), any(Audio.class), anyString(), anyInt());
         // check results
         assertThat(captor.getValue()).isSameAs(stream);
         assertThat(result).isSameAs(resultValue);
@@ -191,14 +191,14 @@ public class MultiMedeaEngineTest<H> {
         Audio audioFormat = ULAW_8;
         int silence = 2;
         int timeout = 5;
-        doReturn(resultValue).when(engine).recordAudio(eq(session), eq(stream), anyString(), anyInt(), anyInt(), eq(audioFormat));
+        doReturn(resultValue).when(engine).recordAudio(eq(session), eq(stream), eq(audioFormat), anyString(), anyInt(), anyInt());
 
         // acting
-        OperationResultValue result = engine.recordAudio(session, stream, mask, silence, timeout, audioFormat);
+        OperationResultValue result = engine.recordAudio(session, stream, audioFormat, mask, silence, timeout);
 
         // check the behavior
         ArgumentCaptor<OutputStream> captor = ArgumentCaptor.forClass(OutputStream.class);
-        verify(engine).recordAudio(eq(session), captor.capture(), anyString(), anyInt(), anyInt(), any(Audio.class));
+        verify(engine).recordAudio(eq(session), captor.capture(), any(Audio.class), anyString(), anyInt(), anyInt());
         // check results
         assertThat(captor.getValue()).isSameAs(stream);
         assertThat(result).isSameAs(resultValue);

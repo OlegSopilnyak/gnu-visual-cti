@@ -541,21 +541,21 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      *
      * @param session                the phone call's session, device is working with
      * @param source                 the input stream, from which undertake sound data for playback to the telephone line
+     * @param format                 parameter determining type of the decoder for transformation the sound data
      * @param terminationSymbolsMask set of symbols finishing up the playing (mask). The mask is passed to the method
      *                               as any combination of comma separated symbols<BR/>(0-9,*,#), for example: " 1, 2, #, 0 ".
      * @param timeout                maximum time of playing back in seconds (-1 for unlimited, waiting for end of stream)
-     * @param format                 parameter determining type of the decoder for transformation the sound data
      * @return the operation's result
      * @see MultimediaEngine#canPlay(Audio)
-     * @see MultimediaEngine#playbackAudio(PhoneCallSession, InputStream, String, int, Audio)
+     * @see MultimediaEngine#playbackAudio(PhoneCallSession, InputStream, Audio, String, int)
      * @see Result#ERROR
      */
     @Override
     public OperationResultValue playbackAudio(final PhoneCallSession<H> session, final InputStream source,
-                                              final String terminationSymbolsMask, final int timeout, final Audio format
+                                              final Audio format, final String terminationSymbolsMask, final int timeout
     ) {
         return media.canPlay(format)
-                ? delegateMediaOperation(PLAY, () -> media.playbackAudio(session, source, terminationSymbolsMask, timeout, format))
+                ? delegateMediaOperation(PLAY, () -> media.playbackAudio(session, source, format, terminationSymbolsMask, timeout))
                 : Result.ERROR;
     }
 
@@ -605,19 +605,19 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      *
      * @param session                the phone call's session, device is working with
      * @param target                 the output stream where recorded data will be placed
+     * @param format                 parameter determining type of the record audio data
      * @param terminationSymbolsMask set of symbols finishing up the recording (mask). The mask is passed to the method
      *                               as any combination of comma separated symbols<BR/>(0-9,*,#), for example: " 1, 2, #, 0 ".
      * @param silence                time (seconds) how long silence in a line is allowed, after which the record operation be finished.
      * @param timeout                maximum time of recording in seconds
-     * @param format                 parameter determining type of the record audio data
      * @return the operation's result
      * @see MultimediaEngine#canRecord(Audio)
-     * @see MultimediaEngine#recordAudio(PhoneCallSession, OutputStream, String, int, int, Audio)
+     * @see MultimediaEngine#recordAudio(PhoneCallSession, OutputStream, Audio, String, int, int)
      * @see Result#ERROR
      */
     @Override
-    public OperationResultValue recordAudio(final PhoneCallSession<H> session, final OutputStream target, final String terminationSymbolsMask,
-                                            final int silence, final int timeout, final Audio format) {
+    public OperationResultValue recordAudio(final PhoneCallSession<H> session, final OutputStream target, final Audio format, final String terminationSymbolsMask,
+                                            final int silence, final int timeout) {
         return media.canRecord(format)
                 ? delegateRecordAudio(session, target, terminationSymbolsMask, silence, timeout, format)
                 : Result.ERROR;
@@ -755,7 +755,7 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
                                                      final String terminationSymbolsMask,
                                                      final int silence, final int timeout, final Audio format) {
         return delegateMediaOperation(RECORD,
-                () -> media.recordAudio(session, target, terminationSymbolsMask, silence, timeout, format)
+                () -> media.recordAudio(session, target, format, terminationSymbolsMask, silence, timeout)
         );
     }
 

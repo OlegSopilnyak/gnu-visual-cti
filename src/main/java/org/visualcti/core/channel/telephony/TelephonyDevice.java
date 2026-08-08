@@ -606,10 +606,10 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      *
      * @param session                the phone call's session, device is working with
      * @param source                 the input stream, from which undertake sound data for playback in a telephone line
+     * @param format                 parameter determining type of the decoder for transformation the sound data
      * @param terminationSymbolsMask set of symbols finishing up the playing (mask). The mask is passed to the method
      *                               as any combination of comma separated symbols<BR/>(0-9,*,#), for example: " 1, 2, #, 0 ".
      * @param timeout                maximum time of playing back in seconds (-1 for unlimited, waiting for end of stream)
-     * @param format                 parameter determining type of the decoder for transformation the sound data
      * @return the operation's result<p>
      * {@link Result.IO#EOF} - the playback reached end of stream;
      * {@link Result.IO#DTMF} - the playback is interrupted by symbol from the termination mask.<BR/>
@@ -622,7 +622,7 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      */
     @Override
     default OperationResultValue playbackAudio(
-            PhoneCallSession<H> session, InputStream source, String terminationSymbolsMask, int timeout, Audio format
+            PhoneCallSession<H> session, InputStream source, Audio format, String terminationSymbolsMask, int timeout
     ) {
         return Result.ERROR;
     }
@@ -650,13 +650,13 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      * @see OperationResultValue
      * @see Sound#getInputStream()
      * @see Sound#getFormat()
-     * @see #playbackAudio(PhoneCallSession, InputStream, String, int, Audio)
+     * @see MultimediaEngine#playbackAudio(PhoneCallSession, InputStream, Audio, String, int)
      */
     default OperationResultValue playbackAudio(
             final PhoneCallSession<H> session, final Sound sound, final String terminationSymbolsMask,
             final int timeout) {
         try {
-            return playbackAudio(session, sound.getInputStream(), terminationSymbolsMask, timeout, sound.getFormat());
+            return playbackAudio(session, sound.getInputStream(), sound.getFormat(), terminationSymbolsMask, timeout);
         } catch (IOException e) {
             dispatchError(e, "Cannot play audio sound");
             return Result.ERROR;
@@ -680,11 +680,11 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      *
      * @param session                the phone call's session, device is working with
      * @param target                 the output stream where recorded data will be placed
+     * @param format                 parameter determining type of the record audio data
      * @param terminationSymbolsMask set of symbols finishing up the recording (mask). The mask is passed to the method
      *                               as any combination of comma separated symbols<BR/>(0-9,*,#), for example: " 1, 2, #, 0 ".
      * @param silence                time (seconds) how long silence in a line is allowed, after which the record operation be finished.
      * @param timeout                maximum time of recording in seconds
-     * @param format                 parameter determining type of the record audio data
      * @return the operation's result
      * <p>
      * {@link Result#TIMEOUT} - the time of audio record was exceeded.<BR/>
@@ -698,8 +698,8 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      */
     @Override
     default OperationResultValue recordAudio(
-            PhoneCallSession<H> session, OutputStream target, String terminationSymbolsMask,
-            int silence, int timeout, Audio format) {
+            PhoneCallSession<H> session, OutputStream target, Audio format, String terminationSymbolsMask,
+            int silence, int timeout) {
         return Result.ERROR;
     }
 

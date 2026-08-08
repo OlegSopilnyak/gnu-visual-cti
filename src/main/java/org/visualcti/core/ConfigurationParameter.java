@@ -55,6 +55,7 @@ public class ConfigurationParameter {
     private static final String NUMBER_TYPE = "number";
     private static final String STRING_TYPE = "string";
     private static final String BOOLEAN_TYPE = "boolean";
+    private static final String RAW_TYPE = "raw";
     // parameter's fields
     // the name of the parameter
     private final String name;
@@ -62,6 +63,8 @@ public class ConfigurationParameter {
     private final String type;
     // the value of the parameter
     private final String value;
+    // not stringable value (synthetic)
+    private Object nsv;
 
     /**
      * <builder>
@@ -97,6 +100,19 @@ public class ConfigurationParameter {
      */
     public static ConfigurationParameter of(String name, Boolean value) {
         return new ConfigurationParameter(name, BOOLEAN_TYPE, value.toString());
+    }
+
+
+    /**
+     * <builder>
+     * To make the parameter from parameter name and value (Not Stringable Value)
+     *
+     * @param name the name of parameter
+     * @param value the value of parameter
+     * @return built instance
+     */
+    public static ConfigurationParameter of(String name, Object value) {
+        return new ConfigurationParameter(name, RAW_TYPE, value);
     }
 
     /**
@@ -143,6 +159,8 @@ public class ConfigurationParameter {
                 return Boolean.valueOf(value);
             case STRING_TYPE:
                 return value;
+            case RAW_TYPE:
+                return nsv;
             default:
                 return null;
         }
@@ -152,5 +170,12 @@ public class ConfigurationParameter {
         this.name = name;
         this.type = type;
         this.value = value;
+    }
+
+    private ConfigurationParameter(String name, String type, Object rawValue) {
+        this.name = name;
+        this.type = type;
+        this.nsv = rawValue;
+        this.value = String.valueOf(rawValue);
     }
 }

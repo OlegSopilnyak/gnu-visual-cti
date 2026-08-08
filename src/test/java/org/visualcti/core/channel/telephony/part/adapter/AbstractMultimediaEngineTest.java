@@ -1,0 +1,730 @@
+/*
+##############################################################################
+##
+##  DO NOT REMOVE THIS LICENSE AND COPYRIGHT NOTICE FOR ANY REASON
+##
+##############################################################################
+
+GNU VisualCTI - A Java multi-platform Computer Telephony Application Server
+Copyright (C) 2002 by Oleg Sopilnyak.
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+
+Contact oleg.sopilnyak@gmail.com or gennady@visualcti.org for more information.
+
+Ukraine point of contact: Oleg Sopilnyak - oleg.sopilnyak@gmail.com
+Home Phone:	+380-63-8420220 (russian)
+
+USA point of contact: Justin Kuntz - jkuntz@prominic.com
+Prominic Technologies, Inc.
+PO Box 3233
+Champaign, IL 61826-3233
+Fax number: 217-356-3356
+##############################################################################
+
+*/
+package org.visualcti.core.channel.telephony.part.adapter;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
+import static org.junit.Assert.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
+
+import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+import org.mockito.ArgumentCaptor;
+import org.visualcti.core.ConfigurationParameter;
+import org.visualcti.core.channel.device.Device;
+import org.visualcti.core.channel.device.DeviceMalfunction;
+import org.visualcti.core.channel.device.operation.OperationResultValue;
+import org.visualcti.core.channel.telephony.TelephonyDevice;
+import org.visualcti.core.channel.telephony.TelephonyServiceProvider;
+import org.visualcti.core.channel.telephony.operation.Result;
+import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
+import org.visualcti.core.channel.telephony.part.MultimediaEngine;
+import org.visualcti.media.Audio;
+import org.visualcti.media.Sound;
+
+@SuppressWarnings({"unchecked", "rawtypes"})
+public class AbstractMultimediaEngineTest<H> {
+    ScheduledExecutorService executor;
+
+    AbstractMultimediaEngine<H> engine;
+    PhoneCallSession<H> session;
+    TelephonyDevice<H, ?> device;
+    TelephonyServiceProvider<H> provider;
+    String deviceName = "device-name";
+    H deviceHandle = (H) "handle";
+    final static Device.ParameterName ALLOWED_CODECS = MultimediaEngine.Parameter.ALLOWED_CODECS;
+    final static Device.ParameterName PLAYBACK_CODEC = MultimediaEngine.Parameter.PLAYBACK_CODEC;
+    final static Device.ParameterName RECORD_CODEC = MultimediaEngine.Parameter.RECORD_CODEC;
+
+    @Before
+    public void setUp() throws Exception {
+        provider = mock(TelephonyServiceProvider.class);
+        device = mock(TelephonyDevice.class);
+        doReturn(deviceName).when(device).getName();
+        doReturn(provider).when(device).getProvider();
+        session = spy(new PhoneCallSession(device, deviceHandle) {
+        });
+        engine = spy(new AbstractMultimediaEngine() {
+        });
+        executor = Executors.newScheduledThreadPool(2);
+    }
+
+    @After
+    public void tearDown() {
+        if (executor != null) {
+            executor.shutdown();
+            executor = null;
+        }
+    }
+
+    @Test
+    public void shouldCanPlay_AllFormats() {
+        // preparing test data
+        engine.uses(device);
+        Device.ParameterName allowedCodecs = ALLOWED_CODECS;
+        Audio[] audios = new Audio[]{Audio.LINEAR, Audio.LINEAR_8, Audio.LINEAR_11};
+        ConfigurationParameter allAudios = spy(ConfigurationParameter.of("media-codecs", Arrays.asList(audios)));
+        doReturn(Optional.of(allAudios)).when(device).getParameter(allowedCodecs);
+
+        // acting
+        Audio[] all = engine.canPlay();
+
+        // check the behavior
+        verify(device).getParameter(allowedCodecs);
+        verify(allAudios).getValue();
+        // check results
+        assertThat(all).isEqualTo(audios);
+    }
+
+    @Test
+    public void shouldCannotPlay_NoFormats() {
+        // preparing test data
+        engine.uses(device);
+
+        // acting
+        Audio[] all = engine.canPlay();
+
+        // check the behavior
+        verify(device).getParameter(ALLOWED_CODECS);
+        // check results
+        assertThat(all).isEmpty();
+    }
+
+    @Test
+    public void shouldCanPlay_ParticularFormat() {
+        // preparing test data
+        engine.uses(device);
+        Audio[] audios = new Audio[]{Audio.LINEAR, Audio.LINEAR_8, Audio.LINEAR_11};
+        ConfigurationParameter allAudios = spy(ConfigurationParameter.of("media-codecs", Arrays.asList(audios)));
+        doReturn(Optional.of(allAudios)).when(device).getParameter(ALLOWED_CODECS);
+
+        // acting
+        boolean can = engine.canPlay(Audio.LINEAR);
+
+        // check the behavior
+        verify(engine).canPlay();
+        // check results
+        assertThat(can).isTrue();
+    }
+
+    @Test
+    public void shouldCannotPlay_ParticularFormat() {
+        // preparing test data
+        engine.uses(device);
+        Audio[] audios = new Audio[]{Audio.LINEAR, Audio.LINEAR_8, Audio.LINEAR_11};
+        ConfigurationParameter allAudios = spy(ConfigurationParameter.of("media-codecs", Arrays.asList(audios)));
+        doReturn(Optional.of(allAudios)).when(device).getParameter(ALLOWED_CODECS);
+
+        // acting
+        boolean can = engine.canPlay(Audio.ULAW_8);
+
+        // check the behavior
+        verify(engine).canPlay();
+        // check results
+        assertThat(can).isFalse();
+    }
+
+    @Test
+    public void shouldGetRawFormat() {
+        // preparing test data
+        engine.uses(device);
+        Audio rawFormat = Audio.ALAW_8;
+        ConfigurationParameter rawAudio = spy(ConfigurationParameter.of("play", rawFormat));
+        doReturn(Optional.of(rawAudio)).when(device).getParameter(PLAYBACK_CODEC);
+
+        // acting
+        Audio audio = engine.getRawFormat();
+
+        // check the behavior
+        verify(device).getParameter(PLAYBACK_CODEC);
+        verify(rawAudio).getValue();
+        // check results
+        assertThat(audio).isSameAs(rawFormat);
+    }
+
+    @Test
+    public void shouldGetRecordFormat() {
+        // preparing test data
+        engine.uses(device);
+        Audio recordFormat = Audio.ADPCM_8;
+        ConfigurationParameter rawAudio = spy(ConfigurationParameter.of("record", recordFormat));
+        doReturn(Optional.of(rawAudio)).when(device).getParameter(RECORD_CODEC);
+
+        // acting
+        Audio audio = engine.getRecordFormat();
+
+        // check the behavior
+        verify(device).getParameter(RECORD_CODEC);
+        verify(rawAudio).getValue();
+        // check results
+        assertThat(audio).isSameAs(recordFormat);
+    }
+
+    @Test
+    public void shouldCanRecord_AllFormats() {
+        // preparing test data
+        engine.uses(device);
+        Audio recordFormat = Audio.ADPCM_8;
+        ConfigurationParameter rawAudio = spy(ConfigurationParameter.of("record", recordFormat));
+        doReturn(Optional.of(rawAudio)).when(device).getParameter(RECORD_CODEC);
+
+        // acting
+        Audio[] all = engine.canRecord();
+
+        // check the behavior
+        verify(engine).getRecordFormat();
+        // check results
+        assertThat(all).isEqualTo(new Audio[]{recordFormat});
+    }
+
+    @Test
+    public void shouldCanRecord_ParticularFormats() {
+        // preparing test data
+        engine.uses(device);
+        Audio recordFormat = Audio.ADPCM_8;
+        ConfigurationParameter rawAudio = spy(ConfigurationParameter.of("record", recordFormat));
+        doReturn(Optional.of(rawAudio)).when(device).getParameter(RECORD_CODEC);
+
+        // acting
+        boolean can = engine.canRecord(recordFormat);
+
+        // check the behavior
+        verify(engine).getRecordFormat();
+        // check results
+        assertThat(can).isTrue();
+    }
+
+    @Test
+    public void shouldCannotRecord_NoFormats() {
+        // preparing test data
+        engine.uses(device);
+
+        // acting
+        Audio[] all = engine.canRecord();
+
+        // check the behavior
+        verify(engine).getRecordFormat();
+        // check results
+        assertThat(all).isEmpty();
+    }
+
+    @Test
+    public void shouldCannotRecord_ParticularFormats() {
+        // preparing test data
+        engine.uses(device);
+        Audio recordFormat = Audio.ADPCM_8;
+        ConfigurationParameter rawAudio = spy(ConfigurationParameter.of("record", recordFormat));
+        doReturn(Optional.of(rawAudio)).when(device).getParameter(RECORD_CODEC);
+
+        // acting
+        boolean can = engine.canRecord(Audio.ADPCM_6);
+
+        // check the behavior
+        verify(engine).getRecordFormat();
+        // check results
+        assertThat(can).isFalse();
+    }
+
+    @Test
+    public void shouldStartPlaybackAudioAsynchronously() throws IOException {
+        // preparing test data
+        engine.uses(device);
+        session.alive(true);
+        Audio playbackFormat = Audio.ADPCM_8;
+        String audio = "Testing audio content";
+        InputStream audioStream = spy(new ByteArrayInputStream(audio.getBytes()));
+        Audio[] audios = new Audio[]{playbackFormat, Audio.LINEAR, Audio.LINEAR_8, Audio.LINEAR_11};
+        ConfigurationParameter allAudios = spy(ConfigurationParameter.of("media-codecs", Arrays.asList(audios)));
+        doReturn(Optional.of(allAudios)).when(device).getParameter(ALLOWED_CODECS);
+        Sound sound = mock(Sound.class);
+        doReturn(playbackFormat).when(sound).getFormat();
+        doReturn(audioStream).when(sound).getInputStream();
+        doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(-1));
+
+        // acting
+        boolean can = engine.asyncPlaybackAudio(session, sound);
+
+        // check the behavior
+        verify(sound).getFormat();
+        verify(session).isOpened();
+        verify(session).isAlive();
+        verify(engine).canPlay(playbackFormat);
+        verify(engine).canPlay();
+        verify(device).dispatchEvent("Playback audio is starting...");
+        verify(session).setState(TelephonyDevice.State.PLAY);
+        verify(session).operationResult(Result.NONE);
+        verify(session).getDeviceHandle();
+        verify(device).getProvider();
+        verify(provider).disableEvents(deviceHandle, Result.IO.DTMF);
+        verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
+        verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(-1));
+        // check results
+        assertThat(can).isTrue();
+        assertThat(session.getState()).isEqualTo(TelephonyDevice.State.PLAY);
+        assertThat(session.operationResult()).isEqualTo(Result.NONE);
+        File tempFile = session.parameter(MultimediaEngine.Parameter.AUDIO_TEMPORARY);
+        assertThat(tempFile).exists();
+        try (BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(tempFile)))) {
+            assertThat(in.readLine()).isEqualTo(audio);
+        }
+    }
+
+    @Test
+    public void shouldNotStartPlaybackAudioAsynchronously_DisconnectedBefore() throws IOException {
+        // preparing test data
+        engine.uses(device);
+        Audio playbackFormat = Audio.ADPCM_8;
+        String audio = "Testing audio content";
+        InputStream audioStream = spy(new ByteArrayInputStream(audio.getBytes()));
+        Audio[] audios = new Audio[]{playbackFormat, Audio.LINEAR, Audio.LINEAR_8, Audio.LINEAR_11};
+        ConfigurationParameter allAudios = spy(ConfigurationParameter.of("media-codecs", Arrays.asList(audios)));
+        doReturn(Optional.of(allAudios)).when(device).getParameter(ALLOWED_CODECS);
+        Sound sound = mock(Sound.class);
+        doReturn(playbackFormat).when(sound).getFormat();
+        doReturn(audioStream).when(sound).getInputStream();
+
+        // acting
+        boolean can = engine.asyncPlaybackAudio(session, sound);
+
+        // check the behavior
+        verify(sound).getFormat();
+        verify(session).isOpened();
+        verify(session).isAlive();
+        verify(engine, never()).canPlay(playbackFormat);
+        // check results
+        assertThat(can).isFalse();
+        assertThat(session.getState()).isEqualTo(Device.State.ERROR);
+        assertThat(session.operationResult()).isEqualTo(Result.ERROR);
+        assertThat(session.<File>parameter(MultimediaEngine.Parameter.AUDIO_TEMPORARY)).isNull();
+    }
+
+    @Test
+    public void shouldNotStartPlaybackAudioAsynchronously_ProviderDidntStartAudioPlaying() throws IOException {
+        // preparing test data
+        engine.uses(device);
+        session.alive(true);
+        Audio playbackFormat = Audio.ADPCM_8;
+        String audio = "Testing audio content";
+        InputStream audioStream = spy(new ByteArrayInputStream(audio.getBytes()));
+        Audio[] audios = new Audio[]{playbackFormat, Audio.LINEAR, Audio.LINEAR_8, Audio.LINEAR_11};
+        ConfigurationParameter allAudios = spy(ConfigurationParameter.of("media-codecs", Arrays.asList(audios)));
+        doReturn(Optional.of(allAudios)).when(device).getParameter(ALLOWED_CODECS);
+        Sound sound = mock(Sound.class);
+        doReturn(playbackFormat).when(sound).getFormat();
+        doReturn(audioStream).when(sound).getInputStream();
+
+        // acting
+        boolean can = engine.asyncPlaybackAudio(session, sound);
+
+        // check the behavior
+        verify(sound).getFormat();
+        verify(session).isOpened();
+        verify(session).isAlive();
+        verify(engine).canPlay(playbackFormat);
+        verify(engine).canPlay();
+        verify(device).dispatchEvent("Playback audio is starting...");
+        verify(session).setState(TelephonyDevice.State.PLAY);
+        verify(session).operationResult(Result.NONE);
+        verify(session).getDeviceHandle();
+        verify(device).getProvider();
+        verify(provider).disableEvents(deviceHandle, Result.IO.DTMF);
+        verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
+        verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(-1));
+        // check results
+        assertThat(can).isFalse();
+        assertThat(session.getState()).isEqualTo(TelephonyDevice.State.PLAY);
+        assertThat(session.operationResult()).isEqualTo(Result.NONE);
+        File tempFile = session.parameter(MultimediaEngine.Parameter.AUDIO_TEMPORARY);
+        assertThat(tempFile).exists();
+        try (BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(tempFile)))) {
+            assertThat(in.readLine()).isEqualTo(audio);
+        }
+    }
+
+    @Test
+    public void shouldPlaybackAudio_EOF() throws ExecutionException, InterruptedException {
+        // preparing test data
+        engine.uses(device);
+        session.alive(true);
+        Audio playbackFormat = Audio.ADPCM_8;
+        String terminationSymbolsMask = "";
+        int timeout = 2;
+        String audio = "Testing audio content";
+        InputStream audioStream = spy(new ByteArrayInputStream(audio.getBytes()));
+        Audio[] audios = new Audio[]{playbackFormat, Audio.LINEAR, Audio.LINEAR_8, Audio.LINEAR_11};
+        ConfigurationParameter allAudios = spy(ConfigurationParameter.of("media-codecs", Arrays.asList(audios)));
+        doReturn(Optional.of(allAudios)).when(device).getParameter(ALLOWED_CODECS);
+        doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
+
+        // acting
+        Future<OperationResultValue> playback = executor.submit(() ->
+                engine.playbackAudio(session, audioStream, playbackFormat, terminationSymbolsMask, timeout)
+        );
+        await().until(() -> session.operationIsActive());
+        executor.schedule(() -> session.operationComplete(Result.IO.EOF), 100, TimeUnit.MILLISECONDS);
+        OperationResultValue result = playback.get();
+
+        // check the behavior
+        verify(session).isOpened();
+        verify(session, atLeastOnce()).isAlive();
+        verify(engine).canPlay(playbackFormat);
+        verify(engine).canPlay();
+        verify(device).dispatchEvent("Playback audio is starting...");
+        verify(session).setState(TelephonyDevice.State.PLAY);
+        verify(session).operationResult(Result.NONE);
+        verify(session).getDeviceHandle();
+        verify(device).getProvider();
+        verify(provider, atLeastOnce()).disableEvents(deviceHandle, Result.IO.DTMF);
+        verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
+        verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
+        verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
+        verify(session).operationResult(Result.NONE);
+        verify(session).waitingForTheOperationComplete(timeout * 1000L);
+        verify(session, atLeastOnce()).operationResult();
+        verify(device).dispatchEvent("Playback audio is completed.");
+        verify(provider, atLeastOnce()).disableEvents(deviceHandle, Result.IO.DTMF);
+        verify(provider, atLeastOnce()).stopAudioPlaying(deviceHandle);
+        verify(session).setState(Device.State.IDLE);
+        // check results
+        assertThat(result).isSameAs(Result.IO.EOF);
+        assertThat(session.getState()).isEqualTo(Device.State.IDLE);
+        assertThat(session.operationResult()).isEqualTo(Result.IO.EOF);
+    }
+
+    @Test
+    public void shouldPlaybackAudio_DTMF() throws ExecutionException, InterruptedException {
+        // preparing test data
+        engine.uses(device);
+        session.alive(true);
+        Audio playbackFormat = Audio.ADPCM_8;
+        String terminationSymbolsMask = "#";
+        int timeout = 2;
+        String audio = "Testing audio content";
+        InputStream audioStream = spy(new ByteArrayInputStream(audio.getBytes()));
+        Audio[] audios = new Audio[]{playbackFormat, Audio.LINEAR, Audio.LINEAR_8, Audio.LINEAR_11};
+        ConfigurationParameter allAudios = spy(ConfigurationParameter.of("media-codecs", Arrays.asList(audios)));
+        doReturn(Optional.of(allAudios)).when(device).getParameter(ALLOWED_CODECS);
+        doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
+        session.parameter(Device.Parameter.USER_INPUT, terminationSymbolsMask);
+
+        // acting
+        Future<OperationResultValue> playback = executor.submit(() ->
+                engine.playbackAudio(session, audioStream, playbackFormat, terminationSymbolsMask, timeout)
+        );
+        await().until(() -> session.operationIsActive());
+        executor.schedule(() -> session.operationComplete(Result.IO.DTMF), 100, TimeUnit.MILLISECONDS);
+        OperationResultValue result = playback.get();
+
+        // check the behavior
+        verify(session).isOpened();
+        verify(session, atLeastOnce()).isAlive();
+        verify(engine).canPlay(playbackFormat);
+        verify(engine).canPlay();
+        verify(device).dispatchEvent("Playback audio is starting...");
+        verify(session).setState(TelephonyDevice.State.PLAY);
+        verify(session).operationResult(Result.NONE);
+        verify(session).getDeviceHandle();
+        verify(device).getProvider();
+        verify(provider, atLeastOnce()).disableEvents(deviceHandle, Result.IO.DTMF);
+        verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
+        verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
+        verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
+        verify(session).operationResult(Result.NONE);
+        verify(session).waitingForTheOperationComplete(timeout * 1000L);
+        verify(session, atLeastOnce()).operationResult();
+        verify(session).parameter(Device.Parameter.USER_INPUT);
+        verify(device).dispatchEvent("Playback audio is completed.");
+        verify(provider, atLeastOnce()).disableEvents(deviceHandle, Result.IO.DTMF);
+        verify(provider, atLeastOnce()).stopAudioPlaying(deviceHandle);
+        verify(session).setState(Device.State.IDLE);
+        // check results
+        assertThat(result).isSameAs(Result.IO.DTMF);
+        assertThat(session.getState()).isEqualTo(Device.State.IDLE);
+        assertThat(session.operationResult()).isEqualTo(Result.IO.DTMF);
+    }
+
+    @Test
+    public void shouldPlaybackAudio_DTMF_ButEmptyMask() throws ExecutionException, InterruptedException {
+        // preparing test data
+        engine.uses(device);
+        session.alive(true);
+        Audio playbackFormat = Audio.ADPCM_8;
+        String terminationSymbolsMask = "";
+        int timeout = 1;
+        long waitForMills = timeout * 1000L;
+        String audio = "Testing audio content";
+        InputStream audioStream = spy(new ByteArrayInputStream(audio.getBytes()));
+        Audio[] audios = new Audio[]{playbackFormat, Audio.LINEAR, Audio.LINEAR_8, Audio.LINEAR_11};
+        ConfigurationParameter allAudios = spy(ConfigurationParameter.of("media-codecs", Arrays.asList(audios)));
+        doReturn(Optional.of(allAudios)).when(device).getParameter(ALLOWED_CODECS);
+        doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
+        session.parameter(Device.Parameter.USER_INPUT, terminationSymbolsMask);
+
+        // acting
+        Future<OperationResultValue> playback = executor.submit(() ->
+                engine.playbackAudio(session, audioStream, playbackFormat, terminationSymbolsMask, timeout)
+        );
+        await().until(() -> session.operationIsActive());
+        executor.schedule(() -> session.operationComplete(Result.IO.DTMF), 100, TimeUnit.MILLISECONDS);
+        OperationResultValue result = playback.get();
+
+        // check the behavior
+        verify(session).isOpened();
+        verify(session, atLeastOnce()).isAlive();
+        verify(engine).canPlay(playbackFormat);
+        verify(engine).canPlay();
+        verify(device).dispatchEvent("Playback audio is starting...");
+        verify(session).setState(TelephonyDevice.State.PLAY);
+        verify(session, atLeastOnce()).operationResult(Result.NONE);
+        verify(session).getDeviceHandle();
+        verify(device).getProvider();
+        verify(provider, atLeastOnce()).disableEvents(deviceHandle, Result.IO.DTMF);
+        verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
+        verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
+        verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
+        verify(session).waitingForTheOperationComplete(waitForMills);
+        verify(session, atLeastOnce()).operationResult();
+        verify(device).dispatchEvent("Playback audio is completed.");
+        verify(provider, atLeastOnce()).disableEvents(deviceHandle, Result.IO.DTMF);
+        verify(provider, atLeastOnce()).stopAudioPlaying(deviceHandle);
+        verify(session).setState(Device.State.IDLE);
+        verify(session).operationResult(Result.TIMEOUT);
+        ArgumentCaptor<Long> captor = ArgumentCaptor.forClass(Long.class);
+        verify(session, atLeastOnce()).waitingForTheOperationComplete(captor.capture());
+        List<Long> captured = captor.getAllValues();
+        // check results
+        assertThat(result).isSameAs(Result.TIMEOUT);
+        assertThat(session.getState()).isEqualTo(Device.State.IDLE);
+        assertThat(session.operationResult()).isEqualTo(Result.TIMEOUT);
+        assertThat(captured.get(0)).isEqualTo(waitForMills);
+        assertThat(captured.get(1)).isLessThan(waitForMills);
+    }
+
+    @Test
+    public void shouldPlaybackAudio_DTMF_ButNotFromMask() throws ExecutionException, InterruptedException {
+        // preparing test data
+        engine.uses(device);
+        session.alive(true);
+        Audio playbackFormat = Audio.ADPCM_8;
+        String terminationSymbolsMask = "#";
+        int timeout = 1;
+        long waitForMills = timeout * 1000L;
+        String audio = "Testing audio content";
+        InputStream audioStream = spy(new ByteArrayInputStream(audio.getBytes()));
+        Audio[] audios = new Audio[]{playbackFormat, Audio.LINEAR, Audio.LINEAR_8, Audio.LINEAR_11};
+        ConfigurationParameter allAudios = spy(ConfigurationParameter.of("media-codecs", Arrays.asList(audios)));
+        doReturn(Optional.of(allAudios)).when(device).getParameter(ALLOWED_CODECS);
+        doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
+        session.parameter(Device.Parameter.USER_INPUT, "*");
+
+        // acting
+        Future<OperationResultValue> playback = executor.submit(() ->
+                engine.playbackAudio(session, audioStream, playbackFormat, terminationSymbolsMask, timeout)
+        );
+        await().until(() -> session.operationIsActive());
+        executor.schedule(() -> session.operationComplete(Result.IO.DTMF), 100, TimeUnit.MILLISECONDS);
+        OperationResultValue result = playback.get();
+
+        // check the behavior
+        verify(session).isOpened();
+        verify(session, atLeastOnce()).isAlive();
+        verify(engine).canPlay(playbackFormat);
+        verify(engine).canPlay();
+        verify(device).dispatchEvent("Playback audio is starting...");
+        verify(session).setState(TelephonyDevice.State.PLAY);
+        verify(session, atLeastOnce()).operationResult(Result.NONE);
+        verify(session).getDeviceHandle();
+        verify(device).getProvider();
+        verify(provider, atLeastOnce()).disableEvents(deviceHandle, Result.IO.DTMF);
+        verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
+        verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
+        verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
+        verify(session).waitingForTheOperationComplete(waitForMills);
+        verify(session, atLeastOnce()).operationResult();
+        verify(device).dispatchEvent("Playback audio is completed.");
+        verify(provider, atLeastOnce()).disableEvents(deviceHandle, Result.IO.DTMF);
+        verify(provider, atLeastOnce()).stopAudioPlaying(deviceHandle);
+        verify(session).setState(Device.State.IDLE);
+        verify(session).operationResult(Result.TIMEOUT);
+        ArgumentCaptor<Long> captor = ArgumentCaptor.forClass(Long.class);
+        verify(session, atLeastOnce()).waitingForTheOperationComplete(captor.capture());
+        List<Long> captured = captor.getAllValues();
+        // check results
+        assertThat(result).isSameAs(Result.TIMEOUT);
+        assertThat(session.getState()).isEqualTo(Device.State.IDLE);
+        assertThat(session.operationResult()).isEqualTo(Result.TIMEOUT);
+        assertThat(captured.get(0)).isEqualTo(waitForMills);
+        assertThat(captured.get(1)).isLessThan(waitForMills);
+    }
+
+    @Test
+    public void shouldNotPlaybackAudio_HardwareError() throws ExecutionException, InterruptedException {
+        // preparing test data
+        engine.uses(device);
+        session.alive(true);
+        Audio playbackFormat = Audio.ADPCM_8;
+        String terminationSymbolsMask = "";
+        String malfunctionReason = "Playback audio is failed.";
+        int timeout = 2;
+        String audio = "Testing audio content";
+        InputStream audioStream = spy(new ByteArrayInputStream(audio.getBytes()));
+        Audio[] audios = new Audio[]{playbackFormat, Audio.LINEAR, Audio.LINEAR_8, Audio.LINEAR_11};
+        ConfigurationParameter allAudios = spy(ConfigurationParameter.of("media-codecs", Arrays.asList(audios)));
+        doReturn(Optional.of(allAudios)).when(device).getParameter(ALLOWED_CODECS);
+        doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
+
+        // acting
+        Future<Throwable> playback = executor.submit(() ->
+                assertThrows(Throwable.class,
+                        () -> engine.playbackAudio(session, audioStream, playbackFormat, terminationSymbolsMask, timeout)
+                )
+        );
+        await().until(() -> session.operationIsActive());
+        executor.schedule(() -> session.operationComplete(Result.ERROR), 100, TimeUnit.MILLISECONDS);
+        Throwable result = playback.get();
+
+        // check the behavior
+        verify(session).isOpened();
+        verify(session, atLeastOnce()).isAlive();
+        verify(engine).canPlay(playbackFormat);
+        verify(engine).canPlay();
+        verify(device).dispatchEvent("Playback audio is starting...");
+        verify(session).setState(TelephonyDevice.State.PLAY);
+        verify(session).operationResult(Result.NONE);
+        verify(session).getDeviceHandle();
+        verify(device, atLeastOnce()).getProvider();
+        verify(provider, atLeastOnce()).disableEvents(deviceHandle, Result.IO.DTMF);
+        verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
+        verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
+        verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
+        verify(session).operationResult(Result.NONE);
+        verify(session).waitingForTheOperationComplete(timeout * 1000L);
+        verify(session, atLeastOnce()).operationResult();
+        verify(provider, atLeastOnce()).disableEvents(deviceHandle, Result.IO.DTMF);
+        verify(provider, atLeastOnce()).stopAudioPlaying(deviceHandle);
+        verify(engine).onDeviceError(session, malfunctionReason);
+        verify(engine).onDeviceError(session, malfunctionReason, true);
+        verify(session).setState(Device.State.ERROR);
+        verify(device).dispatchError(malfunctionReason);
+        verify(device, never()).dispatchEvent("Playback audio is completed.");
+        // check results
+        assertThat(result).isInstanceOf(DeviceMalfunction.class);
+        assertThat(result.getMessage()).endsWith(malfunctionReason);
+        assertThat(session.getState()).isEqualTo(Device.State.ERROR);
+        assertThat(session.operationResult()).isEqualTo(Result.ERROR);
+    }
+
+    @Test
+    public void shouldNotPlaybackAudio_ProviderDidntStartAudioPlaying() throws InterruptedException {
+        // preparing test data
+        engine.uses(device);
+        session.alive(true);
+        Audio playbackFormat = Audio.ADPCM_8;
+        String terminationSymbolsMask = "";
+        String malfunctionReason = "Cannot start playing the audio file.";
+        int timeout = 2;
+        String audio = "Testing audio content";
+        InputStream audioStream = spy(new ByteArrayInputStream(audio.getBytes()));
+        Audio[] audios = new Audio[]{playbackFormat, Audio.LINEAR, Audio.LINEAR_8, Audio.LINEAR_11};
+        ConfigurationParameter allAudios = spy(ConfigurationParameter.of("media-codecs", Arrays.asList(audios)));
+        doReturn(Optional.of(allAudios)).when(device).getParameter(ALLOWED_CODECS);
+
+        // acting
+        Throwable result = assertThrows(Throwable.class,
+                () -> engine.playbackAudio(session, audioStream, playbackFormat, terminationSymbolsMask, timeout)
+        );
+
+        // check the behavior
+        verify(session).isOpened();
+        verify(session, atLeastOnce()).isAlive();
+        verify(engine).canPlay(playbackFormat);
+        verify(engine).canPlay();
+        verify(device).dispatchEvent("Playback audio is starting...");
+        verify(session).setState(TelephonyDevice.State.PLAY);
+        verify(session).getDeviceHandle();
+        verify(device, atLeastOnce()).getProvider();
+        verify(provider, atLeastOnce()).disableEvents(deviceHandle, Result.IO.DTMF);
+        verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
+        verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
+        verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
+        verify(session, never()).waitingForTheOperationComplete(anyLong());
+        verify(provider, atLeastOnce()).disableEvents(deviceHandle, Result.IO.DTMF);
+        verify(provider, atLeastOnce()).stopAudioPlaying(deviceHandle);
+        verify(engine).onDeviceError(session, malfunctionReason);
+        verify(engine).onDeviceError(session, malfunctionReason, true);
+        verify(session).setState(Device.State.ERROR);
+        verify(device).dispatchError(malfunctionReason);
+        // check results
+        assertThat(result).isInstanceOf(DeviceMalfunction.class);
+        assertThat(result.getMessage()).endsWith(malfunctionReason);
+        assertThat(session.getState()).isEqualTo(Device.State.ERROR);
+    }
+
+    @Test
+    public void recordAudio() {
+    }
+
+    @Test
+    public void terminate() {
+    }
+}

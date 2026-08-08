@@ -73,7 +73,7 @@ public interface PhoneCall extends Closeable {
         }
 
         @Override
-        public void waitForOperationComplete(long timeout) {
+        public void waitingForTheOperationComplete(long timeout) {
             // doing nothing here
         }
 
@@ -179,14 +179,14 @@ public interface PhoneCall extends Closeable {
      * @param timeout how long to wait
      * @throws InterruptedException if operation is interrupted outside
      */
-    void waitForOperationComplete(long timeout) throws InterruptedException;
+    void waitingForTheOperationComplete(long timeout) throws InterruptedException;
 
     /**
      * <action>
      * To notify about the previously running in the phone-call-session operation is completed
      *
      * @param completionReason the reason of the operation's complete
-     * @see #waitForOperationComplete(long)
+     * @see #waitingForTheOperationComplete(long)
      */
     void operationComplete(OperationResultValue completionReason);
 
@@ -196,7 +196,7 @@ public interface PhoneCall extends Closeable {
      * For tests purposes
      *
      * @return true if operation is waiting for completion
-     * @see #waitForOperationComplete(long)
+     * @see #waitingForTheOperationComplete(long)
      * @see #operationComplete(OperationResultValue)
      */
     default boolean operationIsActive() {

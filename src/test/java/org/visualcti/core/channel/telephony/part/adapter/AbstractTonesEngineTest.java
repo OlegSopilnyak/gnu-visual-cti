@@ -213,7 +213,7 @@ public class AbstractTonesEngineTest<H> {
         verify(device).getProvider();
         verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
         verify(provider).startToneSending(deviceHandle, id);
-        verify(session).waitForOperationComplete(500L);
+        verify(session).waitingForTheOperationComplete(500L);
         verify(session).operationResult();
         verify(session).isTerminated();
         verify(session).isDisconnected();
@@ -296,7 +296,7 @@ public class AbstractTonesEngineTest<H> {
         verify(session).setState(Device.State.ERROR);
         verify(device).dispatchError(deviceErrorReason);
         verify(session).operationResult(Result.ERROR);
-        verify(session, never()).waitForOperationComplete(anyLong());
+        verify(session, never()).waitingForTheOperationComplete(anyLong());
         // check results
         assertThat(session.getState()).isSameAs(Device.State.ERROR);
         assertThat(session.operationResult()).isSameAs(Result.ERROR);
@@ -330,7 +330,7 @@ public class AbstractTonesEngineTest<H> {
         verify(device).dispatchError(deviceErrorReason);
         verify(session).setState(Device.State.IDLE);
         verify(session).operationResult(Result.ERROR);
-        verify(session, never()).waitForOperationComplete(anyLong());
+        verify(session, never()).waitingForTheOperationComplete(anyLong());
         // check results
         assertThat(session.getState()).isSameAs(Device.State.IDLE);
         assertThat(session.operationResult()).isSameAs(Result.ERROR);
@@ -359,7 +359,7 @@ public class AbstractTonesEngineTest<H> {
         verify(device).getProvider();
         verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
         verify(provider).startToneSending(deviceHandle, id);
-        verify(session).waitForOperationComplete(500L);
+        verify(session).waitingForTheOperationComplete(500L);
         verify(session).operationResult();
         verify(provider).stopToneSending(deviceHandle);
         verify(engine).onDeviceError(session, deviceErrorReason);
@@ -399,7 +399,7 @@ public class AbstractTonesEngineTest<H> {
         verify(device).getProvider();
         verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
         verify(provider).startToneSending(deviceHandle, id);
-        verify(session).waitForOperationComplete(500L);
+        verify(session).waitingForTheOperationComplete(500L);
         verify(session).operationResult();
         verify(session).isTerminated();
         verify(session).isDisconnected();
@@ -434,7 +434,7 @@ public class AbstractTonesEngineTest<H> {
         verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
         verify(session).parameter(Device.Parameter.USER_INPUT, "");
         verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
-        verify(session).waitForOperationComplete(oneSymbolTimeout);
+        verify(session).waitingForTheOperationComplete(oneSymbolTimeout);
         verify(session, atLeastOnce()).operationResult();
         verify(session).isTerminated();
         verify(device).dispatchEvent("User input getting is completed.");
@@ -474,7 +474,7 @@ public class AbstractTonesEngineTest<H> {
         verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
         verify(session).parameter(Device.Parameter.USER_INPUT, "");
         verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
-        verify(session, atLeastOnce()).waitForOperationComplete(oneSymbolTimeout);
+        verify(session, atLeastOnce()).waitingForTheOperationComplete(oneSymbolTimeout);
         verify(session, atLeastOnce()).operationResult();
         verify(session, atLeastOnce()).isTerminated();
         verify(device).dispatchEvent("User input getting is completed.");
@@ -514,7 +514,7 @@ public class AbstractTonesEngineTest<H> {
         verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
         verify(session).parameter(Device.Parameter.USER_INPUT, "");
         verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
-        verify(session, atLeastOnce()).waitForOperationComplete(oneSymbolTimeout);
+        verify(session, atLeastOnce()).waitingForTheOperationComplete(oneSymbolTimeout);
         verify(session, atLeastOnce()).operationResult();
         verify(session, atLeastOnce()).isTerminated();
         verify(device).dispatchEvent("User input getting is completed.");
@@ -554,7 +554,7 @@ public class AbstractTonesEngineTest<H> {
         verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
         verify(session).parameter(Device.Parameter.USER_INPUT, "");
         verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
-        verify(session, atLeastOnce()).waitForOperationComplete(oneSymbolTimeout);
+        verify(session, atLeastOnce()).waitingForTheOperationComplete(oneSymbolTimeout);
         verify(session, atLeastOnce()).operationResult();
         verify(session, atLeastOnce()).isTerminated();
         verify(device).dispatchEvent("User input getting is completed.");
@@ -640,7 +640,7 @@ public class AbstractTonesEngineTest<H> {
         verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
         verify(session).parameter(Device.Parameter.USER_INPUT, "");
         verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
-        verify(session).waitForOperationComplete(oneSymbolTimeout);
+        verify(session).waitingForTheOperationComplete(oneSymbolTimeout);
         verify(session, atLeastOnce()).operationResult();
         verify(engine).onDeviceError(session, deviceErrorReason);
         verify(engine).onDeviceError(session, deviceErrorReason, true);

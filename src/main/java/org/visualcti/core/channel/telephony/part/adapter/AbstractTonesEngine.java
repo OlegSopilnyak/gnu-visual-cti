@@ -130,7 +130,7 @@ public abstract class AbstractTonesEngine<H> extends AbstractDevicePart<H> imple
                 }
                 // waiting for the timeout time
                 try {
-                    session.waitForOperationComplete(timeout);
+                    session.waitingForTheOperationComplete(timeout);
                     // checking the operation result value after waiting operation complete
                     if (session.operationResult() == Result.ERROR) {
                         // stopping tone generation
@@ -222,9 +222,10 @@ public abstract class AbstractTonesEngine<H> extends AbstractDevicePart<H> imple
             for (int i = 1; i <= digitsCount; i++) {
                 // waiting for the timeout time
                 try {
-                    session.waitForOperationComplete(oneSymbolTimeout);
+                    session.waitingForTheOperationComplete(oneSymbolTimeout);
+                    final OperationResultValue operationResult = session.operationResult();
                     // checking the operation result value after waiting operation complete
-                    if (session.operationResult() == Result.ERROR) {
+                    if (operationResult == Result.ERROR) {
                         // device error is detected
                         onDeviceError(session, "Getting the user input is failed.");
                         return Result.ERROR;
@@ -232,31 +233,17 @@ public abstract class AbstractTonesEngine<H> extends AbstractDevicePart<H> imple
                         // tone send operation is terminated
                         session.setState(Device.State.IDLE);
                         return Result.TERMINATED;
-                    } else if (session.operationResult() == Result.IO.DTMF) {
+                    } else if (operationResult == Result.IO.DTMF) {
                         // user input detected
                         final String userInput = session.parameter(Device.Parameter.USER_INPUT);
-                        if (!isEmpty(userInput)) {
-                            // getting last symbol of the user input in the context
-                            final String lastSymbol = userInput.substring(userInput.length() - 1);
-                            // analyzing the last user input symbol
-                            if (terminationSymbolsMask.contains(lastSymbol)) {
-                                // the last symbol of user input is from the termination symbols mask
-                                session.parameter(
-                                        Device.Parameter.USER_INPUT,
-                                        // the last symbol should be removed from the session's user input result
-                                        userInput.substring(0, userInput.length() - 1)
-                                );
-                                // leaving the loop
-                                break;
-                            } else if (userInput.length() >= digitsCount) {
-                                // the expected quantity of symbols are in the user input
-                                // leaving the loop
-                                break;
-                            } else {
-                                // cleaning processed operation result
-                                session.operationResult(Result.NONE);
-                                // the next iteration of the loop
-                            }
+                        if (isTerminationMaskSymbol(session, userInput, terminationSymbolsMask)
+                                || userInput.length() >= digitsCount) {
+                            // is reached the end of user input condition
+                            break;
+                        } else {
+                            // cleaning processed operation result for the next iteration
+                            session.operationResult(Result.NONE);
+                            // the next iteration of the loop
                         }
                     } else {
                         // operation is timed out
@@ -300,5 +287,26 @@ public abstract class AbstractTonesEngine<H> extends AbstractDevicePart<H> imple
             session.operationComplete(Result.TERMINATED);
         }
         session.terminate();
+    }
+
+    /// private methods
+    // to check is user's input contains the symbol from the termination mask
+    private boolean isTerminationMaskSymbol(PhoneCallSession<H> session, String userInput, String terminationSymbolsMask) {
+        if (!isEmpty(userInput)) {
+            // getting the last symbol of the user input in the context
+            final String lastSymbol = userInput.substring(userInput.length() - 1);
+            // analyzing the last user input symbol
+            if (terminationSymbolsMask.contains(lastSymbol)) {
+                // the last symbol of user input is from the termination symbols mask
+                session.parameter(
+                        Device.Parameter.USER_INPUT,
+                        // the last symbol should be removed from the session's user input result
+                        userInput.substring(0, userInput.length() - 1)
+                );
+                // the symbol from the termination mask
+                return true;
+            }
+        }
+        return false;
     }
 }

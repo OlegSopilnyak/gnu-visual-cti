@@ -294,7 +294,7 @@ public abstract class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> i
             }
             // waiting for an answer from the called number side 'timeout' seconds
             try {
-                session.waitForOperationComplete(timeout * 1000L);
+                session.waitingForTheOperationComplete(timeout * 1000L);
                 // checking the operation result value after waiting operation complete
                 if (session.operationResult() == Result.ERROR) {
                     // device error is detected
@@ -446,7 +446,7 @@ public abstract class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> i
         session.setState(TelephonyDevice.State.WAIT);
         session.operationComplete(Result.NONE);
         // waiting for incoming call 1 second of the timeout's seconds
-        session.waitForOperationComplete(milliseconds);
+        session.waitingForTheOperationComplete(milliseconds);
     }
 
     // checking wait for call operation results
@@ -550,7 +550,7 @@ public abstract class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> i
     private boolean sharedForConnectWasUsed(PhoneCallSession<H> session, long timeout) throws InterruptedException {
         session.getDevice().dispatchEvent("Sharing 'wait for call' operation resource.");
         // waiting for incoming call or make call 1 second of the timeout's seconds
-        session.waitForOperationComplete(timeout);
+        session.waitingForTheOperationComplete(timeout);
         return operationCompleteState.test(session.getState()) && session.isAlive();
     }
 

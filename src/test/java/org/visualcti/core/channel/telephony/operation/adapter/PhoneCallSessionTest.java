@@ -197,7 +197,7 @@ public class PhoneCallSessionTest {
         executor.schedule(() -> session.operationComplete(Result.OK), 50, TimeUnit.MILLISECONDS);
 
         // acting
-        session.waitForOperationComplete(200L);
+        session.waitingForTheOperationComplete(200L);
 
         // check results
         assertThat(session.operationResult()).isSameAs(Result.OK);
@@ -208,7 +208,7 @@ public class PhoneCallSessionTest {
         // preparing test data
 
         // acting
-        session.waitForOperationComplete(200L);
+        session.waitingForTheOperationComplete(200L);
 
         // check results
         assertThat(session.operationResult()).isSameAs(Result.NONE);
@@ -219,7 +219,7 @@ public class PhoneCallSessionTest {
         // preparing test data
         executor.execute(() -> {
             try {
-                session.waitForOperationComplete(-1L);
+                session.waitingForTheOperationComplete(-1L);
             } catch (InterruptedException e) {
                 // doing nothing here
             }

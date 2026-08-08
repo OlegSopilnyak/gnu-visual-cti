@@ -260,7 +260,7 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
      * @see CountDownLatch#await()
      */
     @Override
-    public void waitForOperationComplete(long timeout) throws InterruptedException {
+    public void waitingForTheOperationComplete(long timeout) throws InterruptedException {
         // preparing running operation's latch
         final CountDownLatch latch = new CountDownLatch(1);
         parameter(Parameter.LATCH, latch);
@@ -285,7 +285,7 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
      * For tests purposes only!!!!!!!
      *
      * @return true if operation is waiting for completion
-     * @see #waitForOperationComplete(long)
+     * @see #waitingForTheOperationComplete(long)
      * @see #operationComplete(OperationResultValue)
      */
     @Override
@@ -299,7 +299,7 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
      * To notify about the previously running in the phone-call-session operation is completed
      *
      * @param completionReason the reason of completing the operation which is waiting for complete
-     * @see #waitForOperationComplete(long)
+     * @see #waitingForTheOperationComplete(long)
      * @see #operationResult(OperationResultValue)
      * @see CountDownLatch
      * @see CountDownLatch#countDown()
