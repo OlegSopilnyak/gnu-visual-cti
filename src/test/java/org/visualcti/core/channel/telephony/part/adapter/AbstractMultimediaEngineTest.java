@@ -55,9 +55,11 @@ import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -618,6 +620,58 @@ public class AbstractMultimediaEngineTest<H> {
     }
 
     @Test
+    public void shouldPlaybackAudio_DTMF_EmptyUserInput() throws ExecutionException, InterruptedException {
+        // preparing test data
+        engine.uses(device);
+        session.alive(true);
+        Audio playbackFormat = Audio.ADPCM_8;
+        String terminationSymbolsMask = "#";
+        int timeout = 1;
+        long waitForMills = timeout * 1000L;
+        String audio = "Testing audio content";
+        InputStream audioStream = spy(new ByteArrayInputStream(audio.getBytes()));
+        Audio[] audios = new Audio[]{playbackFormat, Audio.LINEAR, Audio.LINEAR_8, Audio.LINEAR_11};
+        ConfigurationParameter allAudios = spy(ConfigurationParameter.of("media-codecs", Arrays.asList(audios)));
+        doReturn(Optional.of(allAudios)).when(device).getParameter(ALLOWED_CODECS);
+        doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
+        session.parameter(Device.Parameter.USER_INPUT, "");
+
+        // acting
+        Future<OperationResultValue> playback = executor.submit(() ->
+                engine.playbackAudio(session, audioStream, playbackFormat, terminationSymbolsMask, timeout)
+        );
+        await().until(() -> session.operationIsActive());
+        executor.schedule(() -> session.operationComplete(Result.IO.DTMF), 100, TimeUnit.MILLISECONDS);
+        OperationResultValue result = playback.get();
+
+        // check the behavior
+        verify(session).isOpened();
+        verify(session, atLeastOnce()).isAlive();
+        verify(engine).canPlay(playbackFormat);
+        verify(engine).canPlay();
+        verify(device).dispatchEvent("Playback audio is starting...");
+        verify(session).setState(TelephonyDevice.State.PLAY);
+        verify(session, atLeastOnce()).operationResult(Result.NONE);
+        verify(session).getDeviceHandle();
+        verify(device).getProvider();
+        verify(provider, atLeastOnce()).disableEvents(deviceHandle, Result.IO.DTMF);
+        verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
+        verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
+        verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
+        verify(session).waitingForTheOperationComplete(waitForMills);
+        verify(session, atLeastOnce()).operationResult();
+        verify(device).dispatchEvent("Playback audio is completed.");
+        verify(provider, atLeastOnce()).disableEvents(deviceHandle, Result.IO.DTMF);
+        verify(provider, atLeastOnce()).stopAudioPlaying(deviceHandle);
+        verify(session).setState(Device.State.IDLE);
+        verify(session).operationResult(Result.TIMEOUT);
+        // check results
+        assertThat(result).isSameAs(Result.TIMEOUT);
+        assertThat(session.getState()).isEqualTo(Device.State.IDLE);
+        assertThat(session.operationResult()).isEqualTo(Result.TIMEOUT);
+    }
+
+    @Test
     public void shouldNotPlaybackAudio_HardwareError() throws ExecutionException, InterruptedException {
         // preparing test data
         engine.uses(device);
@@ -721,10 +775,767 @@ public class AbstractMultimediaEngineTest<H> {
     }
 
     @Test
-    public void recordAudio() {
+    public void shouldNotPlaybackAudio_DisconnectedInAction() throws InterruptedException, ExecutionException {
+        // preparing test data
+        engine.uses(device);
+        session.alive(true);
+        Audio playbackFormat = Audio.ADPCM_8;
+        String terminationSymbolsMask = "";
+        String malfunctionReason = "Playback audio is failed. The connection is lost.";
+        int timeout = 2;
+        String audio = "Testing audio content";
+        InputStream audioStream = spy(new ByteArrayInputStream(audio.getBytes()));
+        Audio[] audios = new Audio[]{playbackFormat, Audio.LINEAR, Audio.LINEAR_8, Audio.LINEAR_11};
+        ConfigurationParameter allAudios = spy(ConfigurationParameter.of("media-codecs", Arrays.asList(audios)));
+        doReturn(Optional.of(allAudios)).when(device).getParameter(ALLOWED_CODECS);
+        doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
+
+        // acting
+        Future<OperationResultValue> playback = executor.submit(() ->
+                engine.playbackAudio(session, audioStream, playbackFormat, terminationSymbolsMask, timeout)
+        );
+        await().until(() -> session.operationIsActive());
+        executor.schedule(() -> {
+            session.alive(false);
+            session.operationComplete(Result.CALL.DISCONNECT);
+        }, 100, TimeUnit.MILLISECONDS);
+        OperationResultValue result = playback.get();
+
+        // check the behavior
+        verify(session).isOpened();
+        verify(session, atLeastOnce()).isAlive();
+        verify(engine).canPlay(playbackFormat);
+        verify(engine).canPlay();
+        verify(device).dispatchEvent("Playback audio is starting...");
+        verify(session).setState(TelephonyDevice.State.PLAY);
+        verify(session).getDeviceHandle();
+        verify(device, atLeastOnce()).getProvider();
+        verify(provider, atLeastOnce()).disableEvents(deviceHandle, Result.IO.DTMF);
+        verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
+        verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
+        verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
+        verify(session).waitingForTheOperationComplete(timeout * 1000L);
+        verify(session).isTerminated();
+        verify(session).isDisconnected();
+        verify(provider, atLeastOnce()).disableEvents(deviceHandle, Result.IO.DTMF);
+        verify(provider, atLeastOnce()).stopAudioPlaying(deviceHandle);
+        verify(session).setState(Device.State.ERROR);
+        verify(device).dispatchError(malfunctionReason);
+        // check results
+        assertThat(result).isSameAs(Result.CALL.DISCONNECT);
+        assertThat(session.getState()).isEqualTo(Device.State.ERROR);
+        assertThat(session.operationResult()).isEqualTo(Result.CALL.DISCONNECT);
     }
 
     @Test
-    public void terminate() {
+    public void shouldRecordAudio_EOF() throws ExecutionException, InterruptedException, IOException {
+        // preparing test data
+        engine.uses(device);
+        session.alive(true);
+        String audio = "Testing audio content";
+        Audio recordFormat = Audio.ADPCM_8;
+        String terminationSymbolsMask = "#";
+        int timeout = 2;
+        int silence = 1;
+        ConfigurationParameter rawAudio = spy(ConfigurationParameter.of("record", recordFormat));
+        doReturn(Optional.of(rawAudio)).when(device).getParameter(RECORD_CODEC);
+        File tempFile = File.createTempFile("media-data", ".audio");
+        tempFile.deleteOnExit();
+        OperationResultValue recordingResult = Result.IO.EOF;
+        doReturn(true).when(provider).startAudioRecording(
+                eq(deviceHandle), anyString(), eq(recordFormat), eq(silence), eq(timeout)
+        );
+
+        // acting
+        Future<OperationResultValue> recording = executor.submit(() -> {
+                    try (OutputStream audioStream = new FileOutputStream(tempFile)) {
+                        return engine.recordAudio(session, audioStream, recordFormat, terminationSymbolsMask, silence, timeout);
+                    }
+                }
+        );
+        await().until(() -> session.operationIsActive());
+        executor.schedule(() -> {
+            final File audioTempFile = session.parameter(MultimediaEngine.Parameter.AUDIO_TEMPORARY);
+            // saving audio content to the temporary media file of the record operation
+            try (OutputStream out = new FileOutputStream(audioTempFile)) {
+                out.write(audio.getBytes());
+            } catch (IOException e) {
+                // doing nothing here
+            }
+            // completing media-data transmitting operation (end of media data)
+            session.operationComplete(recordingResult);
+        }, 100, TimeUnit.MILLISECONDS);
+        OperationResultValue result = recording.get();
+
+        // check the behavior
+        verify(session).isOpened();
+        verify(session, atLeastOnce()).isAlive();
+        verify(engine).canRecord(recordFormat);
+        verify(engine).canRecord();
+        verify(device).dispatchEvent("Audio record is starting...");
+        verify(session).setState(TelephonyDevice.State.RECORD);
+        verify(session).operationResult(Result.NONE);
+        verify(device).getProvider();
+        verify(session).getDeviceHandle();
+        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
+        verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
+        verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
+        verify(provider).startAudioRecording(eq(deviceHandle), anyString(), eq(recordFormat), eq(silence), eq(timeout));
+        verify(session, atLeastOnce()).operationResult(Result.NONE);
+        verify(session).waitingForTheOperationComplete(1000L);
+        verify(session, atLeastOnce()).operationResult();
+        verify(device).dispatchEvent("Record audio is completed.");
+        verify(provider, atLeastOnce()).disableEvents(deviceHandle, Result.IO.DTMF);
+        verify(provider, atLeastOnce()).stopAudioRecording(deviceHandle);
+        verify(session).setState(Device.State.IDLE);
+        verify(session).operationResult(recordingResult);
+        // check results
+        assertThat(session.isTerminated()).isFalse();
+        assertThat(result).isSameAs(recordingResult);
+        assertThat(session.getState()).isEqualTo(Device.State.IDLE);
+        assertThat(session.operationResult()).isEqualTo(recordingResult);
+        assertThat(tempFile.exists()).isTrue();
+        try (BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(tempFile)))) {
+            assertThat(in.readLine()).isEqualTo(audio);
+        }
+        assertThat(tempFile.delete()).isTrue();
+    }
+
+    @Test
+    public void shouldRecordAudio_Silence() throws ExecutionException, InterruptedException, IOException {
+        // preparing test data
+        engine.uses(device);
+        session.alive(true);
+        String audio = "Testing audio content";
+        Audio recordFormat = Audio.ADPCM_8;
+        String terminationSymbolsMask = "#";
+        int timeout = 2;
+        int silence = 1;
+        ConfigurationParameter rawAudio = spy(ConfigurationParameter.of("record", recordFormat));
+        doReturn(Optional.of(rawAudio)).when(device).getParameter(RECORD_CODEC);
+        File tempFile = File.createTempFile("media-data", ".audio");
+        tempFile.deleteOnExit();
+        OperationResultValue recordingResult = Result.IO.SILENCE;
+        doReturn(true).when(provider).startAudioRecording(
+                eq(deviceHandle), anyString(), eq(recordFormat), eq(silence), eq(timeout)
+        );
+
+        // acting
+        Future<OperationResultValue> recording = executor.submit(() -> {
+                    try (OutputStream audioStream = new FileOutputStream(tempFile)) {
+                        return engine.recordAudio(session, audioStream, recordFormat, terminationSymbolsMask, silence, timeout);
+                    }
+                }
+        );
+        await().until(() -> session.operationIsActive());
+        executor.schedule(() -> {
+            final File audioTempFile = session.parameter(MultimediaEngine.Parameter.AUDIO_TEMPORARY);
+            // saving audio content to the temporary media file of the record operation
+            try (OutputStream out = new FileOutputStream(audioTempFile)) {
+                out.write(audio.getBytes());
+            } catch (IOException e) {
+                // doing nothing here
+            }
+            // completing media-data transmitting operation (end of media data)
+            session.operationComplete(recordingResult);
+        }, 100, TimeUnit.MILLISECONDS);
+        OperationResultValue result = recording.get();
+
+        // check the behavior
+        verify(session).isOpened();
+        verify(session, atLeastOnce()).isAlive();
+        verify(engine).canRecord(recordFormat);
+        verify(engine).canRecord();
+        verify(device).dispatchEvent("Audio record is starting...");
+        verify(session).setState(TelephonyDevice.State.RECORD);
+        verify(session).operationResult(Result.NONE);
+        verify(device).getProvider();
+        verify(session).getDeviceHandle();
+        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
+        verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
+        verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
+        verify(provider).startAudioRecording(eq(deviceHandle), anyString(), eq(recordFormat), eq(silence), eq(timeout));
+        verify(session, atLeastOnce()).operationResult(Result.NONE);
+        verify(session).waitingForTheOperationComplete(1000L);
+        verify(session, atLeastOnce()).operationResult();
+        verify(device).dispatchEvent("Record audio is completed.");
+        verify(provider, atLeastOnce()).disableEvents(deviceHandle, Result.IO.DTMF);
+        verify(provider, atLeastOnce()).stopAudioRecording(deviceHandle);
+        verify(session).setState(Device.State.IDLE);
+        verify(session).operationResult(recordingResult);
+        // check results
+        assertThat(session.isTerminated()).isFalse();
+        assertThat(result).isSameAs(recordingResult);
+        assertThat(session.getState()).isEqualTo(Device.State.IDLE);
+        assertThat(session.operationResult()).isEqualTo(recordingResult);
+        assertThat(tempFile.exists()).isTrue();
+        try (BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(tempFile)))) {
+            assertThat(in.readLine()).isEqualTo(audio);
+        }
+        assertThat(tempFile.delete()).isTrue();
+    }
+
+    @Test
+    public void shouldRecordAudio_DTMF() throws ExecutionException, InterruptedException, IOException {
+        // preparing test data
+        engine.uses(device);
+        session.alive(true);
+        String audio = "Testing audio content";
+        Audio recordFormat = Audio.ADPCM_8;
+        String terminationSymbolsMask = "#";
+        int timeout = 2;
+        int silence = 1;
+        ConfigurationParameter rawAudio = spy(ConfigurationParameter.of("record", recordFormat));
+        doReturn(Optional.of(rawAudio)).when(device).getParameter(RECORD_CODEC);
+        File tempFile = File.createTempFile("media-data", ".audio");
+        tempFile.deleteOnExit();
+        OperationResultValue recordingResult = Result.IO.DTMF;
+        doReturn(true).when(provider).startAudioRecording(
+                eq(deviceHandle), anyString(), eq(recordFormat), eq(silence), eq(timeout)
+        );
+        session.parameter(Device.Parameter.USER_INPUT, terminationSymbolsMask);
+
+        // acting
+        Future<OperationResultValue> recording = executor.submit(() -> {
+                    try (OutputStream audioStream = new FileOutputStream(tempFile)) {
+                        return engine.recordAudio(session, audioStream, recordFormat, terminationSymbolsMask, silence, timeout);
+                    }
+                }
+        );
+        await().until(() -> session.operationIsActive());
+        executor.schedule(() -> {
+            final File audioTempFile = session.parameter(MultimediaEngine.Parameter.AUDIO_TEMPORARY);
+            // saving audio content to the temporary media file of the record operation
+            try (OutputStream out = new FileOutputStream(audioTempFile)) {
+                out.write(audio.getBytes());
+            } catch (IOException e) {
+                // doing nothing here
+            }
+            // completing media-data transmitting operation (end of media data)
+            session.operationComplete(recordingResult);
+        }, 100, TimeUnit.MILLISECONDS);
+        OperationResultValue result = recording.get();
+
+        // check the behavior
+        verify(session).isOpened();
+        verify(session, atLeastOnce()).isAlive();
+        verify(engine).canRecord(recordFormat);
+        verify(engine).canRecord();
+        verify(device).dispatchEvent("Audio record is starting...");
+        verify(session).setState(TelephonyDevice.State.RECORD);
+        verify(session).operationResult(Result.NONE);
+        verify(device).getProvider();
+        verify(session).getDeviceHandle();
+        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
+        verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
+        verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
+        verify(provider).startAudioRecording(eq(deviceHandle), anyString(), eq(recordFormat), eq(silence), eq(timeout));
+        verify(session, atLeastOnce()).operationResult(Result.NONE);
+        verify(session).parameter(Device.Parameter.USER_INPUT);
+        verify(session).waitingForTheOperationComplete(1000L);
+        verify(session, atLeastOnce()).operationResult();
+        verify(device).dispatchEvent("Record audio is completed.");
+        verify(provider, atLeastOnce()).disableEvents(deviceHandle, Result.IO.DTMF);
+        verify(provider, atLeastOnce()).stopAudioRecording(deviceHandle);
+        verify(session).setState(Device.State.IDLE);
+        verify(session).operationResult(recordingResult);
+        // check results
+        assertThat(session.isTerminated()).isFalse();
+        assertThat(result).isSameAs(recordingResult);
+        assertThat(session.getState()).isEqualTo(Device.State.IDLE);
+        assertThat(session.operationResult()).isEqualTo(recordingResult);
+        assertThat(tempFile.exists()).isTrue();
+        try (BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(tempFile)))) {
+            assertThat(in.readLine()).isEqualTo(audio);
+        }
+        assertThat(tempFile.delete()).isTrue();
+    }
+
+    @Test
+    public void shouldRecordAudio_DTMF_ButEmptyMask() throws ExecutionException, InterruptedException, IOException {
+        // preparing test data
+        engine.uses(device);
+        session.alive(true);
+        String audio = "Testing audio content";
+        Audio recordFormat = Audio.ADPCM_8;
+        String terminationSymbolsMask = "";
+        int timeout = 2;
+        int silence = 1;
+        ConfigurationParameter rawAudio = spy(ConfigurationParameter.of("record", recordFormat));
+        doReturn(Optional.of(rawAudio)).when(device).getParameter(RECORD_CODEC);
+        File tempFile = File.createTempFile("media-data", ".audio");
+        tempFile.deleteOnExit();
+        OperationResultValue recordingResult = Result.IO.DTMF;
+        doReturn(true).when(provider).startAudioRecording(
+                eq(deviceHandle), anyString(), eq(recordFormat), eq(silence), eq(timeout)
+        );
+        session.parameter(Device.Parameter.USER_INPUT, "*");
+
+        // acting
+        Future<OperationResultValue> recording = executor.submit(() -> {
+                    try (OutputStream audioStream = new FileOutputStream(tempFile)) {
+                        return engine.recordAudio(session, audioStream, recordFormat, terminationSymbolsMask, silence, timeout);
+                    }
+                }
+        );
+        await().until(() -> session.operationIsActive());
+        executor.schedule(() -> {
+            final File audioTempFile = session.parameter(MultimediaEngine.Parameter.AUDIO_TEMPORARY);
+            // saving audio content to the temporary media file of the record operation
+            try (OutputStream out = new FileOutputStream(audioTempFile)) {
+                out.write(audio.getBytes());
+            } catch (IOException e) {
+                // doing nothing here
+            }
+            // completing media-data transmitting operation (end of media data)
+            session.operationComplete(recordingResult);
+        }, 100, TimeUnit.MILLISECONDS);
+        OperationResultValue result = recording.get();
+
+        // check the behavior
+        verify(session).isOpened();
+        verify(session, atLeastOnce()).isAlive();
+        verify(engine).canRecord(recordFormat);
+        verify(engine).canRecord();
+        verify(device).dispatchEvent("Audio record is starting...");
+        verify(session).setState(TelephonyDevice.State.RECORD);
+        verify(device).getProvider();
+        verify(session).getDeviceHandle();
+        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
+        verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
+        verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
+        verify(provider).startAudioRecording(eq(deviceHandle), anyString(), eq(recordFormat), eq(silence), eq(timeout));
+        verify(session, atLeastOnce()).operationResult(Result.NONE);
+        verify(session, never()).parameter(Device.Parameter.USER_INPUT);
+        verify(session, atLeastOnce()).waitingForTheOperationComplete(1000L);
+        verify(session, atLeastOnce()).operationResult();
+        verify(device).dispatchEvent("Record audio is completed.");
+        verify(provider, atLeastOnce()).disableEvents(deviceHandle, Result.IO.DTMF);
+        verify(provider, atLeastOnce()).stopAudioRecording(deviceHandle);
+        verify(session).setState(Device.State.IDLE);
+        verify(session).operationResult(recordingResult);
+        // check results
+        assertThat(session.isTerminated()).isFalse();
+        assertThat(result).isSameAs(Result.NONE);
+        assertThat(session.getState()).isEqualTo(Device.State.IDLE);
+        assertThat(session.operationResult()).isEqualTo(Result.NONE);
+        assertThat(tempFile.delete()).isTrue();
+    }
+
+    @Test
+    public void shouldRecordAudio_DTMF_ButNotFromMask() throws ExecutionException, InterruptedException, IOException {
+        // preparing test data
+        engine.uses(device);
+        session.alive(true);
+        String audio = "Testing audio content";
+        Audio recordFormat = Audio.ADPCM_8;
+        String terminationSymbolsMask = "#";
+        int timeout = 2;
+        int silence = 1;
+        ConfigurationParameter rawAudio = spy(ConfigurationParameter.of("record", recordFormat));
+        doReturn(Optional.of(rawAudio)).when(device).getParameter(RECORD_CODEC);
+        File tempFile = File.createTempFile("media-data", ".audio");
+        tempFile.deleteOnExit();
+        OperationResultValue recordingResult = Result.IO.DTMF;
+        doReturn(true).when(provider).startAudioRecording(
+                eq(deviceHandle), anyString(), eq(recordFormat), eq(silence), eq(timeout)
+        );
+        session.parameter(Device.Parameter.USER_INPUT, "*");
+
+        // acting
+        Future<OperationResultValue> recording = executor.submit(() -> {
+                    try (OutputStream audioStream = new FileOutputStream(tempFile)) {
+                        return engine.recordAudio(session, audioStream, recordFormat, terminationSymbolsMask, silence, timeout);
+                    }
+                }
+        );
+        await().until(() -> session.operationIsActive());
+        executor.schedule(() -> {
+            final File audioTempFile = session.parameter(MultimediaEngine.Parameter.AUDIO_TEMPORARY);
+            // saving audio content to the temporary media file of the record operation
+            try (OutputStream out = new FileOutputStream(audioTempFile)) {
+                out.write(audio.getBytes());
+            } catch (IOException e) {
+                // doing nothing here
+            }
+            // completing media-data transmitting operation (end of media data)
+            session.operationComplete(recordingResult);
+        }, 100, TimeUnit.MILLISECONDS);
+        OperationResultValue result = recording.get();
+
+        // check the behavior
+        verify(session).isOpened();
+        verify(session, atLeastOnce()).isAlive();
+        verify(engine).canRecord(recordFormat);
+        verify(engine).canRecord();
+        verify(device).dispatchEvent("Audio record is starting...");
+        verify(session).setState(TelephonyDevice.State.RECORD);
+        verify(device).getProvider();
+        verify(session).getDeviceHandle();
+        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
+        verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
+        verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
+        verify(provider).startAudioRecording(eq(deviceHandle), anyString(), eq(recordFormat), eq(silence), eq(timeout));
+        verify(session, atLeastOnce()).operationResult(Result.NONE);
+        verify(session).parameter(Device.Parameter.USER_INPUT);
+        verify(session, atLeastOnce()).waitingForTheOperationComplete(1000L);
+        verify(session, atLeastOnce()).operationResult();
+        verify(device).dispatchEvent("Record audio is completed.");
+        verify(provider, atLeastOnce()).disableEvents(deviceHandle, Result.IO.DTMF);
+        verify(provider, atLeastOnce()).stopAudioRecording(deviceHandle);
+        verify(session).setState(Device.State.IDLE);
+        verify(session).operationResult(recordingResult);
+        // check results
+        assertThat(session.isTerminated()).isFalse();
+        assertThat(result).isSameAs(Result.NONE);
+        assertThat(session.getState()).isEqualTo(Device.State.IDLE);
+        assertThat(session.operationResult()).isEqualTo(Result.NONE);
+        assertThat(tempFile.delete()).isTrue();
+    }
+
+    @Test
+    public void shouldRecordAudio_DTMF_ButEmptyUserInput() throws ExecutionException, InterruptedException, IOException {
+        // preparing test data
+        engine.uses(device);
+        session.alive(true);
+        String audio = "Testing audio content";
+        Audio recordFormat = Audio.ADPCM_8;
+        String terminationSymbolsMask = "#";
+        int timeout = 2;
+        int silence = 1;
+        ConfigurationParameter rawAudio = spy(ConfigurationParameter.of("record", recordFormat));
+        doReturn(Optional.of(rawAudio)).when(device).getParameter(RECORD_CODEC);
+        File tempFile = File.createTempFile("media-data", ".audio");
+        tempFile.deleteOnExit();
+        OperationResultValue recordingResult = Result.IO.DTMF;
+        doReturn(true).when(provider).startAudioRecording(
+                eq(deviceHandle), anyString(), eq(recordFormat), eq(silence), eq(timeout)
+        );
+
+        // acting
+        Future<OperationResultValue> recording = executor.submit(() -> {
+                    try (OutputStream audioStream = new FileOutputStream(tempFile)) {
+                        return engine.recordAudio(session, audioStream, recordFormat, terminationSymbolsMask, silence, timeout);
+                    }
+                }
+        );
+        await().until(() -> session.operationIsActive());
+        executor.schedule(() -> {
+            final File audioTempFile = session.parameter(MultimediaEngine.Parameter.AUDIO_TEMPORARY);
+            // saving audio content to the temporary media file of the record operation
+            try (OutputStream out = new FileOutputStream(audioTempFile)) {
+                out.write(audio.getBytes());
+            } catch (IOException e) {
+                // doing nothing here
+            }
+            // completing media-data transmitting operation (end of media data)
+            session.operationComplete(recordingResult);
+        }, 100, TimeUnit.MILLISECONDS);
+        OperationResultValue result = recording.get();
+
+        // check the behavior
+        verify(session).isOpened();
+        verify(session, atLeastOnce()).isAlive();
+        verify(engine).canRecord(recordFormat);
+        verify(engine).canRecord();
+        verify(device).dispatchEvent("Audio record is starting...");
+        verify(session).setState(TelephonyDevice.State.RECORD);
+        verify(device).getProvider();
+        verify(session).getDeviceHandle();
+        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
+        verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
+        verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
+        verify(provider).startAudioRecording(eq(deviceHandle), anyString(), eq(recordFormat), eq(silence), eq(timeout));
+        verify(session, atLeastOnce()).operationResult(Result.NONE);
+        verify(session).parameter(Device.Parameter.USER_INPUT);
+        verify(session, atLeastOnce()).waitingForTheOperationComplete(1000L);
+        verify(session, atLeastOnce()).operationResult();
+        verify(device).dispatchEvent("Record audio is completed.");
+        verify(provider, atLeastOnce()).disableEvents(deviceHandle, Result.IO.DTMF);
+        verify(provider, atLeastOnce()).stopAudioRecording(deviceHandle);
+        verify(session).setState(Device.State.IDLE);
+        verify(session).operationResult(recordingResult);
+        // check results
+        assertThat(session.isTerminated()).isFalse();
+        assertThat(result).isSameAs(Result.NONE);
+        assertThat(session.getState()).isEqualTo(Device.State.IDLE);
+        assertThat(session.operationResult()).isEqualTo(Result.NONE);
+        assertThat(tempFile.delete()).isTrue();
+    }
+
+    @Test
+    public void shouldNotRecordAudio_HardwareError() throws ExecutionException, InterruptedException, IOException {
+        // preparing test data
+        engine.uses(device);
+        session.alive(true);
+        Audio recordFormat = Audio.ADPCM_8;
+        String terminationSymbolsMask = "#";
+        int timeout = 2;
+        int silence = 1;
+        ConfigurationParameter rawAudio = spy(ConfigurationParameter.of("record", recordFormat));
+        doReturn(Optional.of(rawAudio)).when(device).getParameter(RECORD_CODEC);
+        File tempFile = File.createTempFile("media-data", ".audio");
+        tempFile.deleteOnExit();
+        OperationResultValue recordingResult = Result.ERROR;
+        String malfunctionReason = "Record audio is failed.";
+        doReturn(true).when(provider).startAudioRecording(
+                eq(deviceHandle), anyString(), eq(recordFormat), eq(silence), eq(timeout)
+        );
+
+        // acting
+        Future<Throwable> recording = executor.submit(() ->
+                assertThrows(Throwable.class, () -> {
+                            try (OutputStream audioStream = new FileOutputStream(tempFile)) {
+                                engine.recordAudio(session, audioStream, recordFormat, terminationSymbolsMask, silence, timeout);
+                            }
+                        }
+                )
+        );
+        await().until(() -> session.operationIsActive());
+        executor.schedule(() -> session.operationComplete(Result.ERROR), 100, TimeUnit.MILLISECONDS);
+        Throwable result = recording.get();
+
+        // check the behavior
+        verify(session).isOpened();
+        verify(session, atLeastOnce()).isAlive();
+        verify(engine).canRecord(recordFormat);
+        verify(engine).canRecord();
+        verify(device).dispatchEvent("Audio record is starting...");
+        verify(session).setState(TelephonyDevice.State.RECORD);
+        verify(session).operationResult(Result.NONE);
+        verify(device, atLeastOnce()).getProvider();
+        verify(session).getDeviceHandle();
+        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
+        verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
+        verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
+        verify(provider).startAudioRecording(eq(deviceHandle), anyString(), eq(recordFormat), eq(silence), eq(timeout));
+        verify(session, atLeastOnce()).operationResult(Result.NONE);
+        verify(session).waitingForTheOperationComplete(1000L);
+        verify(session, atLeastOnce()).operationResult();
+        verify(provider, atLeastOnce()).disableEvents(deviceHandle, Result.IO.DTMF);
+        verify(provider, atLeastOnce()).stopAudioRecording(deviceHandle);
+        verify(engine).onDeviceError(session, malfunctionReason);
+        verify(engine).onDeviceError(session, malfunctionReason, true);
+        verify(session).setState(Device.State.ERROR);
+        verify(device).dispatchError(malfunctionReason);
+        verify(device, never()).dispatchEvent("Record audio is completed.");
+        // check results
+        assertThat(session.isTerminated()).isFalse();
+        assertThat(result).isInstanceOf(DeviceMalfunction.class);
+        assertThat(result.getMessage()).endsWith(malfunctionReason);
+        assertThat(session.getState()).isEqualTo(Device.State.ERROR);
+        assertThat(session.operationResult()).isEqualTo(recordingResult);
+        assertThat(tempFile.delete()).isTrue();
+    }
+
+    @Test
+    public void shouldNotRecordAudio_DidNotStartRecording() throws InterruptedException, IOException {
+        // preparing test data
+        engine.uses(device);
+        session.alive(true);
+        Audio recordFormat = Audio.ADPCM_8;
+        String terminationSymbolsMask = "#";
+        int timeout = 2;
+        int silence = 1;
+        ConfigurationParameter rawAudio = spy(ConfigurationParameter.of("record", recordFormat));
+        doReturn(Optional.of(rawAudio)).when(device).getParameter(RECORD_CODEC);
+        File tempFile = File.createTempFile("media-data", ".audio");
+        tempFile.deleteOnExit();
+        String malfunctionReason = "Cannot start recording the audio file.";
+
+        // acting
+        Throwable result = assertThrows(Throwable.class, () -> {
+            try (OutputStream audioStream = new FileOutputStream(tempFile)) {
+                engine.recordAudio(session, audioStream, recordFormat, terminationSymbolsMask, silence, timeout);
+            }
+        });
+
+        // check the behavior
+        verify(session).isOpened();
+        verify(session, atLeastOnce()).isAlive();
+        verify(engine).canRecord(recordFormat);
+        verify(engine).canRecord();
+        verify(device).dispatchEvent("Audio record is starting...");
+        verify(session).setState(TelephonyDevice.State.RECORD);
+        verify(session, never()).operationResult(Result.NONE);
+        verify(device, atLeastOnce()).getProvider();
+        verify(session).getDeviceHandle();
+        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
+        verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
+        verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
+        verify(provider).startAudioRecording(eq(deviceHandle), anyString(), eq(recordFormat), eq(silence), eq(timeout));
+        verify(session, never()).waitingForTheOperationComplete(anyLong());
+        verify(provider, atLeastOnce()).disableEvents(deviceHandle, Result.IO.DTMF);
+        verify(provider, atLeastOnce()).stopAudioRecording(deviceHandle);
+        verify(engine).onDeviceError(session, malfunctionReason);
+        verify(engine).onDeviceError(session, malfunctionReason, true);
+        verify(session).setState(Device.State.ERROR);
+        verify(device).dispatchError(malfunctionReason);
+        verify(device, never()).dispatchEvent("Record audio is completed.");
+        // check results
+        assertThat(session.isTerminated()).isFalse();
+        assertThat(result).isInstanceOf(DeviceMalfunction.class);
+        assertThat(result.getMessage()).endsWith(malfunctionReason);
+        assertThat(session.getState()).isEqualTo(Device.State.ERROR);
+        assertThat(tempFile.delete()).isTrue();
+    }
+
+    @Test
+    public void shouldNotRecordAudio_DisconnectedInAction() throws ExecutionException, InterruptedException, IOException {
+        // preparing test data
+        engine.uses(device);
+        session.alive(true);
+        Audio recordFormat = Audio.ADPCM_8;
+        String terminationSymbolsMask = "#";
+        int timeout = 2;
+        int silence = 1;
+        ConfigurationParameter rawAudio = spy(ConfigurationParameter.of("record", recordFormat));
+        doReturn(Optional.of(rawAudio)).when(device).getParameter(RECORD_CODEC);
+        File tempFile = File.createTempFile("media-data", ".audio");
+        tempFile.deleteOnExit();
+        String malfunctionReason = "Recording audio is failed. The connection is lost.";
+        doReturn(true).when(provider).startAudioRecording(
+                eq(deviceHandle), anyString(), eq(recordFormat), eq(silence), eq(timeout)
+        );
+
+        // acting
+        Future<OperationResultValue> recording = executor.submit(() -> {
+            try (OutputStream audioStream = new FileOutputStream(tempFile)) {
+                return engine.recordAudio(session, audioStream, recordFormat, terminationSymbolsMask, silence, timeout);
+            }
+        });
+        await().until(() -> session.operationIsActive());
+        executor.schedule(() -> {
+            session.alive(false);
+            session.operationComplete(Result.CALL.DISCONNECT);
+        }, 100, TimeUnit.MILLISECONDS);
+        OperationResultValue result = recording.get();
+
+        // check the behavior
+        verify(session).isOpened();
+        verify(session, atLeastOnce()).isAlive();
+        verify(engine).canRecord(recordFormat);
+        verify(engine).canRecord();
+        verify(device).dispatchEvent("Audio record is starting...");
+        verify(session).setState(TelephonyDevice.State.RECORD);
+        verify(session).operationResult(Result.NONE);
+        verify(device, atLeastOnce()).getProvider();
+        verify(session).getDeviceHandle();
+        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
+        verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
+        verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
+        verify(provider).startAudioRecording(eq(deviceHandle), anyString(), eq(recordFormat), eq(silence), eq(timeout));
+        verify(session).waitingForTheOperationComplete(1000L);
+        verify(provider, atLeastOnce()).disableEvents(deviceHandle, Result.IO.DTMF);
+        verify(provider, atLeastOnce()).stopAudioRecording(deviceHandle);
+        verify(session).setState(Device.State.ERROR);
+        verify(device).dispatchError(malfunctionReason);
+        // check results
+        assertThat(session.isTerminated()).isFalse();
+        assertThat(result).isSameAs(Result.CALL.DISCONNECT);
+        assertThat(session.getState()).isEqualTo(Device.State.ERROR);
+        assertThat(session.operationResult()).isEqualTo(Result.CALL.DISCONNECT);
+        assertThat(tempFile.delete()).isTrue();
+    }
+
+    @Test
+    public void shouldTerminatePlayback() throws InterruptedException, ExecutionException, IOException {
+        // preparing test data
+        engine.uses(device);
+        session.alive(true);
+        Audio playbackFormat = Audio.ADPCM_8;
+        String terminationSymbolsMask = "";
+        int timeout = 2;
+        String audio = "Testing audio content";
+        InputStream audioStream = spy(new ByteArrayInputStream(audio.getBytes()));
+        Audio[] audios = new Audio[]{playbackFormat, Audio.LINEAR, Audio.LINEAR_8, Audio.LINEAR_11};
+        ConfigurationParameter allAudios = spy(ConfigurationParameter.of("media-codecs", Arrays.asList(audios)));
+        doReturn(Optional.of(allAudios)).when(device).getParameter(ALLOWED_CODECS);
+        doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
+
+        // acting
+        Future<OperationResultValue> playback = executor.submit(() ->
+                engine.playbackAudio(session, audioStream, playbackFormat, terminationSymbolsMask, timeout)
+        );
+        await().until(() -> session.operationIsActive());
+        engine.terminate(session);
+        OperationResultValue result = playback.get();
+
+        // check the behavior
+        verify(session).isOpened();
+        verify(session, atLeastOnce()).isAlive();
+        verify(engine).canPlay(playbackFormat);
+        verify(engine).canPlay();
+        verify(device).dispatchEvent("Playback audio is starting...");
+        verify(session).setState(TelephonyDevice.State.PLAY);
+        verify(session).getDeviceHandle();
+        verify(device, atLeastOnce()).getProvider();
+        verify(provider, atLeastOnce()).disableEvents(deviceHandle, Result.IO.DTMF);
+        verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
+        verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
+        verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
+        verify(session).waitingForTheOperationComplete(timeout * 1000L);
+        verify(session).isTerminated();
+        verify(session, never()).isDisconnected();
+        verify(provider, atLeastOnce()).disableEvents(deviceHandle, Result.IO.DTMF);
+        verify(provider, atLeastOnce()).stopAudioPlaying(deviceHandle);
+        verify(session).setState(Device.State.IDLE);
+        // check results
+        assertThat(result).isSameAs(Result.TERMINATED);
+        assertThat(session.getState()).isEqualTo(Device.State.IDLE);
+        assertThat(session.operationResult()).isEqualTo(Result.TERMINATED);
+    }
+
+    @Test
+    public void shouldTerminateRecord() throws InterruptedException, ExecutionException, IOException {
+        // preparing test data
+        engine.uses(device);
+        session.alive(true);
+        Audio recordFormat = Audio.ADPCM_8;
+        String terminationSymbolsMask = "#";
+        int timeout = 2;
+        int silence = 1;
+        ConfigurationParameter rawAudio = spy(ConfigurationParameter.of("record", recordFormat));
+        doReturn(Optional.of(rawAudio)).when(device).getParameter(RECORD_CODEC);
+        File tempFile = File.createTempFile("media-data", ".audio");
+        tempFile.deleteOnExit();
+        doReturn(true).when(provider).startAudioRecording(
+                eq(deviceHandle), anyString(), eq(recordFormat), eq(silence), eq(timeout)
+        );
+
+        // acting
+        Future<OperationResultValue> recording = executor.submit(() -> {
+            try (OutputStream audioStream = new FileOutputStream(tempFile)) {
+                return engine.recordAudio(session, audioStream, recordFormat, terminationSymbolsMask, silence, timeout);
+            }
+        });
+        await().until(() -> session.operationIsActive());
+        engine.terminate(session);
+        OperationResultValue result = recording.get();
+
+        // check the behavior
+        verify(session).isOpened();
+        verify(session, atLeastOnce()).isAlive();
+        verify(engine).canRecord(recordFormat);
+        verify(engine).canRecord();
+        verify(device).dispatchEvent("Audio record is starting...");
+        verify(session).setState(TelephonyDevice.State.RECORD);
+        verify(session).operationResult(Result.NONE);
+        verify(device, atLeastOnce()).getProvider();
+        verify(session).getDeviceHandle();
+        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
+        verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
+        verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
+        verify(provider).startAudioRecording(eq(deviceHandle), anyString(), eq(recordFormat), eq(silence), eq(timeout));
+        verify(session).waitingForTheOperationComplete(1000L);
+        verify(provider, atLeastOnce()).disableEvents(deviceHandle, Result.IO.DTMF);
+        verify(provider, atLeastOnce()).stopAudioRecording(deviceHandle);
+        verify(session).setState(Device.State.IDLE);
+        // check results
+        assertThat(session.isTerminated()).isTrue();
+        assertThat(result).isSameAs(Result.TERMINATED);
+        assertThat(session.getState()).isEqualTo(Device.State.IDLE);
+        assertThat(session.operationResult()).isEqualTo(Result.TERMINATED);
+        assertThat(tempFile.delete()).isTrue();
     }
 }
