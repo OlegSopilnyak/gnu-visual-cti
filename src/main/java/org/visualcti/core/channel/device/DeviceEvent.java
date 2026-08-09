@@ -138,7 +138,8 @@ public interface DeviceEvent<H> {
      * Enumeration: Parameter names for device event options
      */
     enum Option implements Device.ParameterName {
-        REASON("DEVICE EVENT REASON");
+        INPUT("USER-INPUT"),
+        REASON("DEVICE-EVENT-REASON");
 
         private final String name;
 

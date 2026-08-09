@@ -506,6 +506,35 @@ public class PhoneCallSessionTest {
     }
 
     @Test
+    public void shouldProceedDeviceSpecificEvent_UserInput() {
+        // preparing test data
+        String userInput = "123";
+        doReturn(deviceName).when(device).getName();
+        TelephonyDeviceFactory<String, ?> factory = mock(TelephonyDeviceFactory.class);
+        doReturn(factory).when(device).getFactory();
+        DeviceEvent<String> event = spy(AbstractDeviceEvent.<String>of(DeviceEvent.Type.DEVICE_SPECIFIC)
+                .deviceName(deviceName).deviceHandle(handle)
+                .option(DeviceEvent.Option.REASON, Result.IO.DTMF)
+                .option(DeviceEvent.Option.INPUT, userInput)
+        );
+        assertThat(session.parameterOrDefault(Device.Parameter.USER_INPUT,"")).isEmpty();
+        reset(session);
+
+        // acting
+        session.proceedDeviceSpecificEvent(event);
+
+        // check the behavior
+        verify(session).parameterOrDefault(Device.Parameter.USER_INPUT,"");
+        verify(event).getOption(DeviceEvent.Option.INPUT);
+        verify(session).parameter(Device.Parameter.USER_INPUT,userInput);
+        verify(session).operationComplete(Result.IO.DTMF);
+        // check results
+        assertThat(session.<String>parameter(Device.Parameter.USER_INPUT)).isEqualTo(userInput);
+        session.proceedDeviceSpecificEvent(event);
+        assertThat(session.<String>parameter(Device.Parameter.USER_INPUT)).isEqualTo(userInput + userInput);
+    }
+
+    @Test
     public void shouldAccept_MalfunctionEvent() {
         // preparing test data
         doReturn(deviceName).when(device).getName();

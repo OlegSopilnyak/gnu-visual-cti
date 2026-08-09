@@ -431,6 +431,9 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
      * @see OperationResultValue
      * @see Result.CALL#RINGS
      * @see Result#TERMINATED
+     * @see Result.CALL#DISCONNECT
+     * @see Result.IO#DTMF
+     * @see #operationComplete(OperationResultValue)
      */
     protected void proceedDeviceSpecificEvent(final DeviceEvent<H> event) {
         final Optional<OperationResultValue> eventReason = event.getOption(DeviceEvent.Option.REASON);
@@ -447,13 +450,15 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
             } else if (reason == Result.CALL.DISCONNECT) {
                 // disconnect detected in the current operation
                 operationDisconnectIsDetected();
+            } else if (reason == Result.IO.DTMF) {
+                // user input detected in the current operation
+                userInputDetected(event);
             } else {
                 // other event types just completing the operation which is waiting for complete
                 operationComplete(reason);
             }
         }
     }
-
 
     /// private methods
     // detected incoming telephony call
@@ -462,7 +467,7 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
         final DeviceStateValue currentState = getState();
         if (currentState == WAIT) {
             // detected incoming call event for session in WAIT state
-            // completing the wait for call operation
+            // completing the operation which wait for complete if any
             operationComplete(Result.CALL.RINGS);
         } else if (currentState == IDLE && isDisconnected()) {
             // detected incoming call event for session in IDLE state
@@ -475,6 +480,7 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
     // accepted event with 'terminate' reason
     private void operationTerminationIsDetected() {
         try {
+            // trying to terminate current operation
             getDevice().terminate(this);
         } catch (IOException e) {
             getDevice().dispatchError(e, "Cannot process termination event");
@@ -484,6 +490,16 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
     // disconnect detected in the current operation
     private void operationDisconnectIsDetected() {
         alive(false);
+        // completing the operation which wait for complete if any
         operationComplete(Result.CALL.DISCONNECT);
+    }
+
+    // user input detected in the current operation
+    private void userInputDetected(final DeviceEvent<H> event) {
+        // getting user input from the event and store it to the parameter of phone-call-session
+        this.parameter(Device.Parameter.USER_INPUT, parameterOrDefault(Device.Parameter.USER_INPUT, "")
+                + event.<String>getOption(DeviceEvent.Option.INPUT).orElse(""));
+        // completing the operation which wait for complete if any
+        operationComplete(Result.IO.DTMF);
     }
 }
