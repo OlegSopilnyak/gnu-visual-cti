@@ -39,6 +39,7 @@ package org.visualcti.core.channel.device.adapter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doReturn;
@@ -51,6 +52,8 @@ import static org.mockito.Mockito.verify;
 import static org.visualcti.core.channel.device.Device.State.IDLE;
 
 import java.io.IOException;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.Executor;
 import java.util.stream.Stream;
@@ -63,14 +66,15 @@ import org.visualcti.core.channel.device.DeviceMalfunction;
 import org.visualcti.core.channel.device.DeviceStateValue;
 import org.visualcti.core.channel.device.Factory;
 
-@SuppressWarnings("unchecked")
-public class AbstractDeviceTest {
+@SuppressWarnings({"unchecked", "rawtypes"})
+public class AbstractDeviceTest<H> {
     String vendorVersion = "device-vendor-version";
     String deviceVendor = "device-vendor";
     String deviceName = "device-name";
+    H deviceHandle = (H) "handle";
     Factory<?, ?> factory;
     AbstractDevice<String, ?> device;
-    Device.ServiceProvider<?> serviceProvider;
+    Device.ServiceProvider<String> serviceProvider;
     Device.Session<?> session;
     Executor deviceEventExecutor;
     DeviceEvent.Provider<?> eventsProvider;
@@ -93,6 +97,7 @@ public class AbstractDeviceTest {
             }
         });
         serviceProvider = mock(Device.ServiceProvider.class);
+        doReturn(deviceHandle).when(serviceProvider).openResource(deviceName);
         session = mock(Device.Session.class);
         doReturn("handle").when(session).getDeviceHandle();
         doReturn(IDLE).when(session).getState();
@@ -438,10 +443,149 @@ public class AbstractDeviceTest {
         verify(serviceProvider).openResource(deviceName);
         verify(device).findSessionByHandle(handle);
         verify(device).sessions();
+        verify(device).fillingDeviceSpecific(handle);
+        verify(device).hasHardwareParameters();
+        verify(device, atLeastOnce()).hardwareParameterNames();
+        verify(device, never()).setParameter(any(Device.ParameterName.class), any(ConfigurationParameter.class));
         verify(device).createSessionFor(handle);
         verify(factory.getHub()).addDeviceEventListenerFor(deviceName, deviceSession);
         verify(device).stateChangedFor(deviceSession);
         // check results
         assertThat(startedSession).isSameAs(deviceSession);
+    }
+
+    @Test
+    public void shouldNotStartSession_InvalidDeviceHandle() throws IOException {
+        // preparing test data
+        doReturn(null).when(serviceProvider).openResource(deviceName);
+
+        // acting
+        Exception error = assertThrows(Exception.class, () -> device.startSession());
+
+        // check the behavior
+        verify(serviceProvider).openResource(deviceName);
+        verify(device, never()).findSessionByHandle(any());
+        // check results
+        assertThat(error).isInstanceOf(IOException.class);
+        assertThat(error.getMessage()).isEqualTo("Invalid device handle!");
+    }
+
+    @Test
+    public void shouldGetHardwareParameterNames() {
+        // preparing test data
+        Device.ParameterName name = mock(Device.ParameterName.class);
+        doReturn(Collections.singleton(name)).when(device).hardwareParameterNames();
+
+        // acting
+        Collection<Device.ParameterName> hardware = device.hardwareParameterNames();
+
+        // check results
+        assertThat(hardware).isNotEmpty().containsExactly(name);
+    }
+
+    @Test
+    public void shouldNotGetHardwareParameterNames_Empty() {
+        // preparing test data
+
+        // acting
+        Collection<Device.ParameterName>hardware = device.hardwareParameterNames();
+
+        // check results
+        assertThat(hardware).isEmpty();
+    }
+
+    @Test
+    public void shouldHasHardwareParameters() {
+        // preparing test data
+        Device.ParameterName name = mock(Device.ParameterName.class);
+        doReturn(Collections.singleton(name)).when(device).hardwareParameterNames();
+        ConfigurationParameter parameter = mock(ConfigurationParameter.class);
+        device.setParameter(name, parameter);
+
+        // acting
+        boolean has = device.hasHardwareParameters();
+
+        // check the behavior
+        verify(device).hasHardwareParameters();
+        verify(device).getParameter(name);
+        // check results
+        assertThat(has).isTrue();
+    }
+
+    @Test
+    public void shouldHasNotHardwareParameters() {
+        // preparing test data
+
+        // acting
+        boolean has = device.hasHardwareParameters();
+
+        // check the behavior
+        verify(device).hasHardwareParameters();
+        verify(device, never()).getParameter(any(Device.ParameterName.class));
+        // check results
+        assertThat(has).isFalse();
+    }
+
+    @Test
+    public void shouldBeFiledDeviceSpecific() {
+        // preparing test data
+        String handle = "102";
+        Device.ParameterName name = mock(Device.ParameterName.class);
+        doReturn(Collections.singleton(name)).when(device).hardwareParameterNames();
+        ConfigurationParameter parameter = mock(ConfigurationParameter.class);
+        doReturn(Optional.of(parameter)).when(serviceProvider).resourceParameter(handle, name);
+        assertThat(device.getParameter(name)).isEmpty();
+
+        // acting
+        device.fillingDeviceSpecific(handle);
+
+        // check the behavior
+        verify(device).hasHardwareParameters();
+        verify(device).serviceProvider();
+        verify(device, atLeastOnce()).hardwareParameterNames();
+        verify(serviceProvider).resourceParameter(handle, name);
+        verify(device).setParameter(name, parameter);
+        // check results
+        assertThat(device.getParameter(name)).isPresent();
+    }
+
+    @Test
+    public void shouldNotBeFiledDeviceSpecific_NoInProvider() {
+        // preparing test data
+        String handle = "102";
+        Device.ParameterName name = mock(Device.ParameterName.class);
+        doReturn(Collections.singleton(name)).when(device).hardwareParameterNames();
+        assertThat(device.getParameter(name)).isEmpty();
+
+        // acting
+        device.fillingDeviceSpecific(handle);
+
+        // check the behavior
+        verify(device).hasHardwareParameters();
+        verify(device).serviceProvider();
+        verify(device, atLeastOnce()).hardwareParameterNames();
+        verify(serviceProvider).resourceParameter(handle, name);
+        verify(device, never()).setParameter(any(Device.ParameterName.class), any(ConfigurationParameter.class));
+        // check results
+        assertThat(device.getParameter(name)).isEmpty();
+    }
+
+    @Test
+    public void shouldNotBeFiledDeviceSpecific_EmptyHardwareParameters() {
+        // preparing test data
+        String handle = "102";
+        Device.ParameterName name = mock(Device.ParameterName.class);
+        assertThat(device.getParameter(name)).isEmpty();
+
+        // acting
+        device.fillingDeviceSpecific(handle);
+
+        // check the behavior
+        verify(device).hasHardwareParameters();
+        verify(device).serviceProvider();
+        verify(device, atLeastOnce()).hardwareParameterNames();
+        verify(serviceProvider, never()).resourceParameter(any(), any(Device.ParameterName.class));
+        // check results
+        assertThat(device.getParameter(name)).isEmpty();
     }
 }

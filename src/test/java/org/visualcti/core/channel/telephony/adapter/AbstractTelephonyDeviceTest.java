@@ -35,7 +35,7 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.core.channel.telephony;
+package org.visualcti.core.channel.telephony.adapter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -59,14 +59,19 @@ import org.junit.Test;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
-import org.visualcti.core.channel.telephony.adapter.AbstractTelephonyDevice;
-import org.visualcti.core.channel.telephony.adapter.AbstractTelephonyDeviceFactory;
-import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
+import org.visualcti.core.channel.telephony.TelephonyChannel;
+import org.visualcti.core.channel.telephony.TelephonyDevice;
+import org.visualcti.core.channel.telephony.TelephonyServiceProvider;
 import org.visualcti.core.channel.telephony.operation.Result;
+import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.core.channel.telephony.part.CallsPortEngine;
 import org.visualcti.core.channel.telephony.part.FaxMachineEngine;
 import org.visualcti.core.channel.telephony.part.MultimediaEngine;
 import org.visualcti.core.channel.telephony.part.TonesEngine;
+import org.visualcti.core.channel.telephony.part.adapter.AbstractCallsPortEngine;
+import org.visualcti.core.channel.telephony.part.adapter.AbstractFaxMachineEngine;
+import org.visualcti.core.channel.telephony.part.adapter.AbstractMultimediaEngine;
+import org.visualcti.core.channel.telephony.part.adapter.AbstractTonesEngine;
 
 @SuppressWarnings({"unchecked", "rawtypes"})
 public class AbstractTelephonyDeviceTest<H> {
@@ -84,21 +89,21 @@ public class AbstractTelephonyDeviceTest<H> {
     ExecutorService shadowExecutor;
     DeviceEvent.Provider<?> eventsProvider;
     AbstractTelephonyDeviceFactory<H, ?> factory;
-    AbstractTelephonyDevice<H ,?> device;
+    AbstractTelephonyDevice<H, ?> device;
 
     @Before
     public void setUp() throws Exception {
         provider = mock(TelephonyServiceProvider.class);
         doReturn(deviceHandle).when(provider).openResource(telephonyDeviceName);
-        calls = mock(CallsPortEngine.class);
-        doReturn(calls).when(calls).uses(any(TelephonyDeviceCore.class));
-        tones = mock(TonesEngine.class);
-        doReturn(tones).when(tones).uses(any(TelephonyDeviceCore.class));
-        media = mock(MultimediaEngine.class);
-        doReturn(media).when(media).uses(any(TelephonyDeviceCore.class));
-        faxes = mock(FaxMachineEngine.class);
-        doReturn(faxes).when(faxes).uses(any(TelephonyDeviceCore.class));
-        device = spy(new AbstractTelephonyDevice(telephonyDeviceName, provider, calls, tones, media, faxes){
+        calls = spy(new AbstractCallsPortEngine() {
+        });
+        tones = spy(new AbstractTonesEngine() {
+        });
+        media = spy(new AbstractMultimediaEngine() {
+        });
+        faxes = spy(new AbstractFaxMachineEngine() {
+        });
+        device = spy(new AbstractTelephonyDevice(telephonyDeviceName, provider, calls, tones, media, faxes) {
             @Override
             public Session createSessionFor(Object openedDeviceHandle) {
                 return spy(super.createSessionFor(openedDeviceHandle));
@@ -136,7 +141,7 @@ public class AbstractTelephonyDeviceTest<H> {
         verify(factory, never()).shareDevice((H) any(), anyLong());
         verify(factory, never()).shareDevice(any(PhoneCallSession.class), anyLong());
         // check results
-        assertThat(session).isInstanceOf(TelephonyDevice.Session.class).isInstanceOf(PhoneCallSession.class);
+        assertThat(session).isInstanceOf(Device.Session.class).isInstanceOf(PhoneCallSession.class);
         assertThat(session.isOpened()).isTrue();
         assertThat(session.isAlive()).isFalse();
         assertThat(session.isTerminated()).isFalse();
@@ -169,7 +174,7 @@ public class AbstractTelephonyDeviceTest<H> {
         verify(factory).shareDevice(deviceHandle, -1L);
         verify(factory).shareDevice(session, -1L);
         // check results
-        assertThat(session).isInstanceOf(TelephonyDevice.Session.class).isInstanceOf(PhoneCallSession.class);
+        assertThat(session).isInstanceOf(Device.Session.class).isInstanceOf(PhoneCallSession.class);
         assertThat(session.isOpened()).isTrue();
         assertThat(session.isAlive()).isFalse();
         assertThat(session.isTerminated()).isFalse();
@@ -201,7 +206,7 @@ public class AbstractTelephonyDeviceTest<H> {
         assertThat(session.isOpened()).isFalse();
     }
 
-    /// / inner classes
+    /// inner classes
     private static class TestFactory<H, T extends TelephonyDevice<H, ?>> extends AbstractTelephonyDeviceFactory<H, T> {
         public TestFactory(Executor deviceEventExecutor, DeviceEvent.Provider eventsProvider) {
             super(deviceEventExecutor, eventsProvider);

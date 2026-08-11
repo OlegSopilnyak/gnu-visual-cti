@@ -59,13 +59,13 @@ public interface MultimediaEngine<H> extends TelephonyDevicePart<H> {
      * Configured Parameter Names Enumeration: The parameter names of multimedia part of the telephony device
      */
     enum Parameter implements Device.ParameterName {
-        // which format is used for recording by default
+        // which format is used for recording by default (from xml-configuration)
         RECORD_CODEC("RECORD"),
-        // which format is used for playing back by default
+        // which format is used for playing back by default (from xml-configuration)
         PLAYBACK_CODEC("PLAY"),
-        // which formats can be used for multimedia
-        ALLOWED_CODECS("AVAILABLE CODECS LIST"),
-        // the temporary file which is used to by media transmitting operations
+        // the list of audio formats can be used for multimedia (from telephony service provider)
+        ALLOWED_CODECS("ALLOWED-CODECS-LIST"),
+        // the temporary file which is used to by media transmitting operations (for tests purposes)
         AUDIO_TEMPORARY("AUDIO-TEMP-FILE"),
         ;
 

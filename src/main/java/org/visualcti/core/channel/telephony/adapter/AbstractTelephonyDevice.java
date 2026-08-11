@@ -54,7 +54,6 @@ import org.visualcti.core.channel.device.DeviceStateValue;
 import org.visualcti.core.channel.device.adapter.AbstractDevice;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.TelephonyDevice;
-import org.visualcti.core.channel.telephony.TelephonyDeviceCore;
 import org.visualcti.core.channel.telephony.TelephonyDeviceFactory;
 import org.visualcti.core.channel.telephony.TelephonyServiceProvider;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
@@ -64,8 +63,11 @@ import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.core.channel.telephony.part.CallsPortEngine;
 import org.visualcti.core.channel.telephony.part.FaxMachineEngine;
 import org.visualcti.core.channel.telephony.part.MultimediaEngine;
-import org.visualcti.core.channel.telephony.part.TelephonyDevicePart;
 import org.visualcti.core.channel.telephony.part.TonesEngine;
+import org.visualcti.core.channel.telephony.part.adapter.AbstractCallsPortEngine;
+import org.visualcti.core.channel.telephony.part.adapter.AbstractFaxMachineEngine;
+import org.visualcti.core.channel.telephony.part.adapter.AbstractMultimediaEngine;
+import org.visualcti.core.channel.telephony.part.adapter.AbstractTonesEngine;
 import org.visualcti.media.Audio;
 import org.visualcti.media.Fax;
 import org.visualcti.media.Sound;
@@ -92,17 +94,85 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
     private final Predicate<H> validResourceHandle =
             handle -> !Objects.equals(handle, wrongHandle()) || !Objects.equals(handle, errorHandle());
     // device part of the telephony calls management
-    private final CallsPortEngine<H> calls;
+    protected final CallsPortEngine<H> calls;
     // device part of the telephony signals and tones management
-    private final TonesEngine<H> tones;
+    protected final TonesEngine<H> tones;
     // device part of the telephony multi-medea (playback/record) management
-    private final MultimediaEngine<H> media;
+    protected final MultimediaEngine<H> media;
     // device part of the telephony fax-document exchange management
-    private final FaxMachineEngine<H> faxes;
+    protected final FaxMachineEngine<H> faxes;
 
     /**
      * <builder>
-     * The constructor of the telephony device with parts instance
+     * To build phone calls management part of the telephony device
+     *
+     * @return built part instance
+     * @see AbstractCallsPortEngine
+     */
+    protected CallsPortEngine<H> callsPart() {
+        return new AbstractCallsPortEngine<H>() {
+        };
+    }
+
+    /**
+     * <builder>
+     * To build tones management part of the telephony device
+     *
+     * @return built part instance
+     * @see AbstractTonesEngine
+     */
+    protected TonesEngine<H> tonesPart() {
+        return new AbstractTonesEngine<H>() {
+        };
+    }
+
+    /**
+     * <builder>
+     * To build media part of the telephony device
+     *
+     * @return built part instance
+     * @see AbstractMultimediaEngine
+     */
+    protected MultimediaEngine<H> mediaPart() {
+        return new AbstractMultimediaEngine<H>() {
+        };
+    }
+
+    /**
+     * <builder>
+     * To build fax machine part of the telephony device
+     *
+     * @return built part instance
+     * @see AbstractFaxMachineEngine
+     */
+    protected FaxMachineEngine<H> faxPart() {
+        return new AbstractFaxMachineEngine<H>() {
+        };
+    }
+
+    /**
+     * <contructor>
+     * The constructor of the telephony device with prebuilt parts instance
+     *
+     * @param name     the name of the device in the device factory
+     * @param provider the manufacturer's provider of telephony operations
+     * @see #callsPart()
+     * @see #tonesPart()
+     * @see #mediaPart()
+     * @see #faxPart()
+     */
+    protected AbstractTelephonyDevice(final String name, final TelephonyServiceProvider<H> provider) {
+        super(provider);
+        this.name = name;
+        this.calls = callsPart().uses(this);
+        this.tones = tonesPart().uses(this);
+        this.media = mediaPart().uses(this);
+        this.faxes = faxPart().uses(this);
+    }
+
+    /**
+     * <builder>
+     * The constructor of the telephony device with external parts instance
      *
      * @param name     the name of the device in the device factory
      * @param provider the manufacturer's provider of telephony operations
@@ -110,6 +180,10 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      * @param tones    device part of the telephony signals and tones management
      * @param media    device part of the telephony multi-medea (playback/record) management
      * @param faxes    device part of the telephony fax-document exchange management
+     * @see CallsPortEngine
+     * @see TonesEngine
+     * @see MultimediaEngine
+     * @see FaxMachineEngine
      */
     protected AbstractTelephonyDevice(
             final String name, final TelephonyServiceProvider<H> provider,
@@ -124,11 +198,6 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
         this.faxes = faxes.uses(this);
     }
 
-    @Override
-    public <P extends TelephonyDevicePart<?>> P uses(TelephonyDeviceCore<H> deviceCore) {
-        throw new UnsupportedOperationException("Not applicable here");
-    }
-
     /**
      * <accessor>
      * To get Name of the unit to show in UI
@@ -141,10 +210,26 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
     }
 
     /**
+     * <checker>
+     * To check the value of device handle
+     *
+     * @param deviceHandle handle after open resource operation
+     * @return true if value is invalid
+     * @see Device#startSession()
+     * @see #wrongHandle()
+     * @see #errorHandle()
+     */
+    @Override
+    public boolean isInvalidHandle(H deviceHandle) {
+        return validResourceHandle.negate().test(deviceHandle);
+    }
+
+    /**
      * <accessor>
      * To get access to the wrong value device's low-level handle
      *
      * @return the value for handle of unopened device
+     * @see #isInvalidHandle(H)
      */
     protected H wrongHandle() {
         return null;
@@ -155,6 +240,7 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      * To get access to the error value device's low-level handle
      *
      * @return the value for handle of corrupted device
+     * @see #isInvalidHandle(H)
      */
     protected H errorHandle() {
         return null;
@@ -185,14 +271,21 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
         final PhoneCallSession<H> session = (PhoneCallSession<H>) super.startSession();
         // analyzing the opened device session
         if (session != null && session.isOpened()) {
+            // to get telephony service provider instance
+            final TelephonyServiceProvider<H> provider = getProvider();
+            // filling media parameter
             // to get the device's handle from the session
             final H handle = session.getDeviceHandle();
             // disabling any event for the opened device handle
-            getProvider().disableEvents(handle);
-            // opening the fax-machine part
+            provider.disableEvents(handle);
+            // trying to open the fax-machine part
             faxes.open(session);
+            // checking the fax machine device opening state
+            if (faxes.isOpened(session)) {
+                dispatchError("Fax Machine features aren't supported...");
+            }
             // enabling device's incoming call events producing for particular device andle
-            getProvider().enableEvents(handle, Result.CALL.RINGS);
+            provider.enableEvents(handle, Result.CALL.RINGS);
             // sharing started session if it's possible
             if (canBeConnected()) {
                 // sharing the device's session for connection forever

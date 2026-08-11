@@ -157,6 +157,20 @@ public class AbstractDevice<H, F extends Factory<H, ?>> extends ServerUnitAdapte
     }
 
     /**
+     * <mutator>
+     * To store configured parameter value to device's parameters by name
+     *
+     * @param name  the name of configured parameter
+     * @param value the value of configured parameter
+     * @see ParameterName
+     * @see ConfigurationParameter
+     */
+    @Override
+    public void setParameter(final ParameterName name, final ConfigurationParameter value) {
+        parameters.put(name, value);
+    }
+
+    /**
      * <accessor>
      * To get Name of the unit to show in UI
      *

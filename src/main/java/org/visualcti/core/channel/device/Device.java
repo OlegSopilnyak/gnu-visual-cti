@@ -39,6 +39,8 @@ package org.visualcti.core.channel.device;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -117,6 +119,40 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
     Optional<ConfigurationParameter> getParameter(ParameterName name);
 
     /**
+     * <mutator>
+     * To store configured parameter value to device's parameters by name
+     *
+     * @param name  the name of configured parameter
+     * @param value the value of configured parameter
+     * @see ParameterName
+     * @see ConfigurationParameter
+     */
+    void setParameter(ParameterName name, ConfigurationParameter value);
+
+    /**
+     * <accessor>
+     * To get the hardware parameters used in the device
+     *
+     * @return stream to parameter names
+     * @see ParameterName
+     * @see Stream
+     * @see #hasHardwareParameters()
+     */
+    default Collection<ParameterName> hardwareParameterNames() {
+        return Collections.emptySet();
+    }
+
+    /**
+     * <accessor>
+     * To check is there any hardware parameter in device
+     *
+     * @return true if the hardware parameters there
+     */
+    default boolean hasHardwareParameters() {
+        return hardwareParameterNames().stream().map(this::getParameter).anyMatch(Optional::isPresent);
+    }
+
+    /**
      * <builder>
      * To create the session for the opened device resource handle
      *
@@ -139,8 +175,14 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
     default Session<H> startSession() throws IOException {
         // opening the device provider resource
         final H deviceHandle = serviceProvider().openResource(getName());
+        // to check opened device's handle value
+        if (isInvalidHandle(deviceHandle)) {
+            throw new IOException("Invalid device handle!");
+        }
         // stopping and detach the old session, if it exists
         findSessionByHandle(deviceHandle).ifPresent(this::detachAndClose);
+        // filling device specific parameters
+        fillingDeviceSpecific(deviceHandle);
         // building new session for the device handle
         final Session<H> session = createSessionFor(deviceHandle);
         // add the device session as device events listener
@@ -149,6 +191,43 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
         stateChangedFor(session);
         // reruns built well device session
         return session;
+    }
+
+    /**
+     * <action>
+     * Getting the device hardware parameters from service provider by device's handle
+     * and store them to the device's basic parameters
+     *
+     * @param handle valid opened device handle value
+     * @see #startSession()
+     * @see ServiceProvider#resourceParameter(H, ParameterName)
+     * @see #hasHardwareParameters()
+     * @see #hardwareParameterNames()
+     * @see #setParameter(ParameterName, ConfigurationParameter)
+     */
+    default void fillingDeviceSpecific(H handle) {
+        if (!this.hasHardwareParameters()) {
+            // no hardware parameters loaded from service provider
+            final ServiceProvider<H> provider = serviceProvider();
+            hardwareParameterNames().forEach(name -> {
+                // getting the hardware parameter from the device service provider
+                provider.resourceParameter(handle, name).ifPresent(
+                        // storing resource's parameter to basic device parameters map
+                        parameter -> setParameter(name, parameter));
+            });
+        }
+    }
+
+    /**
+     * <checker>
+     * To check the value of device handle
+     *
+     * @param deviceHandle handle after open resource operation
+     * @return true if value is invalid
+     * @see #startSession()
+     */
+    default boolean isInvalidHandle(H deviceHandle) {
+        return deviceHandle == null;
     }
 
     /**
@@ -611,6 +690,21 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
          * @see Session#getDeviceHandle()
          */
         void closeResource(H handle) throws IOException;
+
+        /**
+         * <acessor>
+         * To get resource's specific device parameter by parameter name
+         *
+         * @param handle the handle of the opened resource
+         * @param name   the name of parameter to get
+         * @return exists parameter value or empty if not exists
+         * @see ParameterName
+         * @see ConfigurationParameter
+         * @see Optional
+         */
+        default Optional<ConfigurationParameter> resourceParameter(H handle, ParameterName name) {
+            return Optional.empty();
+        }
 
         /**
          * <acessor>

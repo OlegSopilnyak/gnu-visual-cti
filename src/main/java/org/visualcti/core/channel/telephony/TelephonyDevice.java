@@ -40,20 +40,19 @@ package org.visualcti.core.channel.telephony;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.Collections;
-import java.util.Map;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Optional;
-import java.util.stream.Stream;
 import org.jdom.Element;
 import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceStateValue;
 import org.visualcti.core.channel.device.adapter.AbstractDeviceEvent;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
-import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
 import org.visualcti.core.channel.telephony.operation.Result;
 import org.visualcti.core.channel.telephony.operation.ToneId;
+import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.core.channel.telephony.part.CallsPortEngine;
 import org.visualcti.core.channel.telephony.part.FaxMachineEngine;
 import org.visualcti.core.channel.telephony.part.MultimediaEngine;
@@ -62,7 +61,6 @@ import org.visualcti.core.channel.telephony.part.TonesEngine;
 import org.visualcti.media.Audio;
 import org.visualcti.media.Fax;
 import org.visualcti.media.Sound;
-import org.visualcti.server.UnitRegistry;
 import org.visualcti.server.core.unit.ServerUnit;
 
 
@@ -90,6 +88,11 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
     //
     // the value of type the device as the server unit
     String UNIT_TYPE = "[telephony-channel-device]";
+    // the array of the hardware parameter names to get from telephony service provider
+    ParameterName[] HARDWARE = new ParameterName[]{
+            // the name for the list of audio formats supported by telephony device
+            MultimediaEngine.Parameter.ALLOWED_CODECS
+    };
 
     /**
      * <accessor>
@@ -148,6 +151,21 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      */
     @Override
     Optional<ConfigurationParameter> getParameter(ParameterName name);
+
+    /**
+     * <accessor>
+     * To get the hardware parameters used in the device
+     *
+     * @return stream to parameter names
+     * @see ParameterName
+     * @see Collection
+     * @see Device#hardwareParameterNames()
+     * @see Arrays#asList(Object[])
+     */
+    @Override
+    default Collection<ParameterName> hardwareParameterNames() {
+        return Arrays.asList(HARDWARE);
+    }
 
     /**
      * <builder>
@@ -369,12 +387,18 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      * @return true if device can accept the incoming phone call
      * @see FaxMachineEngine#canFax()
      * @see TelephonyServiceProvider#canFax(String)
+     * @see #getProvider()
      * @see #getName()
+     * @see #getParameter(Device.ParameterName)
+     * @see Device.ParameterName
+     * @see ConfigurationParameter#getValue()
+     * @see FaxMachineEngine.Parameter#FAX_ALLOWED
      */
     @Override
     default boolean canFax() {
-        return getProvider().canFax(getName()) && getParameter(FaxMachineEngine.Parameter.FAX_ALLOWED)
-                .<Boolean>map(ConfigurationParameter::getValue).orElse(false);
+        return getProvider().canFax(getName())
+                && getParameter(FaxMachineEngine.Parameter.FAX_ALLOWED).<Boolean>map(ConfigurationParameter::getValue)
+                .orElse(false);
     }
 
     /**
@@ -406,7 +430,7 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      * To set up the heading of page of the fax-document
      *
      * @param session the phone call's session, device is working with
-     * @param header the new value
+     * @param header  the new value
      */
     @Override
     default void setFaxHeader(PhoneCallSession<H> session, String header) {
@@ -429,7 +453,7 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      * <action>
      * To receive the fax document.
      *
-     * @param session the phone call's session, device is working with
+     * @param session           the phone call's session, device is working with
      * @param target            the stream for saving data of the received fax document in a TIFF format
      * @param pollingMode       flag, to initiate receive of a fax in a polling mode;
      * @param issueVoiceRequest upon termination of receive to give out a
@@ -447,14 +471,14 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      */
     @Override
     default OperationResultValue receive(PhoneCallSession<H> session, OutputStream target, boolean pollingMode, boolean issueVoiceRequest) {
-        return null;
+        return Result.ERROR;
     }
 
     /**
      * <action>
      * To transmit the fax document.
      *
-     * @param session the phone call's session, device is working with
+     * @param session           the phone call's session, device is working with
      * @param source            stream to fax data
      * @param format            format of data in the stream(resolution is a field)
      * @param issueVoiceRequest upon termination of reception to give out a
@@ -473,7 +497,7 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      */
     @Override
     default OperationResultValue transmit(PhoneCallSession<H> session, InputStream source, Fax format, boolean issueVoiceRequest) {
-        return null;
+        return Result.ERROR;
     }
 
     /**
@@ -487,71 +511,58 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
     default void dispatchError(Throwable exception, String description) {
         Device.super.dispatchError(exception, description);
     }
-
-    /**
-     * <mutator>
-     * to add unit to the server unit composite units tree as a branch
-     *
-     * @param branch the unit to add as a branch
-     * @see ServerUnit
-     * @see #add(ServerUnit)
-     */
-    @Override
-    default void addBranch(ServerUnit branch) {
-
-    }
-
-    /**
-     * <mutator>
-     * to remove the branch from the server unit's units tree
-     *
-     * @param branch the unit to remove from composite tree
-     * @see ServerUnit
-     * @see #remove(ServerUnit)
-     */
-    @Override
-    default void removeBranch(ServerUnit branch) {
-
-    }
-
-    /**
-     * <accessor>
-     * To get access to the owner of this composite (null for root unit)
-     *
-     * @return the reference to server composite's owner or null if it isn't exists
-     * @see ServerUnit
-     */
-    @Override
-    default ServerUnit getOwner() {
-        return null;
-    }
-
-    /**
-     * <mutator>
-     * To set new owner of this composite (null for the root unit)
-     *
-     * @param owner new value of composite's owner
-     * @throws IOException if cannot reregister unit (or children) in units registry
-     * @see ServerUnit
-     * @see UnitRegistry#register(ServerUnit)
-     */
-    @Override
-    default void setOwner(ServerUnit owner) throws IOException {
-
-    }
-
-    /**
-     * <accessor>
-     * To get access to the composite units tree as Stream
-     *
-     * @return the stream to the units list managed by composite
-     * @see Stream
-     * @see ServerUnit
-     */
-    @Override
-    default Stream<ServerUnit> children() {
-        return Stream.empty();
-    }
+//
+//    /**
+//     * <mutator>
+//     * to add unit to the server unit composite units tree as a branch
+//     *
+//     * @param branch the unit to add as a branch
+//     * @see ServerUnit
+//     * @see #add(ServerUnit)
+//     */
+//    @Override
+//    default void addBranch(ServerUnit branch) {
+//
+//    }
+//
+//    /**
+//     * <mutator>
+//     * to remove the branch from the server unit's units tree
+//     *
+//     * @param branch the unit to remove from composite tree
+//     * @see ServerUnit
+//     * @see #remove(ServerUnit)
+//     */
+//    @Override
+//    default void removeBranch(ServerUnit branch) {
+//
+//    }
+//
+//    /**
+//     * <accessor>
+//     * To get access to the owner of this composite (null for root unit)
+//     *
+//     * @return the reference to server composite's owner or null if it isn't exists
+//     * @see ServerUnit
+//     */
+//    @Override
+//    default ServerUnit getOwner() {
+//        return null;
+//    }
+//
+//    /**
+//     * <mutator>
+//     * To set new owner of this composite (null for the root unit)
+//     *
+//     * @param owner new value of composite's owner
+//     * @throws IOException if cannot reregister unit (or children) in units registry
+//     * @see ServerUnit
+//     * @see UnitRegistry#register(ServerUnit)
+//     */
+//    @Override
+//    default void setOwner(ServerUnit owner) throws IOException {
+//
+//    }
 
     /**
      * <config>
@@ -563,18 +574,6 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
     @Override
     default void configure(Element configuration) {
 
-    }
-
-    /**
-     * <accessor>
-     * To get ServerUnit instance properties
-     * may use for visual editing in GUI
-     *
-     * @return server unit properties
-     */
-    @Override
-    default Map<String, Object> getProperties() {
-        return Collections.emptyMap();
     }
 
     /**
@@ -642,7 +641,7 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      * {@link Result#TERMINATED} - the operation is interrupted by system.
      *
      * @param session                the phone call's session, device is working with
-     * @param sound                 the audio sound which contains format and input stream to the media data
+     * @param sound                  the audio sound which contains format and input stream to the media data
      * @param terminationSymbolsMask set of symbols finishing up the playing (mask). The mask is passed to the method
      *                               as any combination of comma separated symbols<BR/>(0-9,*,#), for example: " 1, 2, #, 0 ".
      * @param timeout                maximum time of playing back in seconds (-1 for unlimited, waiting for end of stream)
@@ -712,7 +711,7 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      * @see TonesEngine#dial(PhoneCallSession, String)
      */
     @Override
-    default void dial(PhoneCallSession<H> session, String toDial){
+    default void dial(PhoneCallSession<H> session, String toDial) {
         TonesEngine.super.dial(session, toDial);
     }
 

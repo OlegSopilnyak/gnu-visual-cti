@@ -133,6 +133,22 @@ public class AbstractFaxMachineEngineTest<H> {
     }
 
     @Test
+    public void shouldNotOpen_FaxNotSupported() throws IOException {
+        // preparing test data
+        engine.uses(device);
+        doReturn(deviceHandle).when(provider).openFaxResource(deviceName);
+
+        // acting
+        engine.open(session);
+
+        // check the behavior
+        verify(engine).canFax();
+        verify(engine, never()).isOpened(session);
+        // check results
+        assertThat(engine.isOpened(session)).isFalse();
+    }
+
+    @Test
     public void shouldNotOpen_AlreadyOpened() throws IOException {
         // preparing test data
         engine.uses(device);

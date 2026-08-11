@@ -47,6 +47,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
+import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceStateValue;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
@@ -91,9 +92,21 @@ public abstract class AbstractFaxMachineEngine<H> extends AbstractDevicePart<H> 
             }
             final H faxResourceHandle = deviceCore.getProvider().openFaxResource(session.getDevice().getName());
             session.parameter(Device.Parameter.FAX_DEVICE_HANDLE, faxResourceHandle);
-        } else {
-            throw new IOException("Cannot open FAX device part");
         }
+    }
+
+    /**
+     * <accessor>
+     * To check, whether device can operate with fax-machines
+     * This flag, the factory may set in properties of the device
+     *
+     * @return true if device can operate with fax-machine
+     * @see Parameter#FAX_ALLOWED
+     */
+    @Override
+    public boolean canFax() {
+        return deviceCore.getParameter(Parameter.FAX_ALLOWED)
+                .<Boolean>map(ConfigurationParameter::getValue).orElse(false);
     }
 
     /**
