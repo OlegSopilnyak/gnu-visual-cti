@@ -55,6 +55,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import java.io.IOException;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -62,10 +63,10 @@ import java.util.concurrent.TimeUnit;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.DeviceMalfunction;
-import org.visualcti.core.channel.device.DeviceStateValue;
 import org.visualcti.core.channel.telephony.TelephonyChannel;
 import org.visualcti.core.channel.telephony.TelephonyDevice;
 import org.visualcti.core.channel.telephony.TelephonyDeviceFactory;
@@ -74,6 +75,7 @@ import org.visualcti.core.channel.telephony.adapter.AbstractTelephonyDeviceFacto
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
 import org.visualcti.core.channel.telephony.operation.Result;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
+import org.visualcti.core.channel.telephony.part.CallsPortEngine;
 import org.visualcti.media.Sound;
 
 @SuppressWarnings({"unchecked", "rawtypes"})
@@ -132,20 +134,23 @@ public class AbstractCallsPortEngineTest<H> {
         // check the behavior
         verify(session, atLeastOnce()).getDeviceHandle();
         verify(session).isAlive();
-        verify(session).getDevice();
+        verify(session, atLeastOnce()).getDevice();
         verify(device).terminate(session);
         verify(device).getProvider();
         verify(provider).dropCall(deviceHandle);
         verify(session, atLeastOnce()).joint();
         verify(provider, never()).breakConnection(any(), any());
         verify(session).detachAll();
+        verify(session).accept(any(DeviceEvent.class));
+        verify(session).alive(false);
         verify(session).operationComplete(Result.CALL.DISCONNECT);
+        verify(session).operationResult(Result.CALL.DISCONNECT);
         verify(provider).disableEvents(deviceHandle);
         verify(provider).enableEvents(deviceHandle, Result.CALL.RINGS);
         verify(session).setState(Device.State.IDLE);
-        verify(session).alive(false);
         // check results
         assertThat(done).isTrue();
+        assertThat(session.isAlive()).isFalse();
     }
 
     @Test
@@ -165,6 +170,7 @@ public class AbstractCallsPortEngineTest<H> {
     @Test
     public void shouldNotDropCall_ProviderDidntWork() throws IOException {
         // preparing test data
+        String errorReason = "Cannot drop call on the service provider side.";
         session.alive(true);
         reset(session);
 
@@ -174,14 +180,77 @@ public class AbstractCallsPortEngineTest<H> {
         // check the behavior
         verify(session, atLeastOnce()).getDeviceHandle();
         verify(session).isAlive();
-        verify(session).getDevice();
+        verify(session, atLeastOnce()).getDevice();
         verify(device).terminate(session);
         verify(device).getProvider();
         verify(provider).dropCall(deviceHandle);
+        verify(session).setState(Device.State.ERROR);
+        verify(session).accept(any(DeviceEvent.class));
+        verify(device).dispatchError(errorReason);
         verify(session).operationComplete(Result.ERROR);
-        verify(device).dispatchError(anyString());
-        verify(session, never()).setState(any(DeviceStateValue.class));
+        verify(session).operationResult(Result.ERROR);
         verify(session, never()).alive(anyBoolean());
+        // check results
+        assertThat(done).isFalse();
+        assertThat(session.isAlive()).isTrue();
+    }
+
+    @Test
+    public void shouldCanAcceptCall() {
+        // preparing test data
+        engine.uses(device);
+        doReturn(true).when(provider).canAcceptCall(deviceName);
+        Device.ParameterName parameterName = CallsPortEngine.Parameter.ACCEPT_CALL_ALLOWED;
+        ConfigurationParameter parameter = spy(ConfigurationParameter.of(parameterName.value(), true));
+        doReturn(Optional.of(parameter)).when(device).getParameter(parameterName);
+
+        // acting
+        boolean done = engine.canAcceptCall();
+
+        // check the behavior
+        verify(device).getProvider();
+        verify(provider).canAcceptCall(deviceName);
+        verify(device).getParameter(parameterName);
+        verify(parameter).getValue();
+        // check results
+        assertThat(done).isTrue();
+    }
+
+    @Test
+    public void shouldCannotAcceptCall_ProviderIssue() {
+        // preparing test data
+        engine.uses(device);
+        Device.ParameterName parameterName = CallsPortEngine.Parameter.ACCEPT_CALL_ALLOWED;
+        ConfigurationParameter parameter = spy(ConfigurationParameter.of(parameterName.value(), true));
+        doReturn(Optional.of(parameter)).when(device).getParameter(parameterName);
+
+        // acting
+        boolean done = engine.canAcceptCall();
+
+        // check the behavior
+        verify(device).getProvider();
+        verify(provider).canAcceptCall(deviceName);
+        verify(device, never()).getParameter(any(Device.ParameterName.class));
+        // check results
+        assertThat(done).isFalse();
+    }
+
+    @Test
+    public void shouldCannotAcceptCall_DeviceParameterIssue() {
+        // preparing test data
+        engine.uses(device);
+        doReturn(true).when(provider).canAcceptCall(deviceName);
+        Device.ParameterName parameterName = CallsPortEngine.Parameter.ACCEPT_CALL_ALLOWED;
+        ConfigurationParameter parameter = spy(ConfigurationParameter.of(parameterName.value(), true));
+
+        // acting
+        boolean done = engine.canAcceptCall();
+
+        // check the behavior
+        verify(device).getProvider();
+        verify(provider).canAcceptCall(deviceName);
+        verify(device).getParameter(any(Device.ParameterName.class));
+        verify(parameter, never()).getValue();
         // check results
         assertThat(done).isFalse();
     }
@@ -189,8 +258,8 @@ public class AbstractCallsPortEngineTest<H> {
     @Test
     public void shouldWaitForCall_Timeout() throws InterruptedException {
         // preparing test data
-        doReturn(true).when(engine).canAcceptCall();
         engine.uses(device);
+        doReturn(true).when(engine).canAcceptCall();
         int rings = 2;
         int timeout = 1;
         boolean answer = true;
@@ -203,11 +272,46 @@ public class AbstractCallsPortEngineTest<H> {
         verify(engine).canAcceptCall();
         verify(session).isAlive();
         verify(device).getProvider();
+        verify(engine).canBeConnected();
         verify(device, times(timeout)).getParameter(any(Device.ParameterName.class));
         verify(provider, times(timeout)).enableEvents(deviceHandle, Result.CALL.RINGS);
         verify(session, times(timeout)).setState(TelephonyDevice.State.WAIT);
-        verify(session, times(timeout)).operationComplete(Result.NONE);
-        verify(session, times(timeout)).waitingForTheOperationComplete(500L);
+        verify(session, times(timeout)).operationResult(Result.NONE);
+        verify(session, times(timeout)).waitingForTheOperationComplete(1000L);
+        verify(session, atLeastOnce()).operationResult();
+        verify(session).operationComplete(Result.TIMEOUT);
+        verify(session).setState(Device.State.IDLE);
+        // check results
+        assertThat(done).isTrue();
+        assertThat(session.isAlive()).isFalse();
+        assertThat(session.getState()).isEqualTo(Device.State.IDLE);
+        assertThat(session.operationResult()).isEqualTo(Result.TIMEOUT);
+    }
+
+    @Test
+    public void shouldWaitForCall_ShareDevice() throws InterruptedException {
+        // preparing test data
+        engine.uses(device);
+        doReturn(true).when(engine).canAcceptCall();
+        doReturn(true).when(engine).canBeConnected();
+        int rings = 2;
+        int timeout = 1;
+        boolean answer = true;
+
+        // acting
+        boolean done = engine.waitForCall(session, rings, timeout, answer);
+
+        // check the behavior
+        verify(session, atLeastOnce()).getDeviceHandle();
+        verify(engine).canAcceptCall();
+        verify(session).isAlive();
+        verify(device).getProvider();
+        verify(engine).canBeConnected();
+        verify(device, times(timeout)).getParameter(any(Device.ParameterName.class));
+        verify(provider, times(timeout)).enableEvents(deviceHandle, Result.CALL.RINGS);
+        verify(session, times(timeout)).setState(TelephonyDevice.State.WAIT);
+        verify(session, times(timeout)).operationResult(Result.NONE);
+        verify(session, times(timeout * 2)).waitingForTheOperationComplete(500L);
         verify(session, atLeastOnce()).operationResult();
         verify(session).operationComplete(Result.TIMEOUT);
         verify(session).setState(Device.State.IDLE);
@@ -239,11 +343,12 @@ public class AbstractCallsPortEngineTest<H> {
         verify(engine).canAcceptCall();
         verify(session).isAlive();
         verify(device).getProvider();
+        verify(engine).canBeConnected();
         verify(device).getParameter(any(Device.ParameterName.class));
         verify(provider).enableEvents(deviceHandle, Result.CALL.RINGS);
         verify(session).setState(TelephonyDevice.State.WAIT);
-        verify(session).operationComplete(Result.NONE);
-        verify(session).waitingForTheOperationComplete(500L);
+        verify(session).operationResult(Result.NONE);
+        verify(session).waitingForTheOperationComplete(1000L);
         verify(session, atLeastOnce()).operationResult();
         verify(provider).disableEvents(deviceHandle, Result.CALL.RINGS);
         verify(provider).getCallerID(deviceHandle);
@@ -282,11 +387,12 @@ public class AbstractCallsPortEngineTest<H> {
         verify(engine).canAcceptCall();
         verify(session).isAlive();
         verify(device).getProvider();
+        verify(engine).canBeConnected();
         verify(device).getParameter(any(Device.ParameterName.class));
         verify(provider).enableEvents(deviceHandle, Result.CALL.RINGS);
         verify(session).setState(TelephonyDevice.State.WAIT);
-        verify(session).operationComplete(Result.NONE);
-        verify(session).waitingForTheOperationComplete(500L);
+        verify(session).operationResult(Result.NONE);
+        verify(session).waitingForTheOperationComplete(1000L);
         verify(session, atLeastOnce()).operationResult();
         verify(provider).disableEvents(deviceHandle, Result.CALL.RINGS);
         verify(provider).getCallerID(deviceHandle);
@@ -315,25 +421,29 @@ public class AbstractCallsPortEngineTest<H> {
         int timeout = 10;
         boolean answer = false;
         executor.schedule(() -> session.operationComplete(Result.ERROR), 50, TimeUnit.MILLISECONDS);
+        String malfunctionReason = "Wait for incoming call is failed.";
+
 
         // acting
-        boolean done = engine.waitForCall(session, rings, timeout, answer);
+        Throwable error = assertThrows(Throwable.class, () -> engine.waitForCall(session, rings, timeout, answer));
 
         // check the behavior
         verify(session, atLeastOnce()).getDeviceHandle();
         verify(engine).canAcceptCall();
         verify(session).isAlive();
         verify(device).getProvider();
+        verify(engine).canBeConnected();
         verify(device).getParameter(any(Device.ParameterName.class));
         verify(provider).enableEvents(deviceHandle, Result.CALL.RINGS);
         verify(session).setState(TelephonyDevice.State.WAIT);
-        verify(session).operationComplete(Result.NONE);
-        verify(session).waitingForTheOperationComplete(500L);
+        verify(session).operationResult(Result.NONE);
+        verify(session).waitingForTheOperationComplete(1000L);
         verify(session).operationResult();
         verify(session).operationComplete(Result.ERROR);
         verify(session).setState(Device.State.ERROR);
         // check results
-        assertThat(done).isFalse();
+        assertThat(error).isInstanceOf(DeviceMalfunction.class);
+        assertThat(error.getMessage()).endsWith(malfunctionReason);
         assertThat(session.isAlive()).isFalse();
         assertThat(session.getState()).isEqualTo(Device.State.ERROR);
         assertThat(session.operationResult()).isEqualTo(Result.ERROR);
@@ -342,6 +452,7 @@ public class AbstractCallsPortEngineTest<H> {
     @Test
     public void shouldNotWaitForCall_CannotAcceptCall() {
         // preparing test data
+        engine.uses(device);
         int rings = 2;
         int timeout = 1;
         boolean answer = true;
@@ -352,7 +463,11 @@ public class AbstractCallsPortEngineTest<H> {
         // check the behavior
         verify(session, atLeastOnce()).getDeviceHandle();
         verify(engine).canAcceptCall();
-        verify(session, never()).isAlive();
+        verify(device).getProvider();
+        verify(engine, never()).canBeConnected();
+        verify(device, atLeastOnce()).getName();
+        verify(device, never()).getParameter(any(Device.ParameterName.class));
+        verify(session, never()).isDisconnected();
         // check results
         assertThat(done).isFalse();
     }
@@ -398,7 +513,7 @@ public class AbstractCallsPortEngineTest<H> {
         verify(device).getParameter(any(Device.ParameterName.class));
         verify(provider).disableEvents(deviceHandle);
         verify(session).setState(TelephonyDevice.State.DIAL);
-        verify(session).operationComplete(Result.NONE);
+        verify(session).operationResult(Result.NONE);
         verify(provider).startCalling(deviceHandle, number, timeout);
         verify(session).waitingForTheOperationComplete(timeout * 1000L);
         verify(session, atLeastOnce()).operationResult();
@@ -434,7 +549,7 @@ public class AbstractCallsPortEngineTest<H> {
         verify(device).getParameter(any(Device.ParameterName.class));
         verify(provider).disableEvents(deviceHandle);
         verify(session).setState(TelephonyDevice.State.DIAL);
-        verify(session).operationComplete(Result.NONE);
+        verify(session).operationResult(Result.NONE);
         verify(provider).startCalling(deviceHandle, number, timeout);
         verify(session).waitingForTheOperationComplete(timeout * 1000L);
         verify(session, atLeastOnce()).operationResult();
@@ -470,7 +585,7 @@ public class AbstractCallsPortEngineTest<H> {
         verify(device).getParameter(any(Device.ParameterName.class));
         verify(provider).disableEvents(deviceHandle);
         verify(session).setState(TelephonyDevice.State.DIAL);
-        verify(session).operationComplete(Result.NONE);
+        verify(session).operationResult(Result.NONE);
         verify(provider).startCalling(deviceHandle, number, timeout);
         verify(session).waitingForTheOperationComplete(timeout * 1000L);
         verify(session, atLeastOnce()).operationResult();
@@ -507,7 +622,7 @@ public class AbstractCallsPortEngineTest<H> {
         verify(device).getParameter(any(Device.ParameterName.class));
         verify(provider).disableEvents(deviceHandle);
         verify(session).setState(TelephonyDevice.State.DIAL);
-        verify(session).operationComplete(Result.NONE);
+        verify(session).operationResult(Result.NONE);
         verify(provider).startCalling(deviceHandle, number, timeout);
         verify(session).waitingForTheOperationComplete(timeout * 1000L);
         verify(session).operationResult();
@@ -543,7 +658,7 @@ public class AbstractCallsPortEngineTest<H> {
         verify(device).getParameter(any(Device.ParameterName.class));
         verify(provider).disableEvents(deviceHandle);
         verify(session).setState(TelephonyDevice.State.DIAL);
-        verify(session).operationComplete(Result.NONE);
+        verify(session).operationResult(Result.NONE);
         verify(provider).startCalling(deviceHandle, number, timeout);
         verify(session).waitingForTheOperationComplete(timeout * 1000L);
         verify(session, atLeastOnce()).operationResult();
@@ -560,6 +675,7 @@ public class AbstractCallsPortEngineTest<H> {
     @Test
     public void shouldNotMakeCall_CannotMakeCall() {
         // preparing test data
+        engine.uses(device);
         PhoneCall.Number number = mock(PhoneCall.Number.class);
         int timeout = 10;
 
@@ -573,8 +689,8 @@ public class AbstractCallsPortEngineTest<H> {
         // check results
         assertThat(done).isFalse();
         assertThat(session.isAlive()).isFalse();
-        assertThat(session.getState()).isEqualTo(Device.State.IDLE);
-        assertThat(session.operationResult()).isEqualTo(Result.NONE);
+        assertThat(session.getState()).isEqualTo(Device.State.ERROR);
+        assertThat(session.operationResult()).isEqualTo(Result.ERROR);
     }
 
     @Test
@@ -594,8 +710,8 @@ public class AbstractCallsPortEngineTest<H> {
         verify(session).isAlive();
         // check results
         assertThat(done).isFalse();
-        assertThat(session.getState()).isEqualTo(Device.State.IDLE);
-        assertThat(session.operationResult()).isEqualTo(Result.NONE);
+        assertThat(session.getState()).isEqualTo(Device.State.ERROR);
+        assertThat(session.operationResult()).isEqualTo(Result.ERROR);
     }
 
     @Test

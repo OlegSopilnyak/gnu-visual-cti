@@ -37,12 +37,6 @@ Fax number: 217-356-3356
 */
 package org.visualcti.core.channel.telephony.adapter;
 
-import static org.visualcti.core.channel.telephony.TelephonyDevice.State.DIAL;
-import static org.visualcti.core.channel.telephony.TelephonyDevice.State.GTDIG;
-import static org.visualcti.core.channel.telephony.TelephonyDevice.State.PLAY;
-import static org.visualcti.core.channel.telephony.TelephonyDevice.State.RECORD;
-import static org.visualcti.core.channel.telephony.TelephonyDevice.State.TONE;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -185,11 +179,9 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      * @see MultimediaEngine
      * @see FaxMachineEngine
      */
-    protected AbstractTelephonyDevice(
-            final String name, final TelephonyServiceProvider<H> provider,
-            final CallsPortEngine<H> calls, final TonesEngine<H> tones,
-            final MultimediaEngine<H> media, final FaxMachineEngine<H> faxes
-    ) {
+    protected AbstractTelephonyDevice(final String name, final TelephonyServiceProvider<H> provider,
+                                      final CallsPortEngine<H> calls, final TonesEngine<H> tones,
+                                      final MultimediaEngine<H> media, final FaxMachineEngine<H> faxes) {
         super(provider);
         this.name = name;
         this.calls = calls.uses(this);
@@ -211,11 +203,12 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
 
     /**
      * <checker>
-     * To check the value of device handle
+     * To check the value of opened device handle
      *
      * @param deviceHandle handle after open resource operation
      * @return true if value is invalid
      * @see Device#startSession()
+     * @see TelephonyServiceProvider#openResource(String)
      * @see #wrongHandle()
      * @see #errorHandle()
      */
@@ -265,6 +258,8 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      * @return opened device's session
      * @throws IOException if device cannot start the session
      * @see Device#open()
+     * @see #createSessionFor(Object)
+     * @see #getProvider()
      */
     @Override
     public Session<H> startSession() throws IOException {
@@ -648,7 +643,8 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
                                               final Audio format, final String terminationSymbolsMask, final int timeout
     ) {
         return media.canPlay(format)
-                ? delegateMediaOperation(PLAY, () -> media.playbackAudio(session, source, format, terminationSymbolsMask, timeout))
+                ? delegateMediaOperation(TelephonyDevice.State.PLAY,
+                () -> media.playbackAudio(session, source, format, terminationSymbolsMask, timeout))
                 : Result.ERROR;
     }
 
@@ -726,7 +722,7 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      */
     @Override
     public void dial(PhoneCallSession<H> session, String toDial) {
-        delegateToneAction(DIAL, () -> tones.dial(session, toDial));
+        delegateToneAction(TelephonyDevice.State.DIAL, () -> tones.dial(session, toDial));
     }
 
     /**
@@ -743,7 +739,7 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      */
     @Override
     public void playTone(PhoneCallSession<H> session, ToneId toneId, float time) {
-        delegateToneAction(TONE, () -> tones.playTone(session, toneId, time));
+        delegateToneAction(TelephonyDevice.State.TONE, () -> tones.playTone(session, toneId, time));
     }
 
     /**
@@ -777,7 +773,7 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
     @Override
     public OperationResultValue inputDigits(PhoneCallSession<H> session, int digitsCount, int timeout, String terminationSymbolsMask) {
         return isDeviceOpened()
-                ? delegateMediaOperation(GTDIG, () -> tones.inputDigits(session, digitsCount, timeout, terminationSymbolsMask))
+                ? delegateMediaOperation(TelephonyDevice.State.GTDIG, () -> tones.inputDigits(session, digitsCount, timeout, terminationSymbolsMask))
                 : Result.ERROR;
     }
 
@@ -847,7 +843,7 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
     private OperationResultValue delegateRecordAudio(final PhoneCallSession<H> session, final OutputStream target,
                                                      final String terminationSymbolsMask,
                                                      final int silence, final int timeout, final Audio format) {
-        return delegateMediaOperation(RECORD,
+        return delegateMediaOperation(TelephonyDevice.State.RECORD,
                 () -> media.recordAudio(session, target, format, terminationSymbolsMask, silence, timeout)
         );
     }

@@ -38,8 +38,10 @@ Fax number: 217-356-3356
 package org.visualcti.core.channel.telephony.adapter;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
@@ -56,14 +58,18 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import org.junit.Before;
 import org.junit.Test;
+import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceEvent;
+import org.visualcti.core.channel.device.DeviceMalfunction;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.TelephonyChannel;
 import org.visualcti.core.channel.telephony.TelephonyDevice;
 import org.visualcti.core.channel.telephony.TelephonyServiceProvider;
+import org.visualcti.core.channel.telephony.operation.PhoneCall;
 import org.visualcti.core.channel.telephony.operation.Result;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
+import org.visualcti.core.channel.telephony.operation.adapter.PhoneNumber;
 import org.visualcti.core.channel.telephony.part.CallsPortEngine;
 import org.visualcti.core.channel.telephony.part.FaxMachineEngine;
 import org.visualcti.core.channel.telephony.part.MultimediaEngine;
@@ -81,6 +87,10 @@ public class AbstractTelephonyDeviceTest<H> {
     TonesEngine<H> tones;
     MultimediaEngine<H> media;
     FaxMachineEngine<H> faxes;
+    CallsPortEngine<H> mockedCalls;
+    TonesEngine<H> mockedTones;
+    MultimediaEngine<H> mockedMedia;
+    FaxMachineEngine<H> mockedFaxes;
 
     static String deviceVendor = "device-vendor";
     static String deviceVendorVersion = "device-vendor-version";
@@ -90,6 +100,7 @@ public class AbstractTelephonyDeviceTest<H> {
     DeviceEvent.Provider<?> eventsProvider;
     AbstractTelephonyDeviceFactory<H, ?> factory;
     AbstractTelephonyDevice<H, ?> device;
+    AbstractTelephonyDevice<H, ?> mockedDevice;
 
     @Before
     public void setUp() throws Exception {
@@ -104,6 +115,20 @@ public class AbstractTelephonyDeviceTest<H> {
         faxes = spy(new AbstractFaxMachineEngine() {
         });
         device = spy(new AbstractTelephonyDevice(telephonyDeviceName, provider, calls, tones, media, faxes) {
+            @Override
+            public Session createSessionFor(Object openedDeviceHandle) {
+                return spy(super.createSessionFor(openedDeviceHandle));
+            }
+        });
+        mockedCalls = mock(CallsPortEngine.class);
+        mockedTones = mock(TonesEngine.class);
+        mockedMedia = mock(MultimediaEngine.class);
+        mockedFaxes = mock(FaxMachineEngine.class);
+        doReturn(mockedCalls).when(mockedCalls).uses(any(TelephonyDevice.class));
+        doReturn(mockedTones).when(mockedTones).uses(any(TelephonyDevice.class));
+        doReturn(mockedMedia).when(mockedMedia).uses(any(TelephonyDevice.class));
+        doReturn(mockedFaxes).when(mockedFaxes).uses(any(TelephonyDevice.class));
+        mockedDevice = spy(new AbstractTelephonyDevice(telephonyDeviceName, provider, mockedCalls, mockedTones, mockedMedia, mockedFaxes) {
             @Override
             public Session createSessionFor(Object openedDeviceHandle) {
                 return spy(super.createSessionFor(openedDeviceHandle));
@@ -204,6 +229,336 @@ public class AbstractTelephonyDeviceTest<H> {
         verify(faxes).close(session);
         // check results
         assertThat(session.isOpened()).isFalse();
+    }
+
+    @Test
+    public void shouldDropCall_Mocked() {
+        // preparing test data
+        PhoneCallSession<H> session = mock(PhoneCallSession.class);
+
+        // acting
+        mockedDevice.dropCall(session);
+
+        // check the behavior
+        verify(mockedCalls).dropCall(session);
+        // check results
+    }
+
+    @Test
+    public void shouldDropCall_Regular() throws IOException {
+        // preparing test data
+        PhoneCallSession<H> session = spy((PhoneCallSession<H>) device.startSession());
+        session.alive(true);
+        doReturn(true).when(provider).dropCall(deviceHandle);
+
+        // acting
+        device.dropCall(session);
+
+        // check the behavior
+        verify(calls).dropCall(session);
+        verify(provider).dropCall(deviceHandle);
+        verify(device).terminate(session);
+        verify(session, atLeastOnce()).getDeviceHandle();
+        verify(session).detachAll();
+        verify(session).alive(false);
+        verify(session).operationResult(Result.CALL.DISCONNECT);
+        verify(provider, atLeastOnce()).disableEvents(deviceHandle);
+        verify(provider, atLeastOnce()).enableEvents(deviceHandle, Result.CALL.RINGS);
+        // check results
+        assertThat(session.isAlive()).isFalse();
+    }
+
+    @Test
+    public void shouldNotDropCall_Regular_Provider() throws IOException {
+        // preparing test data
+        PhoneCallSession<H> session = spy((PhoneCallSession<H>) device.startSession());
+        session.alive(true);
+
+        // acting
+        device.dropCall(session);
+
+        // check the behavior
+        verify(calls).dropCall(session);
+        verify(provider).dropCall(deviceHandle);
+        verify(device).terminate(session);
+        verify(session, atLeastOnce()).getDeviceHandle();
+        verify(session, never()).detachAll();
+        verify(device).dispatchError(anyString());
+        verify(session).setState(Device.State.ERROR);
+        verify(session).operationResult(Result.ERROR);
+        // check results
+        assertThat(session.isAlive()).isTrue();
+    }
+
+    @Test
+    public void shouldWaitForCall_Mocked() {
+        // preparing test data
+        PhoneCallSession<H> session = mock(PhoneCallSession.class);
+        int rings = 1;
+        int timeout = 10;
+        boolean answer = true;
+        doReturn(true).when(mockedCalls).waitForCall(session, rings, timeout, answer);
+
+        // acting
+        boolean success = mockedDevice.waitForCall(session, rings, timeout, answer);
+
+        // check the behavior
+        verify(mockedCalls).waitForCall(session, rings, timeout, answer);
+        // check results
+        assertThat(success).isTrue();
+    }
+
+    @Test
+    public void shouldWaitForCall_Regular() throws IOException, InterruptedException {
+        // preparing test data
+        PhoneCallSession<H> session = spy((PhoneCallSession<H>) device.startSession());
+        doReturn(true).when(provider).canAcceptCall(telephonyDeviceName);
+        Device.ParameterName parameterName = CallsPortEngine.Parameter.ACCEPT_CALL_ALLOWED;
+        device.setParameter(parameterName, ConfigurationParameter.of(parameterName.value(), true));
+        int rings = 1;
+        int timeout = 1;
+        boolean answer = true;
+
+        // acting
+        boolean success = device.waitForCall(session, rings, timeout, answer);
+
+        // check the behavior
+        verify(calls).waitForCall(session, rings, timeout, answer);
+        verify(calls).canAcceptCall();
+        verify(session).isDisconnected();
+        verify(calls).canBeConnected();
+        verify(session).setState(TelephonyDevice.State.WAIT);
+        verify(session).waitingForTheOperationComplete(anyLong());
+        // check results
+        assertThat(success).isTrue();
+        assertThat(session.isAlive()).isFalse();
+        assertThat(session.getState()).isSameAs(Device.State.IDLE);
+        assertThat(session.operationResult()).isSameAs(Result.TIMEOUT);
+    }
+
+    @Test
+    public void shouldNotWaitForCall_Regular_CannotAcceptCall() throws IOException {
+        // preparing test data
+        PhoneCallSession<H> session = spy((PhoneCallSession<H>) device.startSession());
+        int rings = 1;
+        int timeout = 10;
+        boolean answer = true;
+
+        // acting
+        boolean success = device.waitForCall(session, rings, timeout, answer);
+
+        // check the behavior
+        verify(calls).waitForCall(session, rings, timeout, answer);
+        verify(calls).canAcceptCall();
+        verify(session, never()).isDisconnected();
+        verify(calls, never()).canBeConnected();
+        // check results
+        assertThat(success).isFalse();
+        assertThat(session.isAlive()).isFalse();
+        assertThat(session.getState()).isSameAs(Device.State.ERROR);
+        assertThat(session.operationResult()).isSameAs(Result.NONE);
+    }
+
+    @Test
+    public void shouldMakeCall_Mocked() {
+        // preparing test data
+        PhoneCallSession<H> session = mock(PhoneCallSession.class);
+        PhoneCall.Number target = PhoneNumber.of(1, 2, 3, 4);
+        int timeout = 10;
+        doReturn(true).when(mockedCalls).makeCall(session, target, timeout);
+
+        // acting
+        boolean success = mockedDevice.makeCall(session, target, timeout);
+
+        // check the behavior
+        verify(mockedCalls).makeCall(session, target, timeout);
+        // check results
+        assertThat(success).isTrue();
+    }
+
+    @Test
+    public void shouldMakeCall_Regular() throws IOException, InterruptedException {
+        // preparing test data
+        PhoneCallSession<H> session = spy((PhoneCallSession<H>) device.startSession());
+        {
+            Device.ParameterName parameterName = CallsPortEngine.Parameter.MAKE_CALL_ALLOWED;
+            device.setParameter(parameterName, ConfigurationParameter.of(parameterName.value(), true));
+        }
+        PhoneCall.Number target = PhoneNumber.of(1, 2, 3, 4);
+        PhoneCall.Number original = PhoneNumber.of(4, 3, 2, 1);
+        {
+            Device.ParameterName parameterName = CallsPortEngine.Parameter.ORIGIN;
+            device.setParameter(parameterName, ConfigurationParameter.of(parameterName.value(), original));
+        }
+        int timeout = 1;
+        doReturn(true).when(provider).canMakeCall(telephonyDeviceName);
+        doReturn(true).when(provider).startCalling(deviceHandle, target, timeout);
+
+        // acting
+        boolean success = device.makeCall(session, target, timeout);
+
+        // check the behavior
+        verify(calls).makeCall(session, target, timeout);
+        verify(calls).canMakeCall();
+        verify(session, atLeastOnce()).getDeviceHandle();
+        verify(session).isDisconnected();
+        verify(session).calledNumber(target);
+        verify(session).callingNumber(original);
+        verify(provider, atLeastOnce()).disableEvents(deviceHandle);
+        verify(session).setState(TelephonyDevice.State.DIAL);
+        verify(session).operationResult(Result.NONE);
+        verify(provider).startCalling(deviceHandle, target, timeout);
+        verify(session).waitingForTheOperationComplete(timeout * 1000L);
+        verify(session, atLeastOnce()).operationResult();
+        verify(session).isTerminated();
+        verify(session).alive(false);
+        // check results
+        assertThat(success).isTrue();
+        assertThat(session.isAlive()).isFalse();
+        assertThat(session.operationResult()).isSameAs(Result.CALL.Analysis.NO_ANSWER);
+        assertThat(session.getState()).isSameAs(Device.State.IDLE);
+    }
+
+    @Test
+    public void shouldNotMakeCall_Regular_CannotMakeCall() throws IOException {
+        // preparing test data
+        PhoneCallSession<H> session = spy((PhoneCallSession<H>) device.startSession());
+        {
+            Device.ParameterName parameterName = CallsPortEngine.Parameter.MAKE_CALL_ALLOWED;
+            device.setParameter(parameterName, ConfigurationParameter.of(parameterName.value(), true));
+        }
+        PhoneCall.Number target = PhoneNumber.of(1, 2, 3, 4);
+        int timeout = 1;
+
+        // acting
+        boolean success = device.makeCall(session, target, timeout);
+
+        // check the behavior
+        verify(calls).makeCall(session, target, timeout);
+        verify(calls).canMakeCall();
+        verify(session, atLeastOnce()).getDeviceHandle();
+        verify(session, never()).isDisconnected();
+        // check results
+        assertThat(success).isFalse();
+        assertThat(session.isAlive()).isFalse();
+        assertThat(session.operationResult()).isSameAs(Result.ERROR);
+        assertThat(session.getState()).isSameAs(Device.State.ERROR);
+    }
+
+    @Test
+    public void shouldNotMakeCall_Regular_CannotStartCalling() throws IOException, InterruptedException {
+        // preparing test data
+        PhoneCallSession<H> session = spy((PhoneCallSession<H>) device.startSession());
+        {
+            Device.ParameterName parameterName = CallsPortEngine.Parameter.MAKE_CALL_ALLOWED;
+            device.setParameter(parameterName, ConfigurationParameter.of(parameterName.value(), true));
+        }
+        PhoneCall.Number target = PhoneNumber.of(1, 2, 3, 4);
+        PhoneCall.Number original = PhoneNumber.of(4, 3, 2, 1);
+        {
+            Device.ParameterName parameterName = CallsPortEngine.Parameter.ORIGIN;
+            device.setParameter(parameterName, ConfigurationParameter.of(parameterName.value(), original));
+        }
+        int timeout = 1;
+        doReturn(true).when(provider).canMakeCall(telephonyDeviceName);
+
+        // acting
+        Throwable error = assertThrows(Throwable.class, () ->device.makeCall(session, target, timeout));
+
+        // check the behavior
+        verify(calls).makeCall(session, target, timeout);
+        verify(calls).canMakeCall();
+        verify(session, atLeastOnce()).getDeviceHandle();
+        verify(session).isDisconnected();
+        verify(session).calledNumber(target);
+        verify(session).callingNumber(original);
+        verify(provider, atLeastOnce()).disableEvents(deviceHandle);
+        verify(session).setState(TelephonyDevice.State.DIAL);
+        verify(session).operationResult(Result.NONE);
+        verify(provider).startCalling(deviceHandle, target, timeout);
+        verify(session, never()).waitingForTheOperationComplete(anyLong());
+        // check results
+        assertThat(error).isInstanceOf(DeviceMalfunction.class);
+        assertThat(error.getMessage()).endsWith("Cannot start call on the device side.");
+        assertThat(session.isAlive()).isFalse();
+        assertThat(session.operationResult()).isSameAs(Result.ERROR);
+        assertThat(session.getState()).isSameAs(Device.State.ERROR);
+    }
+
+    @Test
+    public void connect() {
+    }
+
+    @Test
+    public void getTransferredPages() {
+    }
+
+    @Test
+    public void getRemoteID() {
+    }
+
+    @Test
+    public void setFaxHeader() {
+    }
+
+    @Test
+    public void setFaxLocalID() {
+    }
+
+    @Test
+    public void receive() {
+    }
+
+    @Test
+    public void transmit() {
+    }
+
+    @Test
+    public void canPlay() {
+    }
+
+    @Test
+    public void getRawFormat() {
+    }
+
+    @Test
+    public void playbackAudio() {
+    }
+
+    @Test
+    public void asyncPlaybackAudio() {
+    }
+
+    @Test
+    public void canRecord() {
+    }
+
+    @Test
+    public void getRecordFormat() {
+    }
+
+    @Test
+    public void recordAudio() {
+    }
+
+    @Test
+    public void dial() {
+    }
+
+    @Test
+    public void playTone() {
+    }
+
+    @Test
+    public void inputDigits() {
+    }
+
+    @Test
+    public void getInputSymbols() {
+    }
+
+    @Test
+    public void terminate() {
     }
 
     /// inner classes

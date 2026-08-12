@@ -51,6 +51,14 @@ import org.visualcti.core.channel.device.Device;
 public interface TelephonyDeviceCore<H> {
     /**
      * <accessor>
+     * To get access to device's name
+     *
+     * @return the value
+     */
+    String getName();
+
+    /**
+     * <accessor>
      * To get access to the current device's telephony events provider
      *
      * @return the reference to the events provider singleton

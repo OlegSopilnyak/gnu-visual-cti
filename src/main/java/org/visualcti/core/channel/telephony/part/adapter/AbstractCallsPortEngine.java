@@ -43,7 +43,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.core.channel.device.Device;
+import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.DeviceStateValue;
+import org.visualcti.core.channel.device.adapter.AbstractDeviceEvent;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.TelephonyDevice;
 import org.visualcti.core.channel.telephony.TelephonyDeviceCore;
@@ -67,6 +69,20 @@ public abstract class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> i
     // predicate for valid session's state for completed operation
     private static final Predicate<DeviceStateValue> operationCompleteState =
             state -> state == Device.State.IDLE || state == Device.State.ERROR;
+    // predicate to check is service provider can accept incoming call
+    private static final Predicate<TelephonyDeviceCore<?>> providerCanAcceptCall =
+            core -> core.getProvider().canAcceptCall(core.getName());
+    // predicate to check is device configured for accept incoming call
+    private static final Predicate<TelephonyDeviceCore<?>> deviceCanAcceptCall =
+            core -> core.getParameter(CallsPortEngine.Parameter.ACCEPT_CALL_ALLOWED)
+                    .<Boolean>map(ConfigurationParameter::getValue).orElse(false);
+    // predicate to check is service provider can accept incoming call
+    private static final Predicate<TelephonyDeviceCore<?>> providerCanMakeCall =
+            core -> core.getProvider().canMakeCall(core.getName());
+    // predicate to check is device configured for accept incoming call
+    private static final Predicate<TelephonyDeviceCore<?>> deviceCanMakeCall =
+            core -> core.getParameter(CallsPortEngine.Parameter.MAKE_CALL_ALLOWED)
+                    .<Boolean>map(ConfigurationParameter::getValue).orElse(false);
     // predicate for valid result values of wait for call operation
     private static final Predicate<OperationResultValue>
             waitForCallOperationResultExpected = value -> value == Result.CALL.RINGS
@@ -125,29 +141,43 @@ public abstract class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> i
                         .forEach(second -> serviceProvider.breakConnection(second, handle));
                 // detaching all possible joint sessions
                 session.detachAll();
-                // saving last operation result
-                session.operationComplete(Result.CALL.DISCONNECT);
+                // disconnecting the phone call session
+                disconnectingTheSession(session);
                 // disable all events producing for the opened handle
                 serviceProvider.disableEvents(handle);
                 // enable producing incoming call events for the opened handle
                 serviceProvider.enableEvents(handle, Result.CALL.RINGS);
             } else {
-                // saving last operation result
-                session.operationComplete(Result.ERROR);
-                // drop call didn't work properly on service provider side
-                device.dispatchError("Cannot drop call on the service provider side.");
+                // malfunction in device is detected
+                session.setState(Device.State.ERROR);
+                // drop call didn't work properly on the service provider side, notify about it
+                breakingTheSession(session, "Cannot drop call on the service provider side.");
+                // the operation is not successful
                 return false;
             }
             // operation is finished
             session.setState(Device.State.IDLE);
-            // marking session as not alive (disconnected)
-            session.alive(false);
             // the operation is successfully completed
             return true;
         } else {
             // device handle has wrong value or session isn't alive yet
             return false;
         }
+    }
+
+    /**
+     * <accessor>
+     * To check, whether device can accept the incoming call
+     * This flag, the factory may set in properties of the device
+     *
+     * @return true if device can accept the incoming phone call
+     * @see TelephonyServiceProvider#canAcceptCall(String)
+     * @see TelephonyDeviceCore#getParameter(Device.ParameterName)
+     * @see CallsPortEngine.Parameter#ACCEPT_CALL_ALLOWED
+     */
+    @Override
+    public boolean canAcceptCall() {
+        return providerCanAcceptCall.and(deviceCanAcceptCall).test(deviceCore);
     }
 
     /**
@@ -199,18 +229,23 @@ public abstract class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> i
             //
             // getting device service provider
             final TelephonyServiceProvider<H> serviceProvider = deviceCore.getProvider();
-            // waiting for incoming call during the timeout value
+            // waiting for incoming call during the timeout value seconds
             int tryCount = timeout;
+            // setting up values for the main loop
+            final boolean canBeConnected = canBeConnected();
             final long halfSecondMilliseconds = TimeUnit.MILLISECONDS.toMillis(500);
+            final long waitForCallDelay = canBeConnected ? halfSecondMilliseconds : halfSecondMilliseconds * 2;
+            // wait for call loop
             do {
                 try {
                     // preparing the session for wait for incoming call and
                     // waiting for incoming call 1 second of the timeout's seconds
-                    preparingWaitForCall(session, serviceProvider, halfSecondMilliseconds);
+                    preparingWaitForCall(session, serviceProvider, waitForCallDelay);
                     // checking the operation result value after waiting operation complete
                     if (session.operationResult() == Result.ERROR) {
                         // device error is detected
-                        session.setState(Device.State.ERROR);
+                        onDeviceError(session, "Wait for incoming call is failed.");
+                        // unreachable code place
                         return false;
                         // checking wait for call operation results
                     } else if (isThereIncomingCallDetected(session, serviceProvider, answer)) {
@@ -224,14 +259,11 @@ public abstract class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> i
                         session.setState(Device.State.IDLE);
                         return false;
                         // checking is it possible to share the phone call session during wait for call operation
-                    } else if (canBeConnected()) {
+                    } else if (canBeConnected) {
                         // waiting for incoming call or make call 1 second of the timeout's seconds
-                        if (sharedForConnectWasUsed(session, halfSecondMilliseconds)) {
+                        if (sharingForConnect(session, halfSecondMilliseconds)) {
                             // the operation is completed by any reason
                             return true;
-                        } else {
-                            // nothing is happened
-//                            tryCount--;
                         }
                     }
                 } catch (InterruptedException e) {
@@ -247,9 +279,25 @@ public abstract class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> i
             session.setState(Device.State.IDLE);
             return true;
         } else {
-            // handle has wrong value or session isn't disconnected
+            // accept call isn't allowed or handle has wrong value or session isn't disconnected
+            session.setState(Device.State.ERROR);
             return false;
         }
+    }
+
+    /**
+     * <accessor>
+     * To check, whether device can make the outgoing call
+     * This flag, the factory may set in properties of the device
+     *
+     * @return true if device can make outgoing calls
+     * @see TelephonyServiceProvider#canMakeCall(String)
+     * @see TelephonyDeviceCore#getParameter(Device.ParameterName)
+     * @see CallsPortEngine.Parameter#MAKE_CALL_ALLOWED
+     */
+    @Override
+    public boolean canMakeCall() {
+        return providerCanMakeCall.and(deviceCanMakeCall).test(deviceCore);
     }
 
     /**
@@ -288,6 +336,7 @@ public abstract class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> i
             preparingCallMaker(session, deviceCore.getProvider(), phoneNumber);
             // start outgoing call making
             if (!startCalling(session, phoneNumber, timeout)) {
+                session.operationComplete(Result.ERROR);
                 onDeviceError(session, "Cannot start call on the device side.");
                 // unreachable statement
                 return false;
@@ -327,6 +376,8 @@ public abstract class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> i
                 return false;
             }
         }
+        session.setState(Device.State.ERROR);
+        session.operationComplete(Result.ERROR);
         return false;
     }
 
@@ -444,7 +495,8 @@ public abstract class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> i
         // enabling incoming call events producing for the opened handle
         serviceProvider.enableEvents(handle, Result.CALL.RINGS);
         session.setState(TelephonyDevice.State.WAIT);
-        session.operationComplete(Result.NONE);
+        session.operationResult(Result.NONE);
+        session.getDevice().dispatchEvent("Starting wait for incoming call.");
         // waiting for incoming call 1 second of the timeout's seconds
         session.waitingForTheOperationComplete(milliseconds);
     }
@@ -489,13 +541,13 @@ public abstract class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> i
         // setting up called number for making outgoing call to
         session.calledNumber(number);
         // setting up calling number for making outgoing call from
-        final Optional<ConfigurationParameter> originNumber = deviceCore.getParameter(Parameter.ORIGIN);
-        session.callingNumber(originNumber.isPresent() ? originNumber.get().getValue() : PhoneCall.Number.EMPTY);
+        session.callingNumber(deviceCore.getParameter(Parameter.ORIGIN)
+                .<PhoneCall.Number>map(ConfigurationParameter::getValue).orElse(PhoneCall.Number.EMPTY));
         // disabling any events producing for the opened handle
         serviceProvider.disableEvents(handle);
         // preparing the session for the outgoing call making
         session.setState(TelephonyDevice.State.DIAL);
-        session.operationComplete(Result.NONE);
+        session.operationResult(Result.NONE);
     }
 
     // to start building outgoing phone call to the phone number
@@ -528,18 +580,18 @@ public abstract class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> i
                 return true;
             } else if (connectableSession.isDisconnected()) {
                 // start playing the melody sound during outgoing phone call's making
-                startPlaying(leadingSession, toPlay);
+                leadingSession.getDevice().asyncPlaybackAudio(leadingSession, toPlay);
                 // making outgoing telephony call using shared session and
                 // low-level connections joining if outgoing pone call is made
                 if (makeCall(connectableSession, phoneNumber, timeout) && lowLevelJoin(connectableSession, leadingSession)) {
                     // stop playing the melody sound
-                    stopPlaying(leadingSession);
+                    deviceCore.getProvider().stopAudioPlaying(leadingSession.getDeviceHandle());
                     // just connecting two alive session by their handles
                     connectableSession.join(leadingSession);
                     return true;
                 }
                 // stop playing the melody sound
-                stopPlaying(leadingSession);
+                deviceCore.getProvider().stopAudioPlaying(leadingSession.getDeviceHandle());
             }
             // the connection isn't successful
             return false;
@@ -547,7 +599,7 @@ public abstract class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> i
     }
 
     // waiting for incoming call or make call 1 second of the timeout's seconds
-    private boolean sharedForConnectWasUsed(PhoneCallSession<H> session, long timeout) throws InterruptedException {
+    private boolean sharingForConnect(PhoneCallSession<H> session, long timeout) throws InterruptedException {
         session.getDevice().dispatchEvent("Sharing 'wait for call' operation resource.");
         // waiting for incoming call or make call 1 second of the timeout's seconds
         session.waitingForTheOperationComplete(timeout);
@@ -559,11 +611,23 @@ public abstract class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> i
         return deviceCore.getProvider().makeConnection(connectable.getDeviceHandle(), leading.getDeviceHandle());
     }
 
-    private void startPlaying(final PhoneCallSession<H> session, final Sound sound) {
-        session.getDevice().asyncPlaybackAudio(session, sound);
+    // disconnecting phone call session using device event
+    private static <H> void disconnectingTheSession(final PhoneCallSession<H> session) {
+        final DeviceEvent<H> event = AbstractDeviceEvent.<H>of(DeviceEvent.Type.DEVICE_SPECIFIC)
+                .deviceName(session.getDevice().getName()).deviceHandle(session.getDeviceHandle())
+                .description("Disconnecting after dropped call.")
+                .option(DeviceEvent.Option.REASON, Result.CALL.DISCONNECT);
+        // delivering built event
+        session.accept(event);
     }
 
-    private void stopPlaying(final PhoneCallSession<H> session) {
-        deviceCore.getProvider().stopAudioPlaying(session.getDeviceHandle());
+    // marking as error phone call session using device event
+    private static <H> void breakingTheSession(final PhoneCallSession<H> session, String reason) {
+        final DeviceEvent<H> event = AbstractDeviceEvent.<H>of(DeviceEvent.Type.MALFUNCTION)
+                .deviceName(session.getDevice().getName()).deviceHandle(session.getDeviceHandle())
+                .description(reason)
+                .option(DeviceEvent.Option.REASON, Result.ERROR);
+        // delivering built event
+        session.accept(event);
     }
 }

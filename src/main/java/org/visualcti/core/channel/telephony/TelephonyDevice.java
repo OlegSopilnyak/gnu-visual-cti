@@ -205,22 +205,6 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
     }
 
     /**
-     * <accessor>
-     * To check, whether device can accept incoming calls
-     * This flag, the factory may set up it in the properties of the device
-     *
-     * @return true if device can accept incoming phone calls
-     * @see CallsPortEngine#canAcceptCall()
-     * @see TelephonyServiceProvider#canAcceptCall(String)
-     * @see #getName()
-     */
-    @Override
-    default boolean canAcceptCall() {
-        return getProvider().canAcceptCall(getName()) && getParameter(CallsPortEngine.Parameter.ACCEPT_CALL_ALLOWED)
-                .<Boolean>map(ConfigurationParameter::getValue).orElse(false);
-    }
-
-    /**
      * <action>
      * The incoming call is expected. For a user's telephone line a call is deemed accepted after
      * receipt rings of bells.
@@ -260,22 +244,6 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      * @see PhoneCallSession#operationResult()
      */
     boolean waitForCall(PhoneCallSession<H> session, int rings, int timeout, boolean answer);
-
-    /**
-     * <accessor>
-     * To check, whether device can make the outgoing call
-     * This flag, the factory may set in properties of the device
-     *
-     * @return true if device can make outgoing calls
-     * @see CallsPortEngine#canMakeCall()
-     * @see TelephonyServiceProvider#canMakeCall(String)
-     * @see #getName()
-     */
-    @Override
-    default boolean canMakeCall() {
-        return getProvider().canMakeCall(getName()) && getParameter(CallsPortEngine.Parameter.MAKE_CALL_ALLOWED)
-                .<Boolean>map(ConfigurationParameter::getValue).orElse(false);
-    }
 
     /**
      * <action>
