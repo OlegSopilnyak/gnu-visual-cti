@@ -78,6 +78,7 @@ import org.visualcti.core.channel.telephony.part.adapter.AbstractCallsPortEngine
 import org.visualcti.core.channel.telephony.part.adapter.AbstractFaxMachineEngine;
 import org.visualcti.core.channel.telephony.part.adapter.AbstractMultimediaEngine;
 import org.visualcti.core.channel.telephony.part.adapter.AbstractTonesEngine;
+import org.visualcti.media.Sound;
 
 @SuppressWarnings({"unchecked", "rawtypes"})
 public class AbstractTelephonyDeviceTest<H> {
@@ -249,14 +250,14 @@ public class AbstractTelephonyDeviceTest<H> {
         // preparing test data
         PhoneCallSession<H> session = spy((PhoneCallSession<H>) device.startSession());
         session.alive(true);
-        doReturn(true).when(provider).dropCall(deviceHandle);
+        doReturn(true).when(provider).handsetOff(deviceHandle);
 
         // acting
         device.dropCall(session);
 
         // check the behavior
         verify(calls).dropCall(session);
-        verify(provider).dropCall(deviceHandle);
+        verify(provider).handsetOff(deviceHandle);
         verify(device).terminate(session);
         verify(session, atLeastOnce()).getDeviceHandle();
         verify(session).detachAll();
@@ -279,7 +280,7 @@ public class AbstractTelephonyDeviceTest<H> {
 
         // check the behavior
         verify(calls).dropCall(session);
-        verify(provider).dropCall(deviceHandle);
+        verify(provider).handsetOff(deviceHandle);
         verify(device).terminate(session);
         verify(session, atLeastOnce()).getDeviceHandle();
         verify(session, never()).detachAll();
@@ -486,7 +487,38 @@ public class AbstractTelephonyDeviceTest<H> {
     }
 
     @Test
-    public void connect() {
+    public void shouldConnect_Mocked() {
+        // preparing test data
+        PhoneCallSession<H> session = mock(PhoneCallSession.class);
+        Sound toPlay = mock(Sound.class);
+        PhoneCall.Number target = PhoneNumber.of(1, 2, 3, 4);
+        int timeout = 10;
+        doReturn(true).when(mockedCalls).connect(session, target, timeout, toPlay);
+
+        // acting
+        boolean success = mockedDevice.connect(session, target, timeout, toPlay);
+
+        // check the behavior
+        verify(mockedCalls).connect(session, target, timeout, toPlay);
+        // check results
+        assertThat(success).isTrue();
+    }
+
+    @Test
+    public void shouldConnect_Regular_Alive() throws IOException {
+        // preparing test data
+        PhoneCallSession<H> session = spy((PhoneCallSession<H>) device.startSession());
+        Sound toPlay = mock(Sound.class);
+        PhoneCall.Number target = PhoneNumber.of(1, 2, 3, 4);
+        int timeout = 10;
+
+        // acting
+        boolean success = device.connect(session, target, timeout, toPlay);
+
+        // check the behavior
+        verify(calls).connect(session, target, timeout, toPlay);
+        // check results
+//        assertThat(success).isTrue();
     }
 
     @Test

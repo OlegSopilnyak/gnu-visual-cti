@@ -62,12 +62,15 @@ import org.visualcti.media.Fax;
 /**
  * Adapter: The Part of the Telephony Channel Device: The root device part of the telephony fax-document exchange management
  *
- * @param <H> the type for low-level telephony operations device handle
+ * @param <H> the type of the telephony device's low-level operations handle
  * @see FaxMachineEngine
  * @see AbstractDevicePart
  */
 public abstract class AbstractFaxMachineEngine<H> extends AbstractDevicePart<H> implements FaxMachineEngine<H> {
-    // predicate for connected phone call's operation
+    // predicate to test whether the fax device handle is valid or not
+    private final transient Predicate<PhoneCallSession<H>> validFaxDeviceHandle =
+            phoneSession -> super.validResourceHandle.test(phoneSession.parameter(Device.Parameter.FAX_DEVICE_HANDLE));
+    // predicate for connected phone call's fax-operation failed result values
     private static final Predicate<OperationResultValue> faxOperationFailed =
             value -> value == Result.TIMEOUT || value == Result.FAX.COMMUNICATION_ERROR
                     || value == Result.FAX.COMPATIBILITY || value == Result.FAX.NO_POLL || value == Result.FAX.USER_STOP;
@@ -93,6 +96,22 @@ public abstract class AbstractFaxMachineEngine<H> extends AbstractDevicePart<H> 
             final H faxResourceHandle = deviceCore.getProvider().openFaxResource(session.getDevice().getName());
             session.parameter(Device.Parameter.FAX_DEVICE_HANDLE, faxResourceHandle);
         }
+    }
+
+    /**
+     * <checker>
+     * To check is phone call session opened.
+     * Checks device's fax-machine opened as well.
+     *
+     * @param session the phone call's session, device is working with
+     * @return true if session opened well and device's fax-machine is opened as well
+     * @see AbstractDevicePart#isOpened(PhoneCallSession)
+     * @see PhoneCallSession#parameter(Device.ParameterName)
+     * @see Device.Parameter#FAX_DEVICE_HANDLE
+     */
+    @Override
+    public boolean isOpened(final PhoneCallSession<H> session) {
+        return super.closedSession.negate().and(super.validDeviceHandle).and(validFaxDeviceHandle).test(session);
     }
 
     /**

@@ -45,6 +45,7 @@ import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 /**
  * The Part of the Telephony Channel Device: The common used part of the device
  *
+ * @param <H> the type of the telephony device's low-level operations handle
  * @see TelephonyDevice
  */
 public interface TelephonyDevicePart<H> {
@@ -54,10 +55,28 @@ public interface TelephonyDevicePart<H> {
      *
      * @param deviceCore device core which will be used in the part's activities
      * @return concrete instance of device part
-     * @param <P> the type of device part
+     * @param <P> the general type of the device part
      * @see TelephonyDeviceCore
      */
     <P extends TelephonyDevicePart<?>> P uses(TelephonyDeviceCore<H> deviceCore);
+
+    /**
+     * <action>
+     * The unconditional phone call disconnection:
+     * 1. Break telephony connection with all joint sessions
+     * 2. Detaching from all joint phone call sessions
+     * 3. End up the current phone call (hang off)
+     *
+     * @param session the phone call's session, device is working with
+     * @see PhoneCallSession#joint()
+     * @see org.visualcti.core.channel.telephony.TelephonyServiceProvider#breakConnection(H, H)
+     * @see PhoneCallSession#detachAll()
+     * @see org.visualcti.core.channel.telephony.TelephonyServiceProvider#handsetOff(H)
+     * @see org.visualcti.core.channel.telephony.part.adapter.AbstractDevicePart#disconnect(PhoneCallSession)
+     */
+    default void disconnect(PhoneCallSession<H> session) {
+        // doing nothing here
+    }
 
     /**
      * <action>
@@ -70,4 +89,13 @@ public interface TelephonyDevicePart<H> {
      * @see PhoneCallSession
      */
     void terminate(PhoneCallSession<H> session) throws IOException;
+
+    /**
+     * <checker>
+     * To check is phone call session opened for this device's part
+     *
+     * @param session the phone call's session, device is working with
+     * @return true if session opened well
+     */
+    boolean isOpened(PhoneCallSession<H> session);
 }

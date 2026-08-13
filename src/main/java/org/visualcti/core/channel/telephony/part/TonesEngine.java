@@ -46,7 +46,7 @@ import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 /**
  * The Part of the Telephony Channel Device: The root device part of the telephony signals and tones management
  *
- * @param <H> the type of low-level telephony operations handle
+ * @param <H> the type of the telephony device's low-level operations handle
  * @see TelephonyDevicePart
  */
 public interface TonesEngine<H> extends TelephonyDevicePart<H> {

@@ -52,7 +52,7 @@ import org.visualcti.media.Sound;
 /**
  * The Factory of the Telephony Devices: The factory of the telephony channel-devices
  *
- * @param <H> the type of device's handle (for low-level operations)
+ * @param <H> the type of the telephony device's low-level operations handle
  * @param <D> the type of factory's devices
  * @see TelephonyDevice
  * @see Factory

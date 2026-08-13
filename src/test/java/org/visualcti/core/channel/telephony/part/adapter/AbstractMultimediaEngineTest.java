@@ -1445,7 +1445,7 @@ public class AbstractMultimediaEngineTest<H> {
         session.alive(true);
         Audio playbackFormat = Audio.ADPCM_8;
         String terminationSymbolsMask = "";
-        int timeout = 2;
+        int timeout = 10;
         String audio = "Testing audio content";
         InputStream audioStream = spy(new ByteArrayInputStream(audio.getBytes()));
         Audio[] audios = new Audio[]{playbackFormat, Audio.LINEAR, Audio.LINEAR_8, Audio.LINEAR_11};

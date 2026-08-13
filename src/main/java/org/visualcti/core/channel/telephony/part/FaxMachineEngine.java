@@ -50,7 +50,7 @@ import org.visualcti.media.Fax;
 /**
  * The Part of the Telephony Channel Device: The root device part of the telephony fax-document exchange management
  *
- * @param <H> the type of low-level telephony operations handle
+ * @param <H> the type of the telephony device's low-level operations handle
  * @see TelephonyDevicePart
  */
 public interface FaxMachineEngine<H> extends TelephonyDevicePart<H> {
@@ -88,19 +88,6 @@ public interface FaxMachineEngine<H> extends TelephonyDevicePart<H> {
      */
     default void open(Device.Session<H> session) throws IOException {
         throw new UnsupportedOperationException("Not supported yet.");
-    }
-
-    /**
-     * <accessor>
-     * To check, whether device's fax-machine opened or not
-     *
-     * @param session the session of the opened device
-     * @return true if device's fax-machine is already opened
-     * @see PhoneCallSession#parameter(Device.ParameterName)
-     * @see Device.Parameter#FAX_DEVICE_HANDLE
-     */
-    default boolean isOpened(PhoneCallSession<H> session) {
-        return session.parameter(Device.Parameter.FAX_DEVICE_HANDLE) != null;
     }
 
     /**

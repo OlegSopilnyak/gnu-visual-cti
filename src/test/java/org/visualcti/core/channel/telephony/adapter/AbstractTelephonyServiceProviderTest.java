@@ -140,13 +140,15 @@ public class AbstractTelephonyServiceProviderTest<H> {
         doReturn(handle).when(provider).nativeResourceOpen(resourceName);
         H resourceHandle = provider.openResource(resourceName);
         assertThat(provider.isOpened(resourceHandle)).isTrue();
-        doReturn(true).when(provider).nativeDropCall(resourceHandle);
+        doReturn(false).when(provider).isHandsetOff(resourceHandle);
+        doReturn(true).when(provider).nativeHandsetOff(resourceHandle);
 
         // acting
-        boolean done = provider.dropCall(resourceHandle);
+        boolean done = provider.handsetOff(resourceHandle);
 
         // check the behavior
-        verify(provider).nativeDropCall(resourceHandle);
+        verify(provider).isHandsetOff(resourceHandle);
+        verify(provider).nativeHandsetOff(resourceHandle);
         // check results
         assertThat(done).isTrue();
     }
@@ -159,12 +161,14 @@ public class AbstractTelephonyServiceProviderTest<H> {
         doReturn(handle).when(provider).nativeResourceOpen(resourceName);
         H resourceHandle = provider.openResource(resourceName);
         assertThat(provider.isOpened(resourceHandle)).isTrue();
+        doReturn(false).when(provider).isHandsetOff(resourceHandle);
 
         // acting
-        boolean done = provider.dropCall(resourceHandle);
+        boolean done = provider.handsetOff(resourceHandle);
 
         // check the behavior
-        verify(provider).nativeDropCall(resourceHandle);
+        verify(provider).isHandsetOff(resourceHandle);
+        verify(provider).nativeHandsetOff(resourceHandle);
         // check results
         assertThat(done).isFalse();
     }
@@ -176,10 +180,10 @@ public class AbstractTelephonyServiceProviderTest<H> {
         H resourceHandle = provider.openResource(resourceName);
 
         // acting
-        boolean done = provider.dropCall(resourceHandle);
+        boolean done = provider.handsetOff(resourceHandle);
 
         // check the behavior
-        verify(provider, never()).nativeDropCall(any());
+        verify(provider, never()).nativeHandsetOff(any());
         // check results
         assertThat(done).isFalse();
     }

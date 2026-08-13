@@ -83,10 +83,13 @@ import org.visualcti.media.Sound;
  */
 public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
         extends AbstractDevice<H, T> implements TelephonyDevice<H, T> {
-    // the name of the device in the device factory
-    private final String name;
+    //
+    // predicate to test whether device handle value is valid or not
     private final Predicate<H> validResourceHandle =
             handle -> !Objects.equals(handle, wrongHandle()) || !Objects.equals(handle, errorHandle());
+    //
+    // the name of the device in the device factory
+    private final String name;
     // device part of the telephony calls management
     protected final CallsPortEngine<H> calls;
     // device part of the telephony signals and tones management
@@ -334,6 +337,18 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
         tones.terminate(session);
         media.terminate(session);
         faxes.terminate(session);
+    }
+
+    /**
+     * <checker>
+     * To check is phone call session opened for this device's part
+     *
+     * @param session the phone call's session, device is working with
+     * @return true if session opened well
+     */
+    @Override
+    public boolean isOpened(PhoneCallSession<H> session) {
+        return false;
     }
 
     /**

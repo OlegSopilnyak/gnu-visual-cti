@@ -45,7 +45,7 @@ import org.visualcti.core.channel.device.Device;
 /**
  * Device of the Telephony Channel: The core part of the telephony device type
  *
- * @param <H> the type of the device's low-level operations handle
+ * @param <H> the type of the telephony device's low-level operations handle
  * @see TelephonyServiceProvider
  */
 public interface TelephonyDeviceCore<H> {

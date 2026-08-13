@@ -57,7 +57,7 @@ import org.visualcti.media.Sound;
 /**
  * Provider Facade: The telephony service provider facade (for manufacturer implementation)
  *
- * @param <H> the type of the device's low-level operations handle
+ * @param <H> the type of the telephony device's low-level operations handle
  * @see Device.ServiceProvider
  */
 public interface TelephonyServiceProvider<H> extends Device.ServiceProvider<H> {
@@ -106,13 +106,13 @@ public interface TelephonyServiceProvider<H> extends Device.ServiceProvider<H> {
 
     /**
      * <action>
-     * To end a phone call.
+     * To end up (handset off) the phone call for the telephony device with handle.
      *
      * @param handle the telephony device handle
-     * @return true if operation complete successfully
+     * @return true if operation complete successfully or device with handle is already disconnected
      * @see CallsPortEngine#dropCall(PhoneCallSession)
      */
-    boolean dropCall(H handle);
+    boolean handsetOff(H handle);
 
     /**
      * <action>

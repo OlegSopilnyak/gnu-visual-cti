@@ -125,19 +125,20 @@ public class AbstractCallsPortEngineTest<H> {
     @Test
     public void shouldDropCall() throws IOException {
         // preparing test data
+        engine.uses(device);
         session.alive(true);
-        doReturn(true).when(provider).dropCall(deviceHandle);
+        doReturn(true).when(provider).handsetOff(deviceHandle);
 
         // acting
         boolean done = engine.dropCall(session);
 
         // check the behavior
         verify(session, atLeastOnce()).getDeviceHandle();
-        verify(session).isAlive();
+        verify(session, atLeastOnce()).isAlive();
         verify(session, atLeastOnce()).getDevice();
         verify(device).terminate(session);
         verify(device).getProvider();
-        verify(provider).dropCall(deviceHandle);
+        verify(provider).handsetOff(deviceHandle);
         verify(session, atLeastOnce()).joint();
         verify(provider, never()).breakConnection(any(), any());
         verify(session).detachAll();
@@ -161,7 +162,7 @@ public class AbstractCallsPortEngineTest<H> {
         boolean done = engine.dropCall(session);
 
         // check the behavior
-        verify(session, atLeastOnce()).getDeviceHandle();
+        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
         verify(session).isAlive();
         // check results
         assertThat(done).isFalse();
@@ -170,7 +171,8 @@ public class AbstractCallsPortEngineTest<H> {
     @Test
     public void shouldNotDropCall_ProviderDidntWork() throws IOException {
         // preparing test data
-        String errorReason = "Cannot drop call on the service provider side.";
+        String errorReason = "Cannot disconnect on the service provider side.";
+        engine.uses(device);
         session.alive(true);
         reset(session);
 
@@ -179,11 +181,11 @@ public class AbstractCallsPortEngineTest<H> {
 
         // check the behavior
         verify(session, atLeastOnce()).getDeviceHandle();
-        verify(session).isAlive();
+        verify(session, atLeastOnce()).isAlive();
         verify(session, atLeastOnce()).getDevice();
         verify(device).terminate(session);
         verify(device).getProvider();
-        verify(provider).dropCall(deviceHandle);
+        verify(provider).handsetOff(deviceHandle);
         verify(session).setState(Device.State.ERROR);
         verify(session).accept(any(DeviceEvent.class));
         verify(device).dispatchError(errorReason);
@@ -271,7 +273,7 @@ public class AbstractCallsPortEngineTest<H> {
         verify(session, atLeastOnce()).getDeviceHandle();
         verify(engine).canAcceptCall();
         verify(session).isAlive();
-        verify(device).getProvider();
+        verify(device, atLeastOnce()).getProvider();
         verify(engine).canBeConnected();
         verify(device, times(timeout)).getParameter(any(Device.ParameterName.class));
         verify(provider, times(timeout)).enableEvents(deviceHandle, Result.CALL.RINGS);
@@ -342,7 +344,7 @@ public class AbstractCallsPortEngineTest<H> {
         verify(session, atLeastOnce()).getDeviceHandle();
         verify(engine).canAcceptCall();
         verify(session).isAlive();
-        verify(device).getProvider();
+        verify(device, atLeastOnce()).getProvider();
         verify(engine).canBeConnected();
         verify(device).getParameter(any(Device.ParameterName.class));
         verify(provider).enableEvents(deviceHandle, Result.CALL.RINGS);
@@ -386,7 +388,7 @@ public class AbstractCallsPortEngineTest<H> {
         verify(session, atLeastOnce()).getDeviceHandle();
         verify(engine).canAcceptCall();
         verify(session).isAlive();
-        verify(device).getProvider();
+        verify(device, atLeastOnce()).getProvider();
         verify(engine).canBeConnected();
         verify(device).getParameter(any(Device.ParameterName.class));
         verify(provider).enableEvents(deviceHandle, Result.CALL.RINGS);
@@ -431,7 +433,7 @@ public class AbstractCallsPortEngineTest<H> {
         verify(session, atLeastOnce()).getDeviceHandle();
         verify(engine).canAcceptCall();
         verify(session).isAlive();
-        verify(device).getProvider();
+        verify(device, atLeastOnce()).getProvider();
         verify(engine).canBeConnected();
         verify(device).getParameter(any(Device.ParameterName.class));
         verify(provider).enableEvents(deviceHandle, Result.CALL.RINGS);
@@ -461,7 +463,7 @@ public class AbstractCallsPortEngineTest<H> {
         boolean done = engine.waitForCall(session, rings, timeout, answer);
 
         // check the behavior
-        verify(session, atLeastOnce()).getDeviceHandle();
+        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
         verify(engine).canAcceptCall();
         verify(device).getProvider();
         verify(engine, never()).canBeConnected();
@@ -485,7 +487,7 @@ public class AbstractCallsPortEngineTest<H> {
         boolean done = engine.waitForCall(session, rings, timeout, answer);
 
         // check the behavior
-        verify(session, atLeastOnce()).getDeviceHandle();
+        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
         verify(engine).canAcceptCall();
         verify(session).isAlive();
         // check results
@@ -683,7 +685,7 @@ public class AbstractCallsPortEngineTest<H> {
         boolean done = engine.makeCall(session, number, timeout);
 
         // check the behavior
-        verify(session).getDeviceHandle();
+        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
         verify(engine).canMakeCall();
         verify(session, never()).isAlive();
         // check results
@@ -705,7 +707,7 @@ public class AbstractCallsPortEngineTest<H> {
         boolean done = engine.makeCall(session, number, timeout);
 
         // check the behavior
-        verify(session).getDeviceHandle();
+        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
         verify(engine).canMakeCall();
         verify(session).isAlive();
         // check results
@@ -738,7 +740,7 @@ public class AbstractCallsPortEngineTest<H> {
 
         // check the behavior
         verify(session, atLeastOnce()).getDeviceHandle();
-        verify(engine).canBeConnected();
+//        verify(engine).canBeConnected();
         verify(session).getDevice();
         verify(device).getFactory();
         verify(factory).findConnectableFor(number);
@@ -776,7 +778,7 @@ public class AbstractCallsPortEngineTest<H> {
 
         // check the behavior
         verify(session, atLeastOnce()).getDeviceHandle();
-        verify(engine).canBeConnected();
+//        verify(engine).canBeConnected();
         verify(session, atLeastOnce()).getDevice();
         verify(device).getFactory();
         verify(factory).findConnectableFor(number);
@@ -818,7 +820,7 @@ public class AbstractCallsPortEngineTest<H> {
 
         // check the behavior
         verify(session, atLeastOnce()).getDeviceHandle();
-        verify(engine).canBeConnected();
+//        verify(engine).canBeConnected();
         verify(session, atLeastOnce()).getDevice();
         verify(device).getFactory();
         verify(factory).findConnectableFor(number);

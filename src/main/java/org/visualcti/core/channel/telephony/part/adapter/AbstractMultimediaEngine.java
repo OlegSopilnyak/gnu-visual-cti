@@ -64,7 +64,7 @@ import org.visualcti.media.Sound;
 /**
  * Adapter: The Part of the Telephony Channel Device: The root device part of the telephony multimedia (playback/record) management
  *
- * @param <H> the type for low-level telephony operations device handle
+ * @param <H> the type of the telephony device's low-level operations handle
  * @see MultimediaEngine
  * @see AbstractDevicePart
  */

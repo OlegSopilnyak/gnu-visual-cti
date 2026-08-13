@@ -739,7 +739,7 @@ public class AbstractTonesEngineTest<H> {
     public void shouldTerminatePlayTone() throws IOException {
         // preparing test data
         ToneId id = ToneId.BEEP;
-        float time = 0.5F;
+        float time = 1.5F;
         engine.uses(device);
         doReturn(true).when(session).isOpened();
         doReturn(true).when(session).isAlive();

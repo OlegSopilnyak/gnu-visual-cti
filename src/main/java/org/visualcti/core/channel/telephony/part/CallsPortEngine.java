@@ -48,7 +48,7 @@ import org.visualcti.media.Sound;
 /**
  * The Part of the Telephony Channel Device: The root device part of the telephony call management
  *
- * @param <H> the type of low-level telephony operations handle
+ * @param <H> the type of the telephony device's low-level operations handle
  * @see TelephonyDevicePart
  */
 public interface CallsPortEngine<H> extends TelephonyDevicePart<H> {

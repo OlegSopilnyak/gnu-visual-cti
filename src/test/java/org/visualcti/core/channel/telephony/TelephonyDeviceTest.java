@@ -54,7 +54,6 @@ import org.junit.Test;
 import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceStateValue;
-import org.visualcti.core.channel.telephony.part.CallsPortEngine;
 import org.visualcti.core.channel.telephony.part.FaxMachineEngine;
 import org.visualcti.server.core.unit.message.MessageFamilyType;
 import org.visualcti.server.core.unit.message.MessageType;
@@ -147,60 +146,6 @@ public class TelephonyDeviceTest {
 
         // check results
         assertThat(states.toArray()).isEmpty();
-    }
-
-    @Test
-    public void shouldCanBeConnected() {
-        // preparing test data
-        Device.ParameterName parameter = CallsPortEngine.Parameter.SHARE_CALL_ALLOWED;
-        ConfigurationParameter configurationParameter = ConfigurationParameter.of("share", true);
-        doReturn(Optional.of(configurationParameter)).when(device).getParameter(parameter);
-        doReturn(true).when(provider).canBeConnected(deviceName);
-        doCallRealMethod().when(device).canBeConnected();
-
-        // acting
-        boolean can = device.canBeConnected();
-
-        // check the behavior
-        verify(device).getProvider();
-        verify(provider).canBeConnected(deviceName);
-        verify(device).getParameter(parameter);
-        // check results
-        assertThat(can).isTrue();
-    }
-
-    @Test
-    public void shouldCantBeConnected_NotConfiguredFeature() {
-        // preparing test data
-        CallsPortEngine.Parameter parameter = CallsPortEngine.Parameter.SHARE_CALL_ALLOWED;
-        doReturn(true).when(provider).canBeConnected(deviceName);
-        doCallRealMethod().when(device).canBeConnected();
-
-        // acting
-        boolean can = device.canBeConnected();
-
-        // check the behavior
-        verify(device).getProvider();
-        verify(provider).canBeConnected(deviceName);
-        verify(device).getParameter(parameter);
-        // check results
-        assertThat(can).isFalse();
-    }
-
-    @Test
-    public void shouldCantBeConnected_ProviderIssue() {
-        // preparing test data
-        doCallRealMethod().when(device).canBeConnected();
-
-        // acting
-        boolean can = device.canBeConnected();
-
-        // check the behavior
-        verify(device).getProvider();
-        verify(provider).canBeConnected(deviceName);
-        verify(device, never()).getParameter(any(Device.ParameterName.class));
-        // check results
-        assertThat(can).isFalse();
     }
 
     @Test

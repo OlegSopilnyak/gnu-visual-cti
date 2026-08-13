@@ -52,7 +52,7 @@ import org.visualcti.core.channel.telephony.part.TonesEngine;
 /**
  * Adapter: The Part of the Telephony Channel Device: The root device part of the telephony signals and tones management
  *
- * @param <H> the type of low-level telephony operations handle
+ * @param <H> the type of the telephony device's low-level operations handle
  * @see TonesEngine
  * @see AbstractDevicePart
  */

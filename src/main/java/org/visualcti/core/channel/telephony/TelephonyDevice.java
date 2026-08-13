@@ -67,7 +67,7 @@ import org.visualcti.server.core.unit.ServerUnit;
 /**
  * Device of the Telephony Channel: The root device through which task communicate with computer telephony equipment
  *
- * @param <H> the type of the device's low-level operations handle
+ * @param <H> the type of the telephony device's low-level operations handle
  * @param <F> the type of the devices factory
  * @see TelephonyDeviceFactory
  * @see Device
@@ -273,22 +273,6 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      * @see PhoneCall.Number
      */
     boolean makeCall(PhoneCallSession<H> session, PhoneCall.Number number, int timeout);
-
-    /**
-     * <accessor>
-     * To check, whether device can be used in operations of connections (conference)
-     * This flag, the factory may set in properties of the device
-     *
-     * @return true if device can be shared for another device
-     * @see CallsPortEngine#canBeConnected()
-     * @see TelephonyServiceProvider#canBeConnected(String)
-     * @see #getName()
-     */
-    @Override
-    default boolean canBeConnected() {
-        return getProvider().canBeConnected(getName()) && getParameter(CallsPortEngine.Parameter.SHARE_CALL_ALLOWED)
-                .<Boolean>map(ConfigurationParameter::getValue).orElse(false);
-    }
 
     /**
      * <action>

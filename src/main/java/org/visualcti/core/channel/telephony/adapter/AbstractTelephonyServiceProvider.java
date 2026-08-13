@@ -163,31 +163,44 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
 
     /**
      * <action>
-     * To end a phone call.
+     * To end up (handset off) the phone call.
      *
      * @param handle the telephony device handle
-     * @return true if operation complete successfully
+     * @return true if operation complete successfully or device with handle is already disconnected
      * @see CallsPortEngine#dropCall(PhoneCallSession)
-     * @see #nativeDropCall(H)
+     * @see #nativeHandsetOff(H)
      */
     @Override
-    public boolean dropCall(H handle) {
+    public boolean handsetOff(H handle) {
         return resourcesByHandle(handle)
-                .map(resourceEntry -> nativeDropCall(handle))
+                .map(entry -> isHandsetOff(handle) || nativeHandsetOff(handle))
                 .orElse(false);
     }
 
     /**
      * <native-call>
-     * To end a phone call.
+     * To end up (handset off) the phone call.
      *
      * @param handle the handle of the opened resource (device's implementation)
      * @return true if operation complete successfully
-     * @see #dropCall(H)
+     * @see #handsetOff(H)
      */
-    protected boolean nativeDropCall(H handle) {
+    protected boolean nativeHandsetOff(H handle) {
         // doing nothing here
         return false;
+    }
+
+    /**
+     * <native-call>
+     * To check is the phone call's handset off.
+     *
+     * @param handle the handle of the opened resource (device's implementation)
+     * @return true if the phone call's handset off (call isn't active)
+     * @see #handsetOff(H)
+     */
+    protected boolean isHandsetOff(H handle) {
+        // doing nothing here
+        return true;
     }
 
     /**
