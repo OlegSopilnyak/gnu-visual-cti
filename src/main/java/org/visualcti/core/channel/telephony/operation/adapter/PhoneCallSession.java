@@ -73,7 +73,7 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
     /**
      * Enumeration: Parameter names for telephony device activity
      */
-    enum Parameter implements Device.ParameterName {
+    public enum Parameter implements Device.ParameterName {
         RESULT("OPERATION-RESULT"),
         LATCH("OPERATION-LATCH"),
         JOINT("JOINT-SESSIONS-SET"),
@@ -106,8 +106,17 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
 
     @Override
     public boolean equals(Object o) {
-        if (!(o instanceof PhoneCallSession)) return false;
-        PhoneCallSession<H> that = (PhoneCallSession<H>) o;
+        if (!(o instanceof PhoneCallSession)) {
+            System.out.println("Not a phone session");
+            return false;
+        }
+        return equals((PhoneCallSession<H>) o);
+//        PhoneCallSession<H> that = (PhoneCallSession<H>) o;
+//        return Objects.equals(getDevice(), that.getDevice())
+//                && Objects.equals(getDeviceHandle(), that.getDeviceHandle());
+    }
+
+    public boolean equals(final PhoneCallSession<H> that) {
         return Objects.equals(getDevice(), that.getDevice())
                 && Objects.equals(getDeviceHandle(), that.getDeviceHandle());
     }

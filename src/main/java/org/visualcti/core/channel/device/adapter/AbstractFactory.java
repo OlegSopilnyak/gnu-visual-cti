@@ -56,7 +56,7 @@ import org.visualcti.core.channel.device.Factory;
  * @see Factory
  * @see AbstractEventProcessor
  */
-public class AbstractFactory<H, D extends Device<?, ?>> extends AbstractEventProcessor<H> implements Factory<H, D> {
+public abstract class AbstractFactory<H, D extends Device<?, ?>> extends AbstractEventProcessor<H> implements Factory<H, D> {
     // the holder of factory's device channels
     private final AtomicReference<Collection<Channel<?>>> channelsHolder = new AtomicReference<>(Collections.emptyList());
 

@@ -179,13 +179,13 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
         if (isInvalidHandle(deviceHandle)) {
             throw new IOException("Invalid device handle!");
         }
-        // stopping and detach the old session, if it exists
-        findSessionByHandle(deviceHandle).ifPresent(this::detachAndClose);
+        // stopping and detach the after open session, if it's exists
+        findInitiatedSession().ifPresent(this::detachAndClose);
         // filling device specific parameters
         fillingDeviceSpecific(deviceHandle);
         // building new session for the device handle
         final Session<H> session = createSessionFor(deviceHandle);
-        // add the device session as device events listener
+        // add the created device session as device events listener
         getFactory().getHub().addDeviceEventListenerFor(getName(), session);
         // notifying about created session state
         stateChangedFor(session);
@@ -245,19 +245,25 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
      * @see DeviceEvent.Listener.Hub#removeDeviceEventListenerFor(String, DeviceEvent.Listener)
      */
     default void detachAndClose(final Session<H> session) {
+        // detach
+        // removing the device session as an events listener from the factory
+        getFactory().getHub().removeDeviceEventListenerFor(getName(), session);
+        // close
         try {
             // terminating current device activities of the session
             session.terminate();
+            // getting the session's device handle
+            final H handleToClose = session.getDeviceHandle();
+            // closing the device provider's resource (can throw IOException)
+            if (!findSessionByHandle(handleToClose).isPresent()) {
+                // handle to close is unique among the sessions' handles so the resource can be closed
+                serviceProvider().closeResource(handleToClose);
+            }
             // closing current device session
             session.close();
-            // closing device provider resource (can throw IOException)
-            serviceProvider().closeResource(session.getDeviceHandle());
         } catch (IOException e) {
             dispatchError(e, "Cannot stop and detach opened device session");
         }
-        // removing the device session as an events listener from the factory
-        getFactory().getHub().removeDeviceEventListenerFor(getName(), session);
-
     }
 
     /**
@@ -314,6 +320,10 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
             final String message = "Device Session could not be opened!";
             dispatchError(message);
             throw new IOException(message);
+        } else {
+            // marking session as 'initiated' for further detaching and close
+            session.parameter(Parameter.INITIATED, true);
+            dispatchEvent("Opened device :" + getDeviceName());
         }
     }
 
@@ -335,11 +345,30 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
      * @return found context or empty
      * @see Optional
      * @see Session
+     * @see Session#hasDeviceHandle(H)
      * @see #sessions()
-     * @see #open()
      */
     default Optional<Session<H>> findSessionByHandle(final H deviceHandle) {
         return sessions().filter(session -> session.hasDeviceHandle(deviceHandle)).findFirst();
+    }
+
+
+    /**
+     * <accessor>
+     * To look for the session with created after device open operation
+     *
+     * @return found context or empty
+     * @see Optional
+     * @see Session
+     * @see Session#parameterOrDefault(ParameterName, Object)
+     * @see Parameter#INITIATED
+     * @see #sessions()
+     * @see #open()
+     */
+    default Optional<Session<H>> findInitiatedSession() {
+        return sessions().filter(session ->
+                session.parameterOrDefault(Parameter.INITIATED, false)
+        ).findFirst();
     }
 
     /**
@@ -492,6 +521,9 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
      * Enumeration: Parameter names for device activity
      */
     enum Parameter implements ParameterName {
+        INITIATED("DEVICE-SESSION-AFTER-OPEN"),
+        SHARED("DEVICE-SHARED-SESSIONS"),
+        PROVIDER("DEVICE-SERVICE-PROVIDER"),
         NAME("DEVICE-NAME"),
         DEVICE_HANDLE("DEVICE-SESSION-HANDLE"),
         FAX_DEVICE_HANDLE("FAX-SESSION-HANDLE"),

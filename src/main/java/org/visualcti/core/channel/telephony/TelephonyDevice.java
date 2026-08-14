@@ -42,12 +42,10 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Optional;
 import org.jdom.Element;
 import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceStateValue;
-import org.visualcti.core.channel.device.adapter.AbstractDeviceEvent;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
 import org.visualcti.core.channel.telephony.operation.Result;
@@ -96,7 +94,7 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
 
     /**
      * <accessor>
-     * To get body unit's Icon Image (gif | jpeg)
+     * To get the body of unit's Icon Image (GIF | JPEG)
      *
      * @return the value
      */
@@ -137,20 +135,6 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
     default String getPath() {
         return "";
     }
-
-    /**
-     * <accessor>
-     * To get access to the channel-device configured parameter value
-     *
-     * @param name the name of configured parameter
-     * @return the parameter value or empty
-     * @see ConfigurationParameter
-     * @see ParameterName
-     * @see Optional
-     * @see Device#getParameter(ParameterName)
-     */
-    @Override
-    Optional<ConfigurationParameter> getParameter(ParameterName name);
 
     /**
      * <accessor>
@@ -201,7 +185,7 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      */
     @Override
     default TelephonyServiceProvider<H> getProvider() {
-        return (TelephonyServiceProvider<H>) Device.super.serviceProvider();
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     /**
@@ -809,14 +793,5 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
         public DefaultTelephonyCall(TelephonyDevice<H, ?> deviceOwner, H deviceHandle) {
             super(deviceOwner, deviceHandle);
         }
-    }
-
-    /**
-     * Default Implementation: The event from the telephony channel-device side
-     *
-     * @param <H> the type of device's handle (for low-level operations)
-     * @see AbstractDeviceEvent
-     */
-    class DefaultTelephonyEvent<H> extends AbstractDeviceEvent<H> {
     }
 }

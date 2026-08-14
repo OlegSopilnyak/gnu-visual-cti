@@ -277,34 +277,35 @@ public abstract class ChannelTaskRunnerAdapter<D extends Device<?, ?>> extends R
                     // the channel is busy to accept incoming event
                     return false;
                 }
-                // launching the task in separate thread
-                getGroup().getExecutor().execute(this::launchChannelTask);
+                // launching the channel task in separate thread
+                getGroup().getExecutor().execute(() -> {
+                    try {
+                        dispatchEvent("Starting channel task on the runner:" + getName());
+                        // running the channel task logic
+                        runChannelTask();
+                    } catch (IOException e) {
+                        dispatchError(e, "Cannot start channel task on the runner:" + getName());
+                    }
+                });
                 break;
             case MALFUNCTION:
                 // detected channel device malfunction event, notify about it
                 dispatchError(event.getDescription());
                 // terminating current task because of device's malfunction
                 tasksPool.current().stopExecute();
-                // trying to repair the broken device
-                final D device = channel.getDevice();
-                try {
-                    // terminate current device activity
-//                    device.terminate();
-                    // repairing terminated device
-                    if (!device.repair()) {
-                        // the device repairing is failed
-                        // stopping runner and mark it as broken
-                        stopBrokenDeviceRunner();
-                    }
-                } catch (IOException e) {
-                    dispatchError(e, "Cannot repair broken device.");
+                // repairing malfunctioned device
+                if (!channel.getDevice().repair()) {
+                    // the device repairing is failed
+                    // stopping the runner and mark it as broken
+                    stopBrokenDeviceRunner();
                 }
                 break;
             default:
                 dispatchError("Unknown event type: " + event.getEventType());
+                // device event is rejected by task runner
                 return false;
         }
-        // event is accepted by task runner
+        // device event is accepted by task runner
         return true;
     }
 
@@ -407,7 +408,7 @@ public abstract class ChannelTaskRunnerAdapter<D extends Device<?, ?>> extends R
         }
     }
 
-    //// private methods
+    /// / private methods
     // to launch runner's next iteration, works like the steps loop
     private void nextRunnerStep() {
         if (!isStarted() || channel.onlineTasksCount() != 0) {
@@ -422,21 +423,15 @@ public abstract class ChannelTaskRunnerAdapter<D extends Device<?, ?>> extends R
     }
 
     // stopping runner and mark it as a broken unit
-    private void stopBrokenDeviceRunner() throws IOException {
-        // the runner's device is broken so stopping the runner
-        Stop();
+    private void stopBrokenDeviceRunner() {
+        // the runner's device is broken so stopping the one
+        try {
+            Stop();
+        } catch (IOException e) {
+            dispatchError(e, "Cannot stop broken device.");
+            return;
+        }
         // mark runner as broken server unit
         unitState.getAndSet(UnitState.BROKEN);
-    }
-
-    // running channel task
-    private void launchChannelTask() {
-        try {
-            dispatchEvent("Starting channel task on the runner:" + getName());
-            // running the channel task
-            runChannelTask();
-        } catch (IOException e) {
-            dispatchError(e, "Cannot start channel task on the runner:" + getName());
-        }
     }
 }

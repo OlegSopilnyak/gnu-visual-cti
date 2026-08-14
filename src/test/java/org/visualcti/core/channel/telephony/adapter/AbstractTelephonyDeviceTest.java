@@ -50,6 +50,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import java.io.IOException;
@@ -194,7 +195,7 @@ public class AbstractTelephonyDeviceTest<H> {
         verify(faxes).open(session);
         verify(provider).disableEvents(deviceHandle);
         verify(provider).enableEvents(eq(deviceHandle), any(OperationResultValue.class));
-        verify(device).canBeConnected();
+        verify(device, times(2)).canBeConnected();
         // sharing device part
         verify(factory).devices();
         verify(factory).shareDevice(deviceHandle, -1L);
@@ -227,7 +228,7 @@ public class AbstractTelephonyDeviceTest<H> {
         verify(factory).unShareDevice(deviceHandle);
         verify(factory).unShareDevice(session);
         verify(provider).disableEvents(deviceHandle);
-        verify(faxes).close(session);
+        verify(faxes, times(2)).isOpened(session);
         // check results
         assertThat(session.isOpened()).isFalse();
     }
@@ -507,18 +508,30 @@ public class AbstractTelephonyDeviceTest<H> {
     @Test
     public void shouldConnect_Regular_Alive() throws IOException {
         // preparing test data
+        doReturn(true).when(device).canBeConnected();
+        H primaryHandle = (H) "leader";
         PhoneCallSession<H> session = spy((PhoneCallSession<H>) device.startSession());
+        // substituting device handle for the session to avoid session's closing by next device.startSession()
+        session.parameter(Device.Parameter.DEVICE_HANDLE, primaryHandle);
         Sound toPlay = mock(Sound.class);
         PhoneCall.Number target = PhoneNumber.of(1, 2, 3, 4);
         int timeout = 10;
+        PhoneCallSession<H> sharedSession = spy((PhoneCallSession<H>) device.startSession());
+        sharedSession.parameter(Device.Parameter.DEVICE_HANDLE, "shared");
+        H sharedHandle = sharedSession.getDeviceHandle();
+        sharedSession.parameter(PhoneCallSession.Parameter.CALLED, target);
+        sharedSession.alive(true);
+        factory.shareDevice(sharedSession, -1L);
+        doReturn(true).when(provider).makeConnection(sharedHandle, primaryHandle);
 
         // acting
         boolean success = device.connect(session, target, timeout, toPlay);
 
         // check the behavior
         verify(calls).connect(session, target, timeout, toPlay);
+        verify(factory).findConnectableFor(target);
         // check results
-//        assertThat(success).isTrue();
+        assertThat(success).isTrue();
     }
 
     @Test

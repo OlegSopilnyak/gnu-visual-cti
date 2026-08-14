@@ -37,8 +37,7 @@ Fax number: 217-356-3356
 */
 package org.visualcti.core.channel.device.adapter;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
@@ -55,15 +54,15 @@ import org.visualcti.util.Tools;
  *
  * @param <H> the type of device's handle (for low-level operations)
  */
+@SuppressWarnings("unchecked")
 public abstract class AbstractEventProcessor<H> extends RunnableUnitAdapter implements DeviceEventsProcessor<H> {
-    public static final String WAIT_EVENT_TIMEOUT_PROPERTY = "WAIT_EVENT_TIMEOUT_PROPERTY";
     public static final long DEFAULT_WAIT_EVENT_TIMEOUT = 100L;
     // the queue of device events from the events provider
     private final BlockingQueue<DeviceEvent<H>> deviceEvents = new LinkedBlockingQueue<>();
     // the thread where events provider is running
     protected final AtomicReference<Thread> providerEventsThread = new AtomicReference<>(null);
     // how long system will wait for device event appearance (milliseconds)
-    protected transient long howLongWaitForDeviceEvent = DEFAULT_WAIT_EVENT_TIMEOUT;
+    protected transient long howLongWaitForDeviceEvent = -1L;
     // the executor for device events processing threads
     protected final transient Executor deviceEventExecutor;
     // the provider of device events
@@ -88,6 +87,32 @@ public abstract class AbstractEventProcessor<H> extends RunnableUnitAdapter impl
     @Override
     public int hashCode() {
         return super.hashCode();
+    }
+
+    /**
+     * <accessor>
+     * To get the option's value by the option's name
+     *
+     * @param name the name of the option
+     * @return the value or empty
+     * @see Optional
+     */
+    @Override
+    public <T> Optional<T> getOption(final OptionName name) {
+        return Optional.ofNullable((T) properties.get(name.value()));
+    }
+
+    /**
+     * <mutator>
+     * To set up new option's value
+     *
+     * @param name  the name of the option
+     * @param value new value of the option
+     * @return previous option's value or null if wasn't
+     */
+    @Override
+    public <T> T setOption(final OptionName name, final T value) {
+        return (T) properties.put(name.value(), value);
     }
 
     /**
@@ -266,16 +291,12 @@ public abstract class AbstractEventProcessor<H> extends RunnableUnitAdapter impl
 
     // preparing how long wait for device event parameter
     private void prepareWaitForEventStuff() {
-        final Map<String, Object> properties = new HashMap<>(getProperties());
-        final Object howLong = properties.get(WAIT_EVENT_TIMEOUT_PROPERTY);
-        if (howLong instanceof Long) {
-            // updating the timeout value
-            howLongWaitForDeviceEvent = (Long) howLong;
+        final Optional<Long> timeout = getOption(OptionName.WAIT_EVENT_TIMEOUT);
+        if (timeout.isPresent()) {
+            howLongWaitForDeviceEvent = timeout.get();
         } else {
-            // don't touch timeout value
-            // placing the value by default
-            properties.put(WAIT_EVENT_TIMEOUT_PROPERTY, DEFAULT_WAIT_EVENT_TIMEOUT);
-            setProperties(properties);
+            howLongWaitForDeviceEvent = DEFAULT_WAIT_EVENT_TIMEOUT;
+            setOption(OptionName.WAIT_EVENT_TIMEOUT, DEFAULT_WAIT_EVENT_TIMEOUT);
         }
     }
 

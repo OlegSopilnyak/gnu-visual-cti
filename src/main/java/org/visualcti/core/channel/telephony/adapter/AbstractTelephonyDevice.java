@@ -251,7 +251,7 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      */
     @Override
     public TelephonyServiceProvider<H> getProvider() {
-        return (TelephonyServiceProvider<H>) super.serviceProvider;
+        return (TelephonyServiceProvider<H>) super.serviceProvider();
     }
 
     /**
@@ -274,6 +274,8 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
             // filling media parameter
             // to get the device's handle from the session
             final H handle = session.getDeviceHandle();
+            // stopping and detach the old session (not just created one), if any (only 1 session is allowed for the telephony device)
+            findSessionByHandle(handle).filter(s -> s != session).ifPresent(this::detachAndClose);
             // disabling any event for the opened device handle
             provider.disableEvents(handle);
             // trying to open the fax-machine part
@@ -308,16 +310,21 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
         }
         // analyzing the opened device session
         if (session.isOpened()) {
+            // casting the session to the telephone device session type
+            final PhoneCallSession<H> phoneCallSession = (PhoneCallSession<H>) session;
             // to get the device's handle from the session
-            final H handle = session.getDeviceHandle();
+            final H handle = phoneCallSession.getDeviceHandle();
             // unsharing the device's session for connection
             getFactory().unShareDevice(handle);
             // disabling any event for the opened device handle
             getProvider().disableEvents(handle);
-            // opening the fax-machine part
-            faxes.close((PhoneCallSession<H>) session);
+            // closing the fax-machine stuff if any
+            if (faxes.isOpened(phoneCallSession)) {
+                // releasing the fax-machine telephony device session's resources
+                faxes.close(phoneCallSession);
+            }
         }
-        // terminating and closing the session
+        // detaching and closing the session
         super.detachAndClose(session);
     }
 

@@ -374,6 +374,7 @@ public class AbstractDeviceTest<H> {
     public void shouldNotGetParameter_Empty() {
         // preparing test data
         Device.ParameterName name = mock(Device.ParameterName.class);
+        doReturn("mocked-name").when(name).value();
 
         // acting
         Object value = device.getParameter(name);
@@ -441,7 +442,7 @@ public class AbstractDeviceTest<H> {
 
         // check the behavior
         verify(serviceProvider).openResource(deviceName);
-        verify(device).findSessionByHandle(handle);
+        verify(device).findInitiatedSession();
         verify(device).sessions();
         verify(device).fillingDeviceSpecific(handle);
         verify(device).hasHardwareParameters();
@@ -498,6 +499,7 @@ public class AbstractDeviceTest<H> {
     public void shouldHasHardwareParameters() {
         // preparing test data
         Device.ParameterName name = mock(Device.ParameterName.class);
+        doReturn("mocked-name").when(name).value();
         doReturn(Collections.singleton(name)).when(device).hardwareParameterNames();
         ConfigurationParameter parameter = mock(ConfigurationParameter.class);
         device.setParameter(name, parameter);
@@ -531,6 +533,7 @@ public class AbstractDeviceTest<H> {
         // preparing test data
         String handle = "102";
         Device.ParameterName name = mock(Device.ParameterName.class);
+        doReturn("mocked-name").when(name).value();
         doReturn(Collections.singleton(name)).when(device).hardwareParameterNames();
         ConfigurationParameter parameter = mock(ConfigurationParameter.class);
         doReturn(Optional.of(parameter)).when(serviceProvider).resourceParameter(handle, name);
@@ -554,6 +557,7 @@ public class AbstractDeviceTest<H> {
         // preparing test data
         String handle = "102";
         Device.ParameterName name = mock(Device.ParameterName.class);
+        doReturn("mocked-name").when(name).value();
         doReturn(Collections.singleton(name)).when(device).hardwareParameterNames();
         assertThat(device.getParameter(name)).isEmpty();
 
@@ -575,6 +579,7 @@ public class AbstractDeviceTest<H> {
         // preparing test data
         String handle = "102";
         Device.ParameterName name = mock(Device.ParameterName.class);
+        doReturn("mocked-name").when(name).value();
         assertThat(device.getParameter(name)).isEmpty();
 
         // acting

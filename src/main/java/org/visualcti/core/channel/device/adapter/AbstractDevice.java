@@ -59,11 +59,8 @@ import org.visualcti.server.unit.ServerUnitAdapter;
  * @see Device
  * @see Device.ServiceProvider
  */
+@SuppressWarnings("unchecked")
 public class AbstractDevice<H, F extends Factory<H, ?>> extends ServerUnitAdapter implements Device<H, F> {
-    // the basic parameters of the device
-    protected final Map<ParameterName, ConfigurationParameter> parameters = new ConcurrentHashMap<>();
-    // the service provider of the channel device actions functionality
-    protected final transient ServiceProvider<H> serviceProvider;
     // the map of sessions' states of the device
     private final Map<H, DeviceStateValue> sessionStates = new ConcurrentHashMap<>();
 
@@ -75,7 +72,7 @@ public class AbstractDevice<H, F extends Factory<H, ?>> extends ServerUnitAdapte
      * @see Device.ServiceProvider
      */
     protected AbstractDevice(ServiceProvider<H> provider) {
-        this.serviceProvider = provider;
+        properties.put(Parameter.PROVIDER.value(), provider);
     }
 
     /**
@@ -87,7 +84,7 @@ public class AbstractDevice<H, F extends Factory<H, ?>> extends ServerUnitAdapte
      */
     @Override
     public ServiceProvider<H> serviceProvider() {
-        return serviceProvider;
+        return (ServiceProvider<H>) properties.get(Parameter.PROVIDER.value());
     }
 
     /**
@@ -153,7 +150,7 @@ public class AbstractDevice<H, F extends Factory<H, ?>> extends ServerUnitAdapte
      */
     @Override
     public Optional<ConfigurationParameter> getParameter(final ParameterName name) {
-        return Optional.ofNullable(parameters.get(name));
+        return Optional.ofNullable((ConfigurationParameter) properties.get(name.value()));
     }
 
     /**
@@ -167,7 +164,7 @@ public class AbstractDevice<H, F extends Factory<H, ?>> extends ServerUnitAdapte
      */
     @Override
     public void setParameter(final ParameterName name, final ConfigurationParameter value) {
-        parameters.put(name, value);
+        properties.put(name.value(), value);
     }
 
     /**

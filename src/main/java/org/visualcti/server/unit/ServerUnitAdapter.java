@@ -79,6 +79,7 @@ import org.visualcti.server.event.model.UnitMessages;
  * @see ServerUnit
  * @see XmlAware
  */
+@SuppressWarnings("unchecked")
 public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
     // the name of icon's attribute
     private static final String UNIT_ICON_ATTRIBUTE = "icon";
@@ -129,7 +130,7 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
     // the branches of server units tree
     private final Collection<ServerUnit> branches = new ArrayList<>();
     // the properties of the unit
-    private transient Map<String, Object> properties = new ConcurrentHashMap<>();
+    protected transient Map<String, Object> properties = new ConcurrentHashMap<>();
 
     /**
      * Compares the argument to the receiver, and answers true

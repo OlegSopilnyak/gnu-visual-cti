@@ -37,6 +37,7 @@ Fax number: 217-356-3356
 */
 package org.visualcti.core.channel.device;
 
+import java.util.Optional;
 import java.util.function.Predicate;
 import org.visualcti.server.core.unit.RunnableServerUnit;
 
@@ -49,6 +50,45 @@ public interface DeviceEventsProcessor<H> extends RunnableServerUnit {
     // predicate to test whether device event valid or not
     Predicate<DeviceEvent<?>> VALID_DEVICE_EVENT =
             deviceEvent -> deviceEvent != null && isEmptyString.negate().test(deviceEvent.getDeviceName());
+    /**
+     * Enumeration: Parameter names for device event processor options
+     */
+    enum OptionName implements Device.ParameterName {
+        WAIT_EVENT_TIMEOUT("WAIT_EVENT_TIMEOUT_PROPERTY");
+
+        private final String name;
+
+        OptionName(String name) {
+            this.name = name;
+        }
+
+        @Override
+        public String value() {
+            return name.toLowerCase();
+        }
+    }
+
+    /**
+     * <accessor>
+     * To get the option's value by the option's name
+     *
+     * @param name the name of the option
+     * @return the value or empty
+     * @param <T> the type of the option value
+     * @see Optional
+     */
+    <T> Optional<T> getOption(OptionName name);
+
+    /**
+     * <mutator>
+     * To set up new option's value
+     *
+     * @param name the name of the option
+     * @param value new value of the option
+     * @return previous option's value
+     * @param <T> the type of the option value
+     */
+    <T> T setOption(OptionName name, T value);
 
     /**
      * <accessor>

@@ -54,17 +54,13 @@ import org.visualcti.core.channel.device.Factory;
  * @param <H> the type of device's handle (for low-level operations)
  * @see DeviceEvent
  */
-public class AbstractDeviceEvent<H> implements DeviceEvent<H> {
+public abstract class AbstractDeviceEvent<H> implements DeviceEvent<H> {
     private final Type eventType;
     private H deviceHandle;
     private String deviceName;
     private String vendor;
     private String description;
     private final Map<Device.ParameterName, Object> parameters = new ConcurrentHashMap<>();
-
-    public AbstractDeviceEvent() {
-        this(Type.DEVICE_SPECIFIC);
-    }
 
     /**
      * <builder>
@@ -75,7 +71,7 @@ public class AbstractDeviceEvent<H> implements DeviceEvent<H> {
      * @param <H> the type of device's handle (for low-level operations)
      */
     public static <H> AbstractDeviceEvent<H> of(Type eventType) {
-        return new AbstractDeviceEvent<>(eventType);
+        return new AbstractDeviceEvent(eventType){};
     }
 
     /**
