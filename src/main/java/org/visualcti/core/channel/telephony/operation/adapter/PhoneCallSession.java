@@ -50,6 +50,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 import org.visualcti.core.channel.device.Device;
@@ -74,6 +76,8 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
      * Enumeration: Parameter names for telephony device activity
      */
     public enum Parameter implements Device.ParameterName {
+        SHARED("SHARED-SESSION-LOCK"),
+        CAPTURE("SHARED-SESSION-INVADER"),
         RESULT("OPERATION-RESULT"),
         LATCH("OPERATION-LATCH"),
         JOINT("JOINT-SESSIONS-SET"),
@@ -102,18 +106,13 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
         parameter(Parameter.JOINT, Collections.emptyList());
         // the parameter value of device operation result
         parameter(Parameter.RESULT, Result.NONE);
+        // the parameter for shared session lock
+        parameter(Parameter.SHARED, new ReentrantLock());
     }
 
     @Override
-    public boolean equals(Object o) {
-        if (!(o instanceof PhoneCallSession)) {
-            System.out.println("Not a phone session");
-            return false;
-        }
-        return equals((PhoneCallSession<H>) o);
-//        PhoneCallSession<H> that = (PhoneCallSession<H>) o;
-//        return Objects.equals(getDevice(), that.getDevice())
-//                && Objects.equals(getDeviceHandle(), that.getDeviceHandle());
+    public boolean equals(final Object o) {
+        return o instanceof PhoneCallSession && equals((PhoneCallSession<H>) o);
     }
 
     public boolean equals(final PhoneCallSession<H> that) {
@@ -291,7 +290,7 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
     /**
      * <checker>
      * To check is operation in progress (waiting for completion or timeout)
-     * For tests purposes only!!!!!!!
+     * For the tests purposes only!!!!!!!
      *
      * @return true if operation is waiting for completion
      * @see #waitingForTheOperationComplete(long)
@@ -326,11 +325,84 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
     }
 
     /**
+     * <action>
+     * Capturing the device's session for dedicate usage it in the sessions' joining feature of device
+     *
+     * @param invader the phone call session which is trying to capture
+     * @return true if capture is successful
+     * @see Lock
+     * @see #isCaptive()
+     * @see #parameter(Device.ParameterName)
+     * @see Parameter#SHARED
+     * @see Parameter#CAPTURE
+     * @see #getDeviceName()
+     */
+    public boolean capture(final PhoneCallSession<H> invader) {
+        if (isCaptive()) {
+            // the session is already captive by capture()
+            return false;
+        } else {
+            // capturing the session
+            this.<Lock>parameter(Parameter.SHARED).lock();
+            // storing the reference to the session-invader which will capture the session
+            this.parameter(Parameter.CAPTURE, invader.getDeviceName());
+            return true;
+        }
+    }
+
+    /**
+     * <checker>
+     * Checking is the session captive
+     *
+     * @return true if session already captive by capture()
+     * @see #capture(PhoneCallSession)
+     * @see ReentrantLock#isLocked()
+     * @see #parameter(Device.ParameterName)
+     * @see Parameter#SHARED
+     */
+    public boolean isCaptive() {
+        // checking the state of the telephony device session lock
+        return this.<ReentrantLock>parameter(Parameter.SHARED).isLocked();
+    }
+
+    /**
+     * <accessor>
+     * To get the invader of the phone call session capture
+     *
+     * @return the name of the invader or empty
+     * @see #capture(PhoneCallSession)
+     * @see Optional
+     */
+    public Optional<String> captiveBy() {
+        return Optional.ofNullable(parameter(Parameter.CAPTURE));
+    }
+
+    /**
+     * <action>
+     * Free the captive phone call session using the session-invader potentially has taken part in capturing of the session
+     *
+     * @param invader the phone call session which is captive the session
+     * @see #capture(PhoneCallSession)
+     * @see Lock
+     * @see #parameter(Device.ParameterName)
+     * @see Parameter#SHARED
+     */
+    public void release(final PhoneCallSession<H> invader) {
+        if (Objects.equals(invader.getDeviceName(), this.<String>parameter(Parameter.CAPTURE))) {
+            // clearing the invader reference which captive the session
+            this.parameter(Parameter.CAPTURE, null)
+                    // releasing the captive phone call session
+                    .<Lock>parameter(Parameter.SHARED).unlock();
+        }
+    }
+
+    /**
      * <accessor>
      * To get phone calls joint by device connection feature
      *
      * @return the stream of joint with this session other phone-call-sessions
      * @see #join(PhoneCall)
+     * @see #detach(PhoneCall)
      */
     @Override
     public Stream<PhoneCall> joint() {
@@ -343,6 +415,7 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
      * To join another phone-call-session
      *
      * @param anotherCall another session value
+     * @see #joint()
      */
     @Override
     public void join(final PhoneCall anotherCall) {
@@ -362,6 +435,7 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
      * To detach the phone-call-session
      *
      * @param attachedCall another session value
+     * @see #joint()
      */
     @Override
     public void detach(final PhoneCall attachedCall) {
@@ -470,8 +544,7 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
     }
 
     /// private methods
-    // detected incoming telephony call
-    // accepted event with 'rings' reason
+    // detected incoming telephony call, accepted event with 'rings' reason
     private void incomingCallIsDetected(final DeviceEvent<H> event) {
         final DeviceStateValue currentState = getState();
         if (currentState == WAIT) {
@@ -486,7 +559,7 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
         }
     }
 
-    // accepted event with 'terminate' reason
+    // detected external termination, accepted event with 'terminate' reason
     private void operationTerminationIsDetected() {
         try {
             // trying to terminate current operation
@@ -496,14 +569,14 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
         }
     }
 
-    // disconnect detected in the current operation
+    // disconnect detected in the current operation, accepted event with 'disconnect' reason
     private void operationDisconnectIsDetected() {
         alive(false);
         // completing the operation which wait for complete if any
         operationComplete(Result.CALL.DISCONNECT);
     }
 
-    // user input detected in the current operation
+    // user input detected in the current operation, accepted event with 'dtmf' reason
     private void userInputDetected(final DeviceEvent<H> event) {
         // getting user input from the event and store it to the parameter of phone-call-session
         this.parameter(Device.Parameter.USER_INPUT, parameterOrDefault(Device.Parameter.USER_INPUT, "")

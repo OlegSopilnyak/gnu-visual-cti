@@ -573,7 +573,7 @@ public abstract class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> i
                     deviceCore.getProvider().stopAudioPlaying(leadingSession.getDeviceHandle());
                     // just joining two alive phone call sessions
                     connectableSession.join(leadingSession);
-                    return true;
+                    return connectableSession.capture(leadingSession);
                 }
                 // stop playing the melody sound
                 deviceCore.getProvider().stopAudioPlaying(leadingSession.getDeviceHandle());

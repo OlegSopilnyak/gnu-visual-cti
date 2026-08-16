@@ -57,6 +57,7 @@ import java.io.IOException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 import org.junit.Before;
 import org.junit.Test;
 import org.visualcti.core.ConfigurationParameter;
@@ -510,17 +511,23 @@ public class AbstractTelephonyDeviceTest<H> {
         // preparing test data
         doReturn(true).when(device).canBeConnected();
         H primaryHandle = (H) "leader";
+        H sharedHandle = (H) "shared";
         PhoneCallSession<H> session = spy((PhoneCallSession<H>) device.startSession());
         // substituting device handle for the session to avoid session's closing by next device.startSession()
         session.parameter(Device.Parameter.DEVICE_HANDLE, primaryHandle);
+        // placing the spy of the session instead created previously
+        factory.unShareDevice(session);
+        factory.shareDevice(session, -1L);
         Sound toPlay = mock(Sound.class);
         PhoneCall.Number target = PhoneNumber.of(1, 2, 3, 4);
         int timeout = 10;
         PhoneCallSession<H> sharedSession = spy((PhoneCallSession<H>) device.startSession());
-        sharedSession.parameter(Device.Parameter.DEVICE_HANDLE, "shared");
-        H sharedHandle = sharedSession.getDeviceHandle();
+        // substituting device handle for the session to avoid session's closing by next device.startSession()
+        sharedSession.parameter(Device.Parameter.DEVICE_HANDLE, sharedHandle);
         sharedSession.parameter(PhoneCallSession.Parameter.CALLED, target);
         sharedSession.alive(true);
+        // placing the spy of the session instead created previously
+        factory.unShareDevice(sharedSession);
         factory.shareDevice(sharedSession, -1L);
         doReturn(true).when(provider).makeConnection(sharedHandle, primaryHandle);
 
@@ -530,8 +537,68 @@ public class AbstractTelephonyDeviceTest<H> {
         // check the behavior
         verify(calls).connect(session, target, timeout, toPlay);
         verify(factory).findConnectableFor(target);
+        verify(sharedSession, atLeastOnce()).isAlive();
+        verify(sharedSession).hasNumber(target);
+        verify(provider).makeConnection(sharedHandle, primaryHandle);
+        verify(session).join(sharedSession);
+        verify(sharedSession, times(2)).join(session);
         // check results
         assertThat(success).isTrue();
+        assertThat(session.joint().collect(Collectors.toSet())).contains(sharedSession);
+        assertThat(sharedSession.joint().collect(Collectors.toSet())).contains(session);
+    }
+
+    @Test
+    public void shouldConnect_Regular_Disconnected() throws IOException {
+        // preparing test data
+        doReturn(true).when(device).canBeConnected();
+        String primaryDeviceName = "primary-device-name";
+        H primaryHandle = (H) "leader";
+        H sharedHandle = (H) "shared";
+        PhoneCallSession<H> session = spy((PhoneCallSession<H>) device.startSession());
+        // substituting device handle for the session to avoid session's closing by next device.startSession()
+        session.parameter(Device.Parameter.DEVICE_HANDLE, primaryHandle);
+        session.parameter(Device.Parameter.NAME, primaryDeviceName);
+        // placing the spy of the session instead created previously
+        factory.unShareDevice(session);
+        factory.shareDevice(session, -1L);
+        Sound toPlay = mock(Sound.class);
+        PhoneCall.Number target = PhoneNumber.of(1, 2, 3, 4);
+        int timeout = 10;
+        PhoneCallSession<H> sharedSession = spy((PhoneCallSession<H>) device.startSession());
+        // substituting device handle for the session to avoid session's closing by next device.startSession()
+        sharedSession.parameter(Device.Parameter.DEVICE_HANDLE, sharedHandle);
+        // placing the spy of the session instead created previously
+        factory.unShareDevice(sharedSession);
+        factory.shareDevice(sharedSession, -1L);
+        doReturn(true).when(provider).makeConnection(sharedHandle, primaryHandle);
+        doReturn(true).when(calls).makeCall(sharedSession, target, timeout);
+
+        // acting
+        boolean success = device.connect(session, target, timeout, toPlay);
+
+        // check the behavior
+        verify(calls).connect(session, target, timeout, toPlay);
+        verify(factory).findConnectableFor(target);
+        verify(session, atLeastOnce()).isAlive();
+        verify(session, never()).hasNumber(target);
+        verify(sharedSession, atLeastOnce()).isAlive();
+        verify(sharedSession, never()).hasNumber(target);
+        verify(device).asyncPlaybackAudio(session, toPlay);
+        verify(calls).makeCall(sharedSession, target, timeout);
+        verify(provider).makeConnection(sharedHandle, primaryHandle);
+        verify(provider).stopAudioPlaying(primaryHandle);
+        verify(sharedSession).release(sharedSession);
+        verify(sharedSession).capture(session);
+        verify(session).join(sharedSession);
+        verify(sharedSession, times(2)).join(session);
+        // check results
+        assertThat(success).isTrue();
+        assertThat(session.captiveBy()).isEmpty();
+        assertThat(sharedSession.isCaptive()).isTrue();
+        assertThat(sharedSession.captiveBy()).contains(primaryDeviceName);
+        assertThat(session.joint().collect(Collectors.toSet())).contains(sharedSession);
+        assertThat(sharedSession.joint().collect(Collectors.toSet())).contains(session);
     }
 
     @Test

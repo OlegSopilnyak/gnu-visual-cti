@@ -45,6 +45,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceEvent;
@@ -120,8 +121,7 @@ public abstract class AbstractTelephonyDeviceFactory<H, D extends TelephonyDevic
         if (session.getDevice().canBeConnected()) {
             // device session can be shared
             safeOperation(() -> {
-                if (isNotShared(session)) {
-//                    if (sharedDeviceSessions().stream().noneMatch(s -> session.equals(s))) {
+                if (sharedDeviceSessions().stream().noneMatch(session::equals)) {
                     // adding not exists session to shared sessions holder
                     sharedDeviceSessions().add(session);
                     // setting up session's operation result by default
@@ -133,15 +133,6 @@ public abstract class AbstractTelephonyDeviceFactory<H, D extends TelephonyDevic
         }
     }
 
-    private boolean isNotShared(PhoneCallSession<H> session) {
-        for(PhoneCallSession<H> sharedSession : sharedDeviceSessions()) {
-            if (session.equals(sharedSession)) {
-                return false;
-            }
-        }
-        return true;
-    }
-
     /**
      * <action>
      * To un-share opened phone call session for the connection feature
@@ -151,7 +142,12 @@ public abstract class AbstractTelephonyDeviceFactory<H, D extends TelephonyDevic
      */
     @Override
     public void unShareDevice(PhoneCallSession<H> session) {
-        safeOperation(() -> sharedDeviceSessions().remove(session) ? session : null);
+        safeOperation(() -> {
+            final Set<PhoneCallSession<H>> current = sharedDeviceSessions();
+            final Set<PhoneCallSession<H>> cut = current.stream().filter(s -> !s.equals(session)).collect(Collectors.toSet());
+            properties.put(Device.Parameter.SHARED.value(),cut);
+            return null;
+        });
     }
 
     /**
@@ -203,39 +199,41 @@ public abstract class AbstractTelephonyDeviceFactory<H, D extends TelephonyDevic
     }
 
     // looking for the shared session which can allow to play as second one for the telephony call by phone call connection feature
-    private PhoneCallSession<H> lookForNumber(final PhoneCall.Number callableNumber) {
-        // looking for among live sessions
-        final PhoneCallSession<H> aliveSession = aliveSessionWith(callableNumber);
+    private PhoneCallSession<H> lookForNumber(final PhoneCall.Number targetPhoneNumber) {
+        // looking for session among live sessions
+        final PhoneCallSession<H> aliveSession = aliveSessionWithPhoneNumber(targetPhoneNumber);
         if (Optional.ofNullable(aliveSession).isPresent()) {
+            // returning the slave session to connect with
             return aliveSession;
-        } else {
-            final PhoneCallSession<H> waitForCallSession =
-                    sessionWith(session -> session.getState() == TelephonyDevice.State.WAIT);
-            if (Optional.ofNullable(waitForCallSession).isPresent()) {
-                return waitForCallSession;
-            }
-            final PhoneCallSession<H> connectableSession = sessionWith(session -> true);
-            if (Optional.ofNullable(connectableSession).isPresent()) {
-                return connectableSession;
-            }
         }
+        // looking for session among free and disconnected sessions
+        final PhoneCallSession<H> disconnectedSession = capturedFreeSession();
+        if (Optional.ofNullable(disconnectedSession).isPresent()) {
+            // preparing the captive, free and disconnected session for the further capturing by leader session
+            // the session was captive by itself releasing it
+            disconnectedSession.release(disconnectedSession);
+            // returning the slave session to connect with
+            return disconnectedSession;
+        }
+        // nothing is found
         return null;
     }
 
-    // to look for session with is alive and has the callable number inside
-    private PhoneCallSession<H> aliveSessionWith(final PhoneCall.Number number) {
-        return liveSessions().filter(session -> session.hasNumber(number)).findFirst().orElse(null);
+    // to look for the session with is alive and has the callable number inside
+    private PhoneCallSession<H> aliveSessionWithPhoneNumber(final PhoneCall.Number number) {
+        return liveSessionsWith(session -> session.hasNumber(number)).findFirst().orElse(null);
     }
 
-    private Stream<PhoneCallSession<H>> liveSessions() {
-        return sharedDeviceSessions().stream().filter(PhoneCallSession::isAlive);
+    private Stream<PhoneCallSession<H>> liveSessionsWith(final Predicate<PhoneCallSession<H>> predicate) {
+        return sharedDeviceSessions().stream().filter(PhoneCallSession::isAlive).filter(predicate);
     }
 
-    // to look for session which can be used in the connection feature
-    private PhoneCallSession<H> sessionWith(final Predicate<PhoneCallSession<H>> predicate) {
-        return sharedDeviceSessions().stream()
-                .filter(session -> predicate.test(session)
-                        && session.getDevice().canBeConnected() && session.getDevice().canMakeCall()
-                ).findFirst().orElse(null);
+    // to look for the session which is not alive and captured for the dedicated usage
+    private PhoneCallSession<H> capturedFreeSession() {
+        return disconnectedSessionsWith(session -> session.capture(session)).findFirst().orElse(null);
+    }
+
+    private Stream<PhoneCallSession<H>> disconnectedSessionsWith(final Predicate<PhoneCallSession<H>> predicate) {
+        return sharedDeviceSessions().stream().filter(PhoneCallSession::isDisconnected).filter(predicate);
     }
 }

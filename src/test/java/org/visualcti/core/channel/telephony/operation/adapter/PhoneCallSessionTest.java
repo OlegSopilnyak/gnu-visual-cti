@@ -40,6 +40,7 @@ package org.visualcti.core.channel.telephony.operation.adapter;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -49,6 +50,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
 import java.io.IOException;
+import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -573,5 +575,146 @@ public class PhoneCallSessionTest {
         verify(session).operationComplete(Result.ERROR);
         // check results
         assertThat(accepted).isTrue();
+    }
+
+    @Test
+    public void shouldCapture() {
+        // preparing test data
+        String invaderName = "invader";
+        PhoneCallSession invader = mock(PhoneCallSession.class);
+        doReturn(invaderName).when(invader).getDeviceName();
+        assertThat(session.isCaptive()).isFalse();
+        reset(session);
+
+        // acting
+        boolean captured = session.capture(invader);
+
+        // check the behavior
+        verify(session).isCaptive();
+        verify(invader).getDeviceName();
+        verify(session, atLeastOnce()).parameter(PhoneCallSession.Parameter.SHARED);
+        verify(session).parameter(PhoneCallSession.Parameter.CAPTURE, invaderName);
+        // check results
+        assertThat(captured).isTrue();
+        assertThat(session.isCaptive()).isTrue();
+        assertThat(session.captiveBy()).contains(invaderName);
+    }
+
+    @Test
+    public void shouldNotCapture_AlreadyCaptured() {
+        // preparing test data
+        String invaderName = "invader";
+        PhoneCallSession invader = mock(PhoneCallSession.class);
+        doReturn(invaderName).when(invader).getDeviceName();
+        session.capture(invader);
+        reset(session);
+
+        // acting
+        boolean captured = session.capture(invader);
+
+        // check the behavior
+        verify(session).isCaptive();
+        verify(session).parameter(PhoneCallSession.Parameter.SHARED);
+        verify(session, never()).parameter(eq(PhoneCallSession.Parameter.CAPTURE), any());
+        // check results
+        assertThat(captured).isFalse();
+        assertThat(session.isCaptive()).isTrue();
+    }
+
+    @Test
+    public void shouldBeCaptured() {
+        // preparing test data
+        String invaderName = "invader";
+        PhoneCallSession invader = mock(PhoneCallSession.class);
+        doReturn(invaderName).when(invader).getDeviceName();
+        session.capture(invader);
+        reset(session);
+
+        // acting
+        boolean captured = session.isCaptive();
+
+        // check the behavior
+        verify(session).parameter(PhoneCallSession.Parameter.SHARED);
+        // check results
+        assertThat(captured).isTrue();
+    }
+
+    @Test
+    public void shouldRelease() {
+        // preparing test data
+        String invaderName = "invader";
+        PhoneCallSession invader = mock(PhoneCallSession.class);
+        doReturn(invaderName).when(invader).getDeviceName();
+        session.capture(invader);
+        assertThat(session.isCaptive()).isTrue();
+        reset(session);
+
+        // acting
+        session.release(invader);
+
+        // check the behavior
+        verify(session).parameter(PhoneCallSession.Parameter.CAPTURE);
+        verify(invader, atLeastOnce()).getDeviceName();
+        verify(session).parameter(PhoneCallSession.Parameter.SHARED);
+        verify(session).parameter(PhoneCallSession.Parameter.CAPTURE, null);
+        // check results
+        assertThat(session.isCaptive()).isFalse();
+    }
+
+    @Test
+    public void shouldNotRelease_NotCaptured() {
+        // preparing test data
+        String invaderName = "invader";
+        PhoneCallSession invader = mock(PhoneCallSession.class);
+        doReturn(invaderName).when(invader).getDeviceName();
+        assertThat(session.isCaptive()).isFalse();
+        reset(session);
+
+        // acting
+        session.release(invader);
+
+        // check the behavior
+        verify(session).parameter(PhoneCallSession.Parameter.CAPTURE);
+        verify(invader).getDeviceName();
+        verify(session, never()).parameter(PhoneCallSession.Parameter.SHARED);
+        verify(session, never()).parameter(eq(PhoneCallSession.Parameter.CAPTURE), any());
+        // check results
+        assertThat(session.isCaptive()).isFalse();
+    }
+
+    @Test
+    public void shouldGetCaptiveBy() {
+        // preparing test data
+        String invaderName = "invader";
+        PhoneCallSession invader = mock(PhoneCallSession.class);
+        doReturn(invaderName).when(invader).getDeviceName();
+        assertThat(session.isCaptive()).isFalse();
+        session.capture(invader);
+        reset(session);
+
+        // acting
+        Optional<String> captured = session.captiveBy();
+
+        // check the behavior
+        verify(session, never()).isCaptive();
+        verify(session).parameter(PhoneCallSession.Parameter.CAPTURE);
+        // check results
+        assertThat(session.isCaptive()).isTrue();
+        assertThat(captured).contains(invaderName);
+    }
+
+    @Test
+    public void shouldNotGetCaptiveBy_NotCaptured() {
+        // preparing test data
+
+        // acting
+        Optional<String> captured = session.captiveBy();
+
+        // check the behavior
+        verify(session, never()).isCaptive();
+        verify(session).parameter(PhoneCallSession.Parameter.CAPTURE);
+        // check results
+        assertThat(session.isCaptive()).isFalse();
+        assertThat(captured).isEmpty();
     }
 }
