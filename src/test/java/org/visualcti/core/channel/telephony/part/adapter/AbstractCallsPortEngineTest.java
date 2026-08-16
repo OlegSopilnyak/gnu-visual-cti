@@ -717,7 +717,7 @@ public class AbstractCallsPortEngineTest<H> {
     }
 
     @Test
-    public void shouldConnect_ConnectableIsAlive() {
+    public void shouldConnectTo_AliveSession() {
         // preparing test data
         doReturn(true).when(engine).canBeConnected();
         engine.uses(device);
@@ -732,7 +732,7 @@ public class AbstractCallsPortEngineTest<H> {
         doReturn(sharedHandle).when(sharedSession).getDeviceHandle();
         doReturn(true).when(sharedSession).isAlive();
         doReturn(true).when(sharedSession).hasNumber(number);
-        factory.shareDevice(sharedSession, -1L);
+        factory.shareDevice(sharedSession);
         doReturn(true).when(provider).makeConnection(sharedHandle, deviceHandle);
 
         // acting
@@ -740,10 +740,9 @@ public class AbstractCallsPortEngineTest<H> {
 
         // check the behavior
         verify(session, atLeastOnce()).getDeviceHandle();
-//        verify(engine).canBeConnected();
         verify(session).getDevice();
         verify(device).getFactory();
-        verify(factory).findConnectableFor(number);
+        verify(factory).findConnectableFor(number, session);
         verify(sharedSession, atLeastOnce()).isAlive();
         verify(provider).makeConnection(sharedHandle, deviceHandle);
         verify(sharedSession).join(session);
@@ -752,7 +751,7 @@ public class AbstractCallsPortEngineTest<H> {
     }
 
     @Test
-    public void shouldConnect_ConnectableIsDisconnected_WaitingForCall() {
+    public void shouldConnectTo_DisconnectedSession() {
         // preparing test data
         doReturn(true).when(engine).canBeConnected();
         engine.uses(device);
@@ -764,12 +763,12 @@ public class AbstractCallsPortEngineTest<H> {
         doReturn(true).when(sharedDevice).canBeConnected();
         doReturn(true).when(sharedDevice).canMakeCall();
         PhoneCallSession<H> sharedSession = mock(PhoneCallSession.class);
-        doReturn(TelephonyDevice.State.WAIT).when(sharedSession).getState();
+        doReturn(true).when(sharedSession).capture(sharedSession);
+        doReturn(true).when(sharedSession).capture(session);
         doReturn(sharedDevice).when(sharedSession).getDevice();
         doReturn(sharedHandle).when(sharedSession).getDeviceHandle();
         doCallRealMethod().when(sharedSession).isDisconnected();
-        doReturn(true).when(sharedSession).hasNumber(number);
-        factory.shareDevice(sharedSession, -1L);
+        factory.shareDevice(sharedSession);
         doReturn(true).when(provider).makeConnection(sharedHandle, deviceHandle);
         doReturn(true).when(engine).makeCall(sharedSession, number, timeout);
 
@@ -777,57 +776,22 @@ public class AbstractCallsPortEngineTest<H> {
         boolean done = engine.connect(session, number, timeout, sound);
 
         // check the behavior
-        verify(session, atLeastOnce()).getDeviceHandle();
-//        verify(engine).canBeConnected();
         verify(session, atLeastOnce()).getDevice();
         verify(device).getFactory();
-        verify(factory).findConnectableFor(number);
+        verify(factory).findConnectableFor(number, session);
         verify(sharedSession, atLeastOnce()).isAlive();
+        verify(sharedSession, never()).hasNumber(any(PhoneCall.Number.class));
+        verify(sharedSession).getDevice();
+        verify(sharedSession, atLeastOnce()).isDisconnected();
+        verify(sharedSession, atLeastOnce()).isAlive();
+        verify(sharedSession).capture(sharedSession);
+        verify(sharedSession).release(sharedSession);
+        verify(device).asyncPlaybackAudio(session, sound);
         verify(engine).makeCall(sharedSession, number, timeout);
         verify(provider).makeConnection(sharedHandle, deviceHandle);
+        verify(provider).stopAudioPlaying(deviceHandle);
         verify(sharedSession).join(session);
-        // check results
-        assertThat(done).isTrue();
-        assertThat(session.isAlive()).isFalse();
-        assertThat(session.getState()).isEqualTo(Device.State.IDLE);
-        assertThat(session.operationResult()).isEqualTo(Result.NONE);
-    }
-
-    @Test
-    public void shouldConnect_ConnectableIsDisconnected_Idle() {
-        // preparing test data
-        doReturn(true).when(engine).canBeConnected();
-        engine.uses(device);
-        PhoneCall.Number number = mock(PhoneCall.Number.class);
-        int timeout = 10;
-        Sound sound = mock(Sound.class);
-        H sharedHandle = (H) "mock()";
-        TelephonyDevice sharedDevice = mock(TelephonyDevice.class);
-        doReturn(true).when(sharedDevice).canBeConnected();
-        doReturn(true).when(sharedDevice).canMakeCall();
-        PhoneCallSession<H> sharedSession = mock(PhoneCallSession.class);
-        doReturn(Device.State.IDLE).when(sharedSession).getState();
-        doReturn(sharedDevice).when(sharedSession).getDevice();
-        doReturn(sharedHandle).when(sharedSession).getDeviceHandle();
-        doCallRealMethod().when(sharedSession).isDisconnected();
-        doReturn(true).when(sharedSession).hasNumber(number);
-        factory.shareDevice(sharedSession, -1L);
-        doReturn(true).when(provider).makeConnection(sharedHandle, deviceHandle);
-        doReturn(true).when(engine).makeCall(sharedSession, number, timeout);
-
-        // acting
-        boolean done = engine.connect(session, number, timeout, sound);
-
-        // check the behavior
-        verify(session, atLeastOnce()).getDeviceHandle();
-//        verify(engine).canBeConnected();
-        verify(session, atLeastOnce()).getDevice();
-        verify(device).getFactory();
-        verify(factory).findConnectableFor(number);
-        verify(sharedSession, atLeastOnce()).isAlive();
-        verify(engine).makeCall(sharedSession, number, timeout);
-        verify(provider).makeConnection(sharedHandle, deviceHandle);
-        verify(sharedSession).join(session);
+        verify(sharedSession).capture(session);
         // check results
         assertThat(done).isTrue();
         assertThat(session.isAlive()).isFalse();

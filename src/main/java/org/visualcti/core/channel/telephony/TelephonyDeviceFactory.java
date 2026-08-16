@@ -117,16 +117,14 @@ public interface TelephonyDeviceFactory<H, D extends TelephonyDevice<?, ?>> exte
      * To share active phone call session for the connection feature
      *
      * @param handle the phone call's session's device handle, device is working with
-     * @param delay  maximum time (milliseconds) of device session sharing or forever for negative value,
-     *               waiting for usage in connect(...) feature
      * @see TelephonyDevice#connect(PhoneCallSession, PhoneCall.Number, int, Sound)
      */
-    default void shareDevice(H handle, long delay) {
+    default void shareDevice(H handle) {
         devices()
                 .filter(device -> deviceContainsHandle(device, handle))
                 .map(device -> sessionForHandle(device, handle))
                 .filter(Objects::nonNull).findFirst()
-                .ifPresent(session -> shareDevice(session, delay));
+                .ifPresent(this::shareDevice);
     }
 
     /**
@@ -134,11 +132,9 @@ public interface TelephonyDeviceFactory<H, D extends TelephonyDevice<?, ?>> exte
      * To share opened phone call session for the connection feature
      *
      * @param session the phone call's session, device is working with
-     * @param delay  maximum time (milliseconds) of device session sharing or forever for negative value,
-     *               waiting for usage in connect(...) feature
      * @see TelephonyDevice#connect(PhoneCallSession, PhoneCall.Number, int, Sound)
      */
-    default void shareDevice(PhoneCallSession<H> session, long delay) {
+    default void shareDevice(PhoneCallSession<H> session) {
         // feature isn't supported here
         session.operationResult(Result.CALL.Analysis.NO_DIAL_TONE);
     }
@@ -174,13 +170,14 @@ public interface TelephonyDeviceFactory<H, D extends TelephonyDevice<?, ?>> exte
      * To find shared telephony device session for the connection feature
      *
      * @param callableNumber the number to connect to
+     * @param master the session which will capture and join the connectable session
      * @return the ready for connect session or empty if not exists
      * @see Optional
      * @see PhoneCallSession
      * @see PhoneCall.Number
      * @see TelephonyDevice#connect(PhoneCallSession, PhoneCall.Number, int, Sound)
      */
-    Optional<PhoneCallSession<H>> findConnectableFor(PhoneCall.Number callableNumber);
+    Optional<PhoneCallSession<H>> findConnectableFor(PhoneCall.Number callableNumber, PhoneCallSession<H> master);
 
     // to check is device has the session with the handle
     static <H> boolean deviceContainsHandle(TelephonyDevice device, H handle) {

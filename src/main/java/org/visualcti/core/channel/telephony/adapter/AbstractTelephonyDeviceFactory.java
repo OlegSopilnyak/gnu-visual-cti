@@ -112,12 +112,10 @@ public abstract class AbstractTelephonyDeviceFactory<H, D extends TelephonyDevic
      * To share opened phone call session for the connection feature
      *
      * @param session the phone call's session, device is working with
-     * @param delay   maximum time (milliseconds) of device session sharing or forever for negative value,
-     *                waiting for usage in connect(...) feature
      * @see TelephonyDevice#connect(PhoneCallSession, PhoneCall.Number, int, Sound)
      */
     @Override
-    public void shareDevice(final PhoneCallSession<H> session, long delay) {
+    public void shareDevice(final PhoneCallSession<H> session) {
         if (session.getDevice().canBeConnected()) {
             // device session can be shared
             safeOperation(() -> {
@@ -125,7 +123,7 @@ public abstract class AbstractTelephonyDeviceFactory<H, D extends TelephonyDevic
                     // adding not exists session to shared sessions holder
                     sharedDeviceSessions().add(session);
                     // setting up session's operation result by default
-                    TelephonyDeviceFactory.super.shareDevice(session, delay);
+                    TelephonyDeviceFactory.super.shareDevice(session);
                     return session;
                 }
                 return null;
@@ -145,16 +143,17 @@ public abstract class AbstractTelephonyDeviceFactory<H, D extends TelephonyDevic
         safeOperation(() -> {
             final Set<PhoneCallSession<H>> current = sharedDeviceSessions();
             final Set<PhoneCallSession<H>> cut = current.stream().filter(s -> !s.equals(session)).collect(Collectors.toSet());
-            properties.put(Device.Parameter.SHARED.value(),cut);
+            properties.put(Device.Parameter.SHARED.value(), cut);
             return null;
         });
     }
 
     /**
      * <finder>
-     * To find telephony device session for the connection feature by phone number
+     * To find shared telephony device session for the connection feature
      *
      * @param callableNumber the number to connect to
+     * @param master         the session which will capture and join the connectable session
      * @return the ready for connect session or empty if not exists
      * @see Optional
      * @see PhoneCallSession
@@ -162,8 +161,9 @@ public abstract class AbstractTelephonyDeviceFactory<H, D extends TelephonyDevic
      * @see TelephonyDevice#connect(PhoneCallSession, PhoneCall.Number, int, Sound)
      */
     @Override
-    public Optional<PhoneCallSession<H>> findConnectableFor(final PhoneCall.Number callableNumber) {
-        return Optional.ofNullable(safeOperation(() -> lookForNumber(callableNumber)));
+    public Optional<PhoneCallSession<H>> findConnectableFor(final PhoneCall.Number callableNumber,
+                                                            final PhoneCallSession<H> master) {
+        return Optional.ofNullable(safeOperation(() -> lookForNumber(callableNumber, master)));
     }
 
     /**
@@ -199,7 +199,8 @@ public abstract class AbstractTelephonyDeviceFactory<H, D extends TelephonyDevic
     }
 
     // looking for the shared session which can allow to play as second one for the telephony call by phone call connection feature
-    private PhoneCallSession<H> lookForNumber(final PhoneCall.Number targetPhoneNumber) {
+    private PhoneCallSession<H> lookForNumber(final PhoneCall.Number targetPhoneNumber,
+                                              final PhoneCallSession<H> master) {
         // looking for session among live sessions
         final PhoneCallSession<H> aliveSession = aliveSessionWithPhoneNumber(targetPhoneNumber);
         if (Optional.ofNullable(aliveSession).isPresent()) {
@@ -207,7 +208,7 @@ public abstract class AbstractTelephonyDeviceFactory<H, D extends TelephonyDevic
             return aliveSession;
         }
         // looking for session among free and disconnected sessions
-        final PhoneCallSession<H> disconnectedSession = capturedFreeSession();
+        final PhoneCallSession<H> disconnectedSession = capturedFreeSession(master);
         if (Optional.ofNullable(disconnectedSession).isPresent()) {
             // preparing the captive, free and disconnected session for the further capturing by leader session
             // the session was captive by itself releasing it
@@ -229,11 +230,15 @@ public abstract class AbstractTelephonyDeviceFactory<H, D extends TelephonyDevic
     }
 
     // to look for the session which is not alive and captured for the dedicated usage
-    private PhoneCallSession<H> capturedFreeSession() {
-        return disconnectedSessionsWith(session -> session.capture(session)).findFirst().orElse(null);
+    private PhoneCallSession<H> capturedFreeSession(final PhoneCallSession<H> master) {
+        return disconnectedSessionsWith(master, session -> session.capture(session))
+                .findFirst().orElse(null);
     }
 
-    private Stream<PhoneCallSession<H>> disconnectedSessionsWith(final Predicate<PhoneCallSession<H>> predicate) {
-        return sharedDeviceSessions().stream().filter(PhoneCallSession::isDisconnected).filter(predicate);
+    private Stream<PhoneCallSession<H>> disconnectedSessionsWith(final PhoneCallSession<H> master,
+                                                                 final Predicate<PhoneCallSession<H>> predicate) {
+        return sharedDeviceSessions().stream()
+                .filter(session -> session != master).filter(PhoneCallSession::isDisconnected)
+                .filter(predicate);
     }
 }

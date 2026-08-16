@@ -64,9 +64,6 @@ import org.visualcti.media.Sound;
  */
 //@SuppressWarnings({"unchecked"})
 public abstract class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> implements CallsPortEngine<H> {
-    // predicate for valid session's state for completed operation
-    private static final Predicate<DeviceStateValue> operationCompleteState =
-            state -> state == Device.State.IDLE || state == Device.State.ERROR;
     // predicate to check is service provider can accept incoming call
     private static final Predicate<TelephonyDeviceCore<?>> providerCanAcceptCall =
             core -> core.getProvider().canAcceptCall(core.getName());
@@ -217,9 +214,20 @@ public abstract class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> i
             // wait for call loop
             do {
                 try {
+                    // checking capture of the resource
+                    if (canBeConnected && !session.capture(session)) {
+                        // the session is captive
+                        final String newStateMessage =
+                                "The session is shared with " + session.captiveBy().orElse("unknown");
+                        session.getDevice().dispatchEvent(newStateMessage);
+                        // failed the end of method's call
+                        return false;
+                    }
                     // preparing the session for wait for incoming call and
                     // waiting for incoming call 1 second of the timeout's seconds
-                    preparingWaitForCall(session, serviceProvider, waitForCallDelay);
+                    preparingWaitForCall(session, serviceProvider);
+                    // waiting for incoming call 1 second of the timeout's seconds
+                    session.waitingForTheOperationComplete(waitForCallDelay);
                     // checking the operation result value after waiting operation complete
                     if (session.operationResult() == Result.ERROR) {
                         // device error is detected
@@ -240,10 +248,11 @@ public abstract class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> i
                         // checking is it possible to share the phone call session during wait for call operation
                     } else if (canBeConnected) {
                         // waiting for incoming call or make call 1 second of the timeout's seconds
-                        if (sharingForConnect(session, halfSecondMilliseconds)) {
-                            // the operation is completed by any reason
-                            return true;
-                        }
+                        session.getDevice().dispatchEvent("Sharing 'wait for call' operation resource.");
+                        // releasing captive session
+                        session.release(session);
+                        // waiting for incoming call or start making the outgoing call for
+                        session.waitingForTheOperationComplete(waitForCallDelay);
                     }
                 } catch (InterruptedException e) {
                     session.getDevice().dispatchError(e, "Cannot wait for call operation complete.");
@@ -470,8 +479,7 @@ public abstract class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> i
     /// private methods
     // preparing the session for wait for incoming call
     private void preparingWaitForCall(final PhoneCallSession<H> session,
-                                      final TelephonyServiceProvider<H> serviceProvider,
-                                      final long milliseconds) throws InterruptedException {
+                                      final TelephonyServiceProvider<H> serviceProvider) throws InterruptedException {
         // getting the device's handle from the session
         final H handle = session.getDeviceHandle();
         // setting up called number for waiting incoming call to
@@ -482,8 +490,6 @@ public abstract class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> i
         session.setState(TelephonyDevice.State.WAIT);
         session.operationResult(Result.NONE);
         session.getDevice().dispatchEvent("Starting wait for incoming call.");
-        // waiting for incoming call 1 second of the timeout's seconds
-        session.waitingForTheOperationComplete(milliseconds);
     }
 
     // checking wait for call operation results
@@ -557,38 +563,31 @@ public abstract class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> i
     private boolean connectedTo(final PhoneCall.Number phoneNumber,
                                 final int timeout, final Sound toPlay,
                                 final PhoneCallSession<H> leadingSession) {
-        return leadingSession.getDevice().getFactory().findConnectableFor(phoneNumber).map(connectableSession -> {
-            // low-level connections joining if leading session is alive
-            if (connectableSession.isAlive() && lowLevelJoin(connectableSession, leadingSession)) {
-                // just joining two alive phone call sessions
-                connectableSession.join(leadingSession);
-                return true;
-            } else if (connectableSession.isDisconnected()) {
-                // start playing the melody sound during outgoing phone call's making
-                leadingSession.getDevice().asyncPlaybackAudio(leadingSession, toPlay);
-                // making outgoing telephony call using shared session and low-level connection
-                // if outgoing phone call is made successfully
-                if (makeCall(connectableSession, phoneNumber, timeout) && lowLevelJoin(connectableSession, leadingSession)) {
-                    // stop playing the melody sound
-                    deviceCore.getProvider().stopAudioPlaying(leadingSession.getDeviceHandle());
-                    // just joining two alive phone call sessions
-                    connectableSession.join(leadingSession);
-                    return connectableSession.capture(leadingSession);
-                }
-                // stop playing the melody sound
-                deviceCore.getProvider().stopAudioPlaying(leadingSession.getDeviceHandle());
-            }
-            // the connection isn't successful
-            return false;
-        }).orElse(false);
-    }
-
-    // waiting for incoming call or make call 1 second of the timeout's seconds
-    private boolean sharingForConnect(PhoneCallSession<H> session, long timeout) throws InterruptedException {
-        session.getDevice().dispatchEvent("Sharing 'wait for call' operation resource.");
-        // waiting for incoming call or make call 1 second of the timeout's seconds
-        session.waitingForTheOperationComplete(timeout);
-        return operationCompleteState.test(session.getState()) && session.isAlive();
+        return leadingSession.getDevice().getFactory().findConnectableFor(phoneNumber, leadingSession)
+                .map(connectableSession -> {
+                    // low-level connections joining if leading session is alive
+                    if (connectableSession.isAlive() && lowLevelJoin(connectableSession, leadingSession)) {
+                        // just joining two alive phone call sessions
+                        connectableSession.join(leadingSession);
+                        return true;
+                    } else if (connectableSession.isDisconnected()) {
+                        // start playing the melody sound during outgoing phone call's making
+                        leadingSession.getDevice().asyncPlaybackAudio(leadingSession, toPlay);
+                        // making outgoing telephony call using shared session and low-level connection
+                        // if outgoing phone call is made successfully
+                        if (makeCall(connectableSession, phoneNumber, timeout) && lowLevelJoin(connectableSession, leadingSession)) {
+                            // stop playing the melody sound
+                            deviceCore.getProvider().stopAudioPlaying(leadingSession.getDeviceHandle());
+                            // just joining two alive phone call sessions
+                            connectableSession.join(leadingSession);
+                            return connectableSession.capture(leadingSession);
+                        }
+                        // stop playing the melody sound
+                        deviceCore.getProvider().stopAudioPlaying(leadingSession.getDeviceHandle());
+                    }
+                    // the connection isn't successful
+                    return false;
+                }).orElse(false);
     }
 
     // low-level telephony call session connections joining by their handles
