@@ -44,6 +44,7 @@ import java.util.Objects;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import org.visualcti.core.channel.device.Device;
+import org.visualcti.core.channel.device.DeviceActivitySession;
 import org.visualcti.core.channel.device.DeviceStateValue;
 import org.visualcti.core.channel.device.adapter.AbstractDevice;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
@@ -265,7 +266,7 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      * @see #getProvider()
      */
     @Override
-    public Session<H> startSession() throws IOException {
+    public DeviceActivitySession<H> startSession() throws IOException {
         final PhoneCallSession<H> session = (PhoneCallSession<H>) super.startSession();
         // analyzing the opened device session
         if (session != null && session.isOpened()) {
@@ -300,10 +301,10 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      * To stop device's session and detach it from device events stream
      *
      * @param session opened device's session
-     * @see Device#detachAndClose(Session)
+     * @see Device#detachAndClose(DeviceActivitySession)
      */
     @Override
-    public void detachAndClose(final Session<H> session) {
+    public void detachAndClose(final DeviceActivitySession<H> session) {
         if (session == null) {
             // nothing to do
             return;
@@ -418,7 +419,7 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      * To make the outgoing call. A mode of a set (pulse or tone) and others
      * the necessary parameters are set by installations of port.
      * <p>
-     * Possible values of {@link PhoneCall#operationResult()}:
+     * Possible values of {@link PhoneCallSession#operationResult()}:
      * <p>
      * {@link Result.CALL.Analysis#VOICE}         - the Man's voice is answered<BR/>
      * {@link Result.CALL.Analysis#FAX}           - the fax - device has answered<BR/>
@@ -457,7 +458,7 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      * On the chosen phone port operation <b>makeCall (number, timeout)</b>
      * automatically is carried out. The result of this operation also
      * will be returned result of operation <b>connect (...)</b>.
-     * In case of result call with {@link PhoneCall#operationResult()}
+     * In case of result call with {@link PhoneCallSession#operationResult()}
      * {@link Result.CALL.Analysis#VOICE} or {@link Result.CALL.Analysis#FAX} the joining of two ports is made.
      * <p>
      * If the telephone number coincides with internal number of one of ports
@@ -477,7 +478,7 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      * At presence of a signal the operation returns VOICE,
      * otherwise - {@link Result.CALL.Analysis#NO_DIAL_TONE}.<BR/>
      * <p>
-     * Possible values of {@link PhoneCall#operationResult()}:
+     * Possible values of {@link PhoneCallSession#operationResult()}:
      * <p>
      * {@link Result.CALL.Analysis#VOICE}         - the Man's voice is answered<BR/>
      * {@link Result.CALL.Analysis#FAX}           - the fax - device has answered<BR/>
@@ -825,29 +826,29 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
     }
 
     // unified delegation of phone call operation for particular device
-    private PhoneCall delegatePhoneCallOperation(final DeviceStateValue operationInitState,
-                                                 final Supplier<PhoneCall> operation,
-                                                 final Predicate<OperationResultValue> validResults) {
-        // checking device's handle value
-        if (!isDeviceOpened()) {
-            // device isn't opened yet
-//            setState(Device.State.CLOSED);
-            return PhoneCall.FAILED;
-        } else {
-            // running the operation's call sequence
-//            setState(operationInitState);
-            // waiting for the operation's complete
-            final PhoneCall result = operation.get();
-            // preparing new device state
-            final DeviceStateValue operationResultDeviceState = validResults.test(result.operationResult())
-                    ? Device.State.IDLE
-                    : result.operationResult() == Result.TERMINATED ? Device.State.STOPD : Device.State.ERROR;
-            // setting up the device state according the operation's result
-//            setState(operationResultDeviceState);
-            // returning the phone call instance
-            return result;
-        }
-    }
+//    private PhoneCall delegatePhoneCallOperation(final DeviceStateValue operationInitState,
+//                                                 final Supplier<PhoneCall> operation,
+//                                                 final Predicate<OperationResultValue> validResults) {
+//        // checking device's handle value
+//        if (!isDeviceOpened()) {
+//            // device isn't opened yet
+////            setState(Device.State.CLOSED);
+//            return PhoneCall.FAILED;
+//        } else {
+//            // running the operation's call sequence
+////            setState(operationInitState);
+//            // waiting for the operation's complete
+//            final PhoneCall result = operation.get();
+//            // preparing new device state
+//            final DeviceStateValue operationResultDeviceState = validResults.test(result.operationResult())
+//                    ? Device.State.IDLE
+//                    : result.operationResult() == Result.TERMINATED ? Device.State.STOPD : Device.State.ERROR;
+//            // setting up the device state according the operation's result
+////            setState(operationResultDeviceState);
+//            // returning the phone call instance
+//            return result;
+//        }
+//    }
 
     // unified delegation to the proper tone-engine related action
     private void delegateToneAction(final DeviceStateValue actionState, final Runnable action) {

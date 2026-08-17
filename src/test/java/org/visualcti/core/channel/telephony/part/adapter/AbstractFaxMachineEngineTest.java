@@ -244,7 +244,7 @@ public class AbstractFaxMachineEngineTest<H> {
         verify(session).parameter(eq(FaxMachineEngine.Parameter.FAX_TEMPORARY), any(File.class));
         verify(provider).startFaxReceiving(eq(deviceHandle), anyString(), eq(issueVoiceRequest));
         verify(session).operationComplete(Result.NONE);
-        verify(session).waitingForTheOperationComplete(anyLong());
+        verify(session).waitingForOperationComplete(anyLong());
         verify(session).operationComplete(Result.IO.EOF);
         verify(session).setState(Device.State.IDLE);
         verify(provider, atLeastOnce()).stopFaxReceiving(deviceHandle);
@@ -358,7 +358,7 @@ public class AbstractFaxMachineEngineTest<H> {
         verify(session).parameter(eq(FaxMachineEngine.Parameter.FAX_TEMPORARY), any(File.class));
         verify(provider).startFaxReceiving(eq(deviceHandle), anyString(), eq(issueVoiceRequest));
         verify(session).operationComplete(Result.NONE);
-        verify(session).waitingForTheOperationComplete(anyLong());
+        verify(session).waitingForOperationComplete(anyLong());
         verify(out, never()).write(any(), anyInt(), anyInt());
         verify(session).alive(false);
         verify(session).operationComplete(Result.CALL.DISCONNECT);
@@ -404,7 +404,7 @@ public class AbstractFaxMachineEngineTest<H> {
         verify(session).parameter(eq(FaxMachineEngine.Parameter.FAX_TEMPORARY), any(File.class));
         verify(provider).startFaxReceiving(eq(deviceHandle), anyString(), eq(issueVoiceRequest));
         verify(session).operationComplete(Result.NONE);
-        verify(session).waitingForTheOperationComplete(anyLong());
+        verify(session).waitingForOperationComplete(anyLong());
         verify(out, never()).write(any(), anyInt(), anyInt());
         verify(session).operationComplete(reason);
         verify(session).setState(Device.State.ERROR);
@@ -454,7 +454,7 @@ public class AbstractFaxMachineEngineTest<H> {
         verify(session).parameter(eq(FaxMachineEngine.Parameter.FAX_TEMPORARY), any(File.class));
         verify(provider).startFaxReceiving(eq(deviceHandle), anyString(), eq(issueVoiceRequest));
         verify(session).operationComplete(Result.NONE);
-        verify(session).waitingForTheOperationComplete(anyLong());
+        verify(session).waitingForOperationComplete(anyLong());
         verify(out, never()).write(any(), anyInt(), anyInt());
         verify(session).operationComplete(reason);
         verify(session).setState(Device.State.ERROR);
@@ -504,7 +504,7 @@ public class AbstractFaxMachineEngineTest<H> {
         verify(session).parameter(eq(FaxMachineEngine.Parameter.FAX_TEMPORARY), any(File.class));
         verify(provider).startFaxReceiving(eq(deviceHandle), anyString(), eq(issueVoiceRequest));
         verify(session).operationComplete(Result.NONE);
-        verify(session).waitingForTheOperationComplete(anyLong());
+        verify(session).waitingForOperationComplete(anyLong());
         verify(out, never()).write(any(), anyInt(), anyInt());
         verify(session).operationComplete(reason);
         verify(session).setState(Device.State.ERROR);
@@ -554,7 +554,7 @@ public class AbstractFaxMachineEngineTest<H> {
         verify(session).parameter(eq(FaxMachineEngine.Parameter.FAX_TEMPORARY), any(File.class));
         verify(provider).startFaxReceiving(eq(deviceHandle), anyString(), eq(issueVoiceRequest));
         verify(session).operationComplete(Result.NONE);
-        verify(session).waitingForTheOperationComplete(anyLong());
+        verify(session).waitingForOperationComplete(anyLong());
         verify(out, never()).write(any(), anyInt(), anyInt());
         verify(session).operationComplete(reason);
         verify(session).setState(Device.State.ERROR);
@@ -604,7 +604,7 @@ public class AbstractFaxMachineEngineTest<H> {
         verify(session).parameter(eq(FaxMachineEngine.Parameter.FAX_TEMPORARY), any(File.class));
         verify(provider).startFaxReceiving(eq(deviceHandle), anyString(), eq(issueVoiceRequest));
         verify(session).operationComplete(Result.NONE);
-        verify(session).waitingForTheOperationComplete(anyLong());
+        verify(session).waitingForOperationComplete(anyLong());
         verify(out, never()).write(any(), anyInt(), anyInt());
         verify(session).operationComplete(reason);
         verify(session).setState(Device.State.ERROR);
@@ -662,7 +662,7 @@ public class AbstractFaxMachineEngineTest<H> {
         verify(session).setState(TelephonyDevice.State.RECVFAX);
         verify(session).parameter(eq(FaxMachineEngine.Parameter.FAX_TEMPORARY), any(File.class));
         verify(provider).startFaxReceiving(eq(deviceHandle), anyString(), eq(issueVoiceRequest));
-        verify(session).waitingForTheOperationComplete(anyLong());
+        verify(session).waitingForOperationComplete(anyLong());
         verify(engine).terminate(session);
         verify(session).operationComplete(Result.TERMINATED);
         verify(session).terminate();
@@ -722,7 +722,7 @@ public class AbstractFaxMachineEngineTest<H> {
         verify(provider).startFaxTransmitting(eq(deviceHandle), anyString(), eq(issueVoiceRequest),
                 eq(format.isTIFF()), eq(format.isHighResolution()), anyInt(), anyInt());
         verify(session).operationComplete(Result.NONE);
-        verify(session).waitingForTheOperationComplete(anyLong());
+        verify(session).waitingForOperationComplete(anyLong());
         verify(session).operationComplete(Result.IO.EOF);
         verify(session).setState(Device.State.IDLE);
         verify(provider, atLeastOnce()).stopFaxTransmitting(deviceHandle);
@@ -1224,7 +1224,7 @@ public class AbstractFaxMachineEngineTest<H> {
         verify(provider).startFaxTransmitting(eq(deviceHandle), anyString(), eq(issueVoiceRequest),
                 eq(format.isTIFF()), eq(format.isHighResolution()), anyInt(), anyInt());
         verify(session).operationComplete(Result.NONE);
-        verify(session).waitingForTheOperationComplete(anyLong());
+        verify(session).waitingForOperationComplete(anyLong());
         verify(engine).terminate(session);
         verify(session).operationComplete(Result.TERMINATED);
         verify(session).terminate();

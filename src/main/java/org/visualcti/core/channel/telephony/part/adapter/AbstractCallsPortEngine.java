@@ -227,7 +227,7 @@ public abstract class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> i
                     // waiting for incoming call 1 second of the timeout's seconds
                     preparingWaitForCall(session, serviceProvider);
                     // waiting for incoming call 1 second of the timeout's seconds
-                    session.waitingForTheOperationComplete(waitForCallDelay);
+                    session.waitingForOperationComplete(waitForCallDelay);
                     // checking the operation result value after waiting operation complete
                     if (session.operationResult() == Result.ERROR) {
                         // device error is detected
@@ -252,7 +252,7 @@ public abstract class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> i
                         // releasing captive session
                         session.release(session);
                         // waiting for incoming call or start making the outgoing call for
-                        session.waitingForTheOperationComplete(waitForCallDelay);
+                        session.waitingForOperationComplete(waitForCallDelay);
                     }
                 } catch (InterruptedException e) {
                     session.getDevice().dispatchError(e, "Cannot wait for call operation complete.");
@@ -293,7 +293,7 @@ public abstract class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> i
      * To make the outgoing call. A mode of a set (pulse or tone) and others
      * the necessary parameters are set by installations of port.
      * <p>
-     * Possible values of {@link PhoneCall#operationResult()}:
+     * Possible values of {@link PhoneCallSession#operationResult()}:
      * <p>
      * {@link Result.CALL.Analysis#VOICE}         - the Man's voice is answered<BR/>
      * {@link Result.CALL.Analysis#FAX}           - the fax - device has answered<BR/>
@@ -331,7 +331,7 @@ public abstract class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> i
             }
             // waiting for an answer from the called number side 'timeout' seconds
             try {
-                session.waitingForTheOperationComplete(timeout * 1000L);
+                session.waitingForOperationComplete(timeout * 1000L);
                 // checking the operation result value after waiting operation complete
                 if (session.operationResult() == Result.ERROR) {
                     // device error is detected
@@ -397,7 +397,7 @@ public abstract class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> i
      * On the chosen phone port operation <b>makeCall (number, timeout)</b>
      * automatically is carried out. The result of this operation also
      * will be returned result of operation <b>connect (...)</b>.
-     * In case of result call with {@link PhoneCall#operationResult()}
+     * In case of result call with {@link PhoneCallSession#operationResult()}
      * {@link Result.CALL.Analysis#VOICE} or {@link Result.CALL.Analysis#FAX} the joining of two ports is made.
      * <p>
      * If the telephone number coincides with internal number of one of ports
@@ -417,7 +417,7 @@ public abstract class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> i
      * At presence of a signal the operation returns VOICE,
      * otherwise - {@link Result.CALL.Analysis#NO_DIAL_TONE}.<BR/>
      * <p>
-     * Possible values of {@link PhoneCall#operationResult()}:
+     * Possible values of {@link PhoneCallSession#operationResult()}:
      * <p>
      * {@link Result.CALL.Analysis#VOICE}         - the Man's voice is answered<BR/>
      * {@link Result.CALL.Analysis#FAX}           - the fax - device has answered<BR/>

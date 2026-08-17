@@ -130,7 +130,7 @@ public abstract class AbstractTonesEngine<H> extends AbstractDevicePart<H> imple
                 }
                 // waiting for the timeout time
                 try {
-                    session.waitingForTheOperationComplete(timeout);
+                    session.waitingForOperationComplete(timeout);
                     // checking the operation result value after waiting operation complete
                     if (session.operationResult() == Result.ERROR) {
                         // stopping tone generation
@@ -222,7 +222,7 @@ public abstract class AbstractTonesEngine<H> extends AbstractDevicePart<H> imple
             for (int i = 1; i <= digitsCount; i++) {
                 // waiting for the timeout time
                 try {
-                    session.waitingForTheOperationComplete(oneSymbolTimeout);
+                    session.waitingForOperationComplete(oneSymbolTimeout);
                     final OperationResultValue operationResult = session.operationResult();
                     // checking the operation result value after waiting operation complete
                     if (operationResult == Result.ERROR) {

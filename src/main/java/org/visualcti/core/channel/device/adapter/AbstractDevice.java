@@ -47,6 +47,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.core.channel.device.Device;
+import org.visualcti.core.channel.device.DeviceActivitySession;
 import org.visualcti.core.channel.device.DeviceStateValue;
 import org.visualcti.core.channel.device.Factory;
 import org.visualcti.server.unit.ServerUnitAdapter;
@@ -94,11 +95,11 @@ public class AbstractDevice<H, F extends Factory<H, ?>> extends ServerUnitAdapte
      * @param session the context with new value of the state
      * @see AbstractDeviceSession#setState(DeviceStateValue)
      * @see #dispatchError(String)
-     * @see Session#getState()
-     * @see Session#getDeviceHandle()
+     * @see DeviceActivitySession#getState()
+     * @see DeviceActivitySession#getDeviceHandle()
      */
     @Override
-    public void stateChangedFor(final Session<H> session) {
+    public void stateChangedFor(final DeviceActivitySession<H> session) {
         if (isInvalid(session)) {
             dispatchError("Wrong state changed notification for\n" + session);
         } else {
@@ -119,7 +120,7 @@ public class AbstractDevice<H, F extends Factory<H, ?>> extends ServerUnitAdapte
      *
      * @return stream of active device's sessions states
      * @see DeviceStateValue
-     * @see #stateChangedFor(Session)
+     * @see #stateChangedFor(DeviceActivitySession)
      */
     @Override
     public Stream<DeviceStateValue> getStates() {
@@ -191,7 +192,7 @@ public class AbstractDevice<H, F extends Factory<H, ?>> extends ServerUnitAdapte
 
     /// / private methods
     // to check the device session integrity
-    private static boolean isInvalid(Session<?> session) {
+    private static boolean isInvalid(DeviceActivitySession<?> session) {
         return session == null || session.getDeviceHandle() == null || session.getState() == null;
     }
 }

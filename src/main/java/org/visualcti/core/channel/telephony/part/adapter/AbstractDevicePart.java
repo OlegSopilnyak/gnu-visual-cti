@@ -41,6 +41,7 @@ import java.util.Objects;
 import java.util.function.Predicate;
 import org.visualcti.core.XmlAware;
 import org.visualcti.core.channel.device.Device;
+import org.visualcti.core.channel.device.DeviceActivitySession;
 import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.DeviceMalfunction;
 import org.visualcti.core.channel.device.DeviceStateValue;
@@ -112,7 +113,7 @@ public abstract class AbstractDevicePart<H> implements TelephonyDevicePart<H>, X
             // after possible connect with another phone number
             // breaking the connections with all joint phone call sessions
             session.joint().map(phoneCall -> (PhoneCallSession<H>) phoneCall)
-                    .map(Device.Session::getDeviceHandle)
+                    .map(DeviceActivitySession::getDeviceHandle)
                     .forEach(second -> serviceProvider.breakConnection(second, handle));
             // detaching all possible joint sessions
             session.detachAll();
@@ -137,10 +138,10 @@ public abstract class AbstractDevicePart<H> implements TelephonyDevicePart<H>, X
      *
      * @param session the phone call's session, device is working with
      * @param reason  the reason of malfunction
-     * @see #onDeviceError(Device.Session, String, boolean)
+     * @see #onDeviceError(DeviceActivitySession, String, boolean)
      * @see Result#ERROR
      */
-    protected void onDeviceError(Device.Session<H> session, String reason) {
+    protected void onDeviceError(DeviceActivitySession<H> session, String reason) {
         onDeviceError(session, reason, true);
     }
 
@@ -154,7 +155,7 @@ public abstract class AbstractDevicePart<H> implements TelephonyDevicePart<H>, X
      * @see Result#ERROR
      * @see DeviceMalfunction
      */
-    protected void onDeviceError(Device.Session<H> session, String reason, boolean throwException) {
+    protected void onDeviceError(DeviceActivitySession<H> session, String reason, boolean throwException) {
         session.setState(Device.State.ERROR);
         session.getDevice().dispatchError(reason);
         if (throwException) {

@@ -41,20 +41,24 @@ package org.visualcti.core.channel.device.adapter;
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import org.visualcti.core.channel.device.Device;
+import org.visualcti.core.channel.device.DeviceActivitySession;
 import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.DeviceStateValue;
+import org.visualcti.core.channel.device.operation.OperationResultValue;
 
 /**
  * Abstract Device's Context: The context of device's activity
  *
  * @param <H> the type of the device's low-level operations handle
- * @see Device.Session
+ * @see DeviceActivitySession
  * @see Device#findSessionByHandle(Object)
  * @see Device#createSessionFor(Object)
  */
 @SuppressWarnings("unchecked")
-public abstract class AbstractDeviceSession<H> implements Device.Session<H> {
+public class AbstractDeviceSession<H> implements DeviceActivitySession<H> {
     // the device-owner reference
     protected Device<H, ?> device;
     // the holder of the device session's parameters
@@ -62,16 +66,16 @@ public abstract class AbstractDeviceSession<H> implements Device.Session<H> {
 
     /**
      * <builder>
-     * Constructor of the device activities context
+     * Constructor of the device activities session
      *
-     * @param deviceOwner  the reference to the device-owner of the context
+     * @param sessionOwner  the reference to the device-owner of the session
      * @param deviceHandle the handle to the opened device's resource
      * @see Device.ServiceProvider#openResource(String)
      */
-    protected AbstractDeviceSession(Device<H, ?> deviceOwner, H deviceHandle) {
-        this.device = deviceOwner;
+    protected AbstractDeviceSession(Device<H, ?> sessionOwner, H deviceHandle) {
+        this.device = sessionOwner;
         // the parameter value of device's name
-        parameter(Device.Parameter.NAME, deviceOwner.getName());
+        parameter(Device.Parameter.NAME, sessionOwner.getName());
         // the parameter value of device's handle
         parameter(Device.Parameter.DEVICE_HANDLE, deviceHandle);
         // the flag is device resource opened
@@ -108,11 +112,42 @@ public abstract class AbstractDeviceSession<H> implements Device.Session<H> {
      *
      * @return true if it's opened
      * @see #isValidDeviceHandle()
-     * @see Device.Session#isOpened()
+     * @see DeviceActivitySession#isOpened()
      */
     @Override
     public boolean isOpened() {
-        return isValidDeviceHandle() && Device.Session.super.isOpened();
+        return isValidDeviceHandle() && DeviceActivitySession.super.isOpened();
+    }
+
+    /**
+     * <action>
+     * To wait the running operation complete or timeout
+     *
+     * @param timeout how long to wait
+     * @throws InterruptedException if operation is interrupted outside
+     * @see #operationComplete(OperationResultValue)
+     * @see CountDownLatch
+     * @see CountDownLatch#await(long, TimeUnit)
+     * @see CountDownLatch#await()
+     */
+    @Override
+    public void waitingForOperationComplete(long timeout) throws InterruptedException {
+        // preparing running operation's latch
+        final CountDownLatch latch = new CountDownLatch(1);
+        parameter(Device.Parameter.LATCH, latch);
+        if (timeout > 0) {
+            // start waiting until operation complete or timeout
+            if (latch.await(timeout, TimeUnit.MILLISECONDS)) {
+                // latch was notified outside
+                device.dispatchEvent("Operation was completed");
+            } else {
+                // latch wasn't notified outside
+                device.dispatchEvent("Operation was timed out");
+            }
+        } else {
+            // start waiting until operation complete (no limits)
+            latch.await();
+        }
     }
 
     /**
@@ -181,11 +216,11 @@ public abstract class AbstractDeviceSession<H> implements Device.Session<H> {
      * @return reference to the updated session
      */
     @Override
-    public <T> Device.Session<H> parameter(final Device.ParameterName name, final T value) {
+    public <T> DeviceActivitySession<H> parameter(final Device.ParameterName name, final T value) {
         if (value != null) {
             parametersMap.put(name, value);
         } else {
-            parametersMap.remove(name);
+            remove(name);
         }
         return this;
     }
@@ -231,17 +266,6 @@ public abstract class AbstractDeviceSession<H> implements Device.Session<H> {
      */
     @Override
     public boolean accept(DeviceEvent<?> event) {
-        return true;
-    }
-
-    /**
-     * <action>
-     * Whether the given event is accepted by the context
-     *
-     * @param event the fired Event
-     * @return true if the event accepted for the processing
-     */
-    protected boolean acceptEvent(DeviceEvent<?> event) {
         return true;
     }
 }

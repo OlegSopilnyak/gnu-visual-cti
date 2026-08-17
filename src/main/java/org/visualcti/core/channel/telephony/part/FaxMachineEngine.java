@@ -41,6 +41,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import org.visualcti.core.channel.device.Device;
+import org.visualcti.core.channel.device.DeviceActivitySession;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.operation.Result;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
@@ -86,7 +87,7 @@ public interface FaxMachineEngine<H> extends TelephonyDevicePart<H> {
      * @throws IOException if device cannot open fax-machine for the telephony device session
      * @see PhoneCallSession
      */
-    default void open(Device.Session<H> session) throws IOException {
+    default void open(DeviceActivitySession<H> session) throws IOException {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 

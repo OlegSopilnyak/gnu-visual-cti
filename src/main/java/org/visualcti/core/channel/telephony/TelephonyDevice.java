@@ -45,6 +45,7 @@ import java.util.Collection;
 import org.jdom.Element;
 import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.core.channel.device.Device;
+import org.visualcti.core.channel.device.DeviceActivitySession;
 import org.visualcti.core.channel.device.DeviceStateValue;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
@@ -160,20 +161,8 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      * @see DefaultTelephonyCall
      */
     @Override
-    default Session<H> createSessionFor(H openedDeviceHandle) {
+    default DeviceActivitySession<H> createSessionFor(H openedDeviceHandle) {
         return new DefaultTelephonyCall<>(this, openedDeviceHandle);
-    }
-
-    /**
-     * <notify>
-     * To notify, about device's session state changed
-     *
-     * @param session the session with new value of the state
-     * @see Session#getState()
-     */
-    @Override
-    default void stateChangedFor(Session<H> session) {
-
     }
 
     /**
@@ -234,7 +223,7 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      * To make the outgoing call. A mode of a set (pulse or tone) and others
      * the necessary parameters are set by installations of port.
      * <p>
-     * Possible values of {@link PhoneCall#operationResult()}:
+     * Possible values of {@link PhoneCallSession#operationResult()}:
      * <p>
      * {@link Result.CALL.Analysis#VOICE}         - the Man's voice is answered<BR/>
      * {@link Result.CALL.Analysis#FAX}           - the fax - device has answered<BR/>
@@ -270,7 +259,7 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      * On the chosen phone port operation <b>makeCall (number, timeout)</b>
      * automatically is carried out. The result of this operation also
      * will be returned result of operation <b>connect (...)</b>.
-     * In case of result call with {@link PhoneCall#operationResult()}
+     * In case of result call with {@link PhoneCallSession#operationResult()}
      * {@link Result.CALL.Analysis#VOICE} or {@link Result.CALL.Analysis#FAX} the joining of two ports is made.
      * <p>
      * If the telephone number coincides with internal number of one of ports
@@ -290,7 +279,7 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
      * At presence of a signal the operation returns VOICE,
      * otherwise - {@link Result.CALL.Analysis#NO_DIAL_TONE}.<BR/>
      * <p>
-     * Possible values of {@link PhoneCall#operationResult()}:
+     * Possible values of {@link PhoneCallSession#operationResult()}:
      * <p>
      * {@link Result.CALL.Analysis#VOICE}         - the Man's voice is answered<BR/>
      * {@link Result.CALL.Analysis#FAX}           - the fax - device has answered<BR/>
@@ -746,7 +735,7 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
     /**
      * Telephony Device States Enumeration: The states of the device
      *
-     * @see Device.Session#getState()
+     * @see DeviceActivitySession#getState()
      * @see DeviceStateValue
      */
     enum State implements DeviceStateValue {

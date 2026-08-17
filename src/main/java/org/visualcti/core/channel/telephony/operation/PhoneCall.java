@@ -40,7 +40,6 @@ package org.visualcti.core.channel.telephony.operation;
 import java.io.Closeable;
 import java.util.Arrays;
 import java.util.stream.Stream;
-import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.TelephonyDevice;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 
@@ -48,65 +47,6 @@ import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
  * Phone Call: Keep all information about phone call
  */
 public interface PhoneCall extends Closeable {
-    /**
-     * Failed value of phone's call
-     */
-    PhoneCall FAILED = new PhoneCall() {
-        @Override
-        public void close() {
-            // doing nothing here
-        }
-
-        @Override
-        public String getDeviceName() {
-            return "no matter";
-        }
-
-        @Override
-        public boolean isAlive() {
-            return false;
-        }
-
-        @Override
-        public OperationResultValue operationResult() {
-            return Result.ERROR;
-        }
-
-        @Override
-        public void waitingForTheOperationComplete(long timeout) {
-            // doing nothing here
-        }
-
-        @Override
-        public void operationComplete(OperationResultValue completionReason) {
-            // doing nothing here
-        }
-
-        @Override
-        public Stream<PhoneCall> joint() {
-            return Stream.empty();
-        }
-
-        @Override
-        public void join(PhoneCall anotherCall) {
-            // doing nothing here
-        }
-
-        @Override
-        public void detach(PhoneCall anotherCall) {
-            // doing nothing here
-        }
-
-        @Override
-        public Number getCalledNumber() {
-            return null;
-        }
-
-        @Override
-        public Number getCallingNumber() {
-            return null;
-        }
-    };
     /**
      * <accssor>
      * To get the device name where the call is appeared
@@ -137,15 +77,6 @@ public interface PhoneCall extends Closeable {
 
     /**
      * <accssor>
-     * To get access to the last result of the operation that initiated or updated the phone call
-     *
-     * @return the last result value
-     * @see OperationResultValue
-     */
-    OperationResultValue operationResult();
-
-    /**
-     * <accssor>
      * To get the called number of the call
      *
      * @return the value
@@ -173,37 +104,6 @@ public interface PhoneCall extends Closeable {
     }
 
     /**
-     * <action>
-     * To wait the running operation complete or timeout
-     *
-     * @param timeout how long to wait
-     * @throws InterruptedException if operation is interrupted outside
-     */
-    void waitingForTheOperationComplete(long timeout) throws InterruptedException;
-
-    /**
-     * <action>
-     * To notify about the previously running in the phone-call-session operation is completed
-     *
-     * @param completionReason the reason of the operation's complete
-     * @see #waitingForTheOperationComplete(long)
-     */
-    void operationComplete(OperationResultValue completionReason);
-
-    /**
-     * <checker>
-     * To check is operation in progress (waiting for completion or timeout)
-     * For tests purposes
-     *
-     * @return true if operation is waiting for completion
-     * @see #waitingForTheOperationComplete(long)
-     * @see #operationComplete(OperationResultValue)
-     */
-    default boolean operationIsActive() {
-        return false;
-    }
-
-    /**
      * <accessor>
      * To get phone calls joint by device connection feature
      *
@@ -224,9 +124,9 @@ public interface PhoneCall extends Closeable {
      * <mutator>
      * To detach the phone-call-session
      *
-     * @param anotherCall another session value
+     * @param jointCall another session value
      */
-    void detach(PhoneCall anotherCall);
+    void detach(PhoneCall jointCall);
 
     /**
      * <mutator>

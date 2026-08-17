@@ -47,6 +47,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import java.io.IOException;
@@ -65,6 +66,7 @@ import org.visualcti.core.channel.device.adapter.AbstractDeviceEvent;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.TelephonyDevice;
 import org.visualcti.core.channel.telephony.TelephonyDeviceFactory;
+import org.visualcti.core.channel.telephony.TelephonyServiceProvider;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
 import org.visualcti.core.channel.telephony.operation.Result;
 
@@ -135,7 +137,7 @@ public class PhoneCallSessionTest {
         assertThat(session.operationResult()).isSameAs(Result.NONE);
 
         // acting
-        PhoneCallSession<String> updated = session.operationResult(result);
+        PhoneCallSession<String> updated = (PhoneCallSession<String>) session.operationResult(result);
 
         // check results
         assertThat(updated).isSameAs(session);
@@ -199,7 +201,7 @@ public class PhoneCallSessionTest {
         executor.schedule(() -> session.operationComplete(Result.OK), 50, TimeUnit.MILLISECONDS);
 
         // acting
-        session.waitingForTheOperationComplete(200L);
+        session.waitingForOperationComplete(200L);
 
         // check results
         assertThat(session.operationResult()).isSameAs(Result.OK);
@@ -210,7 +212,7 @@ public class PhoneCallSessionTest {
         // preparing test data
 
         // acting
-        session.waitingForTheOperationComplete(200L);
+        session.waitingForOperationComplete(200L);
 
         // check results
         assertThat(session.operationResult()).isSameAs(Result.NONE);
@@ -221,7 +223,7 @@ public class PhoneCallSessionTest {
         // preparing test data
         executor.execute(() -> {
             try {
-                session.waitingForTheOperationComplete(-1L);
+                session.waitingForOperationComplete(-1L);
             } catch (InterruptedException e) {
                 // doing nothing here
             }
@@ -292,39 +294,116 @@ public class PhoneCallSessionTest {
     }
 
     @Test
-    public void shouldDetach_MockedSession() {
+    public void shouldDetach_JointMockedFreeSession() {
         // preparing test data
-        PhoneCall anotherCall = mock(PhoneCall.class);
+        String anotherHandle = "anotherHandle";
+        TelephonyServiceProvider<String> provider = mock(TelephonyServiceProvider.class);
+        doReturn(provider).when(device).getProvider();
+        PhoneCallSession<String> anotherCall = mock(PhoneCallSession.class);
+        doReturn(anotherHandle).when(anotherCall).getDeviceHandle();
         session.join(anotherCall);
         assertThat(session.joint().toArray()).hasSize(1);
-        reset(anotherCall);
+        reset(session);
 
         // acting
         session.detach(anotherCall);
 
         // check the behavior
+        verify(session).parameterOrDefault(eq(PhoneCallSession.Parameter.JOINT), any());
+        verify(anotherCall).isCaptive();
+        verify(device, never()).getProvider();
+        verify(provider, never()).breakConnection(any(), any());
         verify(anotherCall).detach(session);
         // check results
         assertThat(session.joint().toArray()).isEmpty();
     }
 
     @Test
-    public void shouldDetach_RealSession() {
+    public void shouldDetach_JointMockedCaptiveSession() {
         // preparing test data
-        PhoneCall anotherCall = spy(new PhoneCallSession(device, handle) {
-        });
+        String anotherHandle = "anotherHandle";
+        TelephonyServiceProvider<String> provider = mock(TelephonyServiceProvider.class);
+        doReturn(provider).when(device).getProvider();
+        PhoneCallSession<String> anotherCall = mock(PhoneCallSession.class);
+        doReturn(anotherHandle).when(anotherCall).getDeviceHandle();
+        doReturn(true).when(anotherCall).isCaptive();
         session.join(anotherCall);
-        verify(anotherCall).join(session);
         assertThat(session.joint().toArray()).hasSize(1);
-        reset(anotherCall);
+        reset(session);
 
         // acting
         session.detach(anotherCall);
 
         // check the behavior
+        verify(session).parameterOrDefault(eq(PhoneCallSession.Parameter.JOINT), any());
+        verify(anotherCall).isCaptive();
+        verify(device).getProvider();
+        verify(provider).breakConnection(anotherHandle, handle);
+        verify(anotherCall).release(session);
         verify(anotherCall).detach(session);
         // check results
         assertThat(session.joint().toArray()).isEmpty();
+    }
+
+    @Test
+    public void shouldDetach_JointRealFreeSession() {
+        // preparing test data
+        TelephonyServiceProvider<String> provider = mock(TelephonyServiceProvider.class);
+        doReturn(provider).when(device).getProvider();
+        String anotherHandle = "anotherHandle";
+        PhoneCallSession<String> anotherCall = spy(new PhoneCallSession(device, anotherHandle) {
+        });
+        session.join(anotherCall);
+        verify(anotherCall).join(session);
+        assertThat(session.joint().toArray()).hasSize(1);
+        reset(session, anotherCall);
+
+        // acting
+        session.detach(anotherCall);
+
+        // check the behavior
+        verify(session, times(2)).parameterOrDefault(eq(PhoneCallSession.Parameter.JOINT), any());
+        verify(anotherCall).detach(session);
+        verify(session).isCaptive();
+        verify(anotherCall).isCaptive();
+        verify(device, never()).getProvider();
+        verify(provider, never()).breakConnection(any(), any());
+        verify(anotherCall).detach(session);
+        // check results
+        assertThat(session.joint().toArray()).isEmpty();
+        assertThat(anotherCall.isCaptive()).isFalse();
+    }
+
+    @Test
+    public void shouldDetach_JointRealCaptiveSession() {
+        // preparing test data
+        TelephonyServiceProvider<String> provider = mock(TelephonyServiceProvider.class);
+        doReturn(provider).when(device).getProvider();
+        String anotherHandle = "anotherHandle";
+        PhoneCallSession<String> anotherCall = spy(new PhoneCallSession(device, anotherHandle) {
+        });
+        session.join(anotherCall);
+        assertThat(anotherCall.capture(session)).isTrue();
+        assertThat(anotherCall.isCaptive()).isTrue();
+        verify(anotherCall).join(session);
+        assertThat(session.joint().toArray()).hasSize(1);
+        reset(session, anotherCall);
+
+        // acting
+        session.detach(anotherCall);
+
+        // check the behavior
+        verify(session, times(2)).parameterOrDefault(eq(PhoneCallSession.Parameter.JOINT), any());
+        verify(anotherCall).detach(session);
+        verify(session).isCaptive();
+        verify(anotherCall).isCaptive();
+        verify(device).getProvider();
+        verify(provider).breakConnection(anotherHandle, handle);
+        verify(anotherCall).detach(session);
+        verify(session, times(2)).detach(anotherCall);
+        // check results
+        assertThat(session.joint().toArray()).isEmpty();
+        assertThat(anotherCall.isCaptive()).isFalse();
     }
 
     @Test
@@ -365,7 +444,7 @@ public class PhoneCallSessionTest {
     @Test
     public void shouldClose() throws IOException {
         // preparing test data
-        PhoneCall anotherCall = mock(PhoneCall.class);
+        PhoneCallSession anotherCall = mock(PhoneCallSession.class);
         session.join(anotherCall);
 
         // acting
@@ -656,7 +735,7 @@ public class PhoneCallSessionTest {
         verify(session).parameter(PhoneCallSession.Parameter.CAPTURE);
         verify(invader, atLeastOnce()).getDeviceName();
         verify(session).parameter(PhoneCallSession.Parameter.SHARED);
-        verify(session).parameter(PhoneCallSession.Parameter.CAPTURE, null);
+        verify(session).remove(PhoneCallSession.Parameter.CAPTURE);
         // check results
         assertThat(session.isCaptive()).isFalse();
     }

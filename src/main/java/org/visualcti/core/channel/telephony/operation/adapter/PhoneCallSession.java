@@ -48,13 +48,12 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 import org.visualcti.core.channel.device.Device;
+import org.visualcti.core.channel.device.DeviceActivitySession;
 import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.DeviceStateValue;
 import org.visualcti.core.channel.device.adapter.AbstractDeviceSession;
@@ -78,8 +77,6 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
     public enum Parameter implements Device.ParameterName {
         SHARED("SHARED-SESSION-LOCK"),
         CAPTURE("SHARED-SESSION-INVADER"),
-        RESULT("OPERATION-RESULT"),
-        LATCH("OPERATION-LATCH"),
         JOINT("JOINT-SESSIONS-SET"),
         CALLED("PHONE-CALL-CALLED-NUMBER"),
         CALLING("PHONE-CALL-CALLING-NUMBER");
@@ -105,7 +102,7 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
         super(deviceOwner, deviceHandle);
         parameter(Parameter.JOINT, Collections.emptyList());
         // the parameter value of device operation result
-        parameter(Parameter.RESULT, Result.NONE);
+        parameter(Device.Parameter.RESULT, Result.NONE);
         // the parameter for shared session lock
         parameter(Parameter.SHARED, new ReentrantLock());
     }
@@ -142,7 +139,7 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
      *
      * @return the value
      * @see PhoneCall#getDeviceName()
-     * @see Device.Session#getDeviceName()
+     * @see DeviceActivitySession#getDeviceName()
      */
     @Override
     public String getDeviceName() {
@@ -155,7 +152,7 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
      *
      * @return true if the call is in service
      * @see PhoneCall#isAlive()
-     * @see Device.Session#isAlive()
+     * @see DeviceActivitySession#isAlive()
      */
     @Override
     public boolean isAlive() {
@@ -170,36 +167,20 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
      * @see OperationResultValue
      * @see #isAlive()
      */
-    public void alive(boolean alive) {
+    public void alive(final boolean alive) {
         parameter(Device.Parameter.ALIVE, alive);
     }
 
     /**
-     * <accssor>
-     * To get access to the result of the operation that initiated or updated the call
+     * <checker>
+     * Whether context's device handle valid or not
      *
-     * @return the value
-     * @see OperationResultValue
-     * @see PhoneCall#operationResult()
-     * @see #operationResult(OperationResultValue)
+     * @return true if device handle value is valid
+     * @see #isOpened()
      */
     @Override
-    public OperationResultValue operationResult() {
-        return parameter(Parameter.RESULT);
-    }
-
-    /**
-     * <mutator>
-     * To set up the result of the operation value of the call
-     *
-     * @param operationResult new value
-     * @return updated phone call instance
-     * @see OperationResultValue
-     * @see #operationResult()
-     */
-    public PhoneCallSession<H> operationResult(OperationResultValue operationResult) {
-        parameter(Parameter.RESULT, operationResult);
-        return this;
+    protected boolean isValidDeviceHandle() {
+        return device != null && !device.isInvalidHandle(getDeviceHandle());
     }
 
     /**
@@ -254,74 +235,6 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
     public PhoneCallSession<H> callingNumber(Number callingNumber) {
         parameter(Parameter.CALLING, callingNumber);
         return this;
-    }
-
-    /**
-     * <action>
-     * To wait the running operation complete or timeout
-     *
-     * @param timeout how long to wait
-     * @throws InterruptedException if operation is interrupted outside
-     * @see #operationComplete(OperationResultValue)
-     * @see CountDownLatch
-     * @see CountDownLatch#await(long, TimeUnit)
-     * @see CountDownLatch#await()
-     */
-    @Override
-    public void waitingForTheOperationComplete(long timeout) throws InterruptedException {
-        // preparing running operation's latch
-        final CountDownLatch latch = new CountDownLatch(1);
-        parameter(Parameter.LATCH, latch);
-        if (timeout > 0) {
-            // start waiting until operation complete or timeout
-            if (latch.await(timeout, TimeUnit.MILLISECONDS)) {
-                // latch was notified outside
-                device.dispatchEvent("Operation was completed");
-            } else {
-                // latch wasn't notified outside
-                device.dispatchEvent("Operation was timed out");
-            }
-        } else {
-            // start waiting until operation complete no limits
-            latch.await();
-        }
-    }
-
-    /**
-     * <checker>
-     * To check is operation in progress (waiting for completion or timeout)
-     * For the tests purposes only!!!!!!!
-     *
-     * @return true if operation is waiting for completion
-     * @see #waitingForTheOperationComplete(long)
-     * @see #operationComplete(OperationResultValue)
-     */
-    @Override
-    public boolean operationIsActive() {
-        final CountDownLatch completeOperationLatch = parameter(Parameter.LATCH);
-        return completeOperationLatch != null && completeOperationLatch.getCount() > 0;
-    }
-
-    /**
-     * <action>
-     * To notify about the previously running in the phone-call-session operation is completed
-     *
-     * @param completionReason the reason of completing the operation which is waiting for complete
-     * @see #waitingForTheOperationComplete(long)
-     * @see #operationResult(OperationResultValue)
-     * @see CountDownLatch
-     * @see CountDownLatch#countDown()
-     */
-    @Override
-    public void operationComplete(final OperationResultValue completionReason) {
-        // updating session's operation result
-        operationResult(completionReason);
-        // completing the operation which is waiting for complete
-        final CountDownLatch completeOperationLatch;
-        if ((completeOperationLatch = remove(Parameter.LATCH)) != null) {
-            // releasing the latch of running operation
-            completeOperationLatch.countDown();
-        }
     }
 
     /**
@@ -390,9 +303,9 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
     public void release(final PhoneCallSession<H> invader) {
         if (Objects.equals(invader.getDeviceName(), this.<String>parameter(Parameter.CAPTURE))) {
             // clearing the invader reference which captive the session
-            this.parameter(Parameter.CAPTURE, null)
-                    // releasing the captive phone call session
-                    .<Lock>parameter(Parameter.SHARED).unlock();
+            remove(Parameter.CAPTURE);
+            // releasing the captive phone call session
+            this.<Lock>parameter(Parameter.SHARED).unlock();
         }
     }
 
@@ -434,18 +347,25 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
      * <mutator>
      * To detach the phone-call-session
      *
-     * @param attachedCall another session value
+     * @param jointCall another session value
      * @see #joint()
      */
     @Override
-    public void detach(final PhoneCall attachedCall) {
+    public void detach(final PhoneCall jointCall) {
         final List<PhoneCall> joint = new ArrayList<>(parameterOrDefault(Parameter.JOINT, Collections.emptyList()));
         // looking for the phone call session to detach, among joint ones
-        final int index = joint.indexOf(attachedCall);
+        final int index = joint.indexOf(jointCall);
         if (index >= 0) {
             // there is the joint phone call session, let's detach it from joint ones
             final PhoneCall detached = joint.remove(index);
             if (detached != null) {
+                final PhoneCallSession<H> slave = (PhoneCallSession<H>) detached;
+                if (slave.isCaptive()) {
+                    // breaking the low-level connection
+                    getDevice().getProvider().breakConnection(slave.getDeviceHandle(), getDeviceHandle());
+                    // releasing the slave resource if any
+                    slave.release(this);
+                }
                 // saving updated joint sessions collection
                 parameter(Parameter.JOINT, Collections.unmodifiableList(joint));
                 // detaching the phone call session from the detached one

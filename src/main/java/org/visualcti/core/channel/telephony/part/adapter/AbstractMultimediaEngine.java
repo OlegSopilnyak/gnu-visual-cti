@@ -380,7 +380,7 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
                 session.operationComplete(Result.NONE);
                 for (int second = 0; second < timeout; second++) {
                     // waiting for an event during the audio data transmitting
-                    session.waitingForTheOperationComplete(1000L);
+                    session.waitingForOperationComplete(1000L);
                     final OperationResultValue operationResult = session.operationResult();
                     // checking the operation result value after waiting operation complete
                     if (operationResult == Result.ERROR) {
@@ -570,6 +570,6 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
         // continue waiting for the next event
         session.operationResult(Result.NONE);
         // continue waiting for a bit lesser duration
-        session.waitingForTheOperationComplete(waitForNextOperationComplete);
+        session.waitingForOperationComplete(waitForNextOperationComplete);
     }
 }

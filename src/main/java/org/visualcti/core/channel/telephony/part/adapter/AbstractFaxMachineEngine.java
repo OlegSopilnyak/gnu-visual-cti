@@ -49,6 +49,7 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.core.channel.device.Device;
+import org.visualcti.core.channel.device.DeviceActivitySession;
 import org.visualcti.core.channel.device.DeviceStateValue;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.TelephonyDevice;
@@ -88,7 +89,7 @@ public abstract class AbstractFaxMachineEngine<H> extends AbstractDevicePart<H> 
      * @see Device.Parameter#FAX_DEVICE_HANDLE
      */
     @Override
-    public void open(Device.Session<H> session) throws IOException {
+    public void open(DeviceActivitySession<H> session) throws IOException {
         if (canFax()) {
             if (isOpened((PhoneCallSession<H>) session)) {
                 throw new IOException("Cannot open FAX device part! Already opened!");
@@ -196,7 +197,7 @@ public abstract class AbstractFaxMachineEngine<H> extends AbstractDevicePart<H> 
                 // waiting for operation complete event from the events source for particular device handle
                 while (session.getState() == TelephonyDevice.State.RECVFAX) {
                     // waiting for an event during the fax document transmit
-                    session.waitingForTheOperationComplete(1000L);
+                    session.waitingForOperationComplete(1000L);
                     final OperationResultValue operationResult = session.operationResult();
                     // checking the operation result value after waiting operation complete
                     if (operationResult == Result.ERROR) {
@@ -313,7 +314,7 @@ public abstract class AbstractFaxMachineEngine<H> extends AbstractDevicePart<H> 
                 // waiting for operation complete event from the events source for particular device handle
                 while (session.getState() == TelephonyDevice.State.SENDFAX) {
                     // waiting for an event during the fax document transmitting
-                    session.waitingForTheOperationComplete(1000L);
+                    session.waitingForOperationComplete(1000L);
                     final OperationResultValue operationResult = session.operationResult();
                     // checking the operation result value after waiting operation complete
                     if (operationResult == Result.ERROR) {

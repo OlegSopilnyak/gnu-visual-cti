@@ -43,6 +43,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.function.UnaryOperator;
 import org.visualcti.core.channel.Channel;
 import org.visualcti.core.channel.device.Device;
+import org.visualcti.core.channel.device.DeviceActivitySession;
 import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.DeviceMalfunction;
 import org.visualcti.server.UnitRegistry;
@@ -242,7 +243,7 @@ public interface ChannelTaskRunner<D extends Device<?, ?>> extends RunnableServe
         Lock lock = getExclusiveAccessLock();
         lock.lock();
         // to start the channel-device session for the task's execution
-        try (final Device.Session<?> channelDeviceSession = getChannel().getDevice().startSession()) {
+        try (final DeviceActivitySession<?> channelDeviceSession = getChannel().getDevice().startSession()) {
             // connecting task with started device's session
             taskToRun.connect(channelDeviceSession);
             // attaching the task to the tasks runner

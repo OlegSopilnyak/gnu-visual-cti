@@ -39,7 +39,7 @@ package org.visualcti.server.core.executable.task;
 
 import java.io.IOException;
 import org.jdom.Element;
-import org.visualcti.core.channel.device.Device;
+import org.visualcti.core.channel.device.DeviceActivitySession;
 import org.visualcti.server.task.Environment;
 import org.visualcti.server.task.TaskPool;
 
@@ -117,9 +117,9 @@ public interface Task extends Cloneable {
      *
      * @param channelDeviceSession the started session of the device
      * @throws IOException throw if the task can't connect with device
-     * @see Device.Session
+     * @see DeviceActivitySession
      */
-    default void connect(Device.Session<?> channelDeviceSession) throws IOException {
+    default void connect(DeviceActivitySession<?> channelDeviceSession) throws IOException {
         // doing nothing here for backward compatibility
     }
 

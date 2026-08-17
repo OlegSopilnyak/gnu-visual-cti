@@ -61,6 +61,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.core.channel.device.Device;
+import org.visualcti.core.channel.device.DeviceActivitySession;
 import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.DeviceMalfunction;
 import org.visualcti.core.channel.device.DeviceStateValue;
@@ -75,7 +76,7 @@ public class AbstractDeviceTest<H> {
     Factory<?, ?> factory;
     AbstractDevice<String, ?> device;
     Device.ServiceProvider<String> serviceProvider;
-    Device.Session<?> session;
+    DeviceActivitySession<?> session;
     Executor deviceEventExecutor;
     DeviceEvent.Provider<?> eventsProvider;
     DeviceEvent.Listener.Hub hub;
@@ -98,7 +99,7 @@ public class AbstractDeviceTest<H> {
         });
         serviceProvider = mock(Device.ServiceProvider.class);
         doReturn(deviceHandle).when(serviceProvider).openResource(deviceName);
-        session = mock(Device.Session.class);
+        session = mock(DeviceActivitySession.class);
         doReturn("handle").when(session).getDeviceHandle();
         doReturn(IDLE).when(session).getState();
         device = spy(new AbstractDevice(serviceProvider) {
@@ -108,7 +109,7 @@ public class AbstractDeviceTest<H> {
             }
 
             @Override
-            public Session createSessionFor(Object openedDeviceHandle) {
+            public DeviceActivitySession createSessionFor(Object openedDeviceHandle) {
                 return session;
             }
         });
@@ -326,7 +327,7 @@ public class AbstractDeviceTest<H> {
     public void shouldBeStateChangedForDevice() throws IOException {
         // preparing test data
         String handle = "100";
-        Device.Session<String> deviceSession = spy(new AbstractDeviceSession(device, handle){});
+        DeviceActivitySession<String> deviceSession = spy(new AbstractDeviceSession(device, handle){});
         assertThat(deviceSession.getState()).isSameAs(IDLE);
         doReturn(deviceSession).when(device).createSessionFor(handle);
 
@@ -342,7 +343,7 @@ public class AbstractDeviceTest<H> {
     public void shouldNotBeStateChangedForDevice_TheSameState() throws IOException {
         // preparing test data
         String handle = "100";
-        Device.Session<String> deviceSession = spy(new AbstractDeviceSession(device, handle){});
+        DeviceActivitySession<String> deviceSession = spy(new AbstractDeviceSession(device, handle){});
         assertThat(deviceSession.getState()).isSameAs(IDLE);
         doReturn(deviceSession).when(device).createSessionFor(handle);
 
@@ -391,7 +392,7 @@ public class AbstractDeviceTest<H> {
         doReturn(true).when(session).isOpened();
 
         // acting
-        Device.Session<String> deviceSessionFor = device.createSessionFor(handle);
+        DeviceActivitySession<String> deviceSessionFor = device.createSessionFor(handle);
 
         // check the behavior
         // check results
@@ -403,7 +404,7 @@ public class AbstractDeviceTest<H> {
         // preparing test data
         String handle = "101";
         DeviceStateValue sessionStateInitValue = IDLE;
-        Device.Session<String> deviceSession = spy(new AbstractDeviceSession(device, handle){});
+        DeviceActivitySession<String> deviceSession = spy(new AbstractDeviceSession(device, handle){});
         assertThat(deviceSession.getState()).isSameAs(sessionStateInitValue);
         doReturn(deviceSession).when(device).createSessionFor(handle);
         doReturn(handle).when(serviceProvider).openResource(deviceName);
@@ -432,13 +433,13 @@ public class AbstractDeviceTest<H> {
     public void shouldStartSession() throws IOException {
         // preparing test data
         String handle = "102";
-        Device.Session<String> deviceSession = spy(new AbstractDeviceSession(device, handle){});
+        DeviceActivitySession<String> deviceSession = spy(new AbstractDeviceSession(device, handle){});
         assertThat(deviceSession.getState()).isSameAs(IDLE);
         doReturn(deviceSession).when(device).createSessionFor(handle);
         doReturn(handle).when(serviceProvider).openResource(deviceName);
 
         // acting
-        Device.Session<?> startedSession = device.startSession();
+        DeviceActivitySession<?> startedSession = device.startSession();
 
         // check the behavior
         verify(serviceProvider).openResource(deviceName);

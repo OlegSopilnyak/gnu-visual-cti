@@ -37,11 +37,9 @@ Fax number: 217-356-3356
 */
 package org.visualcti.core.channel.device;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
@@ -159,9 +157,9 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
      * @param openedDeviceHandle the handle of the opened device resource
      * @return built device session
      * @throws IOException if device cannot create the session for device handle
-     * @see Session
+     * @see DeviceActivitySession
      */
-    default Session<H> createSessionFor(H openedDeviceHandle) throws IOException {
+    default DeviceActivitySession<H> createSessionFor(H openedDeviceHandle) throws IOException {
         throw new IOException("Not supported yet.");
     }
 
@@ -172,7 +170,7 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
      * @return opened device's session
      * @throws IOException if device cannot start the session
      */
-    default Session<H> startSession() throws IOException {
+    default DeviceActivitySession<H> startSession() throws IOException {
         // opening the device provider resource
         final H deviceHandle = serviceProvider().openResource(getName());
         // to check opened device's handle value
@@ -184,7 +182,7 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
         // filling device specific parameters
         fillingDeviceSpecific(deviceHandle);
         // building new session for the device handle
-        final Session<H> session = createSessionFor(deviceHandle);
+        final DeviceActivitySession<H> session = createSessionFor(deviceHandle);
         // add the created device session as device events listener
         getFactory().getHub().addDeviceEventListenerFor(getName(), session);
         // notifying about created session state
@@ -235,16 +233,16 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
      * To stop device's session and detach it from device events stream
      *
      * @param session opened device's session
-     * @see Session#terminate()
-     * @see Session#close()
-     * @see Session#getDeviceHandle()
+     * @see DeviceActivitySession#terminate()
+     * @see DeviceActivitySession#close()
+     * @see DeviceActivitySession#getDeviceHandle()
      * @see ServiceProvider#closeResource(Object)
      * @see #getFactory()
      * @see #getName()
      * @see Factory#getHub()
      * @see DeviceEvent.Listener.Hub#removeDeviceEventListenerFor(String, DeviceEvent.Listener)
      */
-    default void detachAndClose(final Session<H> session) {
+    default void detachAndClose(final DeviceActivitySession<H> session) {
         // detach
         // removing the device session as an events listener from the factory
         getFactory().getHub().removeDeviceEventListenerFor(getName(), session);
@@ -271,16 +269,16 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
      * To notify, about device's session state changed
      *
      * @param session the session with new value of the state
-     * @see Session#getState()
+     * @see DeviceActivitySession#getState()
      */
-    void stateChangedFor(Session<H> session);
+    void stateChangedFor(DeviceActivitySession<H> session);
 
     /**
      * <accessor>
      * To get the stream of the states of the active device's sessions
      *
      * @return stream of active device's sessions states
-     * @see Session#getState()
+     * @see DeviceActivitySession#getState()
      * @see DeviceStateValue
      */
     Stream<DeviceStateValue> getStates();
@@ -293,14 +291,14 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
      * @see #getFactory()
      * @see #getName()
      * @see DeviceEvent.Listener.Hub#eventListeners(String)
-     * @see Session
+     * @see DeviceActivitySession
      * @see #isOpened()
      * @see #findSessionByHandle(Object)
      * @see #close()
      */
-    default Stream<Session<H>> sessions() {
-        return getFactory().getHub().eventListeners(getName())
-                .filter(Session.class::isInstance).map(context -> (Session<H>) context);
+    default Stream<DeviceActivitySession<H>> sessions() {
+        return getFactory().getHub().eventListeners(getName()).filter(DeviceActivitySession.class::isInstance)
+                .map(session -> (DeviceActivitySession<H>) session);
     }
 
     /**
@@ -312,7 +310,7 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
      */
     default void open() throws IOException {
         // trying to start session
-        final Session<H> session = startSession();
+        final DeviceActivitySession<H> session = startSession();
         if (!session.isOpened()) {
             // removing the broken device session as device events listener from the factory
             getFactory().getHub().removeDeviceEventListenerFor(getName(), session);
@@ -344,11 +342,11 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
      * @param deviceHandle the device handle to look for the context by
      * @return found context or empty
      * @see Optional
-     * @see Session
-     * @see Session#hasDeviceHandle(H)
+     * @see DeviceActivitySession
+     * @see DeviceActivitySession#hasDeviceHandle(H)
      * @see #sessions()
      */
-    default Optional<Session<H>> findSessionByHandle(final H deviceHandle) {
+    default Optional<DeviceActivitySession<H>> findSessionByHandle(final H deviceHandle) {
         return sessions().filter(session -> session.hasDeviceHandle(deviceHandle)).findFirst();
     }
 
@@ -359,13 +357,13 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
      *
      * @return found context or empty
      * @see Optional
-     * @see Session
-     * @see Session#parameterOrDefault(ParameterName, Object)
+     * @see DeviceActivitySession
+     * @see DeviceActivitySession#parameterOrDefault(ParameterName, Object)
      * @see Parameter#INITIATED
      * @see #sessions()
      * @see #open()
      */
-    default Optional<Session<H>> findInitiatedSession() {
+    default Optional<DeviceActivitySession<H>> findInitiatedSession() {
         return sessions().filter(session ->
                 session.parameterOrDefault(Parameter.INITIATED, false)
         ).findFirst();
@@ -377,12 +375,12 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
      * the expectation of the end of current operation still executing
      *
      * @throws IOException if channel cannot be closed
-     * @see #detachAndClose(Session)
+     * @see #detachAndClose(DeviceActivitySession)
      */
     @Override
     default void close() throws IOException {
         // closing device's resource and removing sessions as device events listener
-        for (final Session<H> session : (Iterable<Session<H>>) sessions()::iterator) {
+        for (final DeviceActivitySession<H> session : (Iterable<DeviceActivitySession<H>>) sessions()::iterator) {
             // detaching  and closing the opened device session
             detachAndClose(session);
         }
@@ -485,7 +483,7 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
     /**
      * Device States Enumeration: The states of the device
      *
-     * @see Session#getState()
+     * @see DeviceActivitySession#getState()
      * @see DeviceStateValue
      */
     enum State implements DeviceStateValue {
@@ -522,6 +520,8 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
      */
     enum Parameter implements ParameterName {
         INITIATED("DEVICE-SESSION-AFTER-OPEN"),
+        LATCH("DEVICE-OPERATION-LATCH"),
+        RESULT("DEVICE-OPERATION-RESULT"),
         SHARED("DEVICE-SHARED-SESSIONS"),
         PROVIDER("DEVICE-SERVICE-PROVIDER"),
         NAME("DEVICE-NAME"),
@@ -548,155 +548,6 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
     }
 
     /**
-     * Device Activity Session: The session of device's activity for the task
-     *
-     * @param <H> the type of the device's low-level operations handle
-     */
-    interface Session<H> extends DeviceEvent.Listener, Closeable {
-        /**
-         * <accessor>
-         * To get access to device-owner of the context
-         *
-         * @return the device-owner reference
-         */
-        Device<H, ? extends Factory<H, ?>> getDevice();
-
-        /**
-         * <accessor>
-         * To get access to device's internal name
-         *
-         * @return device's name
-         * @see Device#getName()
-         */
-        default String getDeviceName() {
-            return parameter(Parameter.NAME);
-        }
-
-        /**
-         * <accessor>
-         * To get access to opened device's internal handle
-         *
-         * @return device's handle
-         */
-        default H getDeviceHandle() {
-            return parameter(Parameter.DEVICE_HANDLE);
-        }
-
-        /**
-         * <checker>
-         * To test whether session has the device's internal handle
-         *
-         * @return true if session as the device handle
-         */
-        default boolean hasDeviceHandle(H deviceHandle) {
-            return Objects.equals(parameter(Parameter.DEVICE_HANDLE), deviceHandle)
-                    || Objects.equals(parameter(Parameter.FAX_DEVICE_HANDLE), deviceHandle);
-        }
-
-        /**
-         * <accessor>
-         * Check, is device already opened
-         *
-         * @return true if it's opened
-         */
-        default boolean isOpened() {
-            return parameterOrDefault(Parameter.OPEN, false);
-        }
-
-        /**
-         * <accessor>
-         * To get access to context's termination flag
-         *
-         * @return the flag's value
-         */
-        default boolean isTerminated() {
-            return parameterOrDefault(Parameter.TERMINATE, false);
-        }
-
-        /**
-         * <action>
-         * The unconditional termination anyone current active operation:
-         * 1. operations with telephony calls (waiting or making call, connect, etc.)
-         * 2. exchanges of the data (voice or fax)
-         *
-         * @throws IOException If the device can't terminate current operation
-         */
-        void terminate() throws IOException;
-
-        /**
-         * <accessor>
-         * To get access to the state of the channel-device context
-         *
-         * @return value of device state
-         * @see DeviceStateValue#getValue()
-         * @see Device.State
-         */
-        default DeviceStateValue getState() {
-            return parameter(Parameter.STATE);
-        }
-
-        /**
-         * <mutator>
-         * To set up the new state value of the channel-device context
-         *
-         * @param state new value of device state
-         * @see DeviceStateValue#getValue()
-         */
-        void setState(DeviceStateValue state);
-
-        /**
-         * <accssor>
-         * To check up the condition of the channel-device context
-         *
-         * @return true if the device context is in service (connected)
-         */
-        default boolean isAlive() {
-            return parameterOrDefault(Parameter.ALIVE, false);
-        }
-
-        /**
-         * <accessor>
-         * To get the session parameter's value
-         *
-         * @param name the name of the session's parameter
-         * @param <T>  the type of the session's parameter value
-         * @return the value of the session's parameter
-         */
-        <T> T parameter(ParameterName name);
-
-        /**
-         * <accessor>
-         * To get the session parameter's value
-         *
-         * @param name the name of the session's parameter
-         * @param <T>  the type of the session's parameter value
-         * @return the value of the session's parameter
-         */
-        <T> T parameterOrDefault(ParameterName name, T defaultValue);
-
-        /**
-         * <mutator>
-         * To set up the new session parameter's value
-         *
-         * @param name  the name of the session's parameter
-         * @param value the value of the session's parameter
-         * @param <T>   the type of the session's parameter value
-         * @return reference to the updated session
-         */
-        <T> Session<H> parameter(ParameterName name, T value);
-
-        /**
-         * <mutator>
-         * To remove the session parameter's value
-         *
-         * @param name the name of the session's parameter
-         * @param <T>  the type of the session's parameter value
-         * @return previous parameter's value
-         */
-        <T> T remove(ParameterName name);
-    }
-
-    /**
      * Device Activity Service Provider: The provider of device's activity
      *
      * @param <H> the type of the device's low-level operations handle
@@ -709,7 +560,7 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
          * @param name the name of the resource
          * @return handle for the opened resource
          * @throws IOException if channel's resource cannot be opened or activated
-         * @see Session#getDeviceHandle()
+         * @see DeviceActivitySession#getDeviceHandle()
          */
         H openResource(String name) throws IOException;
 
@@ -719,7 +570,7 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
          *
          * @param handle the handle of the opened resource (device's implementation)
          * @throws IOException if channel's resource cannot be closed
-         * @see Session#getDeviceHandle()
+         * @see DeviceActivitySession#getDeviceHandle()
          */
         void closeResource(H handle) throws IOException;
 

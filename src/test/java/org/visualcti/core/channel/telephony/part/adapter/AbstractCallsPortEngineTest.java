@@ -279,7 +279,7 @@ public class AbstractCallsPortEngineTest<H> {
         verify(provider, times(timeout)).enableEvents(deviceHandle, Result.CALL.RINGS);
         verify(session, times(timeout)).setState(TelephonyDevice.State.WAIT);
         verify(session, times(timeout)).operationResult(Result.NONE);
-        verify(session, times(timeout)).waitingForTheOperationComplete(1000L);
+        verify(session, times(timeout)).waitingForOperationComplete(1000L);
         verify(session, atLeastOnce()).operationResult();
         verify(session).operationComplete(Result.TIMEOUT);
         verify(session).setState(Device.State.IDLE);
@@ -313,7 +313,7 @@ public class AbstractCallsPortEngineTest<H> {
         verify(provider, times(timeout)).enableEvents(deviceHandle, Result.CALL.RINGS);
         verify(session, times(timeout)).setState(TelephonyDevice.State.WAIT);
         verify(session, times(timeout)).operationResult(Result.NONE);
-        verify(session, times(timeout * 2)).waitingForTheOperationComplete(500L);
+        verify(session, times(timeout * 2)).waitingForOperationComplete(500L);
         verify(session, atLeastOnce()).operationResult();
         verify(session).operationComplete(Result.TIMEOUT);
         verify(session).setState(Device.State.IDLE);
@@ -350,7 +350,7 @@ public class AbstractCallsPortEngineTest<H> {
         verify(provider).enableEvents(deviceHandle, Result.CALL.RINGS);
         verify(session).setState(TelephonyDevice.State.WAIT);
         verify(session).operationResult(Result.NONE);
-        verify(session).waitingForTheOperationComplete(1000L);
+        verify(session).waitingForOperationComplete(1000L);
         verify(session, atLeastOnce()).operationResult();
         verify(provider).disableEvents(deviceHandle, Result.CALL.RINGS);
         verify(provider).getCallerID(deviceHandle);
@@ -394,7 +394,7 @@ public class AbstractCallsPortEngineTest<H> {
         verify(provider).enableEvents(deviceHandle, Result.CALL.RINGS);
         verify(session).setState(TelephonyDevice.State.WAIT);
         verify(session).operationResult(Result.NONE);
-        verify(session).waitingForTheOperationComplete(1000L);
+        verify(session).waitingForOperationComplete(1000L);
         verify(session, atLeastOnce()).operationResult();
         verify(provider).disableEvents(deviceHandle, Result.CALL.RINGS);
         verify(provider).getCallerID(deviceHandle);
@@ -439,7 +439,7 @@ public class AbstractCallsPortEngineTest<H> {
         verify(provider).enableEvents(deviceHandle, Result.CALL.RINGS);
         verify(session).setState(TelephonyDevice.State.WAIT);
         verify(session).operationResult(Result.NONE);
-        verify(session).waitingForTheOperationComplete(1000L);
+        verify(session).waitingForOperationComplete(1000L);
         verify(session).operationResult();
         verify(session).operationComplete(Result.ERROR);
         verify(session).setState(Device.State.ERROR);
@@ -517,7 +517,7 @@ public class AbstractCallsPortEngineTest<H> {
         verify(session).setState(TelephonyDevice.State.DIAL);
         verify(session).operationResult(Result.NONE);
         verify(provider).startCalling(deviceHandle, number, timeout);
-        verify(session).waitingForTheOperationComplete(timeout * 1000L);
+        verify(session).waitingForOperationComplete(timeout * 1000L);
         verify(session, atLeastOnce()).operationResult();
         verify(session).alive(anyBoolean());
         verify(provider, never()).enableEvents(any(), eq(Result.CALL.DISCONNECT));
@@ -553,7 +553,7 @@ public class AbstractCallsPortEngineTest<H> {
         verify(session).setState(TelephonyDevice.State.DIAL);
         verify(session).operationResult(Result.NONE);
         verify(provider).startCalling(deviceHandle, number, timeout);
-        verify(session).waitingForTheOperationComplete(timeout * 1000L);
+        verify(session).waitingForOperationComplete(timeout * 1000L);
         verify(session, atLeastOnce()).operationResult();
         verify(session).alive(true);
         verify(provider).enableEvents(deviceHandle, Result.CALL.DISCONNECT);
@@ -589,7 +589,7 @@ public class AbstractCallsPortEngineTest<H> {
         verify(session).setState(TelephonyDevice.State.DIAL);
         verify(session).operationResult(Result.NONE);
         verify(provider).startCalling(deviceHandle, number, timeout);
-        verify(session).waitingForTheOperationComplete(timeout * 1000L);
+        verify(session).waitingForOperationComplete(timeout * 1000L);
         verify(session, atLeastOnce()).operationResult();
         verify(session).alive(true);
         verify(provider).enableEvents(deviceHandle, Result.CALL.DISCONNECT);
@@ -626,7 +626,7 @@ public class AbstractCallsPortEngineTest<H> {
         verify(session).setState(TelephonyDevice.State.DIAL);
         verify(session).operationResult(Result.NONE);
         verify(provider).startCalling(deviceHandle, number, timeout);
-        verify(session).waitingForTheOperationComplete(timeout * 1000L);
+        verify(session).waitingForOperationComplete(timeout * 1000L);
         verify(session).operationResult();
         verify(session).operationComplete(Result.ERROR);
         verify(session).setState(Device.State.ERROR);
@@ -662,7 +662,7 @@ public class AbstractCallsPortEngineTest<H> {
         verify(session).setState(TelephonyDevice.State.DIAL);
         verify(session).operationResult(Result.NONE);
         verify(provider).startCalling(deviceHandle, number, timeout);
-        verify(session).waitingForTheOperationComplete(timeout * 1000L);
+        verify(session).waitingForOperationComplete(timeout * 1000L);
         verify(session, atLeastOnce()).operationResult();
         verify(session).alive(false);
         verify(provider).enableEvents(deviceHandle, Result.CALL.DISCONNECT);

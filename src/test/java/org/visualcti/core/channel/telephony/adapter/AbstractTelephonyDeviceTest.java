@@ -62,6 +62,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.core.channel.device.Device;
+import org.visualcti.core.channel.device.DeviceActivitySession;
 import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.DeviceMalfunction;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
@@ -119,7 +120,7 @@ public class AbstractTelephonyDeviceTest<H> {
         });
         device = spy(new AbstractTelephonyDevice(telephonyDeviceName, provider, calls, tones, media, faxes) {
             @Override
-            public Session createSessionFor(Object openedDeviceHandle) {
+            public DeviceActivitySession createSessionFor(Object openedDeviceHandle) {
                 return spy(super.createSessionFor(openedDeviceHandle));
             }
         });
@@ -133,7 +134,7 @@ public class AbstractTelephonyDeviceTest<H> {
         doReturn(mockedFaxes).when(mockedFaxes).uses(any(TelephonyDevice.class));
         mockedDevice = spy(new AbstractTelephonyDevice(telephonyDeviceName, provider, mockedCalls, mockedTones, mockedMedia, mockedFaxes) {
             @Override
-            public Session createSessionFor(Object openedDeviceHandle) {
+            public DeviceActivitySession createSessionFor(Object openedDeviceHandle) {
                 return spy(super.createSessionFor(openedDeviceHandle));
             }
         });
@@ -169,7 +170,7 @@ public class AbstractTelephonyDeviceTest<H> {
         verify(factory, never()).shareDevice((H) any());
         verify(factory, never()).shareDevice(any(PhoneCallSession.class));
         // check results
-        assertThat(session).isInstanceOf(Device.Session.class).isInstanceOf(PhoneCallSession.class);
+        assertThat(session).isInstanceOf(DeviceActivitySession.class).isInstanceOf(PhoneCallSession.class);
         assertThat(session.isOpened()).isTrue();
         assertThat(session.isAlive()).isFalse();
         assertThat(session.isTerminated()).isFalse();
@@ -202,7 +203,7 @@ public class AbstractTelephonyDeviceTest<H> {
         verify(factory).shareDevice(deviceHandle);
         verify(factory).shareDevice(session);
         // check results
-        assertThat(session).isInstanceOf(Device.Session.class).isInstanceOf(PhoneCallSession.class);
+        assertThat(session).isInstanceOf(DeviceActivitySession.class).isInstanceOf(PhoneCallSession.class);
         assertThat(session.isOpened()).isTrue();
         assertThat(session.isAlive()).isFalse();
         assertThat(session.isTerminated()).isFalse();
@@ -230,8 +231,12 @@ public class AbstractTelephonyDeviceTest<H> {
         verify(factory).unShareDevice(session);
         verify(provider).disableEvents(deviceHandle);
         verify(faxes, times(2)).isOpened(session);
+        verify(session).close();
+        verify(session).detachAll();
         // check results
         assertThat(session.isOpened()).isFalse();
+        assertThat(session.getDeviceHandle()).isNull();
+        assertThat(session.getDevice()).isNull();
     }
 
     @Test
@@ -331,7 +336,7 @@ public class AbstractTelephonyDeviceTest<H> {
         verify(session).isDisconnected();
         verify(calls).canBeConnected();
         verify(session).setState(TelephonyDevice.State.WAIT);
-        verify(session).waitingForTheOperationComplete(anyLong());
+        verify(session).waitingForOperationComplete(anyLong());
         // check results
         assertThat(success).isTrue();
         assertThat(session.isAlive()).isFalse();
@@ -411,7 +416,7 @@ public class AbstractTelephonyDeviceTest<H> {
         verify(session).setState(TelephonyDevice.State.DIAL);
         verify(session).operationResult(Result.NONE);
         verify(provider).startCalling(deviceHandle, target, timeout);
-        verify(session).waitingForTheOperationComplete(timeout * 1000L);
+        verify(session).waitingForOperationComplete(timeout * 1000L);
         verify(session, atLeastOnce()).operationResult();
         verify(session).isTerminated();
         verify(session).alive(false);
@@ -479,7 +484,7 @@ public class AbstractTelephonyDeviceTest<H> {
         verify(session).setState(TelephonyDevice.State.DIAL);
         verify(session).operationResult(Result.NONE);
         verify(provider).startCalling(deviceHandle, target, timeout);
-        verify(session, never()).waitingForTheOperationComplete(anyLong());
+        verify(session, never()).waitingForOperationComplete(anyLong());
         // check results
         assertThat(error).isInstanceOf(DeviceMalfunction.class);
         assertThat(error.getMessage()).endsWith("Cannot start call on the device side.");
