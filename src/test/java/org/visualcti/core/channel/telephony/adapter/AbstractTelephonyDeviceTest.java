@@ -54,9 +54,11 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.junit.Before;
 import org.junit.Test;
@@ -100,10 +102,11 @@ public class AbstractTelephonyDeviceTest<H> {
     static String deviceVendorVersion = "device-vendor-version";
     H deviceHandle = (H) "mock()";
     Executor deviceEventExecutor;
-    ExecutorService shadowExecutor;
+    ScheduledExecutorService shadowExecutor;
     DeviceEvent.Provider<?> eventsProvider;
     AbstractTelephonyDeviceFactory<H, ?> factory;
     AbstractTelephonyDevice<H, ?> device;
+    PhoneCallSession<H> session;
     AbstractTelephonyDevice<H, ?> mockedDevice;
 
     @Before
@@ -139,7 +142,7 @@ public class AbstractTelephonyDeviceTest<H> {
             }
         });
         deviceEventExecutor = mock(Executor.class);
-        shadowExecutor = Executors.newFixedThreadPool(2);
+        shadowExecutor = Executors.newScheduledThreadPool(2);
         doAnswer(invocation -> {
             shadowExecutor.execute(invocation.getArgument(0, Runnable.class));
             return null;
@@ -147,21 +150,26 @@ public class AbstractTelephonyDeviceTest<H> {
         eventsProvider = mock(DeviceEvent.Provider.class);
         factory = spy(new TestFactory<>(deviceEventExecutor, eventsProvider));
         factory.add(device);
+        factory.add(mockedDevice);
+        session = (PhoneCallSession<H>) device.startSession();
     }
 
     @Test
     public void shouldStartSession_NoDeviceSharing() throws IOException {
         // preparing test data
+        device.detachAndClose(session);
+        reset(session, provider, device, factory);
+        doReturn(deviceHandle).when(provider).openResource(telephonyDeviceName);
 
         // acting
-        PhoneCallSession<H> session = (PhoneCallSession<H>) device.startSession();
+        PhoneCallSession<H> startedSession = (PhoneCallSession<H>) device.startSession();
 
         // check the behavior
         verify(provider).openResource(telephonyDeviceName);
         verify(device).createSessionFor(deviceHandle);
-        verify(session).isOpened();
-        verify(session, atLeastOnce()).getDeviceHandle();
-        verify(faxes).open(session);
+        verify(startedSession).isOpened();
+        verify(startedSession, atLeastOnce()).getDeviceHandle();
+        verify(faxes).open(startedSession);
         verify(provider).disableEvents(deviceHandle);
         verify(provider).enableEvents(eq(deviceHandle), any(OperationResultValue.class));
         verify(device).canBeConnected();
@@ -170,54 +178,56 @@ public class AbstractTelephonyDeviceTest<H> {
         verify(factory, never()).shareDevice((H) any());
         verify(factory, never()).shareDevice(any(PhoneCallSession.class));
         // check results
-        assertThat(session).isInstanceOf(DeviceActivitySession.class).isInstanceOf(PhoneCallSession.class);
-        assertThat(session.isOpened()).isTrue();
-        assertThat(session.isAlive()).isFalse();
-        assertThat(session.isTerminated()).isFalse();
-        assertThat(session.getDevice()).isSameAs(device);
-        assertThat(session.getDeviceName()).isSameAs(telephonyDeviceName);
-        assertThat(session.getDeviceHandle()).isSameAs(deviceHandle);
-        assertThat(session.getState()).isSameAs(Device.State.IDLE);
-        assertThat(session.operationResult()).isSameAs(Result.NONE);
+        assertThat(startedSession).isInstanceOf(DeviceActivitySession.class).isInstanceOf(PhoneCallSession.class);
+        assertThat(startedSession.isOpened()).isTrue();
+        assertThat(startedSession.isAlive()).isFalse();
+        assertThat(startedSession.isTerminated()).isFalse();
+        assertThat(startedSession.getDevice()).isSameAs(device);
+        assertThat(startedSession.getDeviceName()).isSameAs(telephonyDeviceName);
+        assertThat(startedSession.getDeviceHandle()).isSameAs(deviceHandle);
+        assertThat(startedSession.getState()).isSameAs(Device.State.IDLE);
+        assertThat(startedSession.operationResult()).isSameAs(Result.NONE);
     }
 
     @Test
     public void shouldStartSession_WithDeviceSharing() throws IOException {
         // preparing test data
+        device.detachAndClose(session);
+        reset(session, provider, device, factory);
+        doReturn(deviceHandle).when(provider).openResource(telephonyDeviceName);
         doReturn(true).when(device).canBeConnected();
 
         // acting
-        PhoneCallSession<H> session = (PhoneCallSession<H>) device.startSession();
+        PhoneCallSession<H> startedSession = (PhoneCallSession<H>) device.startSession();
 
         // check the behavior
         verify(provider).openResource(telephonyDeviceName);
         verify(device).createSessionFor(deviceHandle);
-        verify(session).isOpened();
-        verify(session, atLeastOnce()).getDeviceHandle();
-        verify(faxes).open(session);
+        verify(startedSession).isOpened();
+        verify(startedSession, atLeastOnce()).getDeviceHandle();
+        verify(faxes).open(startedSession);
         verify(provider).disableEvents(deviceHandle);
         verify(provider).enableEvents(eq(deviceHandle), any(OperationResultValue.class));
         verify(device, times(2)).canBeConnected();
         // sharing device part
         verify(factory).devices();
         verify(factory).shareDevice(deviceHandle);
-        verify(factory).shareDevice(session);
+        verify(factory).shareDevice(startedSession);
         // check results
-        assertThat(session).isInstanceOf(DeviceActivitySession.class).isInstanceOf(PhoneCallSession.class);
-        assertThat(session.isOpened()).isTrue();
-        assertThat(session.isAlive()).isFalse();
-        assertThat(session.isTerminated()).isFalse();
-        assertThat(session.getDevice()).isSameAs(device);
-        assertThat(session.getDeviceName()).isSameAs(telephonyDeviceName);
-        assertThat(session.getDeviceHandle()).isSameAs(deviceHandle);
-        assertThat(session.getState()).isSameAs(Device.State.IDLE);
-        assertThat(session.operationResult()).isSameAs(Result.CALL.Analysis.NO_DIAL_TONE);
+        assertThat(startedSession).isInstanceOf(DeviceActivitySession.class).isInstanceOf(PhoneCallSession.class);
+        assertThat(startedSession.isOpened()).isTrue();
+        assertThat(startedSession.isAlive()).isFalse();
+        assertThat(startedSession.isTerminated()).isFalse();
+        assertThat(startedSession.getDevice()).isSameAs(device);
+        assertThat(startedSession.getDeviceName()).isSameAs(telephonyDeviceName);
+        assertThat(startedSession.getDeviceHandle()).isSameAs(deviceHandle);
+        assertThat(startedSession.getState()).isSameAs(Device.State.IDLE);
+        assertThat(startedSession.operationResult()).isSameAs(Result.CALL.Analysis.NO_DIAL_TONE);
     }
 
     @Test
     public void shouldDetachAndCloseSession() throws IOException {
         // preparing test data
-        PhoneCallSession<H> session = (PhoneCallSession<H>) device.startSession();
         assertThat(session.isOpened()).isTrue();
         reset(device, session, provider);
 
@@ -242,20 +252,19 @@ public class AbstractTelephonyDeviceTest<H> {
     @Test
     public void shouldDropCall_Mocked() {
         // preparing test data
-        PhoneCallSession<H> session = mock(PhoneCallSession.class);
+        PhoneCallSession<H> mocked = mock(PhoneCallSession.class);
 
         // acting
-        mockedDevice.dropCall(session);
+        mockedDevice.dropCall(mocked);
 
         // check the behavior
-        verify(mockedCalls).dropCall(session);
+        verify(mockedCalls).dropCall(mocked);
         // check results
     }
 
     @Test
     public void shouldDropCall_Regular() throws IOException {
         // preparing test data
-        PhoneCallSession<H> session = spy((PhoneCallSession<H>) device.startSession());
         session.alive(true);
         doReturn(true).when(provider).handsetOff(deviceHandle);
 
@@ -279,7 +288,6 @@ public class AbstractTelephonyDeviceTest<H> {
     @Test
     public void shouldNotDropCall_Regular_Provider() throws IOException {
         // preparing test data
-        PhoneCallSession<H> session = spy((PhoneCallSession<H>) device.startSession());
         session.alive(true);
 
         // acting
@@ -301,25 +309,24 @@ public class AbstractTelephonyDeviceTest<H> {
     @Test
     public void shouldWaitForCall_Mocked() {
         // preparing test data
-        PhoneCallSession<H> session = mock(PhoneCallSession.class);
+        PhoneCallSession<H> mocked = mock(PhoneCallSession.class);
         int rings = 1;
         int timeout = 10;
         boolean answer = true;
-        doReturn(true).when(mockedCalls).waitForCall(session, rings, timeout, answer);
+        doReturn(true).when(mockedCalls).waitForCall(mocked, rings, timeout, answer);
 
         // acting
-        boolean success = mockedDevice.waitForCall(session, rings, timeout, answer);
+        boolean success = mockedDevice.waitForCall(mocked, rings, timeout, answer);
 
         // check the behavior
-        verify(mockedCalls).waitForCall(session, rings, timeout, answer);
+        verify(mockedCalls).waitForCall(mocked, rings, timeout, answer);
         // check results
         assertThat(success).isTrue();
     }
 
     @Test
-    public void shouldWaitForCall_Regular() throws IOException, InterruptedException {
+    public void shouldWaitForCall_Regular() throws InterruptedException {
         // preparing test data
-        PhoneCallSession<H> session = spy((PhoneCallSession<H>) device.startSession());
         doReturn(true).when(provider).canAcceptCall(telephonyDeviceName);
         Device.ParameterName parameterName = CallsPortEngine.Parameter.ACCEPT_CALL_ALLOWED;
         device.setParameter(parameterName, ConfigurationParameter.of(parameterName.value(), true));
@@ -345,9 +352,8 @@ public class AbstractTelephonyDeviceTest<H> {
     }
 
     @Test
-    public void shouldNotWaitForCall_Regular_CannotAcceptCall() throws IOException {
+    public void shouldNotWaitForCall_Regular_CannotAcceptCall() {
         // preparing test data
-        PhoneCallSession<H> session = spy((PhoneCallSession<H>) device.startSession());
         int rings = 1;
         int timeout = 10;
         boolean answer = true;
@@ -370,24 +376,23 @@ public class AbstractTelephonyDeviceTest<H> {
     @Test
     public void shouldMakeCall_Mocked() {
         // preparing test data
-        PhoneCallSession<H> session = mock(PhoneCallSession.class);
+        PhoneCallSession<H> mocked = mock(PhoneCallSession.class);
         PhoneCall.Number target = PhoneNumber.of(1, 2, 3, 4);
         int timeout = 10;
-        doReturn(true).when(mockedCalls).makeCall(session, target, timeout);
+        doReturn(true).when(mockedCalls).makeCall(mocked, target, timeout);
 
         // acting
-        boolean success = mockedDevice.makeCall(session, target, timeout);
+        boolean success = mockedDevice.makeCall(mocked, target, timeout);
 
         // check the behavior
-        verify(mockedCalls).makeCall(session, target, timeout);
+        verify(mockedCalls).makeCall(mocked, target, timeout);
         // check results
         assertThat(success).isTrue();
     }
 
     @Test
-    public void shouldMakeCall_Regular() throws IOException, InterruptedException {
+    public void shouldMakeCall_Regular() throws InterruptedException {
         // preparing test data
-        PhoneCallSession<H> session = spy((PhoneCallSession<H>) device.startSession());
         {
             Device.ParameterName parameterName = CallsPortEngine.Parameter.MAKE_CALL_ALLOWED;
             device.setParameter(parameterName, ConfigurationParameter.of(parameterName.value(), true));
@@ -428,9 +433,8 @@ public class AbstractTelephonyDeviceTest<H> {
     }
 
     @Test
-    public void shouldNotMakeCall_Regular_CannotMakeCall() throws IOException {
+    public void shouldNotMakeCall_Regular_CannotMakeCall() {
         // preparing test data
-        PhoneCallSession<H> session = spy((PhoneCallSession<H>) device.startSession());
         {
             Device.ParameterName parameterName = CallsPortEngine.Parameter.MAKE_CALL_ALLOWED;
             device.setParameter(parameterName, ConfigurationParameter.of(parameterName.value(), true));
@@ -454,9 +458,8 @@ public class AbstractTelephonyDeviceTest<H> {
     }
 
     @Test
-    public void shouldNotMakeCall_Regular_CannotStartCalling() throws IOException, InterruptedException {
+    public void shouldNotMakeCall_Regular_CannotStartCalling() throws InterruptedException {
         // preparing test data
-        PhoneCallSession<H> session = spy((PhoneCallSession<H>) device.startSession());
         {
             Device.ParameterName parameterName = CallsPortEngine.Parameter.MAKE_CALL_ALLOWED;
             device.setParameter(parameterName, ConfigurationParameter.of(parameterName.value(), true));
@@ -471,7 +474,7 @@ public class AbstractTelephonyDeviceTest<H> {
         doReturn(true).when(provider).canMakeCall(telephonyDeviceName);
 
         // acting
-        Throwable error = assertThrows(Throwable.class, () ->device.makeCall(session, target, timeout));
+        Throwable error = assertThrows(Throwable.class, () -> device.makeCall(session, target, timeout));
 
         // check the behavior
         verify(calls).makeCall(session, target, timeout);
@@ -496,17 +499,17 @@ public class AbstractTelephonyDeviceTest<H> {
     @Test
     public void shouldConnect_Mocked() {
         // preparing test data
-        PhoneCallSession<H> session = mock(PhoneCallSession.class);
+        PhoneCallSession<H> mocked = mock(PhoneCallSession.class);
         Sound toPlay = mock(Sound.class);
         PhoneCall.Number target = PhoneNumber.of(1, 2, 3, 4);
         int timeout = 10;
-        doReturn(true).when(mockedCalls).connect(session, target, timeout, toPlay);
+        doReturn(true).when(mockedCalls).connect(mocked, target, timeout, toPlay);
 
         // acting
-        boolean success = mockedDevice.connect(session, target, timeout, toPlay);
+        boolean success = mockedDevice.connect(mocked, target, timeout, toPlay);
 
         // check the behavior
-        verify(mockedCalls).connect(session, target, timeout, toPlay);
+        verify(mockedCalls).connect(mocked, target, timeout, toPlay);
         // check results
         assertThat(success).isTrue();
     }
@@ -517,7 +520,6 @@ public class AbstractTelephonyDeviceTest<H> {
         doReturn(true).when(device).canBeConnected();
         H primaryHandle = (H) "leader";
         H sharedHandle = (H) "shared";
-        PhoneCallSession<H> session = spy((PhoneCallSession<H>) device.startSession());
         // substituting device handle for the session to avoid session's closing by next device.startSession()
         session.parameter(Device.Parameter.DEVICE_HANDLE, primaryHandle);
         // placing the spy of the session instead created previously
@@ -559,7 +561,6 @@ public class AbstractTelephonyDeviceTest<H> {
         doReturn(true).when(device).canBeConnected();
         H primaryHandle = (H) "leader";
         H sharedHandle = (H) "shared";
-        PhoneCallSession<H> session = spy((PhoneCallSession<H>) device.startSession());
         // substituting device handle for the session to avoid session's closing by next device.startSession()
         session.parameter(Device.Parameter.DEVICE_HANDLE, primaryHandle);
         // placing the spy of the session instead created previously
@@ -600,7 +601,6 @@ public class AbstractTelephonyDeviceTest<H> {
         doReturn(true).when(device).canBeConnected();
         H primaryHandle = (H) "leader";
         H sharedHandle = (H) "shared";
-        PhoneCallSession<H> session = spy((PhoneCallSession<H>) device.startSession());
         // substituting device handle for the session to avoid session's closing by next device.startSession()
         session.parameter(Device.Parameter.DEVICE_HANDLE, primaryHandle);
         // placing the spy of the session instead created previously
@@ -642,7 +642,6 @@ public class AbstractTelephonyDeviceTest<H> {
         String primaryDeviceName = "primary-device-name";
         H primaryHandle = (H) "leader";
         H sharedHandle = (H) "shared";
-        PhoneCallSession<H> session = spy((PhoneCallSession<H>) device.startSession());
         // substituting device handle for the session to avoid session's closing by next device.startSession()
         session.parameter(Device.Parameter.DEVICE_HANDLE, primaryHandle);
         // substituting device name for the session
@@ -696,7 +695,6 @@ public class AbstractTelephonyDeviceTest<H> {
         String primaryDeviceName = "primary-device-name";
         H primaryHandle = (H) "leader";
         H sharedHandle = (H) "shared";
-        PhoneCallSession<H> session = spy((PhoneCallSession<H>) device.startSession());
         // substituting device handle for the session to avoid session's closing by next device.startSession()
         session.parameter(Device.Parameter.DEVICE_HANDLE, primaryHandle);
         // substituting device name for the session
@@ -740,7 +738,6 @@ public class AbstractTelephonyDeviceTest<H> {
         String primaryDeviceName = "primary-device-name";
         H primaryHandle = (H) "leader";
         H sharedHandle = (H) "shared";
-        PhoneCallSession<H> session = spy((PhoneCallSession<H>) device.startSession());
         // substituting device handle for the session to avoid session's closing by next device.startSession()
         session.parameter(Device.Parameter.DEVICE_HANDLE, primaryHandle);
         // substituting device name for the session
@@ -788,7 +785,6 @@ public class AbstractTelephonyDeviceTest<H> {
         String primaryDeviceName = "primary-device-name";
         H primaryHandle = (H) "leader";
         H sharedHandle = (H) "shared";
-        PhoneCallSession<H> session = spy((PhoneCallSession<H>) device.startSession());
         // substituting device handle for the session to avoid session's closing by next device.startSession()
         session.parameter(Device.Parameter.DEVICE_HANDLE, primaryHandle);
         // substituting device name for the session
@@ -830,23 +826,523 @@ public class AbstractTelephonyDeviceTest<H> {
     }
 
     @Test
-    public void getTransferredPages() {
+    public void shouldGetTransferredPages_Mocked() {
+        // preparing test data
+        PhoneCallSession<H> mocked = mock(PhoneCallSession.class);
+        int pages = 20;
+        doReturn(pages).when(mockedFaxes).getTransferredPages(mocked);
+
+        // acting
+        int result = mockedDevice.getTransferredPages(mocked);
+
+        // check the behavior
+        verify(mockedFaxes).getTransferredPages(mocked);
+        // check results
+        assertThat(result).isEqualTo(pages);
     }
 
     @Test
-    public void getRemoteID() {
+    public void shouldGetTransferredPages() throws IOException {
+        // preparing test data
+        int pages = -20;
+        H faxHandle = (H) "fax-handle";
+        FaxMachineEngine.Parameter allowed = FaxMachineEngine.Parameter.FAX_ALLOWED;
+        device.setParameter(allowed, ConfigurationParameter.of(allowed.value(), true));
+        session.parameter(FaxMachineEngine.Parameter.TRANSFERRED_FAX_PAGES, pages);
+        doReturn(faxHandle).when(provider).openFaxResource(telephonyDeviceName);
+        faxes.open(session);
+        session.alive(true);
+        reset(faxes, session);
+
+        // acting
+        int result = device.getTransferredPages(session);
+
+        // check the behavior
+        verify(faxes).getTransferredPages(session);
+        verify(faxes).canFax();
+        verify(session).isAlive();
+        verify(session).getState();
+        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
+        verify(session).parameter(Device.Parameter.FAX_DEVICE_HANDLE);
+        verify(session).parameterOrDefault(FaxMachineEngine.Parameter.TRANSFERRED_FAX_PAGES, 0);
+        // check results
+        assertThat(result).isEqualTo(pages);
     }
 
     @Test
-    public void setFaxHeader() {
+    public void shouldDontGetTransferredPages_NotAllowedForDevice() {
+        // preparing test data
+        reset(faxes);
+        int pages = -20;
+
+        // acting
+        int result = device.getTransferredPages(session);
+
+        // check the behavior
+        verify(faxes).getTransferredPages(session);
+        verify(faxes).canFax();
+        verify(session, never()).isAlive();
+        // check results
+        assertThat(result).isNotEqualTo(pages).isZero();
     }
 
     @Test
-    public void setFaxLocalID() {
+    public void shouldDontGetTransferredPages_NotOpened() throws IOException {
+        // preparing test data
+        int pages = -20;
+        H faxHandle = (H) "fax-handle";
+        FaxMachineEngine.Parameter allowed = FaxMachineEngine.Parameter.FAX_ALLOWED;
+        device.setParameter(allowed, ConfigurationParameter.of(allowed.value(), true));
+        doReturn(faxHandle).when(provider).openFaxResource(telephonyDeviceName);
+        session.alive(true);
+        reset(faxes, session);
+
+        // acting
+        int result = device.getTransferredPages(session);
+
+        // check the behavior
+        verify(faxes).getTransferredPages(session);
+        verify(faxes).canFax();
+        verify(session).isAlive();
+        verify(session).getState();
+        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
+        verify(session).parameter(Device.Parameter.FAX_DEVICE_HANDLE);
+        verify(session, never()).parameterOrDefault(eq(FaxMachineEngine.Parameter.TRANSFERRED_FAX_PAGES), any());
+        // check results
+        assertThat(result).isNotEqualTo(pages).isZero();
     }
 
     @Test
-    public void receive() {
+    public void shouldDontGetTransferredPages_NothingInSessionParameter() throws IOException {
+        // preparing test data
+        int pages = -20;
+        H faxHandle = (H) "fax-handle";
+        FaxMachineEngine.Parameter allowed = FaxMachineEngine.Parameter.FAX_ALLOWED;
+        device.setParameter(allowed, ConfigurationParameter.of(allowed.value(), true));
+        doReturn(faxHandle).when(provider).openFaxResource(telephonyDeviceName);
+        faxes.open(session);
+        session.alive(true);
+        reset(faxes, session);
+
+        // acting
+        int result = device.getTransferredPages(session);
+
+        // check the behavior
+        verify(faxes).getTransferredPages(session);
+        verify(faxes).canFax();
+        verify(session).isAlive();
+        verify(session).getState();
+        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
+        verify(session).parameter(Device.Parameter.FAX_DEVICE_HANDLE);
+        verify(session).parameterOrDefault(FaxMachineEngine.Parameter.TRANSFERRED_FAX_PAGES, 0);
+        // check results
+        assertThat(result).isNotEqualTo(pages).isZero();
+    }
+
+    @Test
+    public void shouldDontGetTransferredPages_DisconnectedSession() {
+        // preparing test data
+        int pages = -20;
+        FaxMachineEngine.Parameter allowed = FaxMachineEngine.Parameter.FAX_ALLOWED;
+        device.setParameter(allowed, ConfigurationParameter.of(allowed.value(), true));
+        reset(faxes, session);
+
+        // acting
+        int result = device.getTransferredPages(session);
+
+        // check the behavior
+        verify(faxes).getTransferredPages(session);
+        verify(faxes).canFax();
+        verify(session).isAlive();
+        verify(session, never()).getState();
+        // check results
+        assertThat(result).isNotEqualTo(pages).isZero();
+    }
+
+    @Test
+    public void shouldGetRemoteID_Mocked() {
+        // preparing test data
+        PhoneCallSession<H> mocked = mock(PhoneCallSession.class);
+        String ID = "remote-id";
+        doReturn(ID).when(mockedFaxes).getRemoteID(mocked);
+
+        // acting
+        String result = mockedDevice.getRemoteID(mocked);
+
+        // check the behavior
+        verify(mockedFaxes).getRemoteID(mocked);
+        // check results
+        assertThat(result).isSameAs(ID);
+    }
+
+    @Test
+    public void shouldGetRemoteID() throws IOException {
+        // preparing test data
+        String ID = "remote-id";
+        H faxHandle = (H) "fax-handle";
+        FaxMachineEngine.Parameter allowed = FaxMachineEngine.Parameter.FAX_ALLOWED;
+        device.setParameter(allowed, ConfigurationParameter.of(allowed.value(), true));
+        session.parameter(FaxMachineEngine.Parameter.REMOTE_FAX_ID, ID);
+        doReturn(faxHandle).when(provider).openFaxResource(telephonyDeviceName);
+        faxes.open(session);
+        session.alive(true);
+        reset(faxes, session);
+
+        // acting
+        String result = device.getRemoteID(session);
+
+        // check the behavior
+        verify(faxes).getRemoteID(session);
+        verify(faxes).canFax();
+        verify(session).isAlive();
+        verify(session).getState();
+        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
+        verify(session).parameter(Device.Parameter.FAX_DEVICE_HANDLE);
+        verify(session).parameterOrDefault(FaxMachineEngine.Parameter.REMOTE_FAX_ID, "");
+        // check results
+        assertThat(result).isSameAs(ID);
+    }
+
+    @Test
+    public void shouldDontGetRemoteID_NotAllowedForDevice() {
+        // preparing test data
+        reset(faxes);
+        String ID = "remote-id";
+
+        // acting
+        String result = device.getRemoteID(session);
+
+        // check the behavior
+        verify(faxes).getRemoteID(session);
+        verify(faxes).canFax();
+        verify(session, never()).isAlive();
+        // check results
+        assertThat(result).isNotEqualTo(ID).isEmpty();
+    }
+
+    @Test
+    public void shouldDontGetRemoteID_NotOpened() throws IOException {
+        // preparing test data
+        String ID = "remote-id";
+        H faxHandle = (H) "fax-handle";
+        FaxMachineEngine.Parameter allowed = FaxMachineEngine.Parameter.FAX_ALLOWED;
+        device.setParameter(allowed, ConfigurationParameter.of(allowed.value(), true));
+        session.alive(true);
+        doReturn(faxHandle).when(provider).openFaxResource(telephonyDeviceName);
+        reset(faxes, session);
+
+        // acting
+        String result = device.getRemoteID(session);
+
+        // check the behavior
+        verify(faxes).getRemoteID(session);
+        verify(faxes).canFax();
+        verify(session).isAlive();
+        verify(session).getState();
+        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
+        verify(session).parameter(Device.Parameter.FAX_DEVICE_HANDLE);
+        verify(session, never()).parameterOrDefault(eq(FaxMachineEngine.Parameter.REMOTE_FAX_ID), any());
+        // check results
+        assertThat(result).isNotEqualTo(ID).isEmpty();
+    }
+
+    @Test
+    public void shouldDontGetRemoteID_NothingInSessionParameter() throws IOException {
+        // preparing test data
+        String ID = "remote-id";
+        H faxHandle = (H) "fax-handle";
+        FaxMachineEngine.Parameter allowed = FaxMachineEngine.Parameter.FAX_ALLOWED;
+        device.setParameter(allowed, ConfigurationParameter.of(allowed.value(), true));
+        session.alive(true);
+        doReturn(faxHandle).when(provider).openFaxResource(telephonyDeviceName);
+        faxes.open(session);
+        reset(faxes, session);
+
+        // acting
+        String result = device.getRemoteID(session);
+
+        // check the behavior
+        verify(faxes).getRemoteID(session);
+        verify(faxes).canFax();
+        verify(session).isAlive();
+        verify(session).getState();
+        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
+        verify(session).parameter(Device.Parameter.FAX_DEVICE_HANDLE);
+        verify(session).parameterOrDefault(FaxMachineEngine.Parameter.REMOTE_FAX_ID, "");
+        // check results
+        assertThat(result).isNotEqualTo(ID).isEmpty();
+    }
+
+    @Test
+    public void shouldDontGetRemoteID_DisconnectedSession() {
+        // preparing test data
+        String ID = "remote-id";
+        FaxMachineEngine.Parameter allowed = FaxMachineEngine.Parameter.FAX_ALLOWED;
+        device.setParameter(allowed, ConfigurationParameter.of(allowed.value(), true));
+        reset(faxes, session);
+
+        // acting
+        String result = device.getRemoteID(session);
+
+        // check the behavior
+        verify(faxes).getRemoteID(session);
+        verify(faxes).canFax();
+        verify(session).isAlive();
+        verify(session, never()).getState();
+        // check results
+        assertThat(result).isNotEqualTo(ID).isEmpty();
+    }
+
+    @Test
+    public void shouldSetFaxHeader_Mocked() {
+        // preparing test data
+        String faxHeader = "fax-document-header";
+        PhoneCallSession<H> mocked = mock(PhoneCallSession.class);
+
+        // acting
+        mockedDevice.setFaxHeader(mocked, faxHeader);
+
+        // check the behavior
+        verify(mockedFaxes).setFaxHeader(mocked, faxHeader);
+        // check results
+    }
+
+    @Test
+    public void shouldSetFaxHeader() throws IOException {
+        // preparing test data
+        String faxHeader = "fax-document-header";
+        H faxHandle = (H) "fax-handle";
+        FaxMachineEngine.Parameter allowed = FaxMachineEngine.Parameter.FAX_ALLOWED;
+        device.setParameter(allowed, ConfigurationParameter.of(allowed.value(), true));
+        doReturn(faxHandle).when(provider).openFaxResource(telephonyDeviceName);
+        faxes.open(session);
+        session.alive(true);
+        reset(faxes, session);
+
+        // acting
+        device.setFaxHeader(session, faxHeader);
+
+        // check the behavior
+        verify(faxes).setFaxHeader(session, faxHeader);
+        verify(faxes).canFax();
+        verify(session).isAlive();
+        verify(faxes).isOpened(session);
+        verify(session).getState();
+        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
+        verify(session).parameter(Device.Parameter.FAX_DEVICE_HANDLE);
+        verify(session).parameter(FaxMachineEngine.Parameter.FAX_PAGE_HEADER, faxHeader);
+        // check results
+        assertThat(session.<String>parameter(FaxMachineEngine.Parameter.FAX_PAGE_HEADER)).isSameAs(faxHeader);
+    }
+
+    @Test
+    public void shouldDontSetFaxHeader_NotAllowedForDevice() {
+        // preparing test data
+        String faxHeader = "fax-document-header";
+        reset(faxes, session);
+
+        // acting
+        device.setFaxHeader(session, faxHeader);
+
+        // check the behavior
+        verify(faxes).setFaxHeader(session, faxHeader);
+        verify(faxes).canFax();
+        verify(session, never()).isAlive();
+        // check results
+        assertThat(session.<String>parameter(FaxMachineEngine.Parameter.FAX_PAGE_HEADER)).isNull();
+    }
+
+    @Test
+    public void shouldDontSetFaxHeader_NotOpened() {
+        // preparing test data
+        String faxHeader = "fax-document-header";
+        FaxMachineEngine.Parameter allowed = FaxMachineEngine.Parameter.FAX_ALLOWED;
+        device.setParameter(allowed, ConfigurationParameter.of(allowed.value(), true));
+        session.alive(true);
+        reset(faxes, session);
+
+        // acting
+        device.setFaxHeader(session, faxHeader);
+
+        // check the behavior
+        verify(faxes).setFaxHeader(session, faxHeader);
+        verify(faxes).canFax();
+        verify(session).isAlive();
+        verify(session).getState();
+        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
+        verify(session).parameter(Device.Parameter.FAX_DEVICE_HANDLE);
+        verify(session, never()).parameter(eq(FaxMachineEngine.Parameter.FAX_PAGE_HEADER), any());
+        // check results
+        assertThat(session.<String>parameter(FaxMachineEngine.Parameter.FAX_PAGE_HEADER)).isNull();
+    }
+
+    @Test
+    public void shouldDontSetFaxHeader_Disconnected() {
+        // preparing test data
+        String faxHeader = "fax-document-header";
+        FaxMachineEngine.Parameter allowed = FaxMachineEngine.Parameter.FAX_ALLOWED;
+        device.setParameter(allowed, ConfigurationParameter.of(allowed.value(), true));
+        reset(faxes, session);
+
+        // acting
+        device.setFaxHeader(session, faxHeader);
+
+        // check the behavior
+        verify(faxes).setFaxHeader(session, faxHeader);
+        verify(faxes).canFax();
+        verify(session).isAlive();
+        verify(session, never()).getState();
+        // check results
+        assertThat(session.<String>parameter(FaxMachineEngine.Parameter.FAX_PAGE_HEADER)).isNull();
+    }
+
+    @Test
+    public void shouldSetFaxLocalID_Mocked() {
+        // preparing test data
+        String faxLocalID = "fax-local-id";
+        PhoneCallSession<H> mocked = mock(PhoneCallSession.class);
+
+        // acting
+        mockedDevice.setFaxLocalID(mocked, faxLocalID);
+
+        // check the behavior
+        verify(mockedFaxes).setFaxLocalID(mocked, faxLocalID);
+        // check results
+    }
+
+    @Test
+    public void shouldSetFaxLocalID() throws IOException {
+        // preparing test data
+        String faxLocalID = "fax-local-id";
+        H faxHandle = (H) "fax-handle";
+        FaxMachineEngine.Parameter allowed = FaxMachineEngine.Parameter.FAX_ALLOWED;
+        device.setParameter(allowed, ConfigurationParameter.of(allowed.value(), true));
+        doReturn(faxHandle).when(provider).openFaxResource(telephonyDeviceName);
+        faxes.open(session);
+        session.alive(true);
+        reset(faxes, session);
+
+        // acting
+        device.setFaxLocalID(session, faxLocalID);
+
+        // check the behavior
+        verify(faxes).setFaxLocalID(session, faxLocalID);
+        verify(faxes).canFax();
+        verify(session).isAlive();
+        verify(session).getState();
+        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
+        verify(session).parameter(Device.Parameter.FAX_DEVICE_HANDLE);
+        verify(session).parameter(FaxMachineEngine.Parameter.LOCAL_FAX_ID, faxLocalID);
+        // check results
+        assertThat(session.<String>parameter(FaxMachineEngine.Parameter.LOCAL_FAX_ID)).isSameAs(faxLocalID);
+    }
+
+    @Test
+    public void shouldDontSetFaxLocalID_NotAllowedForDevice() {
+        // preparing test data
+        String faxLocalID = "fax-local-id";
+        reset(faxes, session);
+
+        // acting
+        device.setFaxLocalID(session, faxLocalID);
+
+        // check the behavior
+        verify(faxes).setFaxLocalID(session, faxLocalID);
+        verify(faxes).canFax();
+        verify(session, never()).isAlive();
+        // check results
+        assertThat(session.<String>parameter(FaxMachineEngine.Parameter.LOCAL_FAX_ID)).isNull();
+    }
+
+    @Test
+    public void shouldDontSetFaxLocalID_NotOpened() {
+        // preparing test data
+        String faxLocalID = "fax-local-id";
+        FaxMachineEngine.Parameter allowed = FaxMachineEngine.Parameter.FAX_ALLOWED;
+        device.setParameter(allowed, ConfigurationParameter.of(allowed.value(), true));
+        session.alive(true);
+        reset(faxes, session);
+
+        // acting
+        device.setFaxLocalID(session, faxLocalID);
+
+        // check the behavior
+        verify(faxes).setFaxLocalID(session, faxLocalID);
+        verify(faxes).canFax();
+        verify(session).isAlive();
+        verify(session).getState();
+        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
+        verify(session).parameter(Device.Parameter.FAX_DEVICE_HANDLE);
+        verify(session, never()).parameter(eq(FaxMachineEngine.Parameter.LOCAL_FAX_ID), any());
+        // check results
+        assertThat(session.<String>parameter(FaxMachineEngine.Parameter.LOCAL_FAX_ID)).isNull();
+    }
+
+    @Test
+    public void shouldDontSetFaxLocalID_Disconnected() {
+        // preparing test data
+        String faxLocalID = "fax-local-id";
+        FaxMachineEngine.Parameter allowed = FaxMachineEngine.Parameter.FAX_ALLOWED;
+        device.setParameter(allowed, ConfigurationParameter.of(allowed.value(), true));
+        reset(faxes, session);
+
+        // acting
+        device.setFaxLocalID(session, faxLocalID);
+
+        // check the behavior
+        verify(faxes).setFaxLocalID(session, faxLocalID);
+        verify(faxes).canFax();
+        verify(session).isAlive();
+        verify(session, never()).getState();
+        // check results
+        assertThat(session.<String>parameter(FaxMachineEngine.Parameter.LOCAL_FAX_ID)).isNull();
+    }
+
+    @Test
+    public void shouldReceiveFaxDocument_Mocked() {
+        // preparing test data
+        PhoneCallSession<H> mocked = mock(PhoneCallSession.class);
+        OutputStream target = mock(OutputStream.class);
+        boolean pollingMode = true;
+        boolean issueVoiceRequest = true;
+        doReturn(true).when(mockedDevice).isOpened();
+        doReturn(Result.OK).when(mockedFaxes).receive(mocked, target, pollingMode, issueVoiceRequest);
+        reset(faxes);
+
+        // acting
+        OperationResultValue result = mockedDevice.receive(mocked, target, pollingMode, issueVoiceRequest);
+
+        // check the behavior
+        verify(mockedDevice).isOpened();
+        verify(mockedFaxes).receive(mocked, target, pollingMode, issueVoiceRequest);
+        // check results
+        assertThat(result).isSameAs(Result.OK);
+    }
+
+    @Test
+    public void shouldReceiveFaxDocument() throws IOException {
+        // preparing test data
+        H faxHandle = (H) "fax-handle";
+        OutputStream target = mock(OutputStream.class);
+        boolean pollingMode = true;
+        boolean issueVoiceRequest = true;
+        FaxMachineEngine.Parameter allowed = FaxMachineEngine.Parameter.FAX_ALLOWED;
+        device.setParameter(allowed, ConfigurationParameter.of(allowed.value(), true));
+        doReturn(faxHandle).when(provider).openFaxResource(telephonyDeviceName);
+        doReturn(true).when(provider).startFaxReceiving(eq(faxHandle), anyString(), eq(issueVoiceRequest));
+        faxes.open(session);
+        session.alive(true);
+        reset(faxes, session);
+        shadowExecutor.schedule(() -> session.operationComplete(Result.IO.EOF), 100, TimeUnit.MILLISECONDS);
+
+        // acting
+        OperationResultValue result = device.receive(session, target, pollingMode, issueVoiceRequest);
+
+        // check the behavior
+        verify(device).isOpened();
+        verify(faxes).receive(session, target, pollingMode, issueVoiceRequest);
+        // check results
+        assertThat(result).isSameAs(Result.IO.EOF);
     }
 
     @Test

@@ -573,8 +573,8 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      */
     @Override
     public OperationResultValue receive(PhoneCallSession<H> session, OutputStream target, boolean pollingMode, boolean issueVoiceRequest) {
-        return isDeviceOpened() && faxes.canFax()
-                ? delegateFaxReceive(target, pollingMode, issueVoiceRequest)
+        return isDeviceOpened()
+                ? faxes.receive(session, target, pollingMode, issueVoiceRequest)
                 : Result.ERROR;
     }
 
@@ -895,6 +895,6 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
 
     // to check is device has valid handle
     private boolean isDeviceOpened() {
-        return super.isOpened();
+        return isOpened();
     }
 }

@@ -41,7 +41,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import org.visualcti.core.channel.device.Device;
-import org.visualcti.core.channel.device.DeviceActivitySession;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.operation.Result;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
@@ -81,19 +80,19 @@ public interface FaxMachineEngine<H> extends TelephonyDevicePart<H> {
 
     /**
      * <action>
-     * To open and activate the fax-machine on the opened telephony device session
+     * To open and activate the fax-machine for the opened telephony device session
      *
      * @param session the session of the opened device
      * @throws IOException if device cannot open fax-machine for the telephony device session
      * @see PhoneCallSession
      */
-    default void open(DeviceActivitySession<H> session) throws IOException {
+    default void open(PhoneCallSession<H> session) throws IOException {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
     /**
      * <action>
-     * Closing the fax-machine part of the device
+     * Closing the fax-machine part of the device for the telephony device session
      *
      * @param session the session of the opened device
      * @see PhoneCallSession
@@ -121,9 +120,13 @@ public interface FaxMachineEngine<H> extends TelephonyDevicePart<H> {
      * @param session the phone call's session, device is working with
      * @return how many pages transferred
      * @see FaxMachineEngine.Parameter#TRANSFERRED_FAX_PAGES
+     * @see #canFax()
+     * @see PhoneCallSession#isAlive()
      */
     default int getTransferredPages(final PhoneCallSession<H> session) {
-        return canFax() ? session.parameterOrDefault(Parameter.TRANSFERRED_FAX_PAGES, 0) : 0;
+        return canFax() && session.isAlive() && isOpened(session)
+                ? session.parameterOrDefault(Parameter.TRANSFERRED_FAX_PAGES, 0)
+                : 0;
     }
 
     /**
@@ -133,9 +136,13 @@ public interface FaxMachineEngine<H> extends TelephonyDevicePart<H> {
      * @param session the phone call's session, device is working with
      * @return localId of the remote fax-machine
      * @see FaxMachineEngine.Parameter#REMOTE_FAX_ID
+     * @see #canFax()
+     * @see PhoneCallSession#isAlive()
      */
-    default String getRemoteID(PhoneCallSession<H> session) {
-        return canFax() ? session.parameterOrDefault(Parameter.REMOTE_FAX_ID, "") : "";
+    default String getRemoteID(final PhoneCallSession<H> session) {
+        return canFax() && session.isAlive() && isOpened(session)
+                ? session.parameterOrDefault(Parameter.REMOTE_FAX_ID, "")
+                : "";
     }
 
     /**
@@ -145,9 +152,11 @@ public interface FaxMachineEngine<H> extends TelephonyDevicePart<H> {
      * @param session the phone call's session, device is working with
      * @param header  the new value
      * @see FaxMachineEngine.Parameter#FAX_PAGE_HEADER
+     * @see #canFax()
+     * @see PhoneCallSession#isAlive()
      */
-    default void setFaxHeader(PhoneCallSession<H> session, String header) {
-        if (canFax()) {
+    default void setFaxHeader(final PhoneCallSession<H> session, final String header) {
+        if (canFax() && session.isAlive() && isOpened(session)) {
             session.parameter(Parameter.FAX_PAGE_HEADER, header);
         }
     }
@@ -159,9 +168,11 @@ public interface FaxMachineEngine<H> extends TelephonyDevicePart<H> {
      * @param session the phone call's session, device is working with
      * @param localID new value of device's fax-machine localId
      * @see FaxMachineEngine.Parameter#LOCAL_FAX_ID
+     * @see #canFax()
+     * @see PhoneCallSession#isAlive()
      */
-    default void setFaxLocalID(PhoneCallSession<H> session, String localID) {
-        if (canFax()) {
+    default void setFaxLocalID(final PhoneCallSession<H> session, final String localID) {
+        if (canFax() && session.isAlive() && isOpened(session)) {
             session.parameter(Parameter.LOCAL_FAX_ID, localID);
         }
     }

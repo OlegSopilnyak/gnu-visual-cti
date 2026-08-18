@@ -49,7 +49,6 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.core.channel.device.Device;
-import org.visualcti.core.channel.device.DeviceActivitySession;
 import org.visualcti.core.channel.device.DeviceStateValue;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.TelephonyDevice;
@@ -89,9 +88,9 @@ public abstract class AbstractFaxMachineEngine<H> extends AbstractDevicePart<H> 
      * @see Device.Parameter#FAX_DEVICE_HANDLE
      */
     @Override
-    public void open(DeviceActivitySession<H> session) throws IOException {
+    public void open(PhoneCallSession<H> session) throws IOException {
         if (canFax()) {
-            if (isOpened((PhoneCallSession<H>) session)) {
+            if (isOpened(session)) {
                 throw new IOException("Cannot open FAX device part! Already opened!");
             }
             final H faxResourceHandle = deviceCore.getProvider().openFaxResource(session.getDevice().getName());
@@ -167,7 +166,7 @@ public abstract class AbstractFaxMachineEngine<H> extends AbstractDevicePart<H> 
     @Override
     public OperationResultValue receive(final PhoneCallSession<H> session, final OutputStream target,
                                         final boolean pollingMode, final boolean issueVoiceRequest) {
-        if (isOpened(session)) {
+        if (canProceedWith(session)) {
             // getting device service provider
             final TelephonyServiceProvider<H> serviceProvider = deviceCore.getProvider();
             final H faxDeviceHandle = session.parameter(Device.Parameter.FAX_DEVICE_HANDLE);
@@ -186,11 +185,12 @@ public abstract class AbstractFaxMachineEngine<H> extends AbstractDevicePart<H> 
                 // saving the file for tests purposes
                 session.parameter(Parameter.FAX_TEMPORARY, tempFile);
                 // starting fax receiving operation
-                final boolean starting = serviceProvider.startFaxReceiving(
-                        faxDeviceHandle, tempFile.getAbsolutePath(), issueVoiceRequest
-                );
-                if (!starting && tempFile.delete()) {
-                    throw new IOException("Cannot start FAX receiving");
+                final boolean starting = serviceProvider
+                        .startFaxReceiving(faxDeviceHandle, tempFile.getAbsolutePath(), issueVoiceRequest);
+                if (!starting) {
+                    // start fax receiving is failed
+                    final String errorReason = "Cannot start FAX receiving.";
+                    return receiveFaxError(faxDeviceHandle, tempFile, session, errorReason);
                 }
                 // start to wait for the operation result
                 session.operationComplete(Result.NONE);
@@ -413,6 +413,11 @@ public abstract class AbstractFaxMachineEngine<H> extends AbstractDevicePart<H> 
     }
 
     /// private methods
+    // to check is it possible to do fax operations
+    private boolean canProceedWith(PhoneCallSession<H> session) {
+        return canFax() && session.isAlive() && isOpened(session);
+    }
+
     // terminate current fax machine active operation
     private void terminateOperation(PhoneCallSession<H> session, Consumer<H> operation) {
         operation.accept(session.parameter(Device.Parameter.FAX_DEVICE_HANDLE));
@@ -442,6 +447,21 @@ public abstract class AbstractFaxMachineEngine<H> extends AbstractDevicePart<H> 
                 target.write(buffer, 0, read);
             }
         }
+    }
+
+    // error detected during fax-document receiving
+    private OperationResultValue receiveFaxError(H deviceHandle, File tempFile, PhoneCallSession<H> session, String reason) {
+        // stopping audio data transmitting by service provider
+        stopFaxReceiving(deviceCore.getProvider(), deviceHandle);
+        // deleting temporary file
+        if (!tempFile.delete()) {
+            // session is broken
+            session.setState(Device.State.ERROR);
+        } else {
+            // throwing DeviceMalfunction error here
+            onDeviceError(session, reason);
+        }
+        return Result.ERROR;
     }
 
     private static <H> void stopFaxReceiving(TelephonyServiceProvider<H> serviceProvider, H faxDeviceHandle) {
