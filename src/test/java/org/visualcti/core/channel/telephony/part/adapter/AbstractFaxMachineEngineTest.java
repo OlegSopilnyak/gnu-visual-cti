@@ -389,7 +389,7 @@ public class AbstractFaxMachineEngineTest<H> {
         executor.schedule(() -> session.operationComplete(Result.ERROR), 100, TimeUnit.MILLISECONDS);
 
         // acting
-        final Throwable error = assertThrows(Throwable.class, ()->engine.receive(session, out, poolingMode, issueVoiceRequest));
+        final Throwable error = assertThrows(Throwable.class, () -> engine.receive(session, out, poolingMode, issueVoiceRequest));
 
         // check the behavior
         verify(engine).isOpened(session);
