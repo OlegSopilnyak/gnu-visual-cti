@@ -51,6 +51,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import java.io.BufferedReader;
@@ -223,6 +224,7 @@ public class AbstractFaxMachineEngineTest<H> {
         assertThat(engine.isOpened(session)).isTrue();
         session.alive(true);
         reset(engine, provider);
+        doReturn(true).when(engine).canFax();
         doReturn(true).when(provider).startFaxReceiving(eq(deviceHandle), anyString(), eq(issueVoiceRequest));
 
         // acting
@@ -232,22 +234,17 @@ public class AbstractFaxMachineEngineTest<H> {
         }
 
         // check the behavior
-        verify(engine).isOpened(session);
+        verifyEngineSessionProceedingAbility(engine, session);
         verify(device, atLeastOnce()).getProvider();
-        verify(session, atLeastOnce()).parameter(Device.Parameter.FAX_DEVICE_HANDLE);
-        verify(provider, atLeastOnce()).disableEvents(deviceHandle);
-        verify(provider).enableEvents(deviceHandle, Result.CALL.DISCONNECT);
-        if (poolingMode) {
-            verify(provider).enableEvents(deviceHandle, Result.FAX.POLLING);
-        }
+        verifyReceiveFaxEventsManagement(provider, deviceHandle);
         verify(session).setState(TelephonyDevice.State.RECVFAX);
         verify(session).parameter(eq(FaxMachineEngine.Parameter.FAX_TEMPORARY), any(File.class));
         verify(provider).startFaxReceiving(eq(deviceHandle), anyString(), eq(issueVoiceRequest));
-        verify(session).operationComplete(Result.NONE);
-        verify(session).waitingForOperationComplete(anyLong());
+        verify(session).operationResult(Result.NONE);
+        verify(session).waitingForOperationComplete(1000L);
         verify(session).operationComplete(Result.IO.EOF);
         verify(session).setState(Device.State.IDLE);
-        verify(provider, atLeastOnce()).stopFaxReceiving(deviceHandle);
+        verify(provider).stopFaxReceiving(deviceHandle);
         // check results
         assertThat(session.isTerminated()).isFalse();
         assertThat(result).isSameAs(Result.IO.EOF);
@@ -263,58 +260,61 @@ public class AbstractFaxMachineEngineTest<H> {
     public void shouldNotReceiveFaxDocument_SessionIsNotOpened() {
         // preparing test data
         OutputStream out = mock(OutputStream.class);
+        session.alive(true);
+        doReturn(true).when(engine).canFax();
+        assertThat(session.<H>parameter(Device.Parameter.FAX_DEVICE_HANDLE)).isNull();
+        reset(session);
 
         // acting
         OperationResultValue result = engine.receive(session, out, true, false);
 
         // check the behavior
-        verify(engine).isOpened(session);
+        verifyEngineSessionProceedingAbility(engine, session);
         verify(device, never()).getProvider();
         // check results
         assertThat(result).isSameAs(Result.ERROR);
-        assertThat(session.getState()).isEqualTo(Device.State.ERROR);
+        assertThat(session.getState()).isSameAs(Device.State.ERROR);
     }
 
     @Test
-    public void shouldNotReceiveFaxDocument_DidNotStartFaxOperation() throws IOException {
+    public void shouldNotReceiveFaxDocument_DidNotStartFaxOperation() throws IOException, InterruptedException {
         // preparing test data
-        boolean poolingMode = true;
+        String errorReason = "Cannot start FAX receiving.";
+        boolean pollingMode = true;
         boolean issueVoiceRequest = true;
         OutputStream out = mock(OutputStream.class);
-        OperationResultValue result;
-        engine.uses(device);
-        doReturn(true).when(engine).canFax();
         doReturn(deviceHandle).when(provider).openFaxResource(deviceName);
+        doReturn(true).when(engine).canFax();
+        engine.uses(device);
         engine.open(session);
         assertThat(engine.isOpened(session)).isTrue();
         session.alive(true);
         reset(engine, provider);
+        doReturn(true).when(engine).canFax();
 
         // acting
-        result = engine.receive(session, out, poolingMode, issueVoiceRequest);
+        Throwable error = assertThrows(Throwable.class,
+                () -> engine.receive(session, out, pollingMode, issueVoiceRequest)
+        );
 
         // check the behavior
-        verify(engine).isOpened(session);
+        verifyEngineSessionProceedingAbility(engine, session);
         verify(device, atLeastOnce()).getProvider();
-        verify(session, atLeastOnce()).parameter(Device.Parameter.FAX_DEVICE_HANDLE);
-        verify(provider, atLeastOnce()).disableEvents(deviceHandle);
-        verify(provider).enableEvents(deviceHandle, Result.CALL.DISCONNECT);
-        if (poolingMode) {
-            verify(provider).enableEvents(deviceHandle, Result.FAX.POLLING);
-        }
+        verifyReceiveFaxEventsManagement(provider, deviceHandle);
         verify(session).setState(TelephonyDevice.State.RECVFAX);
         verify(session).parameter(eq(FaxMachineEngine.Parameter.FAX_TEMPORARY), any(File.class));
         verify(provider).startFaxReceiving(eq(deviceHandle), anyString(), eq(issueVoiceRequest));
-        ArgumentCaptor<Exception> exceptionCaptor = ArgumentCaptor.forClass(Exception.class);
-        verify(device).dispatchError(exceptionCaptor.capture(), eq("Cannot  receive fax file"));
+        verify(session, never()).waitingForOperationComplete(anyLong());
+        verify(provider).stopFaxReceiving(deviceHandle);
+        verify(device).dispatchError(errorReason);
+        verify(session).operationResult(Result.ERROR);
+        verify(session).setState(Device.State.ERROR);
         verify(out, never()).write(any(), anyInt(), anyInt());
-        verify(provider, never()).stopFaxReceiving(deviceHandle);
         // check results
-        Exception exception = exceptionCaptor.getValue();
-        assertThat(exception).isInstanceOf(IOException.class);
-        assertThat(exception.getMessage()).isEqualTo("Cannot start FAX receiving");
-        assertThat(result).isSameAs(Result.ERROR);
-        assertThat(session.getState()).isEqualTo(Device.State.ERROR);
+        assertThat(error).isInstanceOf(DeviceMalfunction.class);
+        assertThat(error.getMessage()).endsWith(errorReason);
+        assertThat(session.operationResult()).isSameAs(Result.ERROR);
+        assertThat(session.getState()).isSameAs(Device.State.ERROR);
     }
 
     @Test
@@ -332,6 +332,7 @@ public class AbstractFaxMachineEngineTest<H> {
         assertThat(engine.isOpened(session)).isTrue();
         session.alive(true);
         reset(engine, provider);
+        doReturn(true).when(engine).canFax();
         doReturn(true).when(provider).startFaxReceiving(eq(deviceHandle), anyString(), eq(issueVoiceRequest));
 
         // acting
@@ -346,24 +347,20 @@ public class AbstractFaxMachineEngineTest<H> {
         result = acting.get();
 
         // check the behavior
-        verify(engine).isOpened(session);
+        verifyEngineSessionProceedingAbility(engine, session);
         verify(device, atLeastOnce()).getProvider();
-        verify(session, atLeastOnce()).parameter(Device.Parameter.FAX_DEVICE_HANDLE);
-        verify(provider, atLeastOnce()).disableEvents(deviceHandle);
-        verify(provider).enableEvents(deviceHandle, Result.CALL.DISCONNECT);
-        if (poolingMode) {
-            verify(provider).enableEvents(deviceHandle, Result.FAX.POLLING);
-        }
+        verifyReceiveFaxEventsManagement(provider, deviceHandle);
         verify(session).setState(TelephonyDevice.State.RECVFAX);
         verify(session).parameter(eq(FaxMachineEngine.Parameter.FAX_TEMPORARY), any(File.class));
         verify(provider).startFaxReceiving(eq(deviceHandle), anyString(), eq(issueVoiceRequest));
-        verify(session).operationComplete(Result.NONE);
-        verify(session).waitingForOperationComplete(anyLong());
+        verify(session).operationResult(Result.NONE);
+        verify(session).waitingForOperationComplete(1000L);
         verify(out, never()).write(any(), anyInt(), anyInt());
         verify(session).alive(false);
         verify(session).operationComplete(Result.CALL.DISCONNECT);
+        verify(session, times(2)).operationResult(Result.CALL.DISCONNECT);
         verify(session).setState(Device.State.ERROR);
-        verify(device).dispatchError("Receive fax document is failed.");
+        verify(device).dispatchError("Receive fax document is failed because of phone line disconnection.");
         verify(provider).stopFaxReceiving(deviceHandle);
         // check results
         assertThat(result).isSameAs(reason);
@@ -385,6 +382,7 @@ public class AbstractFaxMachineEngineTest<H> {
         assertThat(engine.isOpened(session)).isTrue();
         session.alive(true);
         reset(engine, provider);
+        doReturn(true).when(engine).canFax();
         doReturn(true).when(provider).startFaxReceiving(eq(deviceHandle), anyString(), eq(issueVoiceRequest));
         executor.schedule(() -> session.operationComplete(Result.ERROR), 100, TimeUnit.MILLISECONDS);
 
@@ -392,21 +390,18 @@ public class AbstractFaxMachineEngineTest<H> {
         final Throwable error = assertThrows(Throwable.class, () -> engine.receive(session, out, poolingMode, issueVoiceRequest));
 
         // check the behavior
-        verify(engine).isOpened(session);
+        verifyEngineSessionProceedingAbility(engine, session);
         verify(device, atLeastOnce()).getProvider();
         verify(session, atLeastOnce()).parameter(Device.Parameter.FAX_DEVICE_HANDLE);
-        verify(provider, atLeastOnce()).disableEvents(deviceHandle);
-        verify(provider).enableEvents(deviceHandle, Result.CALL.DISCONNECT);
-        if (poolingMode) {
-            verify(provider).enableEvents(deviceHandle, Result.FAX.POLLING);
-        }
+        verifyReceiveFaxEventsManagement(provider, deviceHandle);
         verify(session).setState(TelephonyDevice.State.RECVFAX);
         verify(session).parameter(eq(FaxMachineEngine.Parameter.FAX_TEMPORARY), any(File.class));
         verify(provider).startFaxReceiving(eq(deviceHandle), anyString(), eq(issueVoiceRequest));
-        verify(session).operationComplete(Result.NONE);
+        verify(session).operationResult(Result.NONE);
         verify(session).waitingForOperationComplete(anyLong());
         verify(out, never()).write(any(), anyInt(), anyInt());
         verify(session).operationComplete(reason);
+        verify(session, times(2)).operationResult(reason);
         verify(session).setState(Device.State.ERROR);
         verify(device).dispatchError("Receive fax document is failed.");
         // check results
@@ -431,6 +426,7 @@ public class AbstractFaxMachineEngineTest<H> {
         assertThat(engine.isOpened(session)).isTrue();
         session.alive(true);
         reset(engine, provider);
+        doReturn(true).when(engine).canFax();
         doReturn(true).when(provider).startFaxReceiving(eq(deviceHandle), anyString(), eq(issueVoiceRequest));
 
         // acting
@@ -442,21 +438,17 @@ public class AbstractFaxMachineEngineTest<H> {
         result = acting.get();
 
         // check the behavior
-        verify(engine).isOpened(session);
+        verifyEngineSessionProceedingAbility(engine, session);
         verify(device, atLeastOnce()).getProvider();
-        verify(session, atLeastOnce()).parameter(Device.Parameter.FAX_DEVICE_HANDLE);
-        verify(provider, atLeastOnce()).disableEvents(deviceHandle);
-        verify(provider).enableEvents(deviceHandle, Result.CALL.DISCONNECT);
-        if (poolingMode) {
-            verify(provider).enableEvents(deviceHandle, Result.FAX.POLLING);
-        }
+        verifyReceiveFaxEventsManagement(provider, deviceHandle);
         verify(session).setState(TelephonyDevice.State.RECVFAX);
         verify(session).parameter(eq(FaxMachineEngine.Parameter.FAX_TEMPORARY), any(File.class));
         verify(provider).startFaxReceiving(eq(deviceHandle), anyString(), eq(issueVoiceRequest));
-        verify(session).operationComplete(Result.NONE);
+        verify(session).operationResult(Result.NONE);
         verify(session).waitingForOperationComplete(anyLong());
         verify(out, never()).write(any(), anyInt(), anyInt());
         verify(session).operationComplete(reason);
+        verify(session).operationResult(reason);
         verify(session).setState(Device.State.ERROR);
         verify(device).dispatchError("Receive fax document is failed.");
         verify(provider).stopFaxReceiving(deviceHandle);
@@ -481,6 +473,7 @@ public class AbstractFaxMachineEngineTest<H> {
         assertThat(engine.isOpened(session)).isTrue();
         session.alive(true);
         reset(engine, provider);
+        doReturn(true).when(engine).canFax();
         doReturn(true).when(provider).startFaxReceiving(eq(deviceHandle), anyString(), eq(issueVoiceRequest));
 
         // acting
@@ -492,21 +485,17 @@ public class AbstractFaxMachineEngineTest<H> {
         result = acting.get();
 
         // check the behavior
-        verify(engine).isOpened(session);
+        verifyEngineSessionProceedingAbility(engine, session);
         verify(device, atLeastOnce()).getProvider();
-        verify(session, atLeastOnce()).parameter(Device.Parameter.FAX_DEVICE_HANDLE);
-        verify(provider, atLeastOnce()).disableEvents(deviceHandle);
-        verify(provider).enableEvents(deviceHandle, Result.CALL.DISCONNECT);
-        if (poolingMode) {
-            verify(provider).enableEvents(deviceHandle, Result.FAX.POLLING);
-        }
+        verifyReceiveFaxEventsManagement(provider, deviceHandle);
         verify(session).setState(TelephonyDevice.State.RECVFAX);
         verify(session).parameter(eq(FaxMachineEngine.Parameter.FAX_TEMPORARY), any(File.class));
         verify(provider).startFaxReceiving(eq(deviceHandle), anyString(), eq(issueVoiceRequest));
-        verify(session).operationComplete(Result.NONE);
+        verify(session).operationResult(Result.NONE);
         verify(session).waitingForOperationComplete(anyLong());
         verify(out, never()).write(any(), anyInt(), anyInt());
         verify(session).operationComplete(reason);
+        verify(session).operationResult(reason);
         verify(session).setState(Device.State.ERROR);
         verify(device).dispatchError("Receive fax document is failed.");
         verify(provider).stopFaxReceiving(deviceHandle);
@@ -531,6 +520,7 @@ public class AbstractFaxMachineEngineTest<H> {
         assertThat(engine.isOpened(session)).isTrue();
         session.alive(true);
         reset(engine, provider);
+        doReturn(true).when(engine).canFax();
         doReturn(true).when(provider).startFaxReceiving(eq(deviceHandle), anyString(), eq(issueVoiceRequest));
 
         // acting
@@ -542,21 +532,17 @@ public class AbstractFaxMachineEngineTest<H> {
         result = acting.get();
 
         // check the behavior
-        verify(engine).isOpened(session);
+        verifyEngineSessionProceedingAbility(engine, session);
         verify(device, atLeastOnce()).getProvider();
-        verify(session, atLeastOnce()).parameter(Device.Parameter.FAX_DEVICE_HANDLE);
-        verify(provider, atLeastOnce()).disableEvents(deviceHandle);
-        verify(provider).enableEvents(deviceHandle, Result.CALL.DISCONNECT);
-        if (poolingMode) {
-            verify(provider).enableEvents(deviceHandle, Result.FAX.POLLING);
-        }
+        verifyReceiveFaxEventsManagement(provider, deviceHandle);
         verify(session).setState(TelephonyDevice.State.RECVFAX);
         verify(session).parameter(eq(FaxMachineEngine.Parameter.FAX_TEMPORARY), any(File.class));
         verify(provider).startFaxReceiving(eq(deviceHandle), anyString(), eq(issueVoiceRequest));
-        verify(session).operationComplete(Result.NONE);
+        verify(session).operationResult(Result.NONE);
         verify(session).waitingForOperationComplete(anyLong());
         verify(out, never()).write(any(), anyInt(), anyInt());
         verify(session).operationComplete(reason);
+        verify(session).operationResult(reason);
         verify(session).setState(Device.State.ERROR);
         verify(device).dispatchError("Receive fax document is failed.");
         verify(provider).stopFaxReceiving(deviceHandle);
@@ -581,6 +567,7 @@ public class AbstractFaxMachineEngineTest<H> {
         assertThat(engine.isOpened(session)).isTrue();
         session.alive(true);
         reset(engine, provider);
+        doReturn(true).when(engine).canFax();
         doReturn(true).when(provider).startFaxReceiving(eq(deviceHandle), anyString(), eq(issueVoiceRequest));
 
         // acting
@@ -592,21 +579,18 @@ public class AbstractFaxMachineEngineTest<H> {
         result = acting.get();
 
         // check the behavior
-        verify(engine).isOpened(session);
+        verifyEngineSessionProceedingAbility(engine, session);
         verify(device, atLeastOnce()).getProvider();
         verify(session, atLeastOnce()).parameter(Device.Parameter.FAX_DEVICE_HANDLE);
-        verify(provider, atLeastOnce()).disableEvents(deviceHandle);
-        verify(provider).enableEvents(deviceHandle, Result.CALL.DISCONNECT);
-        if (poolingMode) {
-            verify(provider).enableEvents(deviceHandle, Result.FAX.POLLING);
-        }
+        verifyReceiveFaxEventsManagement(provider, deviceHandle);
         verify(session).setState(TelephonyDevice.State.RECVFAX);
         verify(session).parameter(eq(FaxMachineEngine.Parameter.FAX_TEMPORARY), any(File.class));
         verify(provider).startFaxReceiving(eq(deviceHandle), anyString(), eq(issueVoiceRequest));
-        verify(session).operationComplete(Result.NONE);
+        verify(session).operationResult(Result.NONE);
         verify(session).waitingForOperationComplete(anyLong());
         verify(out, never()).write(any(), anyInt(), anyInt());
         verify(session).operationComplete(reason);
+        verify(session).operationResult(reason);
         verify(session).setState(Device.State.ERROR);
         verify(device).dispatchError("Receive fax document is failed.");
         verify(provider).stopFaxReceiving(deviceHandle);
@@ -642,6 +626,7 @@ public class AbstractFaxMachineEngineTest<H> {
         assertThat(engine.isOpened(session)).isTrue();
         session.alive(true);
         reset(engine, provider);
+        doReturn(true).when(engine).canFax();
         doReturn(true).when(provider).startFaxReceiving(eq(deviceHandle), anyString(), eq(issueVoiceRequest));
 
         // acting
@@ -651,14 +636,9 @@ public class AbstractFaxMachineEngineTest<H> {
         }
 
         // check the behavior
-        verify(engine, atLeastOnce()).isOpened(session);
+        verifyEngineSessionProceedingAbility(engine, session);
         verify(device, atLeastOnce()).getProvider();
-        verify(session, atLeastOnce()).parameter(Device.Parameter.FAX_DEVICE_HANDLE);
-        verify(provider, atLeastOnce()).disableEvents(deviceHandle);
-        verify(provider).enableEvents(deviceHandle, Result.CALL.DISCONNECT);
-        if (poolingMode) {
-            verify(provider).enableEvents(deviceHandle, Result.FAX.POLLING);
-        }
+        verifyReceiveFaxEventsManagement(provider, deviceHandle);
         verify(session).setState(TelephonyDevice.State.RECVFAX);
         verify(session).parameter(eq(FaxMachineEngine.Parameter.FAX_TEMPORARY), any(File.class));
         verify(provider).startFaxReceiving(eq(deviceHandle), anyString(), eq(issueVoiceRequest));
@@ -702,6 +682,7 @@ public class AbstractFaxMachineEngineTest<H> {
         assertThat(engine.isOpened(session)).isTrue();
         session.alive(true);
         reset(engine, provider);
+        doReturn(true).when(engine).canFax();
         doReturn(true).when(provider).startFaxTransmitting(eq(deviceHandle), anyString(), eq(issueVoiceRequest),
                 eq(format.isTIFF()), eq(format.isHighResolution()), anyInt(), anyInt());
 
@@ -712,17 +693,15 @@ public class AbstractFaxMachineEngineTest<H> {
         }
 
         // check the behavior
-        verify(engine).isOpened(session);
+        verifyEngineSessionProceedingAbility(engine, session);
         verify(device, atLeastOnce()).getProvider();
-        verify(session, atLeastOnce()).parameter(Device.Parameter.FAX_DEVICE_HANDLE);
-        verify(provider, atLeastOnce()).disableEvents(deviceHandle);
-        verify(provider).enableEvents(deviceHandle, Result.CALL.DISCONNECT);
+        verifyTransmitFaxEventsManagement(provider, deviceHandle);
         verify(session).setState(TelephonyDevice.State.SENDFAX);
         verify(session).parameter(eq(FaxMachineEngine.Parameter.FAX_TEMPORARY), any(File.class));
         verify(provider).startFaxTransmitting(eq(deviceHandle), anyString(), eq(issueVoiceRequest),
                 eq(format.isTIFF()), eq(format.isHighResolution()), anyInt(), anyInt());
         verify(session).operationComplete(Result.NONE);
-        verify(session).waitingForOperationComplete(anyLong());
+        verify(session).waitingForOperationComplete(1000L);
         verify(session).operationComplete(Result.IO.EOF);
         verify(session).setState(Device.State.IDLE);
         verify(provider, atLeastOnce()).stopFaxTransmitting(deviceHandle);
@@ -741,6 +720,8 @@ public class AbstractFaxMachineEngineTest<H> {
     public void shouldNotTransmitFaxDocument_SessionIsNotOpened() {
         // preparing test data
         InputStream in = mock(InputStream.class);
+        doReturn(true).when(engine).canFax();
+        session.alive(true);
 
         // acting
         OperationResultValue result = engine.transmit(session, in, null, false);
@@ -772,6 +753,7 @@ public class AbstractFaxMachineEngineTest<H> {
         assertThat(engine.isOpened(session)).isTrue();
         session.alive(true);
         reset(engine, provider);
+        doReturn(true).when(engine).canFax();
 
         // acting
         try (InputStream in = new FileInputStream(tempFile)) {
@@ -779,11 +761,9 @@ public class AbstractFaxMachineEngineTest<H> {
         }
 
         // check the behavior
-        verify(engine).isOpened(session);
+        verifyEngineSessionProceedingAbility(engine, session);
         verify(device, atLeastOnce()).getProvider();
-        verify(session, atLeastOnce()).parameter(Device.Parameter.FAX_DEVICE_HANDLE);
-        verify(provider, atLeastOnce()).disableEvents(deviceHandle);
-        verify(provider).enableEvents(deviceHandle, Result.CALL.DISCONNECT);
+        verifyTransmitFaxEventsManagement(provider, deviceHandle);
         verify(session).setState(TelephonyDevice.State.SENDFAX);
         verify(session).parameter(eq(FaxMachineEngine.Parameter.FAX_TEMPORARY), any(File.class));
         verify(provider).startFaxTransmitting(eq(deviceHandle), anyString(), eq(issueVoiceRequest),
@@ -820,6 +800,7 @@ public class AbstractFaxMachineEngineTest<H> {
         assertThat(engine.isOpened(session)).isTrue();
         session.alive(true);
         reset(engine, provider);
+        doReturn(true).when(engine).canFax();
         doReturn(true).when(provider).startFaxTransmitting(eq(deviceHandle), anyString(), eq(issueVoiceRequest),
                 eq(format.isTIFF()), eq(format.isHighResolution()), anyInt(), anyInt());
 
@@ -839,11 +820,9 @@ public class AbstractFaxMachineEngineTest<H> {
         result = acting.get();
 
         // check the behavior
-        verify(engine).isOpened(session);
+        verifyEngineSessionProceedingAbility(engine, session);
         verify(device, atLeastOnce()).getProvider();
-        verify(session, atLeastOnce()).parameter(Device.Parameter.FAX_DEVICE_HANDLE);
-        verify(provider, atLeastOnce()).disableEvents(deviceHandle);
-        verify(provider).enableEvents(deviceHandle, reason);
+        verifyTransmitFaxEventsManagement(provider, deviceHandle);
         verify(session).setState(TelephonyDevice.State.SENDFAX);
         verify(session).parameter(eq(FaxMachineEngine.Parameter.FAX_TEMPORARY), any(File.class));
         verify(provider).startFaxTransmitting(eq(deviceHandle), anyString(), eq(issueVoiceRequest),
@@ -878,6 +857,7 @@ public class AbstractFaxMachineEngineTest<H> {
         assertThat(engine.isOpened(session)).isTrue();
         session.alive(true);
         reset(engine, provider);
+        doReturn(true).when(engine).canFax();
         doReturn(true).when(provider).startFaxTransmitting(eq(deviceHandle), anyString(), eq(issueVoiceRequest),
                 eq(format.isTIFF()), eq(format.isHighResolution()), anyInt(), anyInt());
 
@@ -894,11 +874,9 @@ public class AbstractFaxMachineEngineTest<H> {
         result = acting.get();
 
         // check the behavior
-        verify(engine).isOpened(session);
+        verifyEngineSessionProceedingAbility(engine, session);
         verify(device, atLeastOnce()).getProvider();
-        verify(session, atLeastOnce()).parameter(Device.Parameter.FAX_DEVICE_HANDLE);
-        verify(provider, atLeastOnce()).disableEvents(deviceHandle);
-        verify(provider).enableEvents(deviceHandle, Result.CALL.DISCONNECT);
+        verifyTransmitFaxEventsManagement(provider, deviceHandle);
         verify(session).setState(TelephonyDevice.State.SENDFAX);
         verify(session).parameter(eq(FaxMachineEngine.Parameter.FAX_TEMPORARY), any(File.class));
         verify(provider).startFaxTransmitting(eq(deviceHandle), anyString(), eq(issueVoiceRequest),
@@ -932,6 +910,7 @@ public class AbstractFaxMachineEngineTest<H> {
         assertThat(engine.isOpened(session)).isTrue();
         session.alive(true);
         reset(engine, provider);
+        doReturn(true).when(engine).canFax();
         doReturn(true).when(provider).startFaxTransmitting(eq(deviceHandle), anyString(), eq(issueVoiceRequest),
                 eq(format.isTIFF()), eq(format.isHighResolution()), anyInt(), anyInt());
         executor.schedule(() -> session.operationComplete(Result.ERROR), 100, TimeUnit.MILLISECONDS);
@@ -943,11 +922,9 @@ public class AbstractFaxMachineEngineTest<H> {
         }
 
         // check the behavior
-        verify(engine).isOpened(session);
+        verifyEngineSessionProceedingAbility(engine, session);
         verify(device, atLeastOnce()).getProvider();
-        verify(session, atLeastOnce()).parameter(Device.Parameter.FAX_DEVICE_HANDLE);
-        verify(provider, atLeastOnce()).disableEvents(deviceHandle);
-        verify(provider).enableEvents(deviceHandle, Result.CALL.DISCONNECT);
+        verifyTransmitFaxEventsManagement(provider, deviceHandle);
         verify(session).setState(TelephonyDevice.State.SENDFAX);
         verify(session).parameter(eq(FaxMachineEngine.Parameter.FAX_TEMPORARY), any(File.class));
         verify(provider).startFaxTransmitting(eq(deviceHandle), anyString(), eq(issueVoiceRequest),
@@ -981,6 +958,7 @@ public class AbstractFaxMachineEngineTest<H> {
         assertThat(engine.isOpened(session)).isTrue();
         session.alive(true);
         reset(engine, provider);
+        doReturn(true).when(engine).canFax();
         doReturn(true).when(provider).startFaxTransmitting(eq(deviceHandle), anyString(), eq(issueVoiceRequest),
                 eq(format.isTIFF()), eq(format.isHighResolution()), anyInt(), anyInt());
 
@@ -997,11 +975,9 @@ public class AbstractFaxMachineEngineTest<H> {
         result = acting.get();
 
         // check the behavior
-        verify(engine).isOpened(session);
+        verifyEngineSessionProceedingAbility(engine, session);
         verify(device, atLeastOnce()).getProvider();
-        verify(session, atLeastOnce()).parameter(Device.Parameter.FAX_DEVICE_HANDLE);
-        verify(provider, atLeastOnce()).disableEvents(deviceHandle);
-        verify(provider).enableEvents(deviceHandle, Result.CALL.DISCONNECT);
+        verifyTransmitFaxEventsManagement(provider, deviceHandle);
         verify(session).setState(TelephonyDevice.State.SENDFAX);
         verify(session).parameter(eq(FaxMachineEngine.Parameter.FAX_TEMPORARY), any(File.class));
         verify(provider).startFaxTransmitting(eq(deviceHandle), anyString(), eq(issueVoiceRequest),
@@ -1035,6 +1011,7 @@ public class AbstractFaxMachineEngineTest<H> {
         assertThat(engine.isOpened(session)).isTrue();
         session.alive(true);
         reset(engine, provider);
+        doReturn(true).when(engine).canFax();
         doReturn(true).when(provider).startFaxTransmitting(eq(deviceHandle), anyString(), eq(issueVoiceRequest),
                 eq(format.isTIFF()), eq(format.isHighResolution()), anyInt(), anyInt());
 
@@ -1051,11 +1028,9 @@ public class AbstractFaxMachineEngineTest<H> {
         result = acting.get();
 
         // check the behavior
-        verify(engine).isOpened(session);
+        verifyEngineSessionProceedingAbility(engine, session);
         verify(device, atLeastOnce()).getProvider();
-        verify(session, atLeastOnce()).parameter(Device.Parameter.FAX_DEVICE_HANDLE);
-        verify(provider, atLeastOnce()).disableEvents(deviceHandle);
-        verify(provider).enableEvents(deviceHandle, Result.CALL.DISCONNECT);
+        verifyTransmitFaxEventsManagement(provider, deviceHandle);
         verify(session).setState(TelephonyDevice.State.SENDFAX);
         verify(session).parameter(eq(FaxMachineEngine.Parameter.FAX_TEMPORARY), any(File.class));
         verify(provider).startFaxTransmitting(eq(deviceHandle), anyString(), eq(issueVoiceRequest),
@@ -1089,6 +1064,7 @@ public class AbstractFaxMachineEngineTest<H> {
         assertThat(engine.isOpened(session)).isTrue();
         session.alive(true);
         reset(engine, provider);
+        doReturn(true).when(engine).canFax();
         doReturn(true).when(provider).startFaxTransmitting(eq(deviceHandle), anyString(), eq(issueVoiceRequest),
                 eq(format.isTIFF()), eq(format.isHighResolution()), anyInt(), anyInt());
 
@@ -1105,11 +1081,9 @@ public class AbstractFaxMachineEngineTest<H> {
         result = acting.get();
 
         // check the behavior
-        verify(engine).isOpened(session);
+        verifyEngineSessionProceedingAbility(engine, session);
         verify(device, atLeastOnce()).getProvider();
-        verify(session, atLeastOnce()).parameter(Device.Parameter.FAX_DEVICE_HANDLE);
-        verify(provider, atLeastOnce()).disableEvents(deviceHandle);
-        verify(provider).enableEvents(deviceHandle, Result.CALL.DISCONNECT);
+        verifyTransmitFaxEventsManagement(provider, deviceHandle);
         verify(session).setState(TelephonyDevice.State.SENDFAX);
         verify(session).parameter(eq(FaxMachineEngine.Parameter.FAX_TEMPORARY), any(File.class));
         verify(provider).startFaxTransmitting(eq(deviceHandle), anyString(), eq(issueVoiceRequest),
@@ -1143,6 +1117,7 @@ public class AbstractFaxMachineEngineTest<H> {
         assertThat(engine.isOpened(session)).isTrue();
         session.alive(true);
         reset(engine, provider);
+        doReturn(true).when(engine).canFax();
         doReturn(true).when(provider).startFaxTransmitting(eq(deviceHandle), anyString(), eq(issueVoiceRequest),
                 eq(format.isTIFF()), eq(format.isHighResolution()), anyInt(), anyInt());
 
@@ -1159,11 +1134,9 @@ public class AbstractFaxMachineEngineTest<H> {
         result = acting.get();
 
         // check the behavior
-        verify(engine).isOpened(session);
+        verifyEngineSessionProceedingAbility(engine, session);
         verify(device, atLeastOnce()).getProvider();
-        verify(session, atLeastOnce()).parameter(Device.Parameter.FAX_DEVICE_HANDLE);
-        verify(provider, atLeastOnce()).disableEvents(deviceHandle);
-        verify(provider).enableEvents(deviceHandle, Result.CALL.DISCONNECT);
+        verifyTransmitFaxEventsManagement(provider, deviceHandle);
         verify(session).setState(TelephonyDevice.State.SENDFAX);
         verify(session).parameter(eq(FaxMachineEngine.Parameter.FAX_TEMPORARY), any(File.class));
         verify(provider).startFaxTransmitting(eq(deviceHandle), anyString(), eq(issueVoiceRequest),
@@ -1204,6 +1177,7 @@ public class AbstractFaxMachineEngineTest<H> {
         assertThat(engine.isOpened(session)).isTrue();
         session.alive(true);
         reset(engine, provider);
+        doReturn(true).when(engine).canFax();
         doReturn(true).when(provider).startFaxTransmitting(eq(deviceHandle), anyString(), eq(issueVoiceRequest),
                 eq(format.isTIFF()), eq(format.isHighResolution()), anyInt(), anyInt());
 
@@ -1214,11 +1188,9 @@ public class AbstractFaxMachineEngineTest<H> {
         }
 
         // check the behavior
-        verify(engine, atLeastOnce()).isOpened(session);
+        verifyEngineSessionProceedingAbility(engine, session);
         verify(device, atLeastOnce()).getProvider();
-        verify(session, atLeastOnce()).parameter(Device.Parameter.FAX_DEVICE_HANDLE);
-        verify(provider, atLeastOnce()).disableEvents(deviceHandle);
-        verify(provider).enableEvents(deviceHandle, Result.CALL.DISCONNECT);
+        verifyTransmitFaxEventsManagement(provider, deviceHandle);
         verify(session).setState(TelephonyDevice.State.SENDFAX);
         verify(session).parameter(eq(FaxMachineEngine.Parameter.FAX_TEMPORARY), any(File.class));
         verify(provider).startFaxTransmitting(eq(deviceHandle), anyString(), eq(issueVoiceRequest),
@@ -1239,5 +1211,28 @@ public class AbstractFaxMachineEngineTest<H> {
         }
         assertThat(tempFile.delete()).isTrue();
         assertThat(session.getState()).isEqualTo(Device.State.IDLE);
+    }
+
+    /// private methods
+    // validating proceeding engine and session behavior
+    private static <H> void verifyEngineSessionProceedingAbility(FaxMachineEngine<H> engine, PhoneCallSession<H> session) {
+        verify(engine).canFax();
+        verify(session, atLeastOnce()).isAlive();
+        verify(engine, atLeastOnce()).isOpened(session);
+        verify(session, atLeastOnce()).parameter(Device.Parameter.DEVICE_HANDLE);
+        verify(session, atLeastOnce()).parameter(Device.Parameter.FAX_DEVICE_HANDLE);
+    }
+
+    // validating receive fax events management
+    private static <H> void verifyReceiveFaxEventsManagement(TelephonyServiceProvider<H> provider, H deviceHandle) {
+        verify(provider, atLeastOnce()).disableEvents(deviceHandle);
+        verify(provider).enableEvents(deviceHandle, Result.CALL.DISCONNECT);
+        verify(provider).enableEvents(deviceHandle, Result.FAX.POLLING);
+    }
+
+    // validating receive fax events management
+    private static <H> void verifyTransmitFaxEventsManagement(TelephonyServiceProvider<H> provider, H deviceHandle) {
+        verify(provider, atLeastOnce()).disableEvents(deviceHandle);
+        verify(provider).enableEvents(deviceHandle, Result.CALL.DISCONNECT);
     }
 }

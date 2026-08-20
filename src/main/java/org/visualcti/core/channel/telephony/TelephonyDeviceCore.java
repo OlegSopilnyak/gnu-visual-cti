@@ -81,7 +81,7 @@ public interface TelephonyDeviceCore<H> {
 
     /**
      * <action>
-     * To create and dispatch the error-type message from the device
+     * To create and dispatch the error-type message with exception from the device
      *
      * @param exception   the cause of the error
      * @param description the description of the error

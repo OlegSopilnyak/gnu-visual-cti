@@ -578,16 +578,6 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
                 : Result.ERROR;
     }
 
-    // to delegate call to the particular device's part engine
-    private OperationResultValue delegateFaxReceive(OutputStream target, boolean pollingMode, boolean issueVoiceRequest) {
-//        setState(RECVFAX);
-        try {
-            return faxes.receive(null, target, pollingMode, issueVoiceRequest);
-        } finally {
-//            setState(Device.State.IDLE);
-        }
-    }
-
     /**
      * <action>
      * To transmit the fax document.
@@ -604,8 +594,9 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      */
     @Override
     public OperationResultValue transmit(PhoneCallSession<H> session, InputStream source, Fax format, boolean issueVoiceRequest) {
-        return isDeviceOpened() && faxes.canFax()
-                ? delegateFaxTransmit(source, format, issueVoiceRequest)
+        return isDeviceOpened()
+                ? faxes.transmit(session, source, format, issueVoiceRequest)
+//                delegateFaxTransmit(source, format, issueVoiceRequest)
                 : Result.ERROR;
     }
 
