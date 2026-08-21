@@ -82,13 +82,11 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
      * @return the array of the supported playback formats supported by device or empty array if device can't play back
      * @see TelephonyDevice#canPlay()
      * @see TelephonyDevice#startSession()
+     * @see #playbackCodecs()
      */
     @Override
     public Audio[] canPlay() {
-        return deviceCore.getParameter(Parameter.ALLOWED_CODECS)
-                .<List<Audio>>map(ConfigurationParameter::getValue)
-                .orElse(Collections.emptyList())
-                .toArray(new Audio[0]);
+        return playbackCodecs();
     }
 
     /**
@@ -96,12 +94,11 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
      * To get access to audio format to play raw data (without header)
      *
      * @return the format for the play or null if device can't play back
+     * @see #playbackRawCodec()
      */
     @Override
     public Audio getRawFormat() {
-        return deviceCore.getParameter(Parameter.PLAYBACK_CODEC)
-                .<Audio>map(ConfigurationParameter::getValue)
-                .orElse(null);
+        return playbackRawCodec();
     }
 
     /**
@@ -497,6 +494,21 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
     }
 
     /// private methods
+    //  Returns the array of supported audio formats(codecs) for playing back
+    private Audio[] playbackCodecs() {
+        return deviceCore.getParameter(Parameter.ALLOWED_CODECS)
+                .<List<Audio>>map(ConfigurationParameter::getValue)
+                .orElse(Collections.emptyList())
+                .toArray(new Audio[0]);
+    }
+
+    // Returns the audio format to play raw data (without header)
+    private Audio playbackRawCodec() {
+        return deviceCore.getParameter(Parameter.PLAYBACK_CODEC)
+                .<Audio>map(ConfigurationParameter::getValue)
+                .orElse(null);
+    }
+
     // copying media data to the temporary file from the source input stream
     private void copyMediaData(File tempFile, InputStream source) throws IOException {
         final int DEFAULT_BUFFER_SIZE = 8192;

@@ -94,11 +94,15 @@ import org.visualcti.core.channel.telephony.part.adapter.AbstractCallsPortEngine
 import org.visualcti.core.channel.telephony.part.adapter.AbstractFaxMachineEngine;
 import org.visualcti.core.channel.telephony.part.adapter.AbstractMultimediaEngine;
 import org.visualcti.core.channel.telephony.part.adapter.AbstractTonesEngine;
+import org.visualcti.media.Audio;
 import org.visualcti.media.Fax;
 import org.visualcti.media.Sound;
 
 @SuppressWarnings({"unchecked", "rawtypes"})
 public class AbstractTelephonyDeviceTest<H> {
+    final static Device.ParameterName ALLOWED_CODECS = MultimediaEngine.Parameter.ALLOWED_CODECS;
+    final static Device.ParameterName PLAYBACK_CODEC = MultimediaEngine.Parameter.PLAYBACK_CODEC;
+    final static Device.ParameterName RECORD_CODEC = MultimediaEngine.Parameter.RECORD_CODEC;
     String telephonyDeviceName = "telephony-device";
     TelephonyServiceProvider<H> provider;
     CallsPortEngine<H> calls;
@@ -1550,11 +1554,142 @@ public class AbstractTelephonyDeviceTest<H> {
     }
 
     @Test
-    public void canPlay() {
+    public void shouldCanPlay_AvailableCodecs_Mocked() {
+        // preparing test data
+        Audio[] audios = new Audio[]{Audio.LINEAR, Audio.LINEAR_8, Audio.LINEAR_11};
+        doReturn(audios).when(mockedMedia).canPlay();
+
+        // acting
+        Audio[] all = mockedDevice.canPlay();
+
+        // check the behavior
+        verify(mockedMedia).canPlay();
+        // check results
+        assertThat(all).isEqualTo(audios);
     }
 
     @Test
-    public void getRawFormat() {
+    public void shouldCanPlayParticularAudio() {
+        // preparing test data
+        Audio audio = Audio.LINEAR_8;
+        Audio[] audios = new Audio[]{Audio.LINEAR, Audio.LINEAR_8, Audio.LINEAR_11};
+        ConfigurationParameter allAudios = spy(ConfigurationParameter.of(ALLOWED_CODECS.value(), Arrays.asList(audios)));
+        device.setParameter(ALLOWED_CODECS, allAudios);
+
+        // acting
+        boolean can = device.canPlay(audio);
+
+        // check the behavior
+        verify(device).canPlay();
+        // check results
+        assertThat(can).isTrue();
+    }
+
+    @Test
+    public void shouldCannotPlayParticularAudio_UnsupportedFormat() {
+        // preparing test data
+        Audio audio = Audio.ALAW_8;
+        Device.ParameterName name = ALLOWED_CODECS;
+        Audio[] audios = new Audio[]{Audio.LINEAR, Audio.LINEAR_8, Audio.LINEAR_11};
+        ConfigurationParameter allAudios = spy(ConfigurationParameter.of(name.value(), Arrays.asList(audios)));
+        device.setParameter(name, allAudios);
+
+        // acting
+        boolean can = device.canPlay(audio);
+
+        // check the behavior
+        verify(device).canPlay();
+        // check results
+        assertThat(can).isFalse();
+    }
+
+    @Test
+    public void shouldCanPlay_AvailableCodecs_Regular() {
+        // preparing test data
+        Device.ParameterName name = ALLOWED_CODECS;
+        Audio[] audios = new Audio[]{Audio.LINEAR, Audio.LINEAR_8, Audio.LINEAR_11};
+        ConfigurationParameter allAudios = spy(ConfigurationParameter.of(name.value(), Arrays.asList(audios)));
+        device.setParameter(ALLOWED_CODECS, allAudios);
+
+        // acting
+        Audio[] all = device.canPlay();
+
+        // check the behavior
+        verify(media).canPlay();
+        verify(device).getParameter(name);
+        verify(allAudios).getValue();
+        // check results
+        assertThat(all).isEqualTo(audios);
+    }
+
+    @Test
+    public void shouldCannotPlay_NoAvailableCodecs() {
+        // preparing test data
+        Device.ParameterName name = ALLOWED_CODECS;
+        assertThat(device.getParameter(name)).isEmpty();
+        media.uses(device);
+        reset(device);
+
+        // acting
+        Audio[] all = device.canPlay();
+
+        // check the behavior
+        verify(media).canPlay();
+        verify(device).getParameter(name);
+        // check results
+        assertThat(device.getParameter(name)).isEmpty();
+        assertThat(all).isEmpty();
+    }
+
+    @Test
+    public void shouldGetRawPlayingFormat_Mocked() {
+        // preparing test data
+        doReturn(Audio.LINEAR).when(mockedMedia).getRawFormat();
+
+        // acting
+        Audio rawAudio = mockedDevice.getRawFormat();
+
+        // check the behavior
+        verify(mockedMedia).getRawFormat();
+        // check results
+        assertThat(rawAudio).isEqualTo(Audio.LINEAR);
+    }
+
+    @Test
+    public void shouldGetRawPlayingFormat_Regular() {
+        // preparing test data
+        media.uses(device);
+        Audio audio = Audio.LINEAR;
+        Device.ParameterName name = PLAYBACK_CODEC;
+        ConfigurationParameter playbackCodec = spy(ConfigurationParameter.of(name.value(), audio));
+        device.setParameter(name, playbackCodec);
+
+        // acting
+        Audio rawAudio = device.getRawFormat();
+
+        // check the behavior
+        verify(media).getRawFormat();
+        verify(device).getParameter(name);
+        verify(playbackCodec).getValue();
+        // check results
+        assertThat(rawAudio).isEqualTo(audio);
+    }
+
+    @Test
+    public void shouldNotGetRawPlayingFormat_NoAvailableCodec() {
+        // preparing test data
+        media.uses(device);
+        Device.ParameterName name = PLAYBACK_CODEC;
+
+        // acting
+        Audio rawAudio = device.getRawFormat();
+
+        // check the behavior
+        verify(media).getRawFormat();
+        verify(device).getParameter(name);
+        // check results
+        assertThat(rawAudio).isNull();
+        assertThat(device.getParameter(name)).isEmpty();
     }
 
     @Test
@@ -1566,11 +1701,123 @@ public class AbstractTelephonyDeviceTest<H> {
     }
 
     @Test
-    public void canRecord() {
+    public void shouldCanRecord() {
+        // preparing test data
+        media.uses(device);
+        Audio audio = Audio.LINEAR;
+        Device.ParameterName name = RECORD_CODEC;
+        device.setParameter(name, spy(ConfigurationParameter.of(name.value(), audio)));
+
+        // acting
+        Audio[] all = device.canRecord();
+
+        // check the behavior
+        verify(media).canRecord();
+        verify(media).getRecordFormat();
+        verify(device).getParameter(name);
+        // check results
+        assertThat(all).containsExactly(audio);
     }
 
     @Test
-    public void getRecordFormat() {
+    public void shouldCannotRecord_NoAvailableCodecs() {
+        // preparing test data
+        media.uses(device);
+
+        // acting
+        Audio[] all = device.canRecord();
+
+        // check the behavior
+        verify(media).canRecord();
+        verify(media).getRecordFormat();
+        verify(device).getParameter(RECORD_CODEC);
+        // check results
+        assertThat(all).isEmpty();
+    }
+
+    @Test
+    public void shouldGetRecordFormat_Mocked() {
+        // preparing test data
+        doReturn(Audio.LINEAR).when(mockedMedia).getRecordFormat();
+
+        // acting
+        Audio rawAudio = mockedDevice.getRecordFormat();
+
+        // check the behavior
+        verify(mockedMedia).getRecordFormat();
+        // check results
+        assertThat(rawAudio).isEqualTo(Audio.LINEAR);
+    }
+
+    @Test
+    public void shouldCanRecordParticularAudio() {
+        // preparing test data
+        media.uses(device);
+        Audio audio = Audio.LINEAR;
+        Device.ParameterName name = RECORD_CODEC;
+        device.setParameter(name, spy(ConfigurationParameter.of(name.value(), audio)));
+
+        // acting
+        boolean can = device.canRecord(audio);
+
+        // check the behavior
+        verify(device).canRecord();
+        // check results
+        assertThat(can).isTrue();
+    }
+
+    @Test
+    public void shouldCannotRecordParticularAudio_UnsupportedFormat() {
+        // preparing test data
+        media.uses(device);
+        Audio audio = Audio.LINEAR;
+        Device.ParameterName name = RECORD_CODEC;
+        device.setParameter(name, spy(ConfigurationParameter.of(name.value(), audio)));
+
+        // acting
+        boolean can = device.canRecord(Audio.LINEAR_8);
+
+        // check the behavior
+        verify(device).canRecord();
+        // check results
+        assertThat(can).isFalse();
+    }
+
+    @Test
+    public void shouldGetRecordFormat_Regular() {
+        // preparing test data
+        media.uses(device);
+        Audio audio = Audio.LINEAR;
+        Device.ParameterName name = RECORD_CODEC;
+        ConfigurationParameter recordCodec = spy(ConfigurationParameter.of(name.value(), audio));
+        device.setParameter(name, recordCodec);
+
+        // acting
+        Audio rawAudio = device.getRecordFormat();
+
+        // check the behavior
+        verify(media).getRecordFormat();
+        verify(device).getParameter(name);
+        verify(recordCodec).getValue();
+        // check results
+        assertThat(rawAudio).isEqualTo(Audio.LINEAR);
+    }
+
+    @Test
+    public void shouldNotGetRecordFormat_NoAvailableCodec() {
+        // preparing test data
+        media.uses(device);
+        Device.ParameterName name = RECORD_CODEC;
+
+        // acting
+        Audio rawAudio = device.getRecordFormat();
+
+        // check the behavior
+        verify(media).getRecordFormat();
+        verify(device).getParameter(name);
+        // check results
+        assertThat(rawAudio).isNull();
+        assertThat(device.getParameter(name)).isEmpty();
     }
 
     @Test
