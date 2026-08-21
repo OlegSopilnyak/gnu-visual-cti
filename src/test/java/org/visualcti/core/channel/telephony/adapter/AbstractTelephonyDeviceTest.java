@@ -858,8 +858,7 @@ public class AbstractTelephonyDeviceTest<H> {
         // preparing test data
         int pages = -20;
         H faxHandle = (H) "fax-handle";
-        FaxMachineEngine.Parameter allowed = FaxMachineEngine.Parameter.FAX_ALLOWED;
-        device.setParameter(allowed, ConfigurationParameter.of(allowed.value(), true));
+        switchFaxPartOn();
         session.parameter(FaxMachineEngine.Parameter.TRANSFERRED_FAX_PAGES, pages);
         doReturn(faxHandle).when(provider).openFaxResource(telephonyDeviceName);
         faxes.open(session);
@@ -871,11 +870,7 @@ public class AbstractTelephonyDeviceTest<H> {
 
         // check the behavior
         verify(faxes).getTransferredPages(session);
-        verify(faxes).canFax();
-        verify(session).isAlive();
-        verify(session).getState();
-        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
-        verify(session).parameter(Device.Parameter.FAX_DEVICE_HANDLE);
+        verifyEngineSessionProceedingAbility(faxes, session);
         verify(session).parameterOrDefault(FaxMachineEngine.Parameter.TRANSFERRED_FAX_PAGES, 0);
         // check results
         assertThat(result).isEqualTo(pages);
@@ -903,8 +898,7 @@ public class AbstractTelephonyDeviceTest<H> {
         // preparing test data
         int pages = -20;
         H faxHandle = (H) "fax-handle";
-        FaxMachineEngine.Parameter allowed = FaxMachineEngine.Parameter.FAX_ALLOWED;
-        device.setParameter(allowed, ConfigurationParameter.of(allowed.value(), true));
+        switchFaxPartOn();
         doReturn(faxHandle).when(provider).openFaxResource(telephonyDeviceName);
         session.alive(true);
         reset(faxes, session);
@@ -914,11 +908,7 @@ public class AbstractTelephonyDeviceTest<H> {
 
         // check the behavior
         verify(faxes).getTransferredPages(session);
-        verify(faxes).canFax();
-        verify(session).isAlive();
-        verify(session).getState();
-        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
-        verify(session).parameter(Device.Parameter.FAX_DEVICE_HANDLE);
+        verifyEngineSessionProceedingAbility(faxes, session);
         verify(session, never()).parameterOrDefault(eq(FaxMachineEngine.Parameter.TRANSFERRED_FAX_PAGES), any());
         // check results
         assertThat(result).isNotEqualTo(pages).isZero();
@@ -929,8 +919,7 @@ public class AbstractTelephonyDeviceTest<H> {
         // preparing test data
         int pages = -20;
         H faxHandle = (H) "fax-handle";
-        FaxMachineEngine.Parameter allowed = FaxMachineEngine.Parameter.FAX_ALLOWED;
-        device.setParameter(allowed, ConfigurationParameter.of(allowed.value(), true));
+        switchFaxPartOn();
         doReturn(faxHandle).when(provider).openFaxResource(telephonyDeviceName);
         faxes.open(session);
         session.alive(true);
@@ -941,11 +930,7 @@ public class AbstractTelephonyDeviceTest<H> {
 
         // check the behavior
         verify(faxes).getTransferredPages(session);
-        verify(faxes).canFax();
-        verify(session).isAlive();
-        verify(session).getState();
-        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
-        verify(session).parameter(Device.Parameter.FAX_DEVICE_HANDLE);
+        verifyEngineSessionProceedingAbility(faxes, session);
         verify(session).parameterOrDefault(FaxMachineEngine.Parameter.TRANSFERRED_FAX_PAGES, 0);
         // check results
         assertThat(result).isNotEqualTo(pages).isZero();
@@ -955,8 +940,7 @@ public class AbstractTelephonyDeviceTest<H> {
     public void shouldDontGetTransferredPages_DisconnectedSession() {
         // preparing test data
         int pages = -20;
-        FaxMachineEngine.Parameter allowed = FaxMachineEngine.Parameter.FAX_ALLOWED;
-        device.setParameter(allowed, ConfigurationParameter.of(allowed.value(), true));
+        switchFaxPartOn();
         reset(faxes, session);
 
         // acting
@@ -992,8 +976,7 @@ public class AbstractTelephonyDeviceTest<H> {
         // preparing test data
         String ID = "remote-id";
         H faxHandle = (H) "fax-handle";
-        FaxMachineEngine.Parameter allowed = FaxMachineEngine.Parameter.FAX_ALLOWED;
-        device.setParameter(allowed, ConfigurationParameter.of(allowed.value(), true));
+        switchFaxPartOn();
         session.parameter(FaxMachineEngine.Parameter.REMOTE_FAX_ID, ID);
         doReturn(faxHandle).when(provider).openFaxResource(telephonyDeviceName);
         faxes.open(session);
@@ -1005,11 +988,7 @@ public class AbstractTelephonyDeviceTest<H> {
 
         // check the behavior
         verify(faxes).getRemoteID(session);
-        verify(faxes).canFax();
-        verify(session).isAlive();
-        verify(session).getState();
-        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
-        verify(session).parameter(Device.Parameter.FAX_DEVICE_HANDLE);
+        verifyEngineSessionProceedingAbility(faxes, session);
         verify(session).parameterOrDefault(FaxMachineEngine.Parameter.REMOTE_FAX_ID, "");
         // check results
         assertThat(result).isSameAs(ID);
@@ -1037,8 +1016,7 @@ public class AbstractTelephonyDeviceTest<H> {
         // preparing test data
         String ID = "remote-id";
         H faxHandle = (H) "fax-handle";
-        FaxMachineEngine.Parameter allowed = FaxMachineEngine.Parameter.FAX_ALLOWED;
-        device.setParameter(allowed, ConfigurationParameter.of(allowed.value(), true));
+        switchFaxPartOn();
         session.alive(true);
         doReturn(faxHandle).when(provider).openFaxResource(telephonyDeviceName);
         reset(faxes, session);
@@ -1048,11 +1026,7 @@ public class AbstractTelephonyDeviceTest<H> {
 
         // check the behavior
         verify(faxes).getRemoteID(session);
-        verify(faxes).canFax();
-        verify(session).isAlive();
-        verify(session).getState();
-        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
-        verify(session).parameter(Device.Parameter.FAX_DEVICE_HANDLE);
+        verifyEngineSessionProceedingAbility(faxes, session);
         verify(session, never()).parameterOrDefault(eq(FaxMachineEngine.Parameter.REMOTE_FAX_ID), any());
         // check results
         assertThat(result).isNotEqualTo(ID).isEmpty();
@@ -1063,8 +1037,7 @@ public class AbstractTelephonyDeviceTest<H> {
         // preparing test data
         String ID = "remote-id";
         H faxHandle = (H) "fax-handle";
-        FaxMachineEngine.Parameter allowed = FaxMachineEngine.Parameter.FAX_ALLOWED;
-        device.setParameter(allowed, ConfigurationParameter.of(allowed.value(), true));
+        switchFaxPartOn();
         session.alive(true);
         doReturn(faxHandle).when(provider).openFaxResource(telephonyDeviceName);
         faxes.open(session);
@@ -1075,11 +1048,7 @@ public class AbstractTelephonyDeviceTest<H> {
 
         // check the behavior
         verify(faxes).getRemoteID(session);
-        verify(faxes).canFax();
-        verify(session).isAlive();
-        verify(session).getState();
-        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
-        verify(session).parameter(Device.Parameter.FAX_DEVICE_HANDLE);
+        verifyEngineSessionProceedingAbility(faxes, session);
         verify(session).parameterOrDefault(FaxMachineEngine.Parameter.REMOTE_FAX_ID, "");
         // check results
         assertThat(result).isNotEqualTo(ID).isEmpty();
@@ -1089,8 +1058,7 @@ public class AbstractTelephonyDeviceTest<H> {
     public void shouldDontGetRemoteID_DisconnectedSession() {
         // preparing test data
         String ID = "remote-id";
-        FaxMachineEngine.Parameter allowed = FaxMachineEngine.Parameter.FAX_ALLOWED;
-        device.setParameter(allowed, ConfigurationParameter.of(allowed.value(), true));
+        switchFaxPartOn();
         reset(faxes, session);
 
         // acting
@@ -1124,8 +1092,7 @@ public class AbstractTelephonyDeviceTest<H> {
         // preparing test data
         String faxHeader = "fax-document-header";
         H faxHandle = (H) "fax-handle";
-        FaxMachineEngine.Parameter allowed = FaxMachineEngine.Parameter.FAX_ALLOWED;
-        device.setParameter(allowed, ConfigurationParameter.of(allowed.value(), true));
+        switchFaxPartOn();
         doReturn(faxHandle).when(provider).openFaxResource(telephonyDeviceName);
         faxes.open(session);
         session.alive(true);
@@ -1136,12 +1103,7 @@ public class AbstractTelephonyDeviceTest<H> {
 
         // check the behavior
         verify(faxes).setFaxHeader(session, faxHeader);
-        verify(faxes).canFax();
-        verify(session).isAlive();
-        verify(faxes).isOpened(session);
-        verify(session).getState();
-        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
-        verify(session).parameter(Device.Parameter.FAX_DEVICE_HANDLE);
+        verifyEngineSessionProceedingAbility(faxes, session);
         verify(session).parameter(FaxMachineEngine.Parameter.FAX_PAGE_HEADER, faxHeader);
         // check results
         assertThat(session.<String>parameter(FaxMachineEngine.Parameter.FAX_PAGE_HEADER)).isSameAs(faxHeader);
@@ -1168,8 +1130,7 @@ public class AbstractTelephonyDeviceTest<H> {
     public void shouldDontSetFaxHeader_NotOpened() {
         // preparing test data
         String faxHeader = "fax-document-header";
-        FaxMachineEngine.Parameter allowed = FaxMachineEngine.Parameter.FAX_ALLOWED;
-        device.setParameter(allowed, ConfigurationParameter.of(allowed.value(), true));
+        switchFaxPartOn();
         session.alive(true);
         reset(faxes, session);
 
@@ -1178,11 +1139,7 @@ public class AbstractTelephonyDeviceTest<H> {
 
         // check the behavior
         verify(faxes).setFaxHeader(session, faxHeader);
-        verify(faxes).canFax();
-        verify(session).isAlive();
-        verify(session).getState();
-        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
-        verify(session).parameter(Device.Parameter.FAX_DEVICE_HANDLE);
+        verifyEngineSessionProceedingAbility(faxes, session);
         verify(session, never()).parameter(eq(FaxMachineEngine.Parameter.FAX_PAGE_HEADER), any());
         // check results
         assertThat(session.<String>parameter(FaxMachineEngine.Parameter.FAX_PAGE_HEADER)).isNull();
@@ -1192,8 +1149,7 @@ public class AbstractTelephonyDeviceTest<H> {
     public void shouldDontSetFaxHeader_Disconnected() {
         // preparing test data
         String faxHeader = "fax-document-header";
-        FaxMachineEngine.Parameter allowed = FaxMachineEngine.Parameter.FAX_ALLOWED;
-        device.setParameter(allowed, ConfigurationParameter.of(allowed.value(), true));
+        switchFaxPartOn();
         reset(faxes, session);
 
         // acting
@@ -1227,8 +1183,7 @@ public class AbstractTelephonyDeviceTest<H> {
         // preparing test data
         String faxLocalID = "fax-local-id";
         H faxHandle = (H) "fax-handle";
-        FaxMachineEngine.Parameter allowed = FaxMachineEngine.Parameter.FAX_ALLOWED;
-        device.setParameter(allowed, ConfigurationParameter.of(allowed.value(), true));
+        switchFaxPartOn();
         doReturn(faxHandle).when(provider).openFaxResource(telephonyDeviceName);
         faxes.open(session);
         session.alive(true);
@@ -1239,11 +1194,7 @@ public class AbstractTelephonyDeviceTest<H> {
 
         // check the behavior
         verify(faxes).setFaxLocalID(session, faxLocalID);
-        verify(faxes).canFax();
-        verify(session).isAlive();
-        verify(session).getState();
-        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
-        verify(session).parameter(Device.Parameter.FAX_DEVICE_HANDLE);
+        verifyEngineSessionProceedingAbility(faxes, session);
         verify(session).parameter(FaxMachineEngine.Parameter.LOCAL_FAX_ID, faxLocalID);
         // check results
         assertThat(session.<String>parameter(FaxMachineEngine.Parameter.LOCAL_FAX_ID)).isSameAs(faxLocalID);
@@ -1270,8 +1221,7 @@ public class AbstractTelephonyDeviceTest<H> {
     public void shouldDontSetFaxLocalID_NotOpened() {
         // preparing test data
         String faxLocalID = "fax-local-id";
-        FaxMachineEngine.Parameter allowed = FaxMachineEngine.Parameter.FAX_ALLOWED;
-        device.setParameter(allowed, ConfigurationParameter.of(allowed.value(), true));
+        switchFaxPartOn();
         session.alive(true);
         reset(faxes, session);
 
@@ -1280,11 +1230,7 @@ public class AbstractTelephonyDeviceTest<H> {
 
         // check the behavior
         verify(faxes).setFaxLocalID(session, faxLocalID);
-        verify(faxes).canFax();
-        verify(session).isAlive();
-        verify(session).getState();
-        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
-        verify(session).parameter(Device.Parameter.FAX_DEVICE_HANDLE);
+        verifyEngineSessionProceedingAbility(faxes, session);
         verify(session, never()).parameter(eq(FaxMachineEngine.Parameter.LOCAL_FAX_ID), any());
         // check results
         assertThat(session.<String>parameter(FaxMachineEngine.Parameter.LOCAL_FAX_ID)).isNull();
@@ -1294,8 +1240,7 @@ public class AbstractTelephonyDeviceTest<H> {
     public void shouldDontSetFaxLocalID_Disconnected() {
         // preparing test data
         String faxLocalID = "fax-local-id";
-        FaxMachineEngine.Parameter allowed = FaxMachineEngine.Parameter.FAX_ALLOWED;
-        device.setParameter(allowed, ConfigurationParameter.of(allowed.value(), true));
+        switchFaxPartOn();
         reset(faxes, session);
 
         // acting
@@ -1319,7 +1264,6 @@ public class AbstractTelephonyDeviceTest<H> {
         boolean issueVoiceRequest = true;
         doReturn(true).when(mockedDevice).isOpened();
         doReturn(Result.OK).when(mockedFaxes).receive(mocked, target, pollingMode, issueVoiceRequest);
-        reset(faxes);
 
         // acting
         OperationResultValue result = mockedDevice.receive(mocked, target, pollingMode, issueVoiceRequest);
@@ -1339,8 +1283,7 @@ public class AbstractTelephonyDeviceTest<H> {
         OutputStream target = mock(OutputStream.class);
         boolean pollingMode = true;
         boolean issueVoiceRequest = true;
-        FaxMachineEngine.Parameter allowed = FaxMachineEngine.Parameter.FAX_ALLOWED;
-        device.setParameter(allowed, ConfigurationParameter.of(allowed.value(), true));
+        switchFaxPartOn();
         doReturn(faxHandle).when(provider).openFaxResource(telephonyDeviceName);
         doReturn(true).when(provider).startFaxReceiving(eq(faxHandle), anyString(), eq(issueVoiceRequest));
         faxes.open(session);
@@ -1369,7 +1312,6 @@ public class AbstractTelephonyDeviceTest<H> {
         verify(device).isOpened();
         verify(faxes).receive(session, target, pollingMode, issueVoiceRequest);
         verifyEngineSessionProceedingAbility(faxes, session);
-        verify(device).getProvider();
         verifyReceiveFaxEventsManagement(provider, faxHandle);
         verify(session).setState(TelephonyDevice.State.RECVFAX);
         verify(provider).startFaxReceiving(eq(faxHandle), anyString(), eq(issueVoiceRequest));
@@ -1396,8 +1338,7 @@ public class AbstractTelephonyDeviceTest<H> {
         OutputStream target = mock(OutputStream.class);
         boolean pollingMode = true;
         boolean issueVoiceRequest = true;
-        FaxMachineEngine.Parameter allowed = FaxMachineEngine.Parameter.FAX_ALLOWED;
-        device.setParameter(allowed, ConfigurationParameter.of(allowed.value(), true));
+        switchFaxPartOn();
         doReturn(faxHandle).when(provider).openFaxResource(telephonyDeviceName);
         doReturn(true).when(provider).startFaxReceiving(eq(faxHandle), anyString(), eq(issueVoiceRequest));
         faxes.open(session);
@@ -1416,7 +1357,6 @@ public class AbstractTelephonyDeviceTest<H> {
         verify(device).isOpened();
         verify(faxes).receive(session, target, pollingMode, issueVoiceRequest);
         verifyEngineSessionProceedingAbility(faxes, session);
-        verify(device).getProvider();
         verifyReceiveFaxEventsManagement(provider, faxHandle);
         verify(session).setState(TelephonyDevice.State.RECVFAX);
         verify(provider).startFaxReceiving(eq(faxHandle), anyString(), eq(issueVoiceRequest));
@@ -1441,8 +1381,7 @@ public class AbstractTelephonyDeviceTest<H> {
         OutputStream target = mock(OutputStream.class);
         boolean pollingMode = true;
         boolean issueVoiceRequest = true;
-        FaxMachineEngine.Parameter allowed = FaxMachineEngine.Parameter.FAX_ALLOWED;
-        device.setParameter(allowed, ConfigurationParameter.of(allowed.value(), true));
+        switchFaxPartOn();
         doReturn(faxHandle).when(provider).openFaxResource(telephonyDeviceName);
         doReturn(true).when(provider).startFaxReceiving(eq(faxHandle), anyString(), eq(issueVoiceRequest));
         faxes.open(session);
@@ -1461,7 +1400,6 @@ public class AbstractTelephonyDeviceTest<H> {
         verify(device).isOpened();
         verify(faxes).receive(session, target, pollingMode, issueVoiceRequest);
         verifyEngineSessionProceedingAbility(faxes, session);
-        verify(device).getProvider();
         verifyReceiveFaxEventsManagement(provider, faxHandle);
         verify(session).setState(TelephonyDevice.State.RECVFAX);
         verify(provider).startFaxReceiving(eq(faxHandle), anyString(), eq(issueVoiceRequest));
@@ -1477,27 +1415,32 @@ public class AbstractTelephonyDeviceTest<H> {
     }
 
     @Test
+    public void shouldTransmitFaxDocument_Mocked() {
+        // preparing test data
+        InputStream source = mock(InputStream.class);
+        Fax format = Fax.TEXT;
+        boolean issueVoiceRequest = true;
+        doReturn(Result.OK).when(mockedFaxes).transmit(session, source, format, issueVoiceRequest);
+
+        // acting
+        OperationResultValue result = mockedDevice.transmit(session, source, format, issueVoiceRequest);
+
+        // check the behavior
+        verify(mockedDevice).isOpened();
+        verify(mockedFaxes).transmit(session, source, format, issueVoiceRequest);
+        // check results
+        assertThat(result).isSameAs(Result.OK);
+    }
+
+    @Test
     public void shouldTransmitFaxDocument_EOF() throws IOException, ExecutionException, InterruptedException {
         // preparing test data
         String faxContent = "Fax Document Content";
         H faxHandle = (H) "fax-handle";
-        InputStream source = mock(InputStream.class);
-        AtomicBoolean firstRead = new AtomicBoolean(true);
-        doAnswer((Answer<Integer>) invocation -> {
-            if (firstRead.get()) {
-                byte[] b = invocation.getArgument(0);
-                byte[] payload = faxContent.getBytes();
-                System.arraycopy(payload, 0, b, 0, payload.length);
-                firstRead.getAndSet(false);
-                return payload.length;
-            } else {
-                return -1;
-            }
-        }).when(source).read(any(byte[].class), anyInt(), anyInt());
+        InputStream source = prepareFaxSource(faxContent);
         Fax format = Fax.TEXT;
         boolean issueVoiceRequest = true;
-        FaxMachineEngine.Parameter allowed = FaxMachineEngine.Parameter.FAX_ALLOWED;
-        device.setParameter(allowed, ConfigurationParameter.of(allowed.value(), true));
+        switchFaxPartOn();
         doReturn(faxHandle).when(provider).openFaxResource(telephonyDeviceName);
         doReturn(true).when(provider).startFaxTransmitting(eq(faxHandle), anyString(), eq(issueVoiceRequest),
                 eq(format.isTIFF()), eq(format.isHighResolution()), anyInt(), anyInt());
@@ -1525,6 +1468,85 @@ public class AbstractTelephonyDeviceTest<H> {
         // check results
         assertThat(result).isSameAs(Result.IO.EOF);
         assertThat(session.getState()).isEqualTo(Device.State.IDLE);
+    }
+
+    @Test
+    public void shouldNotTransmitFaxDocument_DeviceError() throws IOException, ExecutionException, InterruptedException {
+        // preparing test data
+        String errorReason = "Send fax document is failed.";
+        String faxContent = "Fax Document Content";
+        H faxHandle = (H) "fax-handle";
+        InputStream source = prepareFaxSource(faxContent);
+        Fax format = Fax.TEXT;
+        boolean issueVoiceRequest = true;
+        switchFaxPartOn();
+        doReturn(faxHandle).when(provider).openFaxResource(telephonyDeviceName);
+        doReturn(true).when(provider).startFaxTransmitting(eq(faxHandle), anyString(), eq(issueVoiceRequest),
+                eq(format.isTIFF()), eq(format.isHighResolution()), anyInt(), anyInt());
+        faxes.open(session);
+        session.alive(true);
+        reset(faxes, session);
+
+        // acting
+        Future<Throwable> action = shadowExecutor.submit(() ->
+                assertThrows(Throwable.class, () -> device.transmit(session, source, format, issueVoiceRequest))
+        );
+        await().until(() -> session.operationIsActive());
+        shadowExecutor.schedule(() -> session.operationComplete(Result.ERROR), 50, TimeUnit.MILLISECONDS);
+        Throwable error = action.get();
+
+        // check the behavior
+        verify(device).isOpened();
+        verify(faxes).transmit(session, source, format, issueVoiceRequest);
+        verifyEngineSessionProceedingAbility(faxes, session);
+        verifyTransmitFaxEventsManagement(provider, faxHandle);
+        verify(provider).startFaxTransmitting(eq(faxHandle), anyString(), eq(issueVoiceRequest),
+                eq(format.isTIFF()), eq(format.isHighResolution()), anyInt(), anyInt());
+        verify(session).waitingForOperationComplete(1000L);
+        verify(provider, never()).stopFaxTransmitting(any());
+        // check results
+        assertThat(error).isInstanceOf(DeviceMalfunction.class);
+        assertThat(error.getMessage()).endsWith(errorReason);
+        assertThat(session.operationResult()).isSameAs(Result.ERROR);
+        assertThat(session.getState()).isSameAs(Device.State.ERROR);
+    }
+
+    @Test
+    public void shouldNotTransmitFaxDocument_WrongResult() throws IOException, ExecutionException, InterruptedException {
+        // preparing test data
+        String faxContent = "Fax Document Content";
+        H faxHandle = (H) "fax-handle";
+        InputStream source = prepareFaxSource(faxContent);
+        Fax format = Fax.TEXT;
+        boolean issueVoiceRequest = true;
+        switchFaxPartOn();
+        doReturn(faxHandle).when(provider).openFaxResource(telephonyDeviceName);
+        doReturn(true).when(provider).startFaxTransmitting(eq(faxHandle), anyString(), eq(issueVoiceRequest),
+                eq(format.isTIFF()), eq(format.isHighResolution()), anyInt(), anyInt());
+        faxes.open(session);
+        session.alive(true);
+        reset(faxes, session);
+
+        // acting
+        Future<OperationResultValue> action = shadowExecutor.submit(
+                () -> device.transmit(session, source, format, issueVoiceRequest)
+        );
+        await().until(() -> session.operationIsActive());
+        shadowExecutor.schedule(() -> session.operationResult(Result.FAX.COMPATIBILITY), 50, TimeUnit.MILLISECONDS);
+        OperationResultValue result = action.get();
+
+        // check the behavior
+        verify(device).isOpened();
+        verify(faxes).transmit(session, source, format, issueVoiceRequest);
+        verifyEngineSessionProceedingAbility(faxes, session);
+        verifyTransmitFaxEventsManagement(provider, faxHandle);
+        verify(provider).startFaxTransmitting(eq(faxHandle), anyString(), eq(issueVoiceRequest),
+                eq(format.isTIFF()), eq(format.isHighResolution()), anyInt(), anyInt());
+        verify(session).waitingForOperationComplete(1000L);
+        verify(provider).stopFaxTransmitting(faxHandle);
+        // check results
+        assertThat(result).isSameAs(Result.FAX.COMPATIBILITY);
+        assertThat(session.getState()).isEqualTo(Device.State.ERROR);
     }
 
     @Test
@@ -1578,8 +1600,7 @@ public class AbstractTelephonyDeviceTest<H> {
         OutputStream target = mock(OutputStream.class);
         boolean pollingMode = true;
         boolean issueVoiceRequest = true;
-        FaxMachineEngine.Parameter allowed = FaxMachineEngine.Parameter.FAX_ALLOWED;
-        device.setParameter(allowed, ConfigurationParameter.of(allowed.value(), true));
+        switchFaxPartOn();
         doReturn(faxHandle).when(provider).openFaxResource(telephonyDeviceName);
         doReturn(true).when(provider).startFaxReceiving(eq(faxHandle), anyString(), eq(issueVoiceRequest));
         faxes.open(session);
@@ -1615,23 +1636,10 @@ public class AbstractTelephonyDeviceTest<H> {
         // preparing test data
         String faxContent = "Fax Document Content";
         H faxHandle = (H) "fax-handle";
-        InputStream source = mock(InputStream.class);
-        AtomicBoolean firstRead = new AtomicBoolean(true);
-        doAnswer((Answer<Integer>) invocation -> {
-            if (firstRead.get()) {
-                byte[] b = invocation.getArgument(0);
-                byte[] payload = faxContent.getBytes();
-                System.arraycopy(payload, 0, b, 0, payload.length);
-                firstRead.getAndSet(false);
-                return payload.length;
-            } else {
-                return -1;
-            }
-        }).when(source).read(any(byte[].class), anyInt(), anyInt());
+        InputStream source = prepareFaxSource(faxContent);
         Fax format = Fax.TEXT;
         boolean issueVoiceRequest = true;
-        FaxMachineEngine.Parameter allowed = FaxMachineEngine.Parameter.FAX_ALLOWED;
-        device.setParameter(allowed, ConfigurationParameter.of(allowed.value(), true));
+        switchFaxPartOn();
         doReturn(faxHandle).when(provider).openFaxResource(telephonyDeviceName);
         doReturn(true).when(provider).startFaxTransmitting(eq(faxHandle), anyString(), eq(issueVoiceRequest),
                 eq(format.isTIFF()), eq(format.isHighResolution()), anyInt(), anyInt());
@@ -1663,6 +1671,30 @@ public class AbstractTelephonyDeviceTest<H> {
     }
 
     /// private methods
+    // allowing fax feature
+    private void switchFaxPartOn() {
+        FaxMachineEngine.Parameter allowed = FaxMachineEngine.Parameter.FAX_ALLOWED;
+        device.setParameter(allowed, ConfigurationParameter.of(allowed.value(), true));
+    }
+
+    // to prepare the input stream for te fax transmit operation
+    private static InputStream prepareFaxSource(String faxContent) throws IOException {
+        InputStream source = mock(InputStream.class);
+        AtomicBoolean firstRead = new AtomicBoolean(true);
+        doAnswer((Answer<Integer>) invocation -> {
+            if (firstRead.get()) {
+                byte[] b = invocation.getArgument(0);
+                byte[] payload = faxContent.getBytes();
+                System.arraycopy(payload, 0, b, 0, payload.length);
+                firstRead.getAndSet(false);
+                return payload.length;
+            } else {
+                return -1;
+            }
+        }).when(source).read(any(byte[].class), anyInt(), anyInt());
+        return source;
+    }
+
     // validating proceeding engine and session behavior
     private static <H> void verifyEngineSessionProceedingAbility(FaxMachineEngine<H> engine, PhoneCallSession<H> session) {
         verify(engine).canFax();

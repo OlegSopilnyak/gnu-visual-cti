@@ -241,7 +241,7 @@ public abstract class AbstractFaxMachineEngine<H> extends AbstractDevicePart<H> 
                         return Result.CALL.DISCONNECT;
                         // checking not end-of-file operation results
                     } else if (faxOperationFailed.test(operationResult)) {
-                        // checking not end-of-file operation result is detected
+                        // the not end-of-file operation result is detected
                         stopFaxReceiving(serviceProvider, faxDeviceHandle);
                         session.getDevice().dispatchError("Receive fax document is failed.");
                         session.setState(Device.State.ERROR);
@@ -363,11 +363,14 @@ public abstract class AbstractFaxMachineEngine<H> extends AbstractDevicePart<H> 
                             session.operationResult(Result.CALL.DISCONNECT);
                         }
                         return Result.CALL.DISCONNECT;
+                        // checking not end-of-file operation results
                     } else if (faxOperationFailed.test(operationResult)) {
+                        // the not end-of-file operation result is detected
+                        stopFaxTransmitting(serviceProvider, faxDeviceHandle);
                         session.getDevice().dispatchError("Send fax document is failed.");
                         session.setState(Device.State.ERROR);
-                        stopFaxTransmitting(serviceProvider, faxDeviceHandle);
-                        return operationResult;
+                        // removing unnecessary temp file
+                        return tempFile.delete() ? operationResult : Result.ERROR;
                     }
                 }
                 // stop fax's transmitting
