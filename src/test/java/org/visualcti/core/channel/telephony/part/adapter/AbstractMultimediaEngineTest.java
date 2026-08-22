@@ -54,7 +54,6 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
 import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -298,24 +297,17 @@ public class AbstractMultimediaEngineTest<H> {
         session.alive(true);
         Audio playbackFormat = Audio.ADPCM_8;
         String audio = "Testing audio content";
-        InputStream audioStream = spy(new ByteArrayInputStream(audio.getBytes()));
-        Audio[] audios = new Audio[]{playbackFormat, Audio.LINEAR, Audio.LINEAR_8, Audio.LINEAR_11};
-        ConfigurationParameter allAudios = spy(ConfigurationParameter.of("media-codecs", Arrays.asList(audios)));
-        doReturn(Optional.of(allAudios)).when(device).getParameter(ALLOWED_CODECS);
         Sound sound = mock(Sound.class);
         doReturn(playbackFormat).when(sound).getFormat();
-        doReturn(audioStream).when(sound).getInputStream();
+        doReturn(prepareMultiMediaSource(audio)).when(sound).getInputStream();
+        preparePlaybackCodecs(playbackFormat);
         doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(-1));
 
         // acting
         boolean can = engine.asyncPlaybackAudio(session, sound);
 
         // check the behavior
-        verify(sound).getFormat();
-        verify(session).isOpened();
-        verify(session).isAlive();
-        verify(engine).canPlay(playbackFormat);
-        verify(engine).canPlay();
+        verifyPlaybackInputVerification(playbackFormat);
         verify(device).dispatchEvent("Playback audio is starting...");
         verify(session).setState(TelephonyDevice.State.PLAY);
         verify(session).operationResult(Result.NONE);
@@ -340,23 +332,17 @@ public class AbstractMultimediaEngineTest<H> {
         // preparing test data
         engine.uses(device);
         Audio playbackFormat = Audio.ADPCM_8;
-        String audio = "Testing audio content";
-        InputStream audioStream = spy(new ByteArrayInputStream(audio.getBytes()));
-        Audio[] audios = new Audio[]{playbackFormat, Audio.LINEAR, Audio.LINEAR_8, Audio.LINEAR_11};
-        ConfigurationParameter allAudios = spy(ConfigurationParameter.of("media-codecs", Arrays.asList(audios)));
-        doReturn(Optional.of(allAudios)).when(device).getParameter(ALLOWED_CODECS);
         Sound sound = mock(Sound.class);
+        preparePlaybackCodecs(playbackFormat);
         doReturn(playbackFormat).when(sound).getFormat();
-        doReturn(audioStream).when(sound).getInputStream();
+        doReturn(mock(InputStream.class)).when(sound).getInputStream();
 
         // acting
         boolean can = engine.asyncPlaybackAudio(session, sound);
 
         // check the behavior
-        verify(sound).getFormat();
-        verify(session).isOpened();
         verify(session).isAlive();
-        verify(engine, never()).canPlay(playbackFormat);
+        verify(engine, never()).isOpened(any(PhoneCallSession.class));
         // check results
         assertThat(can).isFalse();
         assertThat(session.getState()).isEqualTo(Device.State.ERROR);
@@ -371,23 +357,17 @@ public class AbstractMultimediaEngineTest<H> {
         session.alive(true);
         Audio playbackFormat = Audio.ADPCM_8;
         String audio = "Testing audio content";
-        InputStream audioStream = spy(new ByteArrayInputStream(audio.getBytes()));
-        Audio[] audios = new Audio[]{playbackFormat, Audio.LINEAR, Audio.LINEAR_8, Audio.LINEAR_11};
-        ConfigurationParameter allAudios = spy(ConfigurationParameter.of("media-codecs", Arrays.asList(audios)));
-        doReturn(Optional.of(allAudios)).when(device).getParameter(ALLOWED_CODECS);
         Sound sound = mock(Sound.class);
         doReturn(playbackFormat).when(sound).getFormat();
-        doReturn(audioStream).when(sound).getInputStream();
+        doReturn(prepareMultiMediaSource(audio)).when(sound).getInputStream();
+        preparePlaybackCodecs(playbackFormat);
 
         // acting
         boolean can = engine.asyncPlaybackAudio(session, sound);
 
         // check the behavior
         verify(sound).getFormat();
-        verify(session).isOpened();
-        verify(session).isAlive();
-        verify(engine).canPlay(playbackFormat);
-        verify(engine).canPlay();
+        verifyPlaybackInputVerification(playbackFormat);
         verify(device).dispatchEvent("Playback audio is starting...");
         verify(session).setState(TelephonyDevice.State.PLAY);
         verify(session).operationResult(Result.NONE);

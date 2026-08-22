@@ -55,10 +55,13 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.concurrent.ExecutionException;
@@ -1818,7 +1821,59 @@ public class AbstractTelephonyDeviceTest<H> {
     }
 
     @Test
-    public void asyncPlaybackAudio() {
+    public void shouldStartPlaybackAudioAsynchronously_Mocked() throws IOException {
+        // preparing test data
+        PhoneCallSession<H> mocked = mock(PhoneCallSession.class);
+        Audio format = Audio.LINEAR;
+        Sound sound = mock(Sound.class);
+        doReturn(format).when(sound).getFormat();
+        doReturn(mock(InputStream.class)).when(sound).getInputStream();
+        doReturn(true).when(mockedMedia).canPlay(format);
+        doReturn(true).when(mockedMedia).asyncPlaybackAudio(mocked, sound);
+
+        // acting
+        boolean result = mockedDevice.asyncPlaybackAudio(mocked, sound);
+
+        // check the behavior
+        verify(mockedMedia).asyncPlaybackAudio(mocked, sound);
+        // check results
+        assertThat(result).isTrue();
+    }
+
+    @Test
+    public void shouldStartPlaybackAudioAsynchronously_Regular() throws IOException {
+        // preparing test data
+        String mediaContent = "Audio Data Content";
+        Audio format = Audio.LINEAR;
+        InputStream source = prepareMultiMediaSource(mediaContent);
+        Sound sound = mock(Sound.class);
+        doReturn(format).when(sound).getFormat();
+        doReturn(source).when(sound).getInputStream();
+        preparePlaybackCodecs(device);
+        session.alive(true);
+        reset(session);
+        doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(format), eq(-1));
+
+        // acting
+        boolean result = device.asyncPlaybackAudio(session, sound);
+
+        // check the behavior
+        verify(device).isOpened();
+        verify(media).asyncPlaybackAudio(session, sound);
+        verifyEngineSessionProceedingAbility(media, session);
+        verify(media).canPlay(format);
+        verify(provider).disableEvents(deviceHandle, Result.IO.DTMF);
+        verify(source, times(2)).read(any(byte[].class), eq(0), anyInt());
+        verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(format), eq(-1));
+        // check results
+        assertThat(result).isTrue();
+        assertThat(session.getState()).isEqualTo(TelephonyDevice.State.PLAY);
+        assertThat(session.operationResult()).isEqualTo(Result.NONE);
+        File tempFile = session.parameter(MultimediaEngine.Parameter.AUDIO_TEMPORARY);
+        assertThat(tempFile).exists();
+        try (BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(tempFile)))) {
+            assertThat(in.readLine()).isEqualTo(mediaContent);
+        }
     }
 
     @Test

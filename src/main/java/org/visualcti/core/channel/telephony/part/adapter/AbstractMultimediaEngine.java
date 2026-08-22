@@ -288,7 +288,7 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
     @Override
     public boolean asyncPlaybackAudio(PhoneCallSession<H> session, Sound sound) {
         final Audio format = sound.getFormat();
-        if (session.isOpened() && session.isAlive() && canPlay(format)) {
+        if (canProceed(session, () -> canPlay(format))) {
             // staring audio data transmitting
             session.getDevice().dispatchEvent("Playback audio is starting...");
             session.setState(TelephonyDevice.State.PLAY);
