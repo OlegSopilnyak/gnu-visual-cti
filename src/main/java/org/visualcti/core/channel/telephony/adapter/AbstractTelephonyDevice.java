@@ -656,9 +656,8 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
     public OperationResultValue playbackAudio(final PhoneCallSession<H> session, final InputStream source,
                                               final Audio format, final String terminationSymbolsMask, final int timeout
     ) {
-        return media.canPlay(format)
-                ? delegateMediaOperation(TelephonyDevice.State.PLAY,
-                () -> media.playbackAudio(session, source, format, terminationSymbolsMask, timeout))
+        return isDeviceOpened()
+                ? media.playbackAudio(session, source, format, terminationSymbolsMask, timeout)
                 : Result.ERROR;
     }
 
@@ -672,7 +671,7 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      */
     @Override
     public boolean asyncPlaybackAudio(PhoneCallSession<H> session, Sound sound) {
-        return media.canPlay(sound.getFormat()) && media.asyncPlaybackAudio(session, sound);
+        return isDeviceOpened() && media.asyncPlaybackAudio(session, sound);
     }
 
     /**

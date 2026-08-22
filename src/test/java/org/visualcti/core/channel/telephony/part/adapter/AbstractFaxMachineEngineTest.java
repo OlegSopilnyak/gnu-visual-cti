@@ -360,7 +360,7 @@ public class AbstractFaxMachineEngineTest<H> {
         verify(session).operationComplete(Result.CALL.DISCONNECT);
         verify(session, times(2)).operationResult(Result.CALL.DISCONNECT);
         verify(session).setState(Device.State.ERROR);
-        verify(device).dispatchError("Receive fax document is failed because of phone line disconnection.");
+        verify(device).dispatchError("Receive fax document is failed. The connection is lost.");
         verify(provider).stopFaxReceiving(deviceHandle);
         // check results
         assertThat(result).isSameAs(reason);
@@ -830,7 +830,7 @@ public class AbstractFaxMachineEngineTest<H> {
         verify(session).alive(false);
         verify(session).operationComplete(reason);
         verify(session).setState(Device.State.ERROR);
-        verify(device).dispatchError("Send fax document is failed.");
+        verify(device).dispatchError("Send fax document is failed. The connection is lost.");
         verify(provider).stopFaxTransmitting(deviceHandle);
         // check results
         assertThat(result).isSameAs(session.operationResult()).isSameAs(reason);

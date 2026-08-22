@@ -48,6 +48,7 @@ import java.io.OutputStream;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceStateValue;
@@ -101,6 +102,10 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
         return playbackRawCodec();
     }
 
+    private boolean canProceed(final PhoneCallSession<H> session, Supplier<Boolean> formatSupports) {
+        return session.isAlive() && isOpened(session) && formatSupports.get();
+    }
+
     /**
      * <action>
      * Playback the audio stream data.
@@ -125,13 +130,17 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
     public OperationResultValue playbackAudio(final PhoneCallSession<H> session,
                                               final InputStream source, final Audio format,
                                               final String terminationSymbolsMask, final int timeout) {
-        if (session.isOpened() && session.isAlive() && canPlay(format)) {
+        if (canProceed(session, () -> canPlay(format))) {
             // staring audio data transmitting
             session.getDevice().dispatchEvent("Playback audio is starting...");
             session.setState(TelephonyDevice.State.PLAY);
             // getting device service provider
             final TelephonyServiceProvider<H> serviceProvider = deviceCore.getProvider();
             final H deviceHandle = session.getDeviceHandle();
+            // adjusting events producing rules
+            serviceProvider.disableEvents(deviceHandle);
+            serviceProvider.enableEvents(deviceHandle, Result.CALL.DISCONNECT);
+            final boolean isTerminationMaskExists = !isEmpty(terminationSymbolsMask);
             //
             // creating the temporary data media file
             final File tempFile;
@@ -142,8 +151,10 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
                 // saving the file for tests purposes
                 session.parameter(Parameter.AUDIO_TEMPORARY, tempFile);
                 //
-                // enabling DTMF termination
-                serviceProvider.enableEvents(deviceHandle, Result.IO.DTMF);
+                // enabling DTMF termination if it needs
+                if (isTerminationMaskExists) {
+                    serviceProvider.enableEvents(deviceHandle, Result.IO.DTMF);
+                }
                 // staring audio data transmitting by service provider
                 final String tempFileName = tempFile.getAbsolutePath();
                 final boolean starting = serviceProvider.startAudioPlaying(deviceHandle, tempFileName, format, timeout);
@@ -160,29 +171,30 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
                 while (true) {
                     // getting the operation result after waiting for operation complete
                     final OperationResultValue operationResult = session.operationResult();
-                    // checking the operation result value
-                    if (operationResult == Result.ERROR) {
+                    // checking the operation result value after waiting operation complete
+                    //
+                    // checking end of file operation results
+                    if (operationResult == Result.IO.EOF) {
+                        // deleting temporary file
+                        if (tempFile.delete()) {
+                            // deleted successfully
+                            // finishing processing of the operation
+                            break;
+                        } else {
+                            // the temporary file wasn't deleted by some reason
+                            session.setState(Device.State.ERROR);
+                            return Result.ERROR;
+                        }
+                    } else if (operationResult == Result.ERROR) {
                         // device hardware error is detected
                         final String errorReason = "Playback audio is failed.";
                         return playbackAudioError(deviceHandle, tempFile, session, errorReason);
-                        // checking for the end of data operation result
-                    } else if (operationResult == Result.IO.EOF) {
-                        // stopping audio data transmitting by service provider
-                        stopAudioPlaying(serviceProvider, deviceHandle);
-                        // deleting temporary file
-                        if (!tempFile.delete()) {
-                            session.setState(Device.State.ERROR);
-                            return Result.ERROR;
-                        } else {
-                            // finishing the processing
-                            break;
-                        }
                         // checking for the user input during the operation
                     } else if (operationResult == Result.IO.DTMF) {
                         // calculating duration for the next waiting operation complete
                         final long waitForNextOperationComplete = endMark - System.currentTimeMillis();
                         // is termination mask empty?
-                        if (isEmpty(terminationSymbolsMask)) {
+                        if (!isTerminationMaskExists) {
                             // continue waiting for the next event
                             waitingForTheNextEvent(session, waitForNextOperationComplete);
                             // go to the operation result processing after waiting
@@ -206,8 +218,6 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
                         } else if (endMark < System.currentTimeMillis() && tempFile.delete()) {
                             // timeout is expired, finishing up the operation by timeout reason
                             session.operationResult(Result.TIMEOUT);
-                            // stopping audio data transmitting by service provider
-                            stopAudioPlaying(serviceProvider, deviceHandle);
                             break;
                         }
                         // checking for the operation's interruption
@@ -223,7 +233,6 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
                         return Result.TERMINATED;
                         // checking for the disconnection during the operation
                     } else if (session.isDisconnected()) {
-                        session.getDevice().dispatchError("Playback audio is failed. The connection is lost.");
                         // stopping audio data transmitting by service provider
                         stopAudioPlaying(serviceProvider, deviceHandle);
                         // deleting temporary file
@@ -231,11 +240,14 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
                             session.setState(Device.State.ERROR);
                             return Result.ERROR;
                         }
-                        session.operationResult(Result.CALL.DISCONNECT);
                         session.setState(Device.State.ERROR);
+                        breakingTheSession(session, "Playback audio is failed. The connection is lost.");
+                        session.operationResult(Result.CALL.DISCONNECT);
                         return Result.CALL.DISCONNECT;
                     } else {
+                        // the timeout for the operation was expired
                         session.operationResult(Result.TIMEOUT);
+                        // finishing processing of the operation
                         break;
                     }
                 }
@@ -254,8 +266,9 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
             }
             // operation is completed successfully by any reason
             session.getDevice().dispatchEvent("Playback audio is completed.");
+            // unconditional stopping playback's operation
             stopAudioPlaying(serviceProvider, deviceHandle);
-            // make send tone operation is complete
+            // make playback's operation is complete
             session.setState(Device.State.IDLE);
             return session.operationResult();
         }

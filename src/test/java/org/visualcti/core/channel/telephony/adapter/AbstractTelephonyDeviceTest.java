@@ -89,6 +89,7 @@ import org.visualcti.core.channel.telephony.operation.adapter.PhoneNumber;
 import org.visualcti.core.channel.telephony.part.CallsPortEngine;
 import org.visualcti.core.channel.telephony.part.FaxMachineEngine;
 import org.visualcti.core.channel.telephony.part.MultimediaEngine;
+import org.visualcti.core.channel.telephony.part.TelephonyDevicePart;
 import org.visualcti.core.channel.telephony.part.TonesEngine;
 import org.visualcti.core.channel.telephony.part.adapter.AbstractCallsPortEngine;
 import org.visualcti.core.channel.telephony.part.adapter.AbstractFaxMachineEngine;
@@ -1441,7 +1442,7 @@ public class AbstractTelephonyDeviceTest<H> {
         // preparing test data
         String faxContent = "Fax Document Content";
         H faxHandle = (H) "fax-handle";
-        InputStream source = prepareFaxSource(faxContent);
+        InputStream source = prepareMultiMediaSource(faxContent);
         Fax format = Fax.TEXT;
         boolean issueVoiceRequest = true;
         switchFaxPartOn();
@@ -1465,9 +1466,9 @@ public class AbstractTelephonyDeviceTest<H> {
         verify(faxes).transmit(session, source, format, issueVoiceRequest);
         verifyEngineSessionProceedingAbility(faxes, session);
         verifyTransmitFaxEventsManagement(provider, faxHandle);
+        verify(source, times(2)).read(any(byte[].class), eq(0), anyInt());
         verify(provider).startFaxTransmitting(eq(faxHandle), anyString(), eq(issueVoiceRequest),
                 eq(format.isTIFF()), eq(format.isHighResolution()), anyInt(), anyInt());
-        verify(session).waitingForOperationComplete(1000L);
         verify(provider).stopFaxTransmitting(faxHandle);
         // check results
         assertThat(result).isSameAs(Result.IO.EOF);
@@ -1480,7 +1481,7 @@ public class AbstractTelephonyDeviceTest<H> {
         String errorReason = "Send fax document is failed.";
         String faxContent = "Fax Document Content";
         H faxHandle = (H) "fax-handle";
-        InputStream source = prepareFaxSource(faxContent);
+        InputStream source = prepareMultiMediaSource(faxContent);
         Fax format = Fax.TEXT;
         boolean issueVoiceRequest = true;
         switchFaxPartOn();
@@ -1504,9 +1505,9 @@ public class AbstractTelephonyDeviceTest<H> {
         verify(faxes).transmit(session, source, format, issueVoiceRequest);
         verifyEngineSessionProceedingAbility(faxes, session);
         verifyTransmitFaxEventsManagement(provider, faxHandle);
+        verify(source, times(2)).read(any(byte[].class), eq(0), anyInt());
         verify(provider).startFaxTransmitting(eq(faxHandle), anyString(), eq(issueVoiceRequest),
                 eq(format.isTIFF()), eq(format.isHighResolution()), anyInt(), anyInt());
-        verify(session).waitingForOperationComplete(1000L);
         verify(provider, never()).stopFaxTransmitting(any());
         // check results
         assertThat(error).isInstanceOf(DeviceMalfunction.class);
@@ -1520,7 +1521,7 @@ public class AbstractTelephonyDeviceTest<H> {
         // preparing test data
         String faxContent = "Fax Document Content";
         H faxHandle = (H) "fax-handle";
-        InputStream source = prepareFaxSource(faxContent);
+        InputStream source = prepareMultiMediaSource(faxContent);
         Fax format = Fax.TEXT;
         boolean issueVoiceRequest = true;
         switchFaxPartOn();
@@ -1544,9 +1545,9 @@ public class AbstractTelephonyDeviceTest<H> {
         verify(faxes).transmit(session, source, format, issueVoiceRequest);
         verifyEngineSessionProceedingAbility(faxes, session);
         verifyTransmitFaxEventsManagement(provider, faxHandle);
+        verify(source, times(2)).read(any(byte[].class), eq(0), anyInt());
         verify(provider).startFaxTransmitting(eq(faxHandle), anyString(), eq(issueVoiceRequest),
                 eq(format.isTIFF()), eq(format.isHighResolution()), anyInt(), anyInt());
-        verify(session).waitingForOperationComplete(1000L);
         verify(provider).stopFaxTransmitting(faxHandle);
         // check results
         assertThat(result).isSameAs(Result.FAX.COMPATIBILITY);
@@ -1693,7 +1694,127 @@ public class AbstractTelephonyDeviceTest<H> {
     }
 
     @Test
-    public void playbackAudio() {
+    public void shouldPlaybackAudio_Mocked() {
+        // preparing test data
+        PhoneCallSession<H> mocked = mock(PhoneCallSession.class);
+        InputStream source = mock(InputStream.class);
+        Audio format = Audio.LINEAR;
+        String terminationSymbolsMask = "*";
+        int timeout = 2;
+        doReturn(Result.OK).when(mockedMedia).playbackAudio(mocked, source, format, terminationSymbolsMask, timeout);
+        doReturn(true).when(mockedMedia).canPlay(format);
+
+        // acting
+        OperationResultValue result = mockedDevice.playbackAudio(mocked, source, format, terminationSymbolsMask, timeout);
+
+        // check the behavior
+        verify(mockedMedia).playbackAudio(mocked, source, format, terminationSymbolsMask, timeout);
+        // check results
+        assertThat(result).isEqualTo(Result.OK);
+    }
+
+    @Test
+    public void shouldPlaybackAudioRegular_EOF() throws ExecutionException, InterruptedException, IOException {
+        // preparing test data
+        String mediaContent = "Audio Data Content";
+        Audio format = Audio.LINEAR;
+        String terminationSymbolsMask = "*";
+        int timeout = 2;
+        InputStream source = prepareMultiMediaSource(mediaContent);
+        preparePlaybackCodecs(device);
+        session.alive(true);
+        reset(session);
+        doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(format), eq(timeout));
+
+        // acting
+        Future<OperationResultValue> action = shadowExecutor.submit(
+                () -> device.playbackAudio(session, source, format, terminationSymbolsMask, timeout)
+        );
+        await().until(() -> session.operationIsActive());
+        shadowExecutor.schedule(() -> session.operationComplete(Result.IO.EOF), 50, TimeUnit.MILLISECONDS);
+        OperationResultValue result = action.get();
+
+        // check the behavior
+        verify(device).isOpened();
+        verify(media).playbackAudio(session, source, format, terminationSymbolsMask, timeout);
+        verifyEngineSessionProceedingAbility(media, session);
+        verify(media).canPlay(format);
+        verifyMediaEventsManagement(provider, deviceHandle);
+        verify(source, times(2)).read(any(byte[].class), eq(0), anyInt());
+        verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(format), eq(timeout));
+        verify(provider).stopAudioPlaying(deviceHandle);
+        // check results
+        assertThat(result).isEqualTo(Result.IO.EOF);
+        assertThat(session.getState()).isEqualTo(Device.State.IDLE);
+    }
+
+    @Test
+    public void shouldPlaybackAudioRegular_Timeout() throws IOException {
+        // preparing test data
+        String mediaContent = "Audio Data Content";
+        Audio format = Audio.LINEAR;
+        String terminationSymbolsMask = "*";
+        int timeout = 1;
+        InputStream source = prepareMultiMediaSource(mediaContent);
+        preparePlaybackCodecs(device);
+        session.alive(true);
+        reset(session);
+        doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(format), eq(timeout));
+
+        // acting
+        OperationResultValue result = device.playbackAudio(session, source, format, terminationSymbolsMask, timeout);
+
+        // check the behavior
+        verify(device).isOpened();
+        verify(media).playbackAudio(session, source, format, terminationSymbolsMask, timeout);
+        verifyEngineSessionProceedingAbility(media, session);
+        verify(media).canPlay(format);
+        verifyMediaEventsManagement(provider, deviceHandle);
+        verify(source, times(2)).read(any(byte[].class), eq(0), anyInt());
+        verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(format), eq(timeout));
+        verify(provider).stopAudioPlaying(deviceHandle);
+        // check results
+        assertThat(result).isEqualTo(Result.TIMEOUT);
+        assertThat(session.getState()).isEqualTo(Device.State.IDLE);
+    }
+
+    @Test
+    public void shouldNotPlaybackAudioRegular_DeviceError() throws ExecutionException, InterruptedException, IOException {
+        // preparing test data
+        String errorReason = "Playback audio is failed.";
+        String mediaContent = "Audio Data Content";
+        Audio format = Audio.LINEAR;
+        String terminationSymbolsMask = "*";
+        int timeout = 2;
+        InputStream source = prepareMultiMediaSource(mediaContent);
+        preparePlaybackCodecs(device);
+        session.alive(true);
+        reset(session);
+        doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(format), eq(timeout));
+
+        // acting
+        Future<Throwable> action = shadowExecutor.submit(() -> assertThrows(Throwable.class,
+                        () -> device.playbackAudio(session, source, format, terminationSymbolsMask, timeout)
+                )
+        );
+        await().until(() -> session.operationIsActive());
+        shadowExecutor.schedule(() -> session.operationComplete(Result.ERROR), 50, TimeUnit.MILLISECONDS);
+        Throwable error = action.get();
+
+        // check the behavior
+        verify(device).isOpened();
+        verify(media).playbackAudio(session, source, format, terminationSymbolsMask, timeout);
+        verifyEngineSessionProceedingAbility(media, session);
+        verify(media).canPlay(format);
+        verifyMediaEventsManagement(provider, deviceHandle);
+        verify(source, times(2)).read(any(byte[].class), eq(0), anyInt());
+        verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(format), eq(timeout));
+        verify(provider).stopAudioPlaying(deviceHandle);
+        // check results
+        assertThat(error).isInstanceOf(DeviceMalfunction.class);
+        assertThat(error.getMessage()).endsWith(errorReason);
+        assertThat(session.operationResult()).isSameAs(Result.ERROR);
+        assertThat(session.getState()).isSameAs(Device.State.ERROR);
     }
 
     @Test
@@ -1877,13 +1998,12 @@ public class AbstractTelephonyDeviceTest<H> {
         assertThat(session.getState()).isSameAs(Device.State.IDLE);
     }
 
-
     @Test
     public void shouldTerminateTransmitFax() throws IOException, ExecutionException, InterruptedException {
         // preparing test data
         String faxContent = "Fax Document Content";
         H faxHandle = (H) "fax-handle";
-        InputStream source = prepareFaxSource(faxContent);
+        InputStream source = prepareMultiMediaSource(faxContent);
         Fax format = Fax.TEXT;
         boolean issueVoiceRequest = true;
         switchFaxPartOn();
@@ -1917,6 +2037,42 @@ public class AbstractTelephonyDeviceTest<H> {
         assertThat(session.getState()).isSameAs(Device.State.IDLE);
     }
 
+    @Test
+    public void shouldTerminateAudioPlayback() throws IOException, ExecutionException, InterruptedException {
+        // preparing test data
+        String mediaContent = "Audio Data Content";
+        Audio format = Audio.LINEAR;
+        String terminationSymbolsMask = "*";
+        int timeout = 2;
+        InputStream source = prepareMultiMediaSource(mediaContent);
+        preparePlaybackCodecs(device);
+        session.alive(true);
+        reset(session);
+        doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(format), eq(timeout));
+
+        // acting
+        Future<OperationResultValue> action = shadowExecutor.submit(
+                () -> device.playbackAudio(session, source, format, terminationSymbolsMask, timeout)
+        );
+        await().until(() -> session.operationIsActive());
+        shadowExecutor.schedule(this::terminateActivity, 50, TimeUnit.MILLISECONDS);
+        OperationResultValue result = action.get();
+
+        // check the behavior
+        verify(device).isOpened();
+        verify(media).playbackAudio(session, source, format, terminationSymbolsMask, timeout);
+        verifyEngineSessionProceedingAbility(faxes, session);
+        verify(media).canPlay(format);
+        verifyMediaEventsManagement(provider, deviceHandle);
+        verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(format), eq(timeout));
+        verify(provider).stopAudioPlaying(deviceHandle);
+        // final IO result checking
+        verify(source, times(2)).read(any(byte[].class), eq(0), anyInt());
+        // check results
+        assertThat(result).isSameAs(Result.TERMINATED);
+        assertThat(session.getState()).isSameAs(Device.State.IDLE);
+    }
+
     /// private methods
     // allowing fax feature
     private void switchFaxPartOn() {
@@ -1925,13 +2081,13 @@ public class AbstractTelephonyDeviceTest<H> {
     }
 
     // to prepare the input stream for te fax transmit operation
-    private static InputStream prepareFaxSource(String faxContent) throws IOException {
+    private static InputStream prepareMultiMediaSource(String multiMediaContent) throws IOException {
         InputStream source = mock(InputStream.class);
         AtomicBoolean firstRead = new AtomicBoolean(true);
         doAnswer((Answer<Integer>) invocation -> {
             if (firstRead.get()) {
                 byte[] b = invocation.getArgument(0);
-                byte[] payload = faxContent.getBytes();
+                byte[] payload = multiMediaContent.getBytes();
                 System.arraycopy(payload, 0, b, 0, payload.length);
                 firstRead.getAndSet(false);
                 return payload.length;
@@ -1942,6 +2098,14 @@ public class AbstractTelephonyDeviceTest<H> {
         return source;
     }
 
+    // preparing available device's codecs
+    private static void preparePlaybackCodecs(AbstractTelephonyDevice<?, ?> device) {
+        Device.ParameterName parameterName = ALLOWED_CODECS;
+        Audio[] audios = new Audio[]{Audio.LINEAR, Audio.LINEAR_8, Audio.LINEAR_11};
+        ConfigurationParameter allAudios = spy(ConfigurationParameter.of(parameterName.value(), Arrays.asList(audios)));
+        device.setParameter(parameterName, allAudios);
+    }
+
     // validating proceeding engine and session behavior
     private static <H> void verifyEngineSessionProceedingAbility(FaxMachineEngine<H> engine, PhoneCallSession<H> session) {
         verify(engine).canFax();
@@ -1949,6 +2113,13 @@ public class AbstractTelephonyDeviceTest<H> {
         verify(engine, atLeastOnce()).isOpened(session);
         verify(session, atLeastOnce()).parameter(Device.Parameter.DEVICE_HANDLE);
         verify(session, atLeastOnce()).parameter(Device.Parameter.FAX_DEVICE_HANDLE);
+    }
+
+    // validating proceeding engine and session behavior
+    private static <H> void verifyEngineSessionProceedingAbility(TelephonyDevicePart<H> engine, PhoneCallSession<H> session) {
+        verify(session, atLeastOnce()).isAlive();
+        verify(engine, atLeastOnce()).isOpened(session);
+        verify(session, atLeastOnce()).parameter(Device.Parameter.DEVICE_HANDLE);
     }
 
     // validating receive fax events management
@@ -1962,6 +2133,14 @@ public class AbstractTelephonyDeviceTest<H> {
     private static <H> void verifyTransmitFaxEventsManagement(TelephonyServiceProvider<H> provider, H deviceHandle) {
         verify(provider, atLeastOnce()).disableEvents(deviceHandle);
         verify(provider).enableEvents(deviceHandle, Result.CALL.DISCONNECT);
+    }
+
+    // validating audio playback events management
+    private static <H> void verifyMediaEventsManagement(TelephonyServiceProvider<H> provider, H deviceHandle) {
+        verify(provider, atLeastOnce()).disableEvents(deviceHandle);
+        verify(provider).enableEvents(deviceHandle, Result.CALL.DISCONNECT);
+        verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
+        verify(provider).disableEvents(deviceHandle, Result.IO.DTMF);
     }
 
     // to terminate device's current activity

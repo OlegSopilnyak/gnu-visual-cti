@@ -41,10 +41,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -68,10 +70,12 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.stubbing.Answer;
 import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceMalfunction;
@@ -404,47 +408,40 @@ public class AbstractMultimediaEngineTest<H> {
     }
 
     @Test
-    public void shouldPlaybackAudio_EOF() throws ExecutionException, InterruptedException {
+    public void shouldPlaybackAudio_EOF() throws ExecutionException, InterruptedException, IOException {
         // preparing test data
         engine.uses(device);
         session.alive(true);
         Audio playbackFormat = Audio.ADPCM_8;
-        String terminationSymbolsMask = "";
+        String terminationSymbolsMask = "*";
         int timeout = 2;
         String audio = "Testing audio content";
-        InputStream audioStream = spy(new ByteArrayInputStream(audio.getBytes()));
-        Audio[] audios = new Audio[]{playbackFormat, Audio.LINEAR, Audio.LINEAR_8, Audio.LINEAR_11};
-        ConfigurationParameter allAudios = spy(ConfigurationParameter.of("media-codecs", Arrays.asList(audios)));
-        doReturn(Optional.of(allAudios)).when(device).getParameter(ALLOWED_CODECS);
+        InputStream source = prepareMultiMediaSource(audio);
+        preparePlaybackCodecs(playbackFormat);
         doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
 
         // acting
         Future<OperationResultValue> playback = executor.submit(() ->
-                engine.playbackAudio(session, audioStream, playbackFormat, terminationSymbolsMask, timeout)
+                engine.playbackAudio(session, source, playbackFormat, terminationSymbolsMask, timeout)
         );
         await().until(() -> session.operationIsActive());
-        executor.schedule(() -> session.operationComplete(Result.IO.EOF), 100, TimeUnit.MILLISECONDS);
+        executor.schedule(() -> session.operationComplete(Result.IO.EOF), 50, TimeUnit.MILLISECONDS);
         OperationResultValue result = playback.get();
 
         // check the behavior
-        verify(session).isOpened();
-        verify(session, atLeastOnce()).isAlive();
-        verify(engine).canPlay(playbackFormat);
-        verify(engine).canPlay();
+        verifyPlaybackInputVerification(playbackFormat);
         verify(device).dispatchEvent("Playback audio is starting...");
         verify(session).setState(TelephonyDevice.State.PLAY);
         verify(session).operationResult(Result.NONE);
         verify(session, atLeastOnce()).getDeviceHandle();
         verify(device).getProvider();
-        verify(provider, atLeastOnce()).disableEvents(deviceHandle, Result.IO.DTMF);
-        verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
+        verifyPlaybackEventsAdjusting();
         verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
         verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
         verify(session).operationResult(Result.NONE);
         verify(session).waitingForOperationComplete(timeout * 1000L);
         verify(session, atLeastOnce()).operationResult();
         verify(device).dispatchEvent("Playback audio is completed.");
-        verify(provider, atLeastOnce()).disableEvents(deviceHandle, Result.IO.DTMF);
         verify(provider, atLeastOnce()).stopAudioPlaying(deviceHandle);
         verify(session).setState(Device.State.IDLE);
         // check results
@@ -454,7 +451,7 @@ public class AbstractMultimediaEngineTest<H> {
     }
 
     @Test
-    public void shouldPlaybackAudio_DTMF() throws ExecutionException, InterruptedException {
+    public void shouldPlaybackAudio_DTMF() throws ExecutionException, InterruptedException, IOException {
         // preparing test data
         engine.uses(device);
         session.alive(true);
@@ -462,36 +459,29 @@ public class AbstractMultimediaEngineTest<H> {
         String terminationSymbolsMask = "#";
         int timeout = 2;
         String audio = "Testing audio content";
-        InputStream audioStream = spy(new ByteArrayInputStream(audio.getBytes()));
-        Audio[] audios = new Audio[]{playbackFormat, Audio.LINEAR, Audio.LINEAR_8, Audio.LINEAR_11};
-        ConfigurationParameter allAudios = spy(ConfigurationParameter.of("media-codecs", Arrays.asList(audios)));
-        doReturn(Optional.of(allAudios)).when(device).getParameter(ALLOWED_CODECS);
+        InputStream source = prepareMultiMediaSource(audio);
+        preparePlaybackCodecs(playbackFormat);
         doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
         session.parameter(Device.Parameter.USER_INPUT, terminationSymbolsMask);
 
         // acting
         Future<OperationResultValue> playback = executor.submit(() ->
-                engine.playbackAudio(session, audioStream, playbackFormat, terminationSymbolsMask, timeout)
+                engine.playbackAudio(session, source, playbackFormat, terminationSymbolsMask, timeout)
         );
         await().until(() -> session.operationIsActive());
         executor.schedule(() -> session.operationComplete(Result.IO.DTMF), 100, TimeUnit.MILLISECONDS);
         OperationResultValue result = playback.get();
 
         // check the behavior
-        verify(session).isOpened();
-        verify(session, atLeastOnce()).isAlive();
-        verify(engine).canPlay(playbackFormat);
-        verify(engine).canPlay();
+        verifyPlaybackInputVerification(playbackFormat);
         verify(device).dispatchEvent("Playback audio is starting...");
         verify(session).setState(TelephonyDevice.State.PLAY);
         verify(session).operationResult(Result.NONE);
         verify(session, atLeastOnce()).getDeviceHandle();
         verify(device).getProvider();
-        verify(provider, atLeastOnce()).disableEvents(deviceHandle, Result.IO.DTMF);
-        verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
+        verifyPlaybackEventsAdjusting();
         verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
         verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
-        verify(session).operationResult(Result.NONE);
         verify(session).waitingForOperationComplete(timeout * 1000L);
         verify(session, atLeastOnce()).operationResult();
         verify(session).parameter(Device.Parameter.USER_INPUT);
@@ -506,7 +496,7 @@ public class AbstractMultimediaEngineTest<H> {
     }
 
     @Test
-    public void shouldPlaybackAudio_DTMF_ButEmptyMask() throws ExecutionException, InterruptedException {
+    public void shouldPlaybackAudio_DTMF_ButEmptyMask() throws ExecutionException, InterruptedException, IOException {
         // preparing test data
         engine.uses(device);
         session.alive(true);
@@ -515,39 +505,32 @@ public class AbstractMultimediaEngineTest<H> {
         int timeout = 1;
         long waitForMills = timeout * 1000L;
         String audio = "Testing audio content";
-        InputStream audioStream = spy(new ByteArrayInputStream(audio.getBytes()));
-        Audio[] audios = new Audio[]{playbackFormat, Audio.LINEAR, Audio.LINEAR_8, Audio.LINEAR_11};
-        ConfigurationParameter allAudios = spy(ConfigurationParameter.of("media-codecs", Arrays.asList(audios)));
-        doReturn(Optional.of(allAudios)).when(device).getParameter(ALLOWED_CODECS);
+        InputStream source = prepareMultiMediaSource(audio);
+        preparePlaybackCodecs(playbackFormat);
         doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
         session.parameter(Device.Parameter.USER_INPUT, terminationSymbolsMask);
 
         // acting
         Future<OperationResultValue> playback = executor.submit(() ->
-                engine.playbackAudio(session, audioStream, playbackFormat, terminationSymbolsMask, timeout)
+                engine.playbackAudio(session, source, playbackFormat, terminationSymbolsMask, timeout)
         );
         await().until(() -> session.operationIsActive());
         executor.schedule(() -> session.operationComplete(Result.IO.DTMF), 100, TimeUnit.MILLISECONDS);
         OperationResultValue result = playback.get();
 
         // check the behavior
-        verify(session).isOpened();
-        verify(session, atLeastOnce()).isAlive();
-        verify(engine).canPlay(playbackFormat);
-        verify(engine).canPlay();
+        verifyPlaybackInputVerification(playbackFormat);
         verify(device).dispatchEvent("Playback audio is starting...");
         verify(session).setState(TelephonyDevice.State.PLAY);
         verify(session, atLeastOnce()).operationResult(Result.NONE);
         verify(session, atLeastOnce()).getDeviceHandle();
         verify(device).getProvider();
-        verify(provider, atLeastOnce()).disableEvents(deviceHandle, Result.IO.DTMF);
-        verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
+        verifyPlaybackEventsAdjusting(false);
         verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
         verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
         verify(session).waitingForOperationComplete(waitForMills);
         verify(session, atLeastOnce()).operationResult();
         verify(device).dispatchEvent("Playback audio is completed.");
-        verify(provider, atLeastOnce()).disableEvents(deviceHandle, Result.IO.DTMF);
         verify(provider, atLeastOnce()).stopAudioPlaying(deviceHandle);
         verify(session).setState(Device.State.IDLE);
         verify(session).operationResult(Result.TIMEOUT);
@@ -563,7 +546,7 @@ public class AbstractMultimediaEngineTest<H> {
     }
 
     @Test
-    public void shouldPlaybackAudio_DTMF_ButNotFromMask() throws ExecutionException, InterruptedException {
+    public void shouldPlaybackAudio_DTMF_ButNotFromMask() throws ExecutionException, InterruptedException, IOException {
         // preparing test data
         engine.uses(device);
         session.alive(true);
@@ -572,39 +555,32 @@ public class AbstractMultimediaEngineTest<H> {
         int timeout = 1;
         long waitForMills = timeout * 1000L;
         String audio = "Testing audio content";
-        InputStream audioStream = spy(new ByteArrayInputStream(audio.getBytes()));
-        Audio[] audios = new Audio[]{playbackFormat, Audio.LINEAR, Audio.LINEAR_8, Audio.LINEAR_11};
-        ConfigurationParameter allAudios = spy(ConfigurationParameter.of("media-codecs", Arrays.asList(audios)));
-        doReturn(Optional.of(allAudios)).when(device).getParameter(ALLOWED_CODECS);
+        InputStream source = prepareMultiMediaSource(audio);
+        preparePlaybackCodecs(playbackFormat);
         doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
         session.parameter(Device.Parameter.USER_INPUT, "*");
 
         // acting
         Future<OperationResultValue> playback = executor.submit(() ->
-                engine.playbackAudio(session, audioStream, playbackFormat, terminationSymbolsMask, timeout)
+                engine.playbackAudio(session, source, playbackFormat, terminationSymbolsMask, timeout)
         );
         await().until(() -> session.operationIsActive());
         executor.schedule(() -> session.operationComplete(Result.IO.DTMF), 100, TimeUnit.MILLISECONDS);
         OperationResultValue result = playback.get();
 
         // check the behavior
-        verify(session).isOpened();
-        verify(session, atLeastOnce()).isAlive();
-        verify(engine).canPlay(playbackFormat);
-        verify(engine).canPlay();
+        verifyPlaybackInputVerification(playbackFormat);
         verify(device).dispatchEvent("Playback audio is starting...");
         verify(session).setState(TelephonyDevice.State.PLAY);
         verify(session, atLeastOnce()).operationResult(Result.NONE);
         verify(session, atLeastOnce()).getDeviceHandle();
         verify(device).getProvider();
-        verify(provider, atLeastOnce()).disableEvents(deviceHandle, Result.IO.DTMF);
-        verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
+        verifyPlaybackEventsAdjusting();
         verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
         verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
         verify(session).waitingForOperationComplete(waitForMills);
         verify(session, atLeastOnce()).operationResult();
         verify(device).dispatchEvent("Playback audio is completed.");
-        verify(provider, atLeastOnce()).disableEvents(deviceHandle, Result.IO.DTMF);
         verify(provider, atLeastOnce()).stopAudioPlaying(deviceHandle);
         verify(session).setState(Device.State.IDLE);
         verify(session).operationResult(Result.TIMEOUT);
@@ -620,7 +596,7 @@ public class AbstractMultimediaEngineTest<H> {
     }
 
     @Test
-    public void shouldPlaybackAudio_DTMF_EmptyUserInput() throws ExecutionException, InterruptedException {
+    public void shouldPlaybackAudio_DTMF_EmptyUserInput() throws ExecutionException, InterruptedException, IOException {
         // preparing test data
         engine.uses(device);
         session.alive(true);
@@ -629,39 +605,32 @@ public class AbstractMultimediaEngineTest<H> {
         int timeout = 1;
         long waitForMills = timeout * 1000L;
         String audio = "Testing audio content";
-        InputStream audioStream = spy(new ByteArrayInputStream(audio.getBytes()));
-        Audio[] audios = new Audio[]{playbackFormat, Audio.LINEAR, Audio.LINEAR_8, Audio.LINEAR_11};
-        ConfigurationParameter allAudios = spy(ConfigurationParameter.of("media-codecs", Arrays.asList(audios)));
-        doReturn(Optional.of(allAudios)).when(device).getParameter(ALLOWED_CODECS);
+        InputStream source = prepareMultiMediaSource(audio);
+        preparePlaybackCodecs(playbackFormat);
         doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
         session.parameter(Device.Parameter.USER_INPUT, "");
 
         // acting
         Future<OperationResultValue> playback = executor.submit(() ->
-                engine.playbackAudio(session, audioStream, playbackFormat, terminationSymbolsMask, timeout)
+                engine.playbackAudio(session, source, playbackFormat, terminationSymbolsMask, timeout)
         );
         await().until(() -> session.operationIsActive());
         executor.schedule(() -> session.operationComplete(Result.IO.DTMF), 100, TimeUnit.MILLISECONDS);
         OperationResultValue result = playback.get();
 
         // check the behavior
-        verify(session).isOpened();
-        verify(session, atLeastOnce()).isAlive();
-        verify(engine).canPlay(playbackFormat);
-        verify(engine).canPlay();
+        verifyPlaybackInputVerification(playbackFormat);
         verify(device).dispatchEvent("Playback audio is starting...");
         verify(session).setState(TelephonyDevice.State.PLAY);
         verify(session, atLeastOnce()).operationResult(Result.NONE);
         verify(session, atLeastOnce()).getDeviceHandle();
         verify(device).getProvider();
-        verify(provider, atLeastOnce()).disableEvents(deviceHandle, Result.IO.DTMF);
-        verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
+        verifyPlaybackEventsAdjusting();
         verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
         verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
         verify(session).waitingForOperationComplete(waitForMills);
         verify(session, atLeastOnce()).operationResult();
         verify(device).dispatchEvent("Playback audio is completed.");
-        verify(provider, atLeastOnce()).disableEvents(deviceHandle, Result.IO.DTMF);
         verify(provider, atLeastOnce()).stopAudioPlaying(deviceHandle);
         verify(session).setState(Device.State.IDLE);
         verify(session).operationResult(Result.TIMEOUT);
@@ -672,7 +641,7 @@ public class AbstractMultimediaEngineTest<H> {
     }
 
     @Test
-    public void shouldNotPlaybackAudio_HardwareError() throws ExecutionException, InterruptedException {
+    public void shouldNotPlaybackAudio_HardwareError() throws ExecutionException, InterruptedException, IOException {
         // preparing test data
         engine.uses(device);
         session.alive(true);
@@ -681,16 +650,14 @@ public class AbstractMultimediaEngineTest<H> {
         String malfunctionReason = "Playback audio is failed.";
         int timeout = 2;
         String audio = "Testing audio content";
-        InputStream audioStream = spy(new ByteArrayInputStream(audio.getBytes()));
-        Audio[] audios = new Audio[]{playbackFormat, Audio.LINEAR, Audio.LINEAR_8, Audio.LINEAR_11};
-        ConfigurationParameter allAudios = spy(ConfigurationParameter.of("media-codecs", Arrays.asList(audios)));
-        doReturn(Optional.of(allAudios)).when(device).getParameter(ALLOWED_CODECS);
+        InputStream source = prepareMultiMediaSource(audio);
+        preparePlaybackCodecs(playbackFormat);
         doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
 
         // acting
         Future<Throwable> playback = executor.submit(() ->
                 assertThrows(Throwable.class,
-                        () -> engine.playbackAudio(session, audioStream, playbackFormat, terminationSymbolsMask, timeout)
+                        () -> engine.playbackAudio(session, source, playbackFormat, terminationSymbolsMask, timeout)
                 )
         );
         await().until(() -> session.operationIsActive());
@@ -698,23 +665,18 @@ public class AbstractMultimediaEngineTest<H> {
         Throwable result = playback.get();
 
         // check the behavior
-        verify(session).isOpened();
-        verify(session, atLeastOnce()).isAlive();
-        verify(engine).canPlay(playbackFormat);
-        verify(engine).canPlay();
+        verifyPlaybackInputVerification(playbackFormat);
         verify(device).dispatchEvent("Playback audio is starting...");
         verify(session).setState(TelephonyDevice.State.PLAY);
         verify(session).operationResult(Result.NONE);
         verify(session, atLeastOnce()).getDeviceHandle();
         verify(device, atLeastOnce()).getProvider();
-        verify(provider, atLeastOnce()).disableEvents(deviceHandle, Result.IO.DTMF);
-        verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
+        verifyPlaybackEventsAdjusting(false);
         verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
         verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
         verify(session).operationResult(Result.NONE);
         verify(session).waitingForOperationComplete(timeout * 1000L);
         verify(session, atLeastOnce()).operationResult();
-        verify(provider, atLeastOnce()).disableEvents(deviceHandle, Result.IO.DTMF);
         verify(provider, atLeastOnce()).stopAudioPlaying(deviceHandle);
         verify(engine).onDeviceError(session, malfunctionReason);
         verify(engine).onDeviceError(session, malfunctionReason, true);
@@ -729,7 +691,7 @@ public class AbstractMultimediaEngineTest<H> {
     }
 
     @Test
-    public void shouldNotPlaybackAudio_ProviderDidntStartAudioPlaying() throws InterruptedException {
+    public void shouldNotPlaybackAudio_ProviderDidntStartAudioPlaying() throws InterruptedException, IOException {
         // preparing test data
         engine.uses(device);
         session.alive(true);
@@ -738,31 +700,25 @@ public class AbstractMultimediaEngineTest<H> {
         String malfunctionReason = "Cannot start playing the audio file.";
         int timeout = 2;
         String audio = "Testing audio content";
-        InputStream audioStream = spy(new ByteArrayInputStream(audio.getBytes()));
-        Audio[] audios = new Audio[]{playbackFormat, Audio.LINEAR, Audio.LINEAR_8, Audio.LINEAR_11};
-        ConfigurationParameter allAudios = spy(ConfigurationParameter.of("media-codecs", Arrays.asList(audios)));
-        doReturn(Optional.of(allAudios)).when(device).getParameter(ALLOWED_CODECS);
+        InputStream source = prepareMultiMediaSource(audio);
+        preparePlaybackCodecs(playbackFormat);
 
         // acting
         Throwable result = assertThrows(Throwable.class,
-                () -> engine.playbackAudio(session, audioStream, playbackFormat, terminationSymbolsMask, timeout)
+                () -> engine.playbackAudio(session, source, playbackFormat, terminationSymbolsMask, timeout)
         );
 
         // check the behavior
-        verify(session).isOpened();
-        verify(session, atLeastOnce()).isAlive();
-        verify(engine).canPlay(playbackFormat);
-        verify(engine).canPlay();
+        verifyPlaybackInputVerification(playbackFormat);
         verify(device).dispatchEvent("Playback audio is starting...");
         verify(session).setState(TelephonyDevice.State.PLAY);
         verify(session, atLeastOnce()).getDeviceHandle();
         verify(device, atLeastOnce()).getProvider();
-        verify(provider, atLeastOnce()).disableEvents(deviceHandle, Result.IO.DTMF);
-        verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
+        verifyPlaybackEventsAdjusting(false);
         verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
         verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
         verify(session, never()).waitingForOperationComplete(anyLong());
-        verify(provider, atLeastOnce()).disableEvents(deviceHandle, Result.IO.DTMF);
+        verifyPlaybackEventsAdjusting(false);
         verify(provider, atLeastOnce()).stopAudioPlaying(deviceHandle);
         verify(engine).onDeviceError(session, malfunctionReason);
         verify(engine).onDeviceError(session, malfunctionReason, true);
@@ -775,24 +731,22 @@ public class AbstractMultimediaEngineTest<H> {
     }
 
     @Test
-    public void shouldNotPlaybackAudio_DisconnectedInAction() throws InterruptedException, ExecutionException {
+    public void shouldNotPlaybackAudio_DisconnectedInAction() throws InterruptedException, ExecutionException, IOException {
         // preparing test data
         engine.uses(device);
         session.alive(true);
         Audio playbackFormat = Audio.ADPCM_8;
-        String terminationSymbolsMask = "";
+        String terminationSymbolsMask = "*";
         String malfunctionReason = "Playback audio is failed. The connection is lost.";
         int timeout = 2;
         String audio = "Testing audio content";
-        InputStream audioStream = spy(new ByteArrayInputStream(audio.getBytes()));
-        Audio[] audios = new Audio[]{playbackFormat, Audio.LINEAR, Audio.LINEAR_8, Audio.LINEAR_11};
-        ConfigurationParameter allAudios = spy(ConfigurationParameter.of("media-codecs", Arrays.asList(audios)));
-        doReturn(Optional.of(allAudios)).when(device).getParameter(ALLOWED_CODECS);
+        InputStream source = prepareMultiMediaSource(audio);
+        preparePlaybackCodecs(playbackFormat);
         doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
 
         // acting
         Future<OperationResultValue> playback = executor.submit(() ->
-                engine.playbackAudio(session, audioStream, playbackFormat, terminationSymbolsMask, timeout)
+                engine.playbackAudio(session, source, playbackFormat, terminationSymbolsMask, timeout)
         );
         await().until(() -> session.operationIsActive());
         executor.schedule(() -> {
@@ -802,22 +756,17 @@ public class AbstractMultimediaEngineTest<H> {
         OperationResultValue result = playback.get();
 
         // check the behavior
-        verify(session).isOpened();
-        verify(session, atLeastOnce()).isAlive();
-        verify(engine).canPlay(playbackFormat);
-        verify(engine).canPlay();
+        verifyPlaybackInputVerification(playbackFormat);
         verify(device).dispatchEvent("Playback audio is starting...");
         verify(session).setState(TelephonyDevice.State.PLAY);
         verify(session, atLeastOnce()).getDeviceHandle();
         verify(device, atLeastOnce()).getProvider();
-        verify(provider, atLeastOnce()).disableEvents(deviceHandle, Result.IO.DTMF);
-        verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
+        verifyPlaybackEventsAdjusting();
         verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
         verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
         verify(session).waitingForOperationComplete(timeout * 1000L);
         verify(session).isTerminated();
         verify(session).isDisconnected();
-        verify(provider, atLeastOnce()).disableEvents(deviceHandle, Result.IO.DTMF);
         verify(provider, atLeastOnce()).stopAudioPlaying(deviceHandle);
         verify(session).setState(Device.State.ERROR);
         verify(device).dispatchError(malfunctionReason);
@@ -1444,40 +1393,33 @@ public class AbstractMultimediaEngineTest<H> {
         engine.uses(device);
         session.alive(true);
         Audio playbackFormat = Audio.ADPCM_8;
-        String terminationSymbolsMask = "";
+        String terminationSymbolsMask = "*";
         int timeout = 10;
         String audio = "Testing audio content";
-        InputStream audioStream = spy(new ByteArrayInputStream(audio.getBytes()));
-        Audio[] audios = new Audio[]{playbackFormat, Audio.LINEAR, Audio.LINEAR_8, Audio.LINEAR_11};
-        ConfigurationParameter allAudios = spy(ConfigurationParameter.of("media-codecs", Arrays.asList(audios)));
-        doReturn(Optional.of(allAudios)).when(device).getParameter(ALLOWED_CODECS);
+        InputStream source = prepareMultiMediaSource(audio);
+        preparePlaybackCodecs(playbackFormat);
         doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
 
         // acting
         Future<OperationResultValue> playback = executor.submit(() ->
-                engine.playbackAudio(session, audioStream, playbackFormat, terminationSymbolsMask, timeout)
+                engine.playbackAudio(session, source, playbackFormat, terminationSymbolsMask, timeout)
         );
         await().until(() -> session.operationIsActive());
         engine.terminate(session);
         OperationResultValue result = playback.get();
 
         // check the behavior
-        verify(session).isOpened();
-        verify(session, atLeastOnce()).isAlive();
-        verify(engine).canPlay(playbackFormat);
-        verify(engine).canPlay();
+        verifyPlaybackInputVerification(playbackFormat);
         verify(device).dispatchEvent("Playback audio is starting...");
         verify(session).setState(TelephonyDevice.State.PLAY);
         verify(session, atLeastOnce()).getDeviceHandle();
         verify(device, atLeastOnce()).getProvider();
-        verify(provider, atLeastOnce()).disableEvents(deviceHandle, Result.IO.DTMF);
-        verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
+        verifyPlaybackEventsAdjusting();
         verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
         verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
         verify(session).waitingForOperationComplete(timeout * 1000L);
         verify(session).isTerminated();
         verify(session, never()).isDisconnected();
-        verify(provider, atLeastOnce()).disableEvents(deviceHandle, Result.IO.DTMF);
         verify(provider, atLeastOnce()).stopAudioPlaying(deviceHandle);
         verify(session).setState(Device.State.IDLE);
         // check results
@@ -1537,5 +1479,54 @@ public class AbstractMultimediaEngineTest<H> {
         assertThat(session.getState()).isEqualTo(Device.State.IDLE);
         assertThat(session.operationResult()).isEqualTo(Result.TERMINATED);
         assertThat(tempFile.delete()).isTrue();
+    }
+
+    /// private methods
+    // verifying playback input parameters
+    private void verifyPlaybackInputVerification(Audio audioFormat) {
+        verify(session, atLeastOnce()).isAlive();
+        verify(engine).isOpened(session);
+        verify(engine).canPlay(audioFormat);
+        verify(session, atLeastOnce()).parameter(Device.Parameter.DEVICE_HANDLE);
+        verify(engine).canPlay();
+    }
+
+    // preparing available device's codecs
+    private void preparePlaybackCodecs(Audio playbackFormat) {
+        Device.ParameterName parameterName = ALLOWED_CODECS;
+        Audio[] audios = new Audio[]{playbackFormat, Audio.LINEAR, Audio.LINEAR_8, Audio.LINEAR_11};
+        ConfigurationParameter allAudios = spy(ConfigurationParameter.of(parameterName.value(), Arrays.asList(audios)));
+        doReturn(Optional.of(allAudios)).when(device).getParameter(parameterName);
+    }
+
+    // verifying playback events management
+    private void verifyPlaybackEventsAdjusting() {
+        verifyPlaybackEventsAdjusting(true);
+    }
+    private void verifyPlaybackEventsAdjusting(boolean isMaskExists) {
+        verify(provider).disableEvents(deviceHandle);
+        if(isMaskExists) {
+            verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
+        }
+        verify(provider).enableEvents(deviceHandle, Result.CALL.DISCONNECT);
+        verify(provider).disableEvents(deviceHandle, Result.IO.DTMF);
+    }
+
+    // to prepare the input stream for te fax transmit operation
+    private static InputStream prepareMultiMediaSource(String multiMediaContent) throws IOException {
+        InputStream source = mock(InputStream.class);
+        AtomicBoolean firstRead = new AtomicBoolean(true);
+        doAnswer((Answer<Integer>) invocation -> {
+            if (firstRead.get()) {
+                byte[] b = invocation.getArgument(0);
+                byte[] payload = multiMediaContent.getBytes();
+                System.arraycopy(payload, 0, b, 0, payload.length);
+                firstRead.getAndSet(false);
+                return payload.length;
+            } else {
+                return -1;
+            }
+        }).when(source).read(any(byte[].class), anyInt(), anyInt());
+        return source;
     }
 }

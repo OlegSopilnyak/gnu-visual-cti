@@ -229,13 +229,12 @@ public abstract class AbstractFaxMachineEngine<H> extends AbstractDevicePart<H> 
                         return Result.TERMINATED;
                         // checking disconnection during the operation
                     } else if (session.isDisconnected()) {
-                        session.getDevice().dispatchError("Receive fax document is failed because of phone line disconnection.");
                         // phone line disconnection is detected
                         stopFaxReceiving(serviceProvider, faxDeviceHandle);
                         // removing unnecessary temp file
                         if (tempFile.delete()) {
                             session.setState(Device.State.ERROR);
-                            breakingTheSession(session, "Fax receiving failed. Disconnection.");
+                            breakingTheSession(session, "Receive fax document is failed. The connection is lost.");
                             session.operationResult(Result.CALL.DISCONNECT);
                         }
                         return Result.CALL.DISCONNECT;
@@ -330,7 +329,12 @@ public abstract class AbstractFaxMachineEngine<H> extends AbstractDevicePart<H> 
                         session.getDevice().dispatchEvent("Send fax document is completed.");
                         // deleting temporary file
                         if (tempFile.delete()) {
+                            // finishing processing of the operation
                             break;
+                        } else {
+                            // the temporary file wasn't deleted by some reason
+                            session.setState(Device.State.ERROR);
+                            return Result.ERROR;
                         }
                         // checking for device errors
                     } else if (operationResult == Result.ERROR) {
@@ -353,13 +357,12 @@ public abstract class AbstractFaxMachineEngine<H> extends AbstractDevicePart<H> 
                         return Result.TERMINATED;
                         // checking disconnection during the operation
                     } else if (session.isDisconnected()) {
-                        session.getDevice().dispatchError("Send fax document is failed.");
                         // stop fax's transmitting
                         stopFaxTransmitting(serviceProvider, faxDeviceHandle);
                         // removing unnecessary temp file
                         if (tempFile.delete()) {
                             session.setState(Device.State.ERROR);
-                            breakingTheSession(session, "Fax transmit failed. Disconnection.");
+                            breakingTheSession(session, "Send fax document is failed. The connection is lost.");
                             session.operationResult(Result.CALL.DISCONNECT);
                         }
                         return Result.CALL.DISCONNECT;
