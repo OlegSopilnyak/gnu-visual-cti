@@ -1930,8 +1930,7 @@ public class AbstractTelephonyDeviceTest<H> {
         // preparing test data
         media.uses(device);
         Audio audio = Audio.LINEAR;
-        Device.ParameterName name = RECORD_CODEC;
-        device.setParameter(name, spy(ConfigurationParameter.of(name.value(), audio)));
+        prepareRecordCodec(audio);
 
         // acting
         boolean can = device.canRecord(audio);
@@ -1947,8 +1946,7 @@ public class AbstractTelephonyDeviceTest<H> {
         // preparing test data
         media.uses(device);
         Audio audio = Audio.LINEAR;
-        Device.ParameterName name = RECORD_CODEC;
-        device.setParameter(name, spy(ConfigurationParameter.of(name.value(), audio)));
+        prepareRecordCodec(audio);
 
         // acting
         boolean can = device.canRecord(Audio.LINEAR_8);
@@ -2025,8 +2023,7 @@ public class AbstractTelephonyDeviceTest<H> {
         String terminationSymbolsMask = "*";
         int timeout = 2;
         int silence = 1;
-        Device.ParameterName name = RECORD_CODEC;
-        device.setParameter(name, spy(ConfigurationParameter.of(name.value(), format)));
+        prepareRecordCodec(format);
         session.alive(true);
         OperationResultValue recordingResult = Result.IO.EOF;
         doReturn(true).when(provider).startAudioRecording(
@@ -2082,8 +2079,7 @@ public class AbstractTelephonyDeviceTest<H> {
         String mask = "*";
         int timeout = 1;
         int silence = 1;
-        Device.ParameterName name = RECORD_CODEC;
-        device.setParameter(name, spy(ConfigurationParameter.of(name.value(), format)));
+        prepareRecordCodec(format);
         session.alive(true);
         OperationResultValue recordingResult = Result.TIMEOUT;
         doReturn(true).when(provider).startAudioRecording(
@@ -2132,14 +2128,12 @@ public class AbstractTelephonyDeviceTest<H> {
     public void shouldRecordAudioRegular_DeviceError() throws ExecutionException, InterruptedException, IOException {
         // preparing test data
         String errorReason = "Record audio is failed.";
-        String mediaContent = "Audio Data Content";
         OutputStream target = mock(OutputStream.class);
         Audio format = Audio.LINEAR;
         String mask = "*";
         int timeout = 1;
         int silence = 1;
-        Device.ParameterName name = RECORD_CODEC;
-        device.setParameter(name, spy(ConfigurationParameter.of(name.value(), format)));
+        prepareRecordCodec(format);
         session.alive(true);
         OperationResultValue recordingResult = Result.ERROR;
         doReturn(true).when(provider).startAudioRecording(
@@ -2301,6 +2295,61 @@ public class AbstractTelephonyDeviceTest<H> {
         assertThat(session.getState()).isSameAs(Device.State.IDLE);
     }
 
+    @Test
+    public void shouldTerminateAudioRecord() throws IOException, ExecutionException, InterruptedException {
+        // preparing test data
+        String mediaContent = "Audio Data Content";
+        OutputStream target = mock(OutputStream.class);
+        Audio format = Audio.LINEAR;
+        String terminationSymbolsMask = "*";
+        int timeout = 2;
+        int silence = 1;
+        prepareRecordCodec(format);
+        session.alive(true);
+        doReturn(true).when(provider).startAudioRecording(
+                eq(deviceHandle), anyString(), eq(format), eq(silence), eq(timeout)
+        );
+
+        // acting
+        Future<OperationResultValue> action = shadowExecutor.submit(
+                () -> device.recordAudio(session, target, format, terminationSymbolsMask, silence, timeout)
+        );
+        await().until(() -> session.operationIsActive());
+        shadowExecutor.schedule(() -> {
+            final File audioTempFile = session.parameter(MultimediaEngine.Parameter.AUDIO_TEMPORARY);
+            // saving audio content to the temporary media file of the record operation
+            // (emulation of the record audio operation)
+            try {
+                Files.write(audioTempFile.toPath(), mediaContent.getBytes());
+            } catch (IOException e) {
+                // doing nothing here
+            }
+            // completing media-data transmitting operation (end of media data)
+            terminateActivity();
+        }, 50, TimeUnit.MILLISECONDS);
+        OperationResultValue result = action.get();
+
+        // check the behavior
+        verify(device).isOpened();
+        verify(media).recordAudio(session, target, format, terminationSymbolsMask, silence, timeout);
+        verifyEngineSessionProceedingAbility(media, session);
+        verify(media).canRecord(format);
+        verify(provider).enableEvents(deviceHandle, Result.IO.SILENCE);
+        verifyMediaEventsManagement(provider, deviceHandle);
+        verify(provider).startAudioRecording(eq(deviceHandle), anyString(), eq(format), eq(silence), eq(timeout));
+        verify(provider).stopAudioRecording(deviceHandle);
+        // final IO result checking
+        ArgumentCaptor<byte[]> captor = ArgumentCaptor.forClass(byte[].class);
+        ArgumentCaptor<Integer> dataSizeCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(target).write(captor.capture(), anyInt(), dataSizeCaptor.capture());
+        byte[] recordedData = Arrays.copyOf(captor.getValue(), dataSizeCaptor.getValue());
+        assertThat(recordedData).isEqualTo(mediaContent.getBytes());
+        // check results
+        assertThat(result).isSameAs(Result.TERMINATED);
+        assertThat(session.getState()).isSameAs(Device.State.IDLE);
+        assertThat(session.operationResult()).isEqualTo(Result.TERMINATED);
+    }
+
     /// private methods
     // allowing fax feature
     private void switchFaxPartOn() {
@@ -2332,6 +2381,11 @@ public class AbstractTelephonyDeviceTest<H> {
         Audio[] audios = new Audio[]{Audio.LINEAR, Audio.LINEAR_8, Audio.LINEAR_11};
         ConfigurationParameter allAudios = spy(ConfigurationParameter.of(parameterName.value(), Arrays.asList(audios)));
         device.setParameter(parameterName, allAudios);
+    }
+
+    private void prepareRecordCodec(Audio format) {
+        Device.ParameterName name = RECORD_CODEC;
+        device.setParameter(name, spy(ConfigurationParameter.of(name.value(), format)));
     }
 
     // validating proceeding engine and session behavior
