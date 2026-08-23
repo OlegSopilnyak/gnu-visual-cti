@@ -720,8 +720,8 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
     @Override
     public OperationResultValue recordAudio(final PhoneCallSession<H> session, final OutputStream target, final Audio format, final String terminationSymbolsMask,
                                             final int silence, final int timeout) {
-        return media.canRecord(format)
-                ? delegateRecordAudio(session, target, terminationSymbolsMask, silence, timeout, format)
+        return isDeviceOpened()
+                ? media.recordAudio(session, target, format, terminationSymbolsMask, silence, timeout)
                 : Result.ERROR;
     }
 
@@ -852,14 +852,6 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
         }
     }
 
-    // to delegate call to the particular device's part engine
-    private OperationResultValue delegateRecordAudio(final PhoneCallSession<H> session, final OutputStream target,
-                                                     final String terminationSymbolsMask,
-                                                     final int silence, final int timeout, final Audio format) {
-        return delegateMediaOperation(TelephonyDevice.State.RECORD,
-                () -> media.recordAudio(session, target, format, terminationSymbolsMask, silence, timeout)
-        );
-    }
 
     // unified delegation of media operation for particular device
     private OperationResultValue delegateMediaOperation(final DeviceStateValue operationInitState,

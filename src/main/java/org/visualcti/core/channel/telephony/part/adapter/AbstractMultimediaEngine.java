@@ -40,11 +40,11 @@ package org.visualcti.core.channel.telephony.part.adapter;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Files;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Predicate;
@@ -185,6 +185,7 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
                             session.setState(Device.State.ERROR);
                             return Result.ERROR;
                         }
+                        // checking device's hardware error
                     } else if (operationResult == Result.ERROR) {
                         // device hardware error is detected
                         final String errorReason = "Playback audio is failed.";
@@ -360,13 +361,16 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
     public OperationResultValue recordAudio(
             final PhoneCallSession<H> session, final OutputStream target, final Audio format,
             final String terminationSymbolsMask, final int silence, final int timeout) {
-        if (session.isOpened() && session.isAlive() && canRecord(format)) {
-            // staring audio data transmitting
+        if (canProceed(session, () -> canRecord(format))) {
+            // staring the audio recording
             session.getDevice().dispatchEvent("Audio record is starting...");
             session.setState(TelephonyDevice.State.RECORD);
             // getting device service provider
             final TelephonyServiceProvider<H> serviceProvider = deviceCore.getProvider();
             final H deviceHandle = session.getDeviceHandle();
+            // adjusting events producing rules
+            serviceProvider.disableEvents(deviceHandle);
+            serviceProvider.enableEvents(deviceHandle, Result.CALL.DISCONNECT);
             //
             // creating the temporary data media file
             final File tempFile;
@@ -376,8 +380,13 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
                 // saving the file for tests purposes
                 session.parameter(Parameter.AUDIO_TEMPORARY, tempFile);
                 //
-                // enabling DTMF termination
-                serviceProvider.enableEvents(deviceHandle, Result.IO.DTMF);
+                final boolean isTerminationMaskExists = !isEmpty(terminationSymbolsMask);
+                // enabling DTMF termination if it needs
+                if (isTerminationMaskExists) {
+                    serviceProvider.enableEvents(deviceHandle, Result.IO.DTMF);
+                }
+                // enabling termination by silence
+                serviceProvider.enableEvents(deviceHandle, Result.IO.SILENCE);
                 // staring audio data transmitting by service provider
                 final String tempFileName = tempFile.getAbsolutePath();
                 final boolean starting = serviceProvider.startAudioRecording(deviceHandle, tempFileName, format, silence, timeout);
@@ -386,22 +395,18 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
                     final String errorReason = "Cannot start recording the audio file.";
                     return recordAudioError(deviceHandle, tempFile, session, errorReason);
                 }
+                session.operationResult(Result.NONE);
                 // start waiting for the final operation result
-                session.operationComplete(Result.NONE);
                 for (int second = 0; second < timeout; second++) {
                     // waiting for an event during the audio data transmitting
                     session.waitingForOperationComplete(1000L);
                     final OperationResultValue operationResult = session.operationResult();
                     // checking the operation result value after waiting operation complete
-                    if (operationResult == Result.ERROR) {
-                        // device hardware error is detected
-                        final String errorReason = "Record audio is failed.";
-                        return recordAudioError(deviceHandle, tempFile, session, errorReason);
-                        // checking for the end of data operation result
-                        // checking for the silence detection in the recording operation
-                    } else if (operationResult == Result.IO.EOF || operationResult == Result.IO.SILENCE) {
+                    //
+                    // checking for the end of file operation result
+                    // checking for the silence detection in the recording operation
+                    if (operationResult == Result.IO.EOF || operationResult == Result.IO.SILENCE) {
                         // stopping audio data transmitting by service provider
-                        stopAudioRecording(serviceProvider, deviceHandle);
                         // copying recorded data to the target, removing unnecessary temp file
                         if (!copyRecordedData(tempFile, target)) {
                             session.setState(Device.State.ERROR);
@@ -410,10 +415,15 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
                             // finishing up the events processing
                             break;
                         }
+                        // checking device's hardware error
+                    } else if (operationResult == Result.ERROR) {
+                        // device hardware error is detected
+                        final String errorReason = "Record audio is failed.";
+                        return recordAudioError(deviceHandle, tempFile, session, errorReason);
                         // checking for the user input during the operation
                     } else if (operationResult == Result.IO.DTMF) {
                         // is termination symbols mask is not empty?
-                        if (!isEmpty(terminationSymbolsMask)) {
+                        if (isTerminationMaskExists) {
                             // user input detected
                             final String userInput = session.parameter(Device.Parameter.USER_INPUT);
                             // checking the user input content
@@ -423,8 +433,6 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
                                 // analyzing the last user input symbol
                                 if (terminationSymbolsMask.contains(lastSymbol)) {
                                     // the symbol from the termination mask
-                                    // stopping audio data transmitting by service provider
-                                    stopAudioRecording(serviceProvider, deviceHandle);
                                     // copying recorded data to the target, removing unnecessary temp file
                                     if (!copyRecordedData(tempFile, target)) {
                                         session.setState(Device.State.ERROR);
@@ -435,7 +443,7 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
                                 }
                             }
                         }
-                        // clearing operation result value
+                        // clearing operation result value after unsuccessful user input processing
                         session.operationResult(Result.NONE);
                         // checking for the operation's interruption
                     } else if (session.isTerminated()) {
@@ -463,6 +471,16 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
                         return Result.CALL.DISCONNECT;
                     }
                 }
+                // checking timeout end of loop reason
+                if (session.operationResult() == Result.NONE) {
+                    // copying audio data from temporary
+                    if (!copyRecordedData(tempFile, target)) {
+                        session.setState(Device.State.ERROR);
+                        return Result.ERROR;
+                    }
+                    // nothing happened in the loop, so it's timeout indeed
+                    session.operationResult(Result.TIMEOUT);
+                }
             } catch (IOException e) {
                 session.getDevice().dispatchError(e, "Temporary file creation failed.");
                 session.setState(Device.State.ERROR);
@@ -478,6 +496,7 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
             }
             // operation is complete
             session.getDevice().dispatchEvent("Record audio is completed.");
+            // unconditional stopping audio record's operation
             stopAudioRecording(serviceProvider, deviceHandle);
             // make send tone operation is complete
             session.setState(Device.State.IDLE);
@@ -523,7 +542,7 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
     }
 
     // copying media data to the temporary file from the source input stream
-    private void copyMediaData(File tempFile, InputStream source) throws IOException {
+    private void copyMediaData(final File tempFile, final InputStream source) throws IOException {
         final int DEFAULT_BUFFER_SIZE = 8192;
         try (final InputStream in = new BufferedInputStream(source);
              final OutputStream target = new BufferedOutputStream(new FileOutputStream(tempFile))) {
@@ -537,14 +556,7 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
 
     // copying recorded audio data from temporary file to the target output stream
     private boolean copyRecordedData(final File targetFile, final OutputStream target) throws IOException {
-        final int DEFAULT_BUFFER_SIZE = 8192;
-        try (final InputStream in = new BufferedInputStream(new FileInputStream(targetFile))) {
-            final byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
-            int read;
-            while ((read = in.read(buffer, 0, DEFAULT_BUFFER_SIZE)) >= 0) {
-                target.write(buffer, 0, read);
-            }
-        }
+        Files.copy(targetFile.toPath(), target);
         return targetFile.delete();
     }
 

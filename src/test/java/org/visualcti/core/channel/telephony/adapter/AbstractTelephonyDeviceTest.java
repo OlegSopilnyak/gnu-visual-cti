@@ -63,6 +63,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
@@ -1705,7 +1706,6 @@ public class AbstractTelephonyDeviceTest<H> {
         String terminationSymbolsMask = "*";
         int timeout = 2;
         doReturn(Result.OK).when(mockedMedia).playbackAudio(mocked, source, format, terminationSymbolsMask, timeout);
-        doReturn(true).when(mockedMedia).canPlay(format);
 
         // acting
         OperationResultValue result = mockedDevice.playbackAudio(mocked, source, format, terminationSymbolsMask, timeout);
@@ -1997,7 +1997,180 @@ public class AbstractTelephonyDeviceTest<H> {
     }
 
     @Test
-    public void recordAudio() {
+    public void shouldRecordAudio_Mocked() {
+        // preparing test data
+        PhoneCallSession<H> mocked = mock(PhoneCallSession.class);
+        OutputStream target = mock(OutputStream.class);
+        Audio format = Audio.LINEAR;
+        String terminationSymbolsMask = "*";
+        int timeout = 2;
+        int silence = 1;
+        doReturn(Result.OK).when(mockedMedia).recordAudio(mocked, target, format, terminationSymbolsMask, timeout, silence);
+
+        // acting
+        OperationResultValue result = mockedDevice.recordAudio(mocked, target, format, terminationSymbolsMask, timeout, silence);
+
+        // check the behavior
+        verify(mockedMedia).recordAudio(mocked, target, format, terminationSymbolsMask, timeout, silence);
+        // check results
+        assertThat(result).isEqualTo(Result.OK);
+    }
+
+    @Test
+    public void shouldRecordAudioRegular_EOF() throws ExecutionException, InterruptedException, IOException {
+        // preparing test data
+        String mediaContent = "Audio Data Content";
+        OutputStream target = mock(OutputStream.class);
+        Audio format = Audio.LINEAR;
+        String terminationSymbolsMask = "*";
+        int timeout = 2;
+        int silence = 1;
+        Device.ParameterName name = RECORD_CODEC;
+        device.setParameter(name, spy(ConfigurationParameter.of(name.value(), format)));
+        session.alive(true);
+        OperationResultValue recordingResult = Result.IO.EOF;
+        doReturn(true).when(provider).startAudioRecording(
+                eq(deviceHandle), anyString(), eq(format), eq(silence), eq(timeout)
+        );
+
+        // acting
+        Future<OperationResultValue> action = shadowExecutor.submit(
+                () -> device.recordAudio(session, target, format, terminationSymbolsMask, silence, timeout)
+        );
+        await().until(() -> session.operationIsActive());
+        shadowExecutor.schedule(() -> {
+            final File audioTempFile = session.parameter(MultimediaEngine.Parameter.AUDIO_TEMPORARY);
+            // saving audio content to the temporary media file of the record operation
+            // (emulation of the record audio operation)
+            try {
+                Files.write(audioTempFile.toPath(), mediaContent.getBytes());
+            } catch (IOException e) {
+                // doing nothing here
+            }
+            // completing media-data transmitting operation (end of media data)
+            session.operationComplete(recordingResult);
+        }, 50, TimeUnit.MILLISECONDS);
+        OperationResultValue result = action.get();
+
+        // check the behavior
+        verify(device).isOpened();
+        verify(media).recordAudio(session, target, format, terminationSymbolsMask, silence, timeout);
+        verifyEngineSessionProceedingAbility(media, session);
+        verify(media).canRecord(format);
+        verify(provider).enableEvents(deviceHandle, Result.IO.SILENCE);
+        verifyMediaEventsManagement(provider, deviceHandle);
+        verify(provider).startAudioRecording(eq(deviceHandle), anyString(), eq(format), eq(silence), eq(timeout));
+        verify(provider).stopAudioRecording(deviceHandle);
+        // check results
+        assertThat(result).isEqualTo(recordingResult);
+        assertThat(session.getState()).isEqualTo(Device.State.IDLE);
+        assertThat(session.operationResult()).isEqualTo(recordingResult);
+        // check temporary file exchange results
+        ArgumentCaptor<byte[]> captor = ArgumentCaptor.forClass(byte[].class);
+        ArgumentCaptor<Integer> dataSizeCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(target).write(captor.capture(), anyInt(), dataSizeCaptor.capture());
+        byte[] recordedData = Arrays.copyOf(captor.getValue(), dataSizeCaptor.getValue());
+        assertThat(recordedData).isEqualTo(mediaContent.getBytes());
+    }
+
+    @Test
+    public void shouldRecordAudioRegular_Timeout() throws ExecutionException, InterruptedException, IOException {
+        // preparing test data
+        String mediaContent = "Audio Data Content";
+        OutputStream target = mock(OutputStream.class);
+        Audio format = Audio.LINEAR;
+        String mask = "*";
+        int timeout = 1;
+        int silence = 1;
+        Device.ParameterName name = RECORD_CODEC;
+        device.setParameter(name, spy(ConfigurationParameter.of(name.value(), format)));
+        session.alive(true);
+        OperationResultValue recordingResult = Result.TIMEOUT;
+        doReturn(true).when(provider).startAudioRecording(
+                eq(deviceHandle), anyString(), eq(format), eq(silence), eq(timeout)
+        );
+
+        // acting
+        Future<OperationResultValue> action = shadowExecutor.submit(
+                () -> device.recordAudio(session, target, format, mask, silence, timeout)
+        );
+        await().until(() -> session.operationIsActive());
+        shadowExecutor.schedule(() -> {
+            final File audioTempFile = session.parameter(MultimediaEngine.Parameter.AUDIO_TEMPORARY);
+            // saving audio content to the temporary media file of the record operation
+            // (emulation of the record audio operation)
+            try {
+                Files.write(audioTempFile.toPath(), mediaContent.getBytes());
+            } catch (IOException e) {
+                // doing nothing here
+            }
+        }, 50, TimeUnit.MILLISECONDS);
+        OperationResultValue result = action.get();
+
+        // check the behavior
+        verify(device).isOpened();
+        verify(media).recordAudio(session, target, format, mask, silence, timeout);
+        verifyEngineSessionProceedingAbility(media, session);
+        verify(media).canRecord(format);
+        verify(provider).enableEvents(deviceHandle, Result.IO.SILENCE);
+        verifyMediaEventsManagement(provider, deviceHandle);
+        verify(provider).startAudioRecording(eq(deviceHandle), anyString(), eq(format), eq(silence), eq(timeout));
+        verify(provider).stopAudioRecording(deviceHandle);
+        // check results
+        assertThat(result).isEqualTo(recordingResult);
+        assertThat(session.getState()).isEqualTo(Device.State.IDLE);
+        assertThat(session.operationResult()).isEqualTo(recordingResult);
+        // check temporary file exchange results
+        ArgumentCaptor<byte[]> captor = ArgumentCaptor.forClass(byte[].class);
+        ArgumentCaptor<Integer> dataSizeCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(target).write(captor.capture(), anyInt(), dataSizeCaptor.capture());
+        byte[] recordedData = Arrays.copyOf(captor.getValue(), dataSizeCaptor.getValue());
+        assertThat(recordedData).isEqualTo(mediaContent.getBytes());
+    }
+
+    @Test
+    public void shouldRecordAudioRegular_DeviceError() throws ExecutionException, InterruptedException, IOException {
+        // preparing test data
+        String errorReason = "Record audio is failed.";
+        String mediaContent = "Audio Data Content";
+        OutputStream target = mock(OutputStream.class);
+        Audio format = Audio.LINEAR;
+        String mask = "*";
+        int timeout = 1;
+        int silence = 1;
+        Device.ParameterName name = RECORD_CODEC;
+        device.setParameter(name, spy(ConfigurationParameter.of(name.value(), format)));
+        session.alive(true);
+        OperationResultValue recordingResult = Result.ERROR;
+        doReturn(true).when(provider).startAudioRecording(
+                eq(deviceHandle), anyString(), eq(format), eq(silence), eq(timeout)
+        );
+
+        // acting
+        Future<Throwable> action = shadowExecutor.submit(() -> assertThrows(Throwable.class,
+                        () -> device.recordAudio(session, target, format, mask, silence, timeout)
+                )
+        );
+        await().until(() -> session.operationIsActive());
+        shadowExecutor.schedule(() -> session.operationComplete(recordingResult), 50, TimeUnit.MILLISECONDS);
+        Throwable error = action.get();
+
+        // check the behavior
+        verify(device).isOpened();
+        verify(media).recordAudio(session, target, format, mask, silence, timeout);
+        verifyEngineSessionProceedingAbility(media, session);
+        verify(media).canRecord(format);
+        verify(provider).enableEvents(deviceHandle, Result.IO.SILENCE);
+        verifyMediaEventsManagement(provider, deviceHandle);
+        verify(provider).startAudioRecording(eq(deviceHandle), anyString(), eq(format), eq(silence), eq(timeout));
+        verify(provider).stopAudioRecording(deviceHandle);
+        // check results
+        assertThat(error).isInstanceOf(DeviceMalfunction.class);
+        assertThat(error.getMessage()).endsWith(errorReason);
+        assertThat(session.getState()).isEqualTo(Device.State.ERROR);
+        assertThat(session.operationResult()).isEqualTo(recordingResult);
+        // check temporary file exchange results
+        verify(target, never()).write(any(byte[].class), anyInt(), anyInt());
     }
 
     @Test
