@@ -102,10 +102,6 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
         return playbackRawCodec();
     }
 
-    private boolean canProceed(final PhoneCallSession<H> session, Supplier<Boolean> formatSupports) {
-        return session.isAlive() && isOpened(session) && formatSupports.get();
-    }
-
     /**
      * <action>
      * Playback the audio stream data.
@@ -458,7 +454,6 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
                         return Result.TERMINATED;
                         // checking for the disconnection during the operation
                     } else if (session.isDisconnected()) {
-                        session.getDevice().dispatchError("Recording audio is failed. The connection is lost.");
                         // stopping audio data transmitting by service provider
                         stopAudioRecording(serviceProvider, deviceHandle);
                         // copying recorded data to the target, removing unnecessary temp file
@@ -466,8 +461,9 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
                             session.setState(Device.State.ERROR);
                             return Result.ERROR;
                         }
-                        session.operationResult(Result.CALL.DISCONNECT);
                         session.setState(Device.State.ERROR);
+                        breakingTheSession(session, "Recording audio is failed. The connection is lost.");
+                        session.operationResult(Result.CALL.DISCONNECT);
                         return Result.CALL.DISCONNECT;
                     }
                 }
@@ -526,6 +522,11 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
     }
 
     /// private methods
+    // to check input session's state
+    private boolean canProceed(final PhoneCallSession<H> session, Supplier<Boolean> formatSupports) {
+        return session.isAlive() && isOpened(session) && formatSupports.get();
+    }
+
     //  Returns the array of supported audio formats(codecs) for playing back
     private Audio[] playbackCodecs() {
         return deviceCore.getParameter(Parameter.ALLOWED_CODECS)

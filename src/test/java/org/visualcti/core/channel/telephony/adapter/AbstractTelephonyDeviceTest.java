@@ -88,6 +88,7 @@ import org.visualcti.core.channel.telephony.TelephonyDevice;
 import org.visualcti.core.channel.telephony.TelephonyServiceProvider;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
 import org.visualcti.core.channel.telephony.operation.Result;
+import org.visualcti.core.channel.telephony.operation.ToneId;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneNumber;
 import org.visualcti.core.channel.telephony.part.CallsPortEngine;
@@ -2168,15 +2169,181 @@ public class AbstractTelephonyDeviceTest<H> {
     }
 
     @Test
-    public void dial() {
+    public void shouldDialNumber_Mocked() {
+        // preparing test data
+        PhoneCallSession<H> mocked = mock(PhoneCallSession.class);
+        String number = "1234567890";
+
+        // acting
+        mockedDevice.dial(mocked, number);
+
+        // check the behavior
+        verify(mockedTones).dial(mocked, number);
+        // check results
     }
 
     @Test
-    public void playTone() {
+    public void shouldDialNumberRegular() {
+        // preparing test data
+        String number = "1234567890";
+        session.alive(true);
+
+        // acting
+        device.dial(session, number);
+
+        // check the behavior
+        verify(tones).dial(session, number);
+        // check results
+        assertThat(session.getState()).isSameAs(Device.State.IDLE);
+        assertThat(session.operationResult()).isSameAs(Result.OK);
     }
 
     @Test
-    public void inputDigits() {
+    public void shouldDoNotDialNumberRegular_Disconnected() {
+        // preparing test data
+        String number = "1234567890";
+
+        // acting
+        device.dial(session, number);
+
+        // check the behavior
+        verify(tones).dial(session, number);
+        // check results
+        assertThat(session.getState()).isSameAs(Device.State.ERROR);
+        assertThat(session.operationResult()).isSameAs(Result.ERROR);
+    }
+
+    @Test
+    public void shouldPlayTone_Mocked() {
+        // preparing test data
+        PhoneCallSession<H> mocked = mock(PhoneCallSession.class);
+        ToneId tone = ToneId.BEEP;
+
+        // acting
+        mockedDevice.playTone(mocked, tone);
+
+        // check the behavior
+        verify(mockedDevice).playTone(mocked, tone, 0.5F);
+        verify(mockedTones).playTone(mocked, tone, 0.5F);
+        // check results
+    }
+
+    @Test
+    public void shouldPlayToneRegular_Timeout() {
+        // preparing test data
+        ToneId tone = ToneId.BEEP;
+        session.alive(true);
+        doReturn(true).when(provider).startToneSending(deviceHandle, tone);
+
+        // acting
+        device.playTone(session, tone);
+
+        // check the behavior
+        verify(device).playTone(session, tone, 0.5F);
+        verify(device).isOpened();
+        verify(tones).playTone(session, tone, 0.5F);
+        verify(provider).startToneSending(deviceHandle, tone);
+        verify(provider).stopToneSending(deviceHandle);
+        // check results
+        assertThat(session.getState()).isSameAs(Device.State.IDLE);
+        assertThat(session.operationResult()).isSameAs(Result.OK);
+    }
+
+    @Test
+    public void shouldDoNotPlayToneRegular_DeviceError() throws ExecutionException, InterruptedException {
+        // preparing test data
+        String errorReason = "Tone sending is failed.";
+        ToneId tone = ToneId.BEEP;
+        session.alive(true);
+        doReturn(true).when(provider).startToneSending(deviceHandle, tone);
+
+        // acting
+        Future<Throwable> recording = shadowExecutor.submit(() ->
+                assertThrows(Throwable.class, () -> device.playTone(session, tone))
+        );
+        await().until(() -> session.operationIsActive());
+        shadowExecutor.schedule(() -> session.operationComplete(Result.ERROR), 50, TimeUnit.MILLISECONDS);
+        Throwable error = recording.get();
+
+        // check the behavior
+        verify(device).playTone(session, tone, 0.5F);
+        verify(device).isOpened();
+        verify(tones).playTone(session, tone, 0.5F);
+        verify(provider).startToneSending(deviceHandle, tone);
+        verify(provider).stopToneSending(deviceHandle);
+        // check results
+        assertThat(error).isInstanceOf(DeviceMalfunction.class);
+        assertThat(error.getMessage()).endsWith(errorReason);
+        assertThat(session.getState()).isSameAs(Device.State.ERROR);
+        assertThat(session.operationResult()).isSameAs(Result.ERROR);
+    }
+
+    @Test
+    public void shouldDoInputDigitsGetting_Mocked() {
+        // preparing test data
+        PhoneCallSession<H> mocked = mock(PhoneCallSession.class);
+        String terminationSymbolsMask = "*";
+        int digitsCount = 3;
+        int timeout = 2;
+        doReturn(Result.OK).when(mockedTones).inputDigits(mocked, digitsCount, timeout * 1000, terminationSymbolsMask);
+
+        // acting
+        OperationResultValue result = mockedDevice.inputDigits(mocked, digitsCount, timeout, terminationSymbolsMask);
+
+        // check the behavior
+        verify(mockedTones).inputDigits(mocked, digitsCount, timeout * 1000, terminationSymbolsMask);
+        // check results
+        assertThat(result).isSameAs(Result.OK);
+    }
+
+    @Test
+    public void shouldDoInputDigitsGettingRegular_Timeout() {
+        // preparing test data
+        String terminationSymbolsMask = "*";
+        int digitsCount = 3;
+        int timeout = 1;
+        session.alive(true);
+
+        // acting
+        OperationResultValue result = device.inputDigits(session, digitsCount, timeout, terminationSymbolsMask);
+
+        // check the behavior
+        verify(device).isOpened();
+        verify(tones).inputDigits(session, digitsCount, timeout * 1000, terminationSymbolsMask);
+        verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
+        verify(provider).disableEvents(deviceHandle, Result.IO.DTMF);
+        // check results
+        assertThat(session.getState()).isSameAs(Device.State.IDLE);
+        assertThat(result).isSameAs(Result.TIMEOUT);
+    }
+
+    @Test
+    public void shouldDoNotInputDigitsGettingRegular_DeviceError() throws ExecutionException, InterruptedException {
+        // preparing test data
+        String errorReason = "Getting the user input is failed.";
+        String terminationSymbolsMask = "*";
+        int digitsCount = 3;
+        int timeout = 1;
+        session.alive(true);
+
+        // acting
+        Future<Throwable> recording = shadowExecutor.submit(() ->
+                assertThrows(Throwable.class, () -> device.inputDigits(session, digitsCount, timeout, terminationSymbolsMask))
+        );
+        await().until(() -> session.operationIsActive());
+        shadowExecutor.schedule(() -> session.operationComplete(Result.ERROR), 50, TimeUnit.MILLISECONDS);
+        Throwable error = recording.get();
+
+        // check the behavior
+        verify(device).isOpened();
+        verify(tones).inputDigits(session, digitsCount, timeout * 1000, terminationSymbolsMask);
+        verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
+        verify(provider).disableEvents(deviceHandle, Result.IO.DTMF);
+        // check results
+        assertThat(error).isInstanceOf(DeviceMalfunction.class);
+        assertThat(error.getMessage()).endsWith(errorReason);
+        assertThat(session.getState()).isSameAs(Device.State.ERROR);
+        assertThat(session.operationResult()).isSameAs(Result.ERROR);
     }
 
     @Test
@@ -2347,6 +2514,57 @@ public class AbstractTelephonyDeviceTest<H> {
         // check results
         assertThat(result).isSameAs(Result.TERMINATED);
         assertThat(session.getState()).isSameAs(Device.State.IDLE);
+        assertThat(session.operationResult()).isEqualTo(Result.TERMINATED);
+    }
+
+    @Test
+    public void shouldTerminatePlayTone() throws ExecutionException, InterruptedException {
+        // preparing test data
+        ToneId tone = ToneId.BEEP;
+        session.alive(true);
+        doReturn(true).when(provider).startToneSending(deviceHandle, tone);
+
+        // acting
+        Future<?> action = shadowExecutor.submit(() -> device.playTone(session, tone));
+        await().until(() -> session.operationIsActive());
+        shadowExecutor.execute(this::terminateActivity);
+        action.get();
+
+        // check the behavior
+        verify(device).playTone(session, tone, 0.5F);
+        verify(device).isOpened();
+        verify(tones).playTone(session, tone, 0.5F);
+        verify(provider).startToneSending(deviceHandle, tone);
+        verify(provider).stopToneSending(deviceHandle);
+        // check results
+        assertThat(session.getState()).isSameAs(Device.State.IDLE);
+        assertThat(session.operationResult()).isSameAs(Result.TERMINATED);
+    }
+
+    @Test
+    public void shouldTerminateInputDigitsGetting() throws ExecutionException, InterruptedException {
+        // preparing test data
+        String terminationSymbolsMask = "*";
+        int digitsCount = 3;
+        int timeout = 1;
+        session.alive(true);
+
+        // acting
+        Future<OperationResultValue> action = shadowExecutor.submit(
+                () -> device.inputDigits(session, digitsCount, timeout, terminationSymbolsMask)
+        );
+        await().until(() -> session.operationIsActive());
+        shadowExecutor.schedule(this::terminateActivity, 50, TimeUnit.MILLISECONDS);
+        OperationResultValue result = action.get();
+
+        // check the behavior
+        verify(device).isOpened();
+        verify(tones).inputDigits(session, digitsCount, timeout * 1000, terminationSymbolsMask);
+        verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
+        verify(provider).disableEvents(deviceHandle, Result.IO.DTMF);
+        // check results
+        assertThat(session.getState()).isSameAs(Device.State.IDLE);
+        assertThat(result).isSameAs(Result.TERMINATED);
         assertThat(session.operationResult()).isEqualTo(Result.TERMINATED);
     }
 

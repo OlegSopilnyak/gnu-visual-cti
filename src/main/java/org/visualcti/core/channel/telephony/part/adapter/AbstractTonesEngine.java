@@ -72,7 +72,7 @@ public abstract class AbstractTonesEngine<H> extends AbstractDevicePart<H> imple
      */
     @Override
     public void dial(PhoneCallSession<H> session, String toDial) {
-        if (session.isOpened() && session.isAlive()) {
+        if (canProceed(session)) {
             // staring audio data transmitting
             session.getDevice().dispatchEvent("Dialing [" + toDial + "]");
             session.setState(TelephonyDevice.State.DIAL);
@@ -108,7 +108,7 @@ public abstract class AbstractTonesEngine<H> extends AbstractDevicePart<H> imple
      */
     @Override
     public void playTone(PhoneCallSession<H> session, ToneId toneId, float time) {
-        if (session.isOpened() && session.isAlive()) {
+        if (canProceed(session)) {
             // staring tone sending
             session.getDevice().dispatchEvent("Sending [" + toneId + "] tone for '" + time + "' seconds.");
             session.setState(TelephonyDevice.State.TONE);
@@ -137,6 +137,7 @@ public abstract class AbstractTonesEngine<H> extends AbstractDevicePart<H> imple
                         serviceProvider.stopToneSending(deviceHandle);
                         // device error is detected
                         onDeviceError(session, "Tone sending is failed.");
+                        // unreachable code place
                         return;
                         // checking for the termination of the operation
                     } else if (session.isTerminated()) {
@@ -147,11 +148,11 @@ public abstract class AbstractTonesEngine<H> extends AbstractDevicePart<H> imple
                         return;
                         // checking for the disconnection during the operation
                     } else if (session.isDisconnected()) {
-                        session.getDevice().dispatchError("Tone sending is failed. The connection is lost.");
                         // stopping tone generation
                         serviceProvider.stopToneSending(deviceHandle);
-                        session.operationResult(Result.CALL.DISCONNECT);
                         session.setState(Device.State.ERROR);
+                        breakingTheSession(session, "Tone sending is failed. The connection is lost.");
+                        session.operationResult(Result.CALL.DISCONNECT);
                         return;
                     }
                 } catch (InterruptedException e) {
@@ -207,7 +208,7 @@ public abstract class AbstractTonesEngine<H> extends AbstractDevicePart<H> imple
     @Override
     public OperationResultValue inputDigits(final PhoneCallSession<H> session, final int digitsCount,
                                             final int oneSymbolTimeout, final String terminationSymbolsMask) {
-        if (session.isOpened() && session.isAlive()) {
+        if (canProceed(session)) {
             // staring tone sending
             session.getDevice().dispatchEvent("Getting the user input.");
             session.setState(TelephonyDevice.State.GTDIG);
@@ -216,6 +217,7 @@ public abstract class AbstractTonesEngine<H> extends AbstractDevicePart<H> imple
             final H deviceHandle = session.parameter(Device.Parameter.DEVICE_HANDLE);
             // cleaning the user's input for the current session
             session.parameter(Device.Parameter.USER_INPUT, "");
+            //
             // enabling DTMF events producing for the opened handle
             serviceProvider.enableEvents(deviceHandle, Result.IO.DTMF);
             // getting user input (digitsCount symbols)
@@ -226,10 +228,14 @@ public abstract class AbstractTonesEngine<H> extends AbstractDevicePart<H> imple
                     final OperationResultValue operationResult = session.operationResult();
                     // checking the operation result value after waiting operation complete
                     if (operationResult == Result.ERROR) {
+                        // stopping DTMF events producing for the opened handle
+                        serviceProvider.disableEvents(deviceHandle, Result.IO.DTMF);
                         // device error is detected
                         onDeviceError(session, "Getting the user input is failed.");
                         return Result.ERROR;
                     } else if (session.isTerminated()) {
+                        // stopping DTMF events producing for the opened handle
+                        serviceProvider.disableEvents(deviceHandle, Result.IO.DTMF);
                         // tone send operation is terminated
                         session.setState(Device.State.IDLE);
                         return Result.TERMINATED;
@@ -290,6 +296,10 @@ public abstract class AbstractTonesEngine<H> extends AbstractDevicePart<H> imple
     }
 
     /// private methods
+    // to check input session's state
+    private boolean canProceed(final PhoneCallSession<H> session) {
+        return isOpened(session) && session.isAlive();
+    }
     // to check is user's input contains the symbol from the termination mask
     private boolean isTerminationMaskSymbol(PhoneCallSession<H> session, String userInput, String terminationSymbolsMask) {
         if (!isEmpty(userInput)) {

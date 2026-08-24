@@ -42,10 +42,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Objects;
 import java.util.function.Predicate;
-import java.util.function.Supplier;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceActivitySession;
-import org.visualcti.core.channel.device.DeviceStateValue;
 import org.visualcti.core.channel.device.adapter.AbstractDevice;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.TelephonyDevice;
@@ -350,6 +348,7 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
     /**
      * <checker>
      * To check is phone call session opened for this device's part
+     * Not used here
      *
      * @param session the phone call's session, device is working with
      * @return true if session opened well
@@ -366,9 +365,10 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      * @param session the phone call's session, device is working with
      * @return true if operation complete successfully
      * @see PhoneCallSession
+     * @see #isOpened()
      */
     public boolean dropCall(PhoneCallSession<H> session) {
-        return calls.dropCall(session);
+        return isOpened() && calls.dropCall(session);
     }
 
     /**
@@ -409,9 +409,10 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      * @return true if operation complete successfully
      * @see PhoneCallSession
      * @see PhoneCallSession#operationResult()
+     * @see #isOpened()
      */
     public boolean waitForCall(PhoneCallSession<H> session, int rings, int timeout, boolean answer) {
-        return calls.waitForCall(session, rings, timeout, answer);
+        return isOpened() && calls.waitForCall(session, rings, timeout, answer);
     }
 
     /**
@@ -440,10 +441,11 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      * @see PhoneCallSession#operationResult()
      * @see Result.CALL.Analysis
      * @see PhoneCall.Number
+     * @see #isOpened()
      */
     @Override
     public boolean makeCall(PhoneCallSession<H> session, PhoneCall.Number number, int timeout) {
-        return calls.makeCall(session, number, timeout);
+        return isOpened() && calls.makeCall(session, number, timeout);
     }
 
     /**
@@ -500,10 +502,11 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      * @see PhoneCallSession#operationResult()
      * @see Result.CALL.Analysis
      * @see PhoneCall.Number
+     * @see #isOpened()
      */
     @Override
     public boolean connect(PhoneCallSession<H> session, PhoneCall.Number number, int timeout, Sound toPlay) {
-        return calls.connect(session, number, timeout, toPlay);
+        return isOpened() && calls.connect(session, number, timeout, toPlay);
     }
 
     /**
@@ -513,10 +516,11 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      * @param session the phone call's session, device is working with
      * @return how many pages transferred
      * @see FaxMachineEngine#getTransferredPages(PhoneCallSession)
+     * @see #isOpened()
      */
     @Override
     public int getTransferredPages(PhoneCallSession<H> session) {
-        return faxes.getTransferredPages(session);
+        return isOpened() ? faxes.getTransferredPages(session) : -1;
     }
 
     /**
@@ -526,10 +530,11 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      * @param session the phone call's session, device is working with
      * @return localId of the remote fax-machine
      * @see FaxMachineEngine#getRemoteID(PhoneCallSession)
+     * @see #isOpened()
      */
     @Override
     public String getRemoteID(PhoneCallSession<H> session) {
-        return faxes.getRemoteID(session);
+        return isOpened() ? faxes.getRemoteID(session) : "";
     }
 
     /**
@@ -539,10 +544,13 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      * @param session the phone call's session, device is working with
      * @param header  the new value
      * @see FaxMachineEngine#setFaxHeader(PhoneCallSession, String)
+     * @see #isOpened()
      */
     @Override
     public void setFaxHeader(PhoneCallSession<H> session, String header) {
-        faxes.setFaxHeader(session, header);
+        if (isOpened()) {
+            faxes.setFaxHeader(session, header);
+        }
     }
 
     /**
@@ -552,10 +560,13 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      * @param session the phone call's session, device is working with
      * @param localID new value of device's fax-machine localId
      * @see FaxMachineEngine#setFaxLocalID(PhoneCallSession, String)
+     * @see #isOpened()
      */
     @Override
     public void setFaxLocalID(PhoneCallSession<H> session, String localID) {
-        faxes.setFaxLocalID(session, localID);
+        if (isOpened()) {
+            faxes.setFaxLocalID(session, localID);
+        }
     }
 
     /**
@@ -570,10 +581,11 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      * @return the operation's result
      * @see FaxMachineEngine#receive(PhoneCallSession, OutputStream, boolean, boolean)
      * @see Result#ERROR
+     * @see #isOpened()
      */
     @Override
     public OperationResultValue receive(PhoneCallSession<H> session, OutputStream target, boolean pollingMode, boolean issueVoiceRequest) {
-        return isDeviceOpened()
+        return isOpened()
                 ? faxes.receive(session, target, pollingMode, issueVoiceRequest)
                 : Result.ERROR;
     }
@@ -591,23 +603,13 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      * @see Fax
      * @see FaxMachineEngine#transmit(PhoneCallSession, InputStream, Fax, boolean)
      * @see Result#ERROR
+     * @see #isOpened()
      */
     @Override
     public OperationResultValue transmit(PhoneCallSession<H> session, InputStream source, Fax format, boolean issueVoiceRequest) {
-        return isDeviceOpened()
+        return isOpened()
                 ? faxes.transmit(session, source, format, issueVoiceRequest)
-//                delegateFaxTransmit(source, format, issueVoiceRequest)
                 : Result.ERROR;
-    }
-
-    // to delegate call to the particular device's part engine
-    private OperationResultValue delegateFaxTransmit(InputStream source, Fax format, boolean issueVoiceRequest) {
-//        setState(SENDFAX);
-        try {
-            return faxes.transmit(null, source, format, issueVoiceRequest);
-        } finally {
-//            setState(Device.State.IDLE);
-        }
     }
 
     /**
@@ -618,10 +620,11 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      * @return the array of the formats supported by device or null
      * @see Audio
      * @see MultimediaEngine#canPlay()
+     * @see #isOpened()
      */
     @Override
     public Audio[] canPlay() {
-        return isDeviceOpened() ? media.canPlay() : null;
+        return isOpened() ? media.canPlay() : null;
     }
 
     /**
@@ -631,10 +634,11 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      * @return the format for the play or null if device can't play back
      * @see Audio
      * @see MultimediaEngine#getRawFormat()
+     * @see #isOpened()
      */
     @Override
     public Audio getRawFormat() {
-        return isDeviceOpened() ? media.getRawFormat() : null;
+        return isOpened() ? media.getRawFormat() : null;
     }
 
     /**
@@ -651,12 +655,13 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      * @see MultimediaEngine#canPlay(Audio)
      * @see MultimediaEngine#playbackAudio(PhoneCallSession, InputStream, Audio, String, int)
      * @see Result#ERROR
+     * @see #isOpened()
      */
     @Override
     public OperationResultValue playbackAudio(final PhoneCallSession<H> session, final InputStream source,
                                               final Audio format, final String terminationSymbolsMask, final int timeout
     ) {
-        return isDeviceOpened()
+        return isOpened()
                 ? media.playbackAudio(session, source, format, terminationSymbolsMask, timeout)
                 : Result.ERROR;
     }
@@ -668,10 +673,11 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      * @param session the phone call's session, device is working with
      * @param sound   the audio sound playing back in a telephone line asynchronously
      * @return true if start playing the sound
+     * @see #isOpened()
      */
     @Override
     public boolean asyncPlaybackAudio(PhoneCallSession<H> session, Sound sound) {
-        return isDeviceOpened() && media.asyncPlaybackAudio(session, sound);
+        return isOpened() && media.asyncPlaybackAudio(session, sound);
     }
 
     /**
@@ -682,10 +688,11 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      * @return the array of the record formats supported by device or null
      * @see Audio
      * @see MultimediaEngine#canRecord()
+     * @see #isOpened()
      */
     @Override
     public Audio[] canRecord() {
-        return isDeviceOpened() ? media.canRecord() : null;
+        return isOpened() ? media.canRecord() : null;
     }
 
     /**
@@ -695,10 +702,11 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      * @return the default format for the voice record operation or null if device can't record
      * @see Audio
      * @see MultimediaEngine#getRecordFormat()
+     * @see #isOpened()
      */
     @Override
     public Audio getRecordFormat() {
-        return isDeviceOpened() ? media.getRecordFormat() : null;
+        return isOpened() ? media.getRecordFormat() : null;
     }
 
     /**
@@ -716,11 +724,12 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      * @see MultimediaEngine#canRecord(Audio)
      * @see MultimediaEngine#recordAudio(PhoneCallSession, OutputStream, Audio, String, int, int)
      * @see Result#ERROR
+     * @see #isOpened()
      */
     @Override
     public OperationResultValue recordAudio(final PhoneCallSession<H> session, final OutputStream target, final Audio format, final String terminationSymbolsMask,
                                             final int silence, final int timeout) {
-        return isDeviceOpened()
+        return isOpened()
                 ? media.recordAudio(session, target, format, terminationSymbolsMask, silence, timeout)
                 : Result.ERROR;
     }
@@ -732,10 +741,13 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      * @param session the phone call's session, device is working with
      * @param toDial  sequence of symbols to dial, like "555#1234*"
      * @see TonesEngine#dial(PhoneCallSession, String)
+     * @see #isOpened()
      */
     @Override
     public void dial(PhoneCallSession<H> session, String toDial) {
-        delegateToneAction(TelephonyDevice.State.DIAL, () -> tones.dial(session, toDial));
+        if (isOpened()) {
+            tones.dial(session, toDial);
+        }
     }
 
     /**
@@ -749,10 +761,13 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      * @param time    duration in seconds
      * @see ToneId
      * @see TonesEngine#playTone(PhoneCallSession, ToneId, float)
+     * @see #isOpened()
      */
     @Override
     public void playTone(PhoneCallSession<H> session, ToneId toneId, float time) {
-        delegateToneAction(TelephonyDevice.State.TONE, () -> tones.playTone(session, toneId, time));
+        if (isOpened()) {
+            tones.playTone(session, toneId, time);
+        }
     }
 
     /**
@@ -782,11 +797,12 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      * @return the operation's result
      * @see OperationResultValue
      * @see TonesEngine#inputDigits(PhoneCallSession, int, int, String)
+     * @see #isOpened()
      */
     @Override
     public OperationResultValue inputDigits(PhoneCallSession<H> session, int digitsCount, int timeout, String terminationSymbolsMask) {
-        return isDeviceOpened()
-                ? delegateMediaOperation(TelephonyDevice.State.GTDIG, () -> tones.inputDigits(session, digitsCount, timeout, terminationSymbolsMask))
+        return isOpened()
+                ? tones.inputDigits(session, digitsCount, timeout * 1000, terminationSymbolsMask)
                 : Result.ERROR;
     }
 
@@ -799,84 +815,10 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      * @param session the phone call's session, device is working with
      * @return digits sequence accepted by user's input
      * @see TonesEngine#getInputSymbols(PhoneCallSession)
+     * @see #isOpened()
      */
     @Override
     public String getInputSymbols(PhoneCallSession<H> session) {
-        return isDeviceOpened() ? delegateInputSymbols(session) : "";
-    }
-
-    // to delegate call to the particular device's part engine
-    private String delegateInputSymbols(PhoneCallSession<H> session) {
-//        setState(GTDIG);
-        try {
-            return tones.getInputSymbols(session);
-        } finally {
-//            setState(Device.State.IDLE);
-        }
-    }
-
-    // unified delegation of phone call operation for particular device
-//    private PhoneCall delegatePhoneCallOperation(final DeviceStateValue operationInitState,
-//                                                 final Supplier<PhoneCall> operation,
-//                                                 final Predicate<OperationResultValue> validResults) {
-//        // checking device's handle value
-//        if (!isDeviceOpened()) {
-//            // device isn't opened yet
-////            setState(Device.State.CLOSED);
-//            return PhoneCall.FAILED;
-//        } else {
-//            // running the operation's call sequence
-////            setState(operationInitState);
-//            // waiting for the operation's complete
-//            final PhoneCall result = operation.get();
-//            // preparing new device state
-//            final DeviceStateValue operationResultDeviceState = validResults.test(result.operationResult())
-//                    ? Device.State.IDLE
-//                    : result.operationResult() == Result.TERMINATED ? Device.State.STOPD : Device.State.ERROR;
-//            // setting up the device state according the operation's result
-////            setState(operationResultDeviceState);
-//            // returning the phone call instance
-//            return result;
-//        }
-//    }
-
-    // unified delegation to the proper tone-engine related action
-    private void delegateToneAction(final DeviceStateValue actionState, final Runnable action) {
-        if (isDeviceOpened()) {
-            // running the action's call sequence
-//            setState(actionState);
-            // waiting for the action's complete
-            action.run();
-            // setting up the device state according the action's result
-//            setState(Device.State.IDLE);
-        }
-    }
-
-
-    // unified delegation of media operation for particular device
-    private OperationResultValue delegateMediaOperation(final DeviceStateValue operationInitState,
-                                                        final Supplier<OperationResultValue> operation) {
-        // checking device's handle value
-        if (!isDeviceOpened()) {
-            // device isn't opened yet
-//            setState(Device.State.CLOSED);
-            return Result.ERROR;
-        } else {
-            // running the operation's call sequence
-//            setState(operationInitState);
-            try {
-                // waiting for the operation's complete
-                // returning the phone call instance
-                return operation.get();
-            } finally {
-                // setting up the device state according the operation's result
-//                setState(Device.State.IDLE);
-            }
-        }
-    }
-
-    // to check is device has valid handle
-    private boolean isDeviceOpened() {
-        return isOpened();
+        return isOpened()? tones.getInputSymbols(session) : "";
     }
 }

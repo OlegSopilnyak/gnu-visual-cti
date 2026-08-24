@@ -105,19 +105,16 @@ public class AbstractTonesEngineTest<H> {
         String toDial = "123#76*5#";
         engine.uses(device);
         session.alive(true);
-        doReturn(true).when(session).isOpened();
 
         // acting
         engine.dial(session, toDial);
 
         // check the behavior
-        verify(session).isOpened();
-        verify(session, atLeastOnce()).isAlive();
+        verifyInputVerification();
         verify(session, times(2)).getDevice();
         verify(device).dispatchEvent("Dialing [" + toDial + "]");
         verify(session).setState(TelephonyDevice.State.DIAL);
         verify(device).getProvider();
-        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
         verify(provider).dialingDtmf(deviceHandle, toDial);
         verify(device).dispatchEvent("Dialing is completed.");
         verify(session).setState(Device.State.IDLE);
@@ -134,20 +131,17 @@ public class AbstractTonesEngineTest<H> {
         String toDial = "123#76*5#";
         engine.uses(device);
         session.alive(true);
-        doReturn(true).when(session).isOpened();
         doReturn(true).when(session).isTerminated();
 
         // acting
         engine.dial(session, toDial);
 
         // check the behavior
-        verify(session).isOpened();
-        verify(session).isAlive();
+        verifyInputVerification();
         verify(session, times(2)).getDevice();
         verify(device).dispatchEvent("Dialing [" + toDial + "]");
         verify(session).setState(TelephonyDevice.State.DIAL);
         verify(device).getProvider();
-        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
         verify(provider).dialingDtmf(deviceHandle, toDial);
         verify(device).dispatchEvent("Dialing is completed.");
         verify(session).setState(Device.State.IDLE);
@@ -162,13 +156,13 @@ public class AbstractTonesEngineTest<H> {
     public void shouldNotDial_NotOpened() {
         // preparing test data
         String toDial = "123#76*5#";
-        doReturn(false).when(session).isOpened();
+        session.remove(Device.Parameter.DEVICE_HANDLE);
 
         // acting
         engine.dial(session, toDial);
 
         // check the behavior
-        verify(session).isOpened();
+        verify(engine).isOpened(session);
         verify(session, never()).isAlive();
         // check results
         assertThat(session.getState()).isSameAs(Device.State.ERROR);
@@ -184,7 +178,7 @@ public class AbstractTonesEngineTest<H> {
         engine.dial(session, toDial);
 
         // check the behavior
-        verify(session).isOpened();
+        verify(engine).isOpened(session);
         verify(session).isAlive();
         verify(session, never()).getDevice();
         // check results
@@ -199,19 +193,16 @@ public class AbstractTonesEngineTest<H> {
         float time = 0.5F;
         engine.uses(device);
         session.alive(true);
-        doReturn(true).when(session).isOpened();
         doReturn(true).when(provider).startToneSending(deviceHandle, id);
 
         // acting
         engine.playTone(session, id, time);
 
         // check the behavior
-        verify(session).isOpened();
-        verify(session, atLeastOnce()).isAlive();
+        verifyInputVerification();
         verify(device).dispatchEvent("Sending [" + id + "] tone for '" + time + "' seconds.");
         verify(session).setState(TelephonyDevice.State.TONE);
         verify(device).getProvider();
-        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
         verify(provider).startToneSending(deviceHandle, id);
         verify(session).waitingForOperationComplete(500L);
         verify(session).operationResult();
@@ -232,13 +223,13 @@ public class AbstractTonesEngineTest<H> {
         ToneId id = ToneId.BEEP;
         float time = 0.5F;
         engine.uses(device);
-        doReturn(false).when(session).isOpened();
+        session.remove(Device.Parameter.DEVICE_HANDLE);
 
         // acting
         engine.playTone(session, id, time);
 
         // check the behavior
-        verify(session).isOpened();
+        verify(engine).isOpened(session);
         verify(session, never()).isAlive();
         verify(device, never()).dispatchEvent("Sending [" + id + "] tone for '" + time + "' seconds.");
         verify(session).setState(Device.State.ERROR);
@@ -255,14 +246,12 @@ public class AbstractTonesEngineTest<H> {
         float time = 0.5F;
         engine.uses(device);
         session.alive(false);
-        doReturn(true).when(session).isOpened();
 
         // acting
         engine.playTone(session, id, time);
 
         // check the behavior
-        verify(session).isOpened();
-        verify(session).isAlive();
+        verifyInputVerification();
         verify(device, never()).dispatchEvent("Sending [" + id + "] tone for '" + time + "' seconds.");
         verify(session).setState(Device.State.ERROR);
         verify(session).operationResult(Result.ERROR);
@@ -279,18 +268,15 @@ public class AbstractTonesEngineTest<H> {
         float time = -0.5F;
         engine.uses(device);
         session.alive(true);
-        doReturn(true).when(session).isOpened();
 
         // acting
         engine.playTone(session, id, time);
 
         // check the behavior
-        verify(session).isOpened();
-        verify(session).isAlive();
+        verifyInputVerification();
         verify(device).dispatchEvent("Sending [" + id + "] tone for '" + time + "' seconds.");
         verify(session).setState(TelephonyDevice.State.TONE);
         verify(device).getProvider();
-        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
         verify(provider).startToneSending(deviceHandle, id);
         verify(engine).onDeviceError(session, deviceErrorReason, false);
         verify(session).setState(Device.State.ERROR);
@@ -310,19 +296,16 @@ public class AbstractTonesEngineTest<H> {
         float time = -0.5F;
         engine.uses(device);
         session.alive(true);
-        doReturn(true).when(session).isOpened();
         doReturn(true).when(provider).startToneSending(deviceHandle, id);
 
         // acting
         engine.playTone(session, id, time);
 
         // check the behavior
-        verify(session).isOpened();
-        verify(session).isAlive();
+        verifyInputVerification();
         verify(device).dispatchEvent("Sending [" + id + "] tone for '" + time + "' seconds.");
         verify(session).setState(TelephonyDevice.State.TONE);
         verify(device).getProvider();
-        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
         verify(provider).startToneSending(deviceHandle, id);
         verify(provider).stopToneSending(deviceHandle);
         verify(engine).onDeviceError(session, deviceErrorReason, false);
@@ -344,7 +327,6 @@ public class AbstractTonesEngineTest<H> {
         float time = 0.5F;
         engine.uses(device);
         session.alive(true);
-        doReturn(true).when(session).isOpened();
         doReturn(true).when(provider).startToneSending(deviceHandle, id);
         executor.schedule(() -> session.operationComplete(Result.ERROR), 100, TimeUnit.MILLISECONDS);
 
@@ -352,12 +334,10 @@ public class AbstractTonesEngineTest<H> {
         Throwable error = assertThrows(Throwable.class, () -> engine.playTone(session, id, time));
 
         // check the behavior
-        verify(session).isOpened();
-        verify(session).isAlive();
+        verifyInputVerification();
         verify(device).dispatchEvent("Sending [" + id + "] tone for '" + time + "' seconds.");
         verify(session).setState(TelephonyDevice.State.TONE);
         verify(device).getProvider();
-        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
         verify(provider).startToneSending(deviceHandle, id);
         verify(session).waitingForOperationComplete(500L);
         verify(session).operationResult();
@@ -381,7 +361,6 @@ public class AbstractTonesEngineTest<H> {
         float time = 0.5F;
         engine.uses(device);
         session.alive(true);
-        doReturn(true).when(session).isOpened();
         doReturn(true).when(provider).startToneSending(deviceHandle, id);
         executor.schedule(() -> {
             session.alive(false);
@@ -392,12 +371,10 @@ public class AbstractTonesEngineTest<H> {
         engine.playTone(session, id, time);
 
         // check the behavior
-        verify(session).isOpened();
-        verify(session, atLeastOnce()).isAlive();
+        verifyInputVerification();
         verify(device).dispatchEvent("Sending [" + id + "] tone for '" + time + "' seconds.");
         verify(session).setState(TelephonyDevice.State.TONE);
         verify(device).getProvider();
-        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
         verify(provider).startToneSending(deviceHandle, id);
         verify(session).waitingForOperationComplete(500L);
         verify(session).operationResult();
@@ -419,19 +396,17 @@ public class AbstractTonesEngineTest<H> {
         int oneSymbolTimeout = 100;
         String terminationSymbolsMask = "";
         engine.uses(device);
-        doReturn(true).when(session).isOpened();
-        doReturn(true).when(session).isAlive();
+        session.alive(true);
 
         // acting
         OperationResultValue result = engine.inputDigits(session, digitsCount, oneSymbolTimeout, terminationSymbolsMask);
 
         // check the behavior
-        verify(session).isOpened();
-        verify(session).isAlive();
+        verifyInputVerification();
         verify(device).dispatchEvent("Getting the user input.");
         verify(session).setState(TelephonyDevice.State.GTDIG);
         verify(device).getProvider();
-        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
+        verify(session, atLeastOnce()).parameter(Device.Parameter.DEVICE_HANDLE);
         verify(session).parameter(Device.Parameter.USER_INPUT, "");
         verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
         verify(session).waitingForOperationComplete(oneSymbolTimeout);
@@ -466,12 +441,10 @@ public class AbstractTonesEngineTest<H> {
         OperationResultValue result = engine.inputDigits(session, digitsCount, oneSymbolTimeout, terminationSymbolsMask);
 
         // check the behavior
-        verify(session).isOpened();
-        verify(session).isAlive();
+        verifyInputVerification();
         verify(device).dispatchEvent("Getting the user input.");
         verify(session).setState(TelephonyDevice.State.GTDIG);
         verify(device).getProvider();
-        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
         verify(session).parameter(Device.Parameter.USER_INPUT, "");
         verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
         verify(session, atLeastOnce()).waitingForOperationComplete(oneSymbolTimeout);
@@ -506,12 +479,10 @@ public class AbstractTonesEngineTest<H> {
         OperationResultValue result = engine.inputDigits(session, digitsCount, oneSymbolTimeout, terminationSymbolsMask);
 
         // check the behavior
-        verify(session).isOpened();
-        verify(session).isAlive();
+        verifyInputVerification();
         verify(device).dispatchEvent("Getting the user input.");
         verify(session).setState(TelephonyDevice.State.GTDIG);
         verify(device).getProvider();
-        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
         verify(session).parameter(Device.Parameter.USER_INPUT, "");
         verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
         verify(session, atLeastOnce()).waitingForOperationComplete(oneSymbolTimeout);
@@ -546,12 +517,10 @@ public class AbstractTonesEngineTest<H> {
         OperationResultValue result = engine.inputDigits(session, digitsCount, oneSymbolTimeout, terminationSymbolsMask);
 
         // check the behavior
-        verify(session).isOpened();
-        verify(session).isAlive();
+        verifyInputVerification();
         verify(device).dispatchEvent("Getting the user input.");
         verify(session).setState(TelephonyDevice.State.GTDIG);
         verify(device).getProvider();
-        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
         verify(session).parameter(Device.Parameter.USER_INPUT, "");
         verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
         verify(session, atLeastOnce()).waitingForOperationComplete(oneSymbolTimeout);
@@ -574,13 +543,13 @@ public class AbstractTonesEngineTest<H> {
         int digitsCount = 2;
         int oneSymbolTimeout = 100;
         String terminationSymbolsMask = "";
-        doReturn(false).when(session).isOpened();
+        session.remove(Device.Parameter.DEVICE_HANDLE);
 
         // acting
         OperationResultValue result = engine.inputDigits(session, digitsCount, oneSymbolTimeout, terminationSymbolsMask);
 
         // check the behavior
-        verify(session).isOpened();
+        verify(engine).isOpened(session);
         verify(session, never()).isAlive();
         verify(session).operationResult(Result.ERROR);
         verify(session).setState(Device.State.ERROR);
@@ -597,14 +566,12 @@ public class AbstractTonesEngineTest<H> {
         int digitsCount = 2;
         int oneSymbolTimeout = 100;
         String terminationSymbolsMask = "";
-        doReturn(true).when(session).isOpened();
 
         // acting
         OperationResultValue result = engine.inputDigits(session, digitsCount, oneSymbolTimeout, terminationSymbolsMask);
 
         // check the behavior
-        verify(session).isOpened();
-        verify(session).isAlive();
+        verifyInputVerification();
         verify(session).operationResult(Result.ERROR);
         verify(session).setState(Device.State.ERROR);
         // check results
@@ -632,12 +599,10 @@ public class AbstractTonesEngineTest<H> {
         );
 
         // check the behavior
-        verify(session).isOpened();
-        verify(session).isAlive();
+        verifyInputVerification();
         verify(device).dispatchEvent("Getting the user input.");
         verify(session).setState(TelephonyDevice.State.GTDIG);
         verify(device).getProvider();
-        verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
         verify(session).parameter(Device.Parameter.USER_INPUT, "");
         verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
         verify(session).waitingForOperationComplete(oneSymbolTimeout);
@@ -781,5 +746,12 @@ public class AbstractTonesEngineTest<H> {
         // check results
         assertThat(session.getState()).isSameAs(Device.State.IDLE);
         assertThat(session.operationResult()).isSameAs(Result.TERMINATED);
+    }
+
+    // verifying record input parameters
+    private void verifyInputVerification() {
+        verify(session, atLeastOnce()).isAlive();
+        verify(engine).isOpened(session);
+        verify(session, atLeastOnce()).parameter(Device.Parameter.DEVICE_HANDLE);
     }
 }
