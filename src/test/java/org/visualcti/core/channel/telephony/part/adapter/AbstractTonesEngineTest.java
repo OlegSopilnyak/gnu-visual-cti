@@ -622,15 +622,13 @@ public class AbstractTonesEngineTest<H> {
     @Test
     public void shouldGetInputSymbols_EmptyBuffer() {
         // preparing test data
-        doReturn(true).when(session).isOpened();
-        doReturn(true).when(session).isAlive();
+        session.alive(true);
 
         // acting
         String result = engine.getInputSymbols(session);
 
         // check the behavior
-        verify(session).isOpened();
-        verify(session).isAlive();
+        verifyInputVerification();
         verify(session).parameterOrDefault(Device.Parameter.USER_INPUT, "");
         verify(session).parameter(Device.Parameter.USER_INPUT, "");
         // check results
@@ -642,16 +640,14 @@ public class AbstractTonesEngineTest<H> {
     public void shouldGetInputSymbols_WithUserUnput() {
         // preparing test data
         String userInput = "1#";
-        doReturn(true).when(session).isOpened();
-        doReturn(true).when(session).isAlive();
+        session.alive(true);
         session.parameter(Device.Parameter.USER_INPUT, userInput);
 
         // acting
         String result = engine.getInputSymbols(session);
 
         // check the behavior
-        verify(session).isOpened();
-        verify(session).isAlive();
+        verifyInputVerification();
         verify(session).parameterOrDefault(Device.Parameter.USER_INPUT, "");
         verify(session).parameter(Device.Parameter.USER_INPUT, "");
         // check results
@@ -663,41 +659,38 @@ public class AbstractTonesEngineTest<H> {
     public void shouldNotGetInputSymbols_NotOpened() {
         // preparing test data
         String userInput = "1#";
-        doReturn(false).when(session).isOpened();
-        doReturn(true).when(session).isAlive();
+        session.remove(Device.Parameter.DEVICE_HANDLE);
         session.parameter(Device.Parameter.USER_INPUT, userInput);
 
         // acting
         String result = engine.getInputSymbols(session);
 
         // check the behavior
-        verify(session).isOpened();
+        verify(engine).isOpened(session);
         verify(session, never()).isAlive();
         verify(session, never()).parameterOrDefault(any(Device.ParameterName.class), anyString());
-        verify(session).parameter(Device.Parameter.USER_INPUT, "");
+        verify(session, never()).parameter(Device.Parameter.USER_INPUT, "");
         // check results
         assertThat(result).isEmpty();
-        assertThat(engine.getInputSymbols(session)).isEmpty();
+        assertThat(session.<String>parameter(Device.Parameter.USER_INPUT)).isEqualTo(userInput);
     }
 
     @Test
     public void shouldNotGetInputSymbols_Disconnected() {
         // preparing test data
         String userInput = "1#";
-        doReturn(true).when(session).isOpened();
         session.parameter(Device.Parameter.USER_INPUT, userInput);
 
         // acting
         String result = engine.getInputSymbols(session);
 
         // check the behavior
-        verify(session).isOpened();
-        verify(session).isAlive();
+        verifyInputVerification();
         verify(session, never()).parameterOrDefault(any(Device.ParameterName.class), anyString());
-        verify(session).parameter(Device.Parameter.USER_INPUT, "");
+        verify(session, never()).parameter(Device.Parameter.USER_INPUT, "");
         // check results
         assertThat(result).isEmpty();
-        assertThat(engine.getInputSymbols(session)).isEmpty();
+        assertThat(session.<String>parameter(Device.Parameter.USER_INPUT)).isEqualTo(userInput);
     }
 
     @Test

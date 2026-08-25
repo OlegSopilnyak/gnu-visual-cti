@@ -136,9 +136,7 @@ public interface TonesEngine<H> extends TelephonyDevicePart<H> {
      */
     default String getInputSymbols(PhoneCallSession<H> session) {
         try {
-            return session.isOpened() && session.isAlive()
-                    ? session.parameterOrDefault(Device.Parameter.USER_INPUT, "")
-                    : "";
+            return session.parameterOrDefault(Device.Parameter.USER_INPUT, "");
         } finally {
             session.parameter(Device.Parameter.USER_INPUT, "");
         }

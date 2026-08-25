@@ -278,6 +278,21 @@ public abstract class AbstractTonesEngine<H> extends AbstractDevicePart<H> imple
     }
 
     /**
+     * <accessor>
+     * To take entered symbols.<BR/>
+     * The string of the input symbols from the buffer comes back.<BR/>
+     * Internal input buffer will be cleaned
+     *
+     * @param session the phone call's session, device is working with
+     * @return digits sequence accepted by user's input
+     * @see #inputDigits(PhoneCallSession, int, int, String)
+     */
+    @Override
+    public String getInputSymbols(PhoneCallSession<H> session) {
+        return canProceed(session) ? TonesEngine.super.getInputSymbols(session) : "";
+    }
+
+    /**
      * <action>
      * The unconditional termination anyone current active operation:
      * 1. operations with telephony calls (waiting or making call, connect, etc.)

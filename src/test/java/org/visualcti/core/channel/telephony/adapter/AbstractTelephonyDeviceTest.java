@@ -2347,7 +2347,55 @@ public class AbstractTelephonyDeviceTest<H> {
     }
 
     @Test
-    public void getInputSymbols() {
+    public void shouldGetInputSymbols_Mocked() {
+        // preparing test data
+        PhoneCallSession<H> mocked = mock(PhoneCallSession.class);
+
+        // acting
+        String result = mockedDevice.getInputSymbols(mocked);
+
+        // check the behavior
+        verify(mockedDevice).isOpened();
+        verify(mockedTones).getInputSymbols(mocked);
+        // check results
+        assertThat(result).isNull();
+    }
+
+    @Test
+    public void shouldGetInputSymbolsRegular_WithUserInput() {
+        // preparing test data
+        session.alive(true);
+        String userInput = "1#";
+        session.parameter(Device.Parameter.USER_INPUT, userInput);
+
+        // acting
+        String result = device.getInputSymbols(session);
+
+        // check the behavior
+        verify(device).isOpened();
+        verify(tones).getInputSymbols(session);
+        verifyEngineSessionProceedingAbility(tones, session);
+        // check results
+        assertThat(result).isEqualTo(userInput);
+        assertThat(session.<String>parameter(Device.Parameter.USER_INPUT)).isEmpty();
+    }
+
+    @Test
+    public void shouldNotGetInputSymbolsRegular_Disconnected() {
+        // preparing test data
+        String userInput = "1#";
+        session.parameter(Device.Parameter.USER_INPUT, userInput);
+
+        // acting
+        String result = device.getInputSymbols(session);
+
+        // check the behavior
+        verify(device).isOpened();
+        verify(tones).getInputSymbols(session);
+        verifyEngineSessionProceedingAbility(tones, session);
+        // check results
+        assertThat(result).isEmpty();
+        assertThat(session.<String>parameter(Device.Parameter.USER_INPUT)).isEqualTo(userInput);
     }
 
     @Test
