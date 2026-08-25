@@ -40,8 +40,12 @@ package org.visualcti.core.channel.telephony.adapter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.List;
 import java.util.Objects;
 import java.util.function.Predicate;
+import org.jdom.DataConversionException;
+import org.jdom.Element;
+import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceActivitySession;
 import org.visualcti.core.channel.device.adapter.AbstractDevice;
@@ -80,6 +84,7 @@ import org.visualcti.media.Sound;
  * @see MultimediaEngine
  * @see FaxMachineEngine
  */
+@SuppressWarnings("unchecked")
 public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
         extends AbstractDevice<H, T> implements TelephonyDevice<H, T> {
     //
@@ -642,6 +647,16 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
     }
 
     /**
+     * <accessor>
+     * To get the device's default codec for playing back depends on the vendor
+     *
+     * @return default codec instance for recording
+     */
+    protected Audio defaultPlaybackCodec() {
+        return Audio.ALAW_8;
+    }
+
+    /**
      * <action>
      * Playback the audio data stream.
      *
@@ -707,6 +722,16 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
     @Override
     public Audio getRecordFormat() {
         return isOpened() ? media.getRecordFormat() : null;
+    }
+
+    /**
+     * <accessor>
+     * To get the device's default codec for recording depends on the vendor
+     *
+     * @return default codec instance for recording
+     */
+    protected Audio defaultRecordCodec() {
+        return Audio.ALAW_8;
     }
 
     /**
@@ -819,6 +844,147 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      */
     @Override
     public String getInputSymbols(PhoneCallSession<H> session) {
-        return isOpened()? tones.getInputSymbols(session) : "";
+        return isOpened() ? tones.getInputSymbols(session) : "";
+    }
+
+    private final static String DEFAULT_ROOT = "default";
+    private final static String DEVICE_ROOT = "device";
+    private final static String DEVICE_NETWORK_ROOT = "network";
+    private final static String DEVICE_MEDIA_ROOT = "media";
+    private final static String DEVICE_MEDIA_TONE_ROOT = "tone";
+    private final static String DEVICE_MEDIA_CODEC_ROOT = "format";
+    private final static String DEVICE_MEDIA_CODEC_TYPE_ATTRIBUTE = "type";
+    private final static String DEVICE_MEDIA_CODEC_VALUE_ATTRIBUTE = "value";
+    private final static String DEVICE_NAME_ATTRIBUTE = "name";
+
+    /**
+     * <converter>
+     * To update the entity's fields from XML
+     *
+     * @param xml possible entity's XML
+     * @throws IOException             if something went wrong
+     * @throws DataConversionException if something went wrong
+     * @throws NumberFormatException   if something went wrong
+     * @throws NullPointerException    if something went wrong
+     * @see Element
+     * @see #configure(Element)
+     * @see #settingUpBasePart(Element)
+     * @see #settingUpMainPart(Element)
+     */
+    @Override
+    public void setXML(Element xml) throws IOException, DataConversionException, NumberFormatException, NullPointerException {
+        // install the parameters of device by default before updates from XML
+        initializeDefaultParameters();
+        // applying default parameters fot the device
+        applyDeviceParameters(xml.getChild(DEFAULT_ROOT));
+        final String deviceName = getName();
+        final List<Element> devices = xml.getChildren(DEVICE_ROOT);
+        for (final Element device : devices) {
+            if (deviceName.equals(device.getAttributeValue(DEVICE_NAME_ATTRIBUTE))) {
+                applyDeviceParameters(device);
+            }
+        }
+    }
+
+    /// private methods
+    private void initializeDefaultParameters() {
+        initializeDefaultNetworkParameters();
+        initializeDefaultMediaParameters();
+    }
+
+    private void initializeDefaultMediaParameters() {
+        initializeDefaultMediaToneParameters();
+        initializeDefaultMediaCodecParameters();
+    }
+
+    private void initializeDefaultMediaToneParameters() {
+
+    }
+
+    private void applyDeviceParameters(final Element parameters) {
+        if (parameters != null) {
+            applyDeviceMediaParameters(parameters.getChild(DEVICE_MEDIA_ROOT));
+            applyDeviceNetworkParameters(parameters.getChild(DEVICE_NETWORK_ROOT));
+        }
+    }
+
+    private void applyDeviceMediaParameters(final Element parameters) {
+        if (parameters != null) {
+            // processing the parameters of the device's media tones XML elements
+            final List<Element> tones = parameters.getChildren(DEVICE_MEDIA_TONE_ROOT);
+            tones.forEach(this::applyDeviceMediaToneParameters);
+            // processing the parameters of the device's media codecs XML elements
+            final List<Element> codecs = parameters.getChildren(DEVICE_MEDIA_CODEC_ROOT);
+            codecs.forEach(this::applyDeviceMediaCodecParameters);
+        }
+    }
+
+    private void applyDeviceMediaToneParameters(Element toneXml) {
+
+    }
+
+    private void applyDeviceMediaCodecParameters(final Element codecXml) {
+        // setting up the codec parameters
+        final String codecType = codecXml.getAttributeValue(DEVICE_MEDIA_CODEC_TYPE_ATTRIBUTE);
+        final String codecValue = codecXml.getAttributeValue(DEVICE_MEDIA_CODEC_VALUE_ATTRIBUTE);
+        if (codecType == null || codecValue == null) {
+            // wrong codec XML
+            return;
+        }
+        // getting codec from string
+        final Audio codec = Audio.fromString(codecValue);
+        if (codec == null) {
+            dispatchError("Unknown codec value: " + codecValue);
+        } else if (MultimediaEngine.Parameter.PLAYBACK_CODEC.value().equalsIgnoreCase(codecType)) {
+            setupMediaCodecParameterFor(MultimediaEngine.Parameter.PLAYBACK_CODEC, codec);
+        } else if (MultimediaEngine.Parameter.RECORD_CODEC.value().equalsIgnoreCase(codecType)) {
+            setupMediaCodecParameterFor(MultimediaEngine.Parameter.RECORD_CODEC, codec);
+        } else {
+            dispatchError("Unknown codec type: " + codecType);
+        }
+    }
+
+    private void initializeDefaultMediaCodecParameters() {
+        setupMediaCodecParameterFor(MultimediaEngine.Parameter.PLAYBACK_CODEC, defaultPlaybackCodec());
+        setupMediaCodecParameterFor(MultimediaEngine.Parameter.RECORD_CODEC, defaultRecordCodec());
+    }
+
+    private void setupMediaCodecParameterFor(final Device.ParameterName codecParameter, final Audio value) {
+        setParameter(codecParameter, ConfigurationParameter.of(codecParameter.value(), value));
+    }
+
+    private void applyDeviceNetworkParameters(final Element xml) {
+        if (xml != null) {
+            final List<Element> parameters = xml.getChildren(ConfigurationParameter.ELEMENT);
+            // processing the parameters of the device's network XML-elements
+            parameters.stream().map(ConfigurationParameter::of).filter(Objects::nonNull)
+                    .forEach(this::applyNetworkParameter);
+        }
+    }
+
+    private void applyNetworkParameter(final ConfigurationParameter parameter) {
+        final String parameterName = parameter.getName();
+        if (CallsPortEngine.Parameter.ACCEPT_CALL_ALLOWED.value().equalsIgnoreCase(parameterName)) {
+            // updating can accept call device's parameter ("in")
+            setParameter(CallsPortEngine.Parameter.ACCEPT_CALL_ALLOWED, parameter);
+        } else if (CallsPortEngine.Parameter.MAKE_CALL_ALLOWED.value().equalsIgnoreCase(parameterName)) {
+            // updating can make call device's parameter ("out")
+            setParameter(CallsPortEngine.Parameter.MAKE_CALL_ALLOWED, parameter);
+        } else if (CallsPortEngine.Parameter.SHARE_CALL_PORT_ALLOWED.value().equalsIgnoreCase(parameterName)) {
+            // updating can share port device's parameter ("share")
+            setParameter(CallsPortEngine.Parameter.SHARE_CALL_PORT_ALLOWED, parameter);
+        } else {
+            dispatchError("Unknown parameter: " + parameterName);
+        }
+    }
+
+    private void initializeDefaultNetworkParameters() {
+        setupNetworkParameterFor(CallsPortEngine.Parameter.ACCEPT_CALL_ALLOWED, true);
+        setupNetworkParameterFor(CallsPortEngine.Parameter.MAKE_CALL_ALLOWED, true);
+        setupNetworkParameterFor(CallsPortEngine.Parameter.SHARE_CALL_PORT_ALLOWED, false);
+    }
+
+    private void setupNetworkParameterFor(final Device.ParameterName networkParameter, final Boolean value) {
+        setParameter(networkParameter, ConfigurationParameter.of(networkParameter.value(), value));
     }
 }

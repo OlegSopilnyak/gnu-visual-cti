@@ -80,7 +80,7 @@ public abstract class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> i
                     .<Boolean>map(ConfigurationParameter::getValue).orElse(false);
     // predicate to check is device configured for resource which can be shared for potential connection
     private static final Predicate<TelephonyDeviceCore<?>> deviceCanBeConnected =
-            core -> core.getParameter(CallsPortEngine.Parameter.SHARE_CALL_ALLOWED)
+            core -> core.getParameter(CallsPortEngine.Parameter.SHARE_CALL_PORT_ALLOWED)
                     .<Boolean>map(ConfigurationParameter::getValue).orElse(false);
     // predicate to check is service provider can connect the resource
     private static final Predicate<TelephonyDeviceCore<?>> providerCanConnectTheResource =
@@ -377,7 +377,7 @@ public abstract class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> i
      * @return true if device can be shared for another device
      * @see TelephonyServiceProvider#canBeConnected(String)
      * @see TelephonyDeviceCore#getParameter(Device.ParameterName)
-     * @see CallsPortEngine.Parameter#SHARE_CALL_ALLOWED
+     * @see CallsPortEngine.Parameter#SHARE_CALL_PORT_ALLOWED
      * @see #waitForCall(PhoneCallSession, int, int, boolean)
      */
     @Override

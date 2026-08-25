@@ -61,7 +61,7 @@ public interface CallsPortEngine<H> extends TelephonyDevicePart<H> {
         // whether device can make the outgoing call
         MAKE_CALL_ALLOWED("OUT"),
         // whether device can be used in operations of connections (conference)
-        SHARE_CALL_ALLOWED("SHARE"),
+        SHARE_CALL_PORT_ALLOWED("SHARE"),
         // the additional information about telephone number of this device
         ORIGIN("ORIGIN"),
         // the additional information about telephone number of the caused subscriber
@@ -162,7 +162,7 @@ public interface CallsPortEngine<H> extends TelephonyDevicePart<H> {
      * To make the outgoing call. A mode of a set (pulse or tone) and others
      * the necessary parameters are set by installations of port.
      * <p>
-     * Possible values of {@link PhoneCall#operationResult()}:
+     * Possible values of {@link PhoneCallSession#operationResult()}:
      * <p>
      * {@link Result.CALL.Analysis#VOICE}         - the Man's voice is answered<BR/>
      * {@link Result.CALL.Analysis#FAX}           - the fax - device has answered<BR/>
@@ -193,7 +193,7 @@ public interface CallsPortEngine<H> extends TelephonyDevicePart<H> {
      *
      * @return true if device can be shared for another device
      * @see TelephonyDeviceFactory
-     * @see Parameter#SHARE_CALL_ALLOWED
+     * @see Parameter#SHARE_CALL_PORT_ALLOWED
      */
     default boolean canBeConnected() {
         return false;
@@ -211,7 +211,7 @@ public interface CallsPortEngine<H> extends TelephonyDevicePart<H> {
      * On the chosen phone port operation <b>makeCall (number, timeout)</b>
      * automatically is carried out. The result of this operation also
      * will be returned result of operation <b>connect (...)</b>.
-     * In case of result call with {@link PhoneCall#operationResult()}
+     * In case of result call with {@link PhoneCallSession#operationResult()}
      * {@link Result.CALL.Analysis#VOICE} or {@link Result.CALL.Analysis#FAX} the joining of two ports is made.
      * <p>
      * If the telephone number coincides with internal number of one of ports
@@ -231,7 +231,7 @@ public interface CallsPortEngine<H> extends TelephonyDevicePart<H> {
      * At presence of a signal the operation returns VOICE,
      * otherwise - {@link Result.CALL.Analysis#NO_DIAL_TONE}.<BR/>
      * <p>
-     * Possible values of {@link PhoneCall#operationResult()}:
+     * Possible values of {@link PhoneCallSession#operationResult()}:
      * <p>
      * {@link Result.CALL.Analysis#VOICE}         - the Man's voice is answered<BR/>
      * {@link Result.CALL.Analysis#FAX}           - the fax - device has answered<BR/>
