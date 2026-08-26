@@ -45,7 +45,7 @@ import org.visualcti.briquette.Subroutine;
 import org.visualcti.briquette.Symbol;
 import org.visualcti.briquette.core.termination;
 import org.visualcti.server.hardware.Reason;
-import org.visualcti.server.hardware.Tone;
+import org.visualcti.core.channel.telephony.Tone;
 import org.visualcti.server.hardware.proxy.deviceProxy;
 import org.visualcti.util.Property;
 /**

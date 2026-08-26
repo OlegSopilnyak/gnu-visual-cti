@@ -40,7 +40,7 @@ package org.visualcti.server.task;
 import java.util.*;
 import org.jdom.*;
 
-import org.visualcti.server.core.executable.task.Task;
+import org.visualcti.core.executable.task.Task;
 import org.visualcti.server.core.executable.task.TaskProducer;
 import org.visualcti.util.Tools;
 /**

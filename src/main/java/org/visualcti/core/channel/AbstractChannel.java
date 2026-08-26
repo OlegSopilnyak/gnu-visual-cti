@@ -44,7 +44,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.server.core.channel.ChannelTaskRunner;
 import org.visualcti.core.channel.device.DeviceEvent;
-import org.visualcti.server.core.executable.task.Task;
+import org.visualcti.core.executable.task.Task;
 import org.visualcti.server.core.unit.ServerUnit;
 import org.visualcti.server.unit.ServerUnitAdapter;
 

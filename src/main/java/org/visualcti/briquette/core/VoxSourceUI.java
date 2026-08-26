@@ -42,7 +42,7 @@ import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
 import javax.swing.filechooser.FileFilter;
 import org.visualcti.briquette.Symbol;
-import org.visualcti.server.hardware.Tone;
+import org.visualcti.core.channel.telephony.Tone;
 /**
  * <p>Title: Visual CTI Java Telephony Server</p>
  * <p>Description: VisualCTI WorkFlow UI for edit VoxSource</p>

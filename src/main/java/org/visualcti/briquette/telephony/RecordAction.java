@@ -40,6 +40,7 @@ package org.visualcti.briquette.telephony;
 import java.util.*;
 import java.io.*;
 import org.jdom.*;
+import org.visualcti.core.channel.telephony.Tone;
 import org.visualcti.media.*;
 import org.visualcti.util.*;
 import org.visualcti.briquette.*;

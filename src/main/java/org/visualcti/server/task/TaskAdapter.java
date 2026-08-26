@@ -44,7 +44,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 import org.jdom.Attribute;
 import org.jdom.Element;
-import org.visualcti.server.core.executable.task.Task;
+import org.visualcti.core.executable.task.Task;
 
 /**
  * <task>

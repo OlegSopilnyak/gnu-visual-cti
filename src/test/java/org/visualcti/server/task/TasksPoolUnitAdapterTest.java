@@ -70,7 +70,7 @@ import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.visualcti.server.Parameter;
 import org.visualcti.server.UnitRegistry;
-import org.visualcti.server.core.executable.task.Task;
+import org.visualcti.core.executable.task.Task;
 import org.visualcti.server.core.executable.task.TaskPoolsManager;
 import org.visualcti.server.core.executable.task.TasksPoolUnit;
 import org.visualcti.server.core.unit.RunnableServerUnit;

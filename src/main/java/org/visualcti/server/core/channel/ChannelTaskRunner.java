@@ -47,7 +47,7 @@ import org.visualcti.core.channel.device.DeviceActivitySession;
 import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.DeviceMalfunction;
 import org.visualcti.server.UnitRegistry;
-import org.visualcti.server.core.executable.task.Task;
+import org.visualcti.core.executable.task.Task;
 import org.visualcti.server.core.executable.task.TasksPoolUnit;
 import org.visualcti.server.core.unit.RunnableServerUnit;
 import org.visualcti.server.core.unit.ServerUnit;

@@ -38,7 +38,7 @@ Fax number: 217-356-3356
 package org.visualcti.server;
 
 import org.visualcti.server.core.executable.Engine;
-import org.visualcti.server.core.executable.task.Task;
+import org.visualcti.core.executable.task.Task;
 import org.visualcti.server.core.unit.message.command.UnknownCommandException;
 import org.visualcti.server.hardware.HardwareError;
 import org.visualcti.server.hardware.generalDeviceProxy;

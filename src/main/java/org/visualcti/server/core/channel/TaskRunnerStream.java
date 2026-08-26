@@ -41,7 +41,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import org.visualcti.server.core.executable.task.Task;
+import org.visualcti.core.executable.task.Task;
 import org.visualcti.server.task.Environment;
 import org.visualcti.util.Tools;
 

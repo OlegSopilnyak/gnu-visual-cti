@@ -55,7 +55,7 @@ import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.DeviceStateValue;
 import org.visualcti.core.channel.device.Factory;
-import org.visualcti.server.core.executable.task.Task;
+import org.visualcti.core.executable.task.Task;
 
 @SuppressWarnings("unchecked")
 public class AbstractChannelTest {

@@ -50,7 +50,7 @@ import org.visualcti.briquette.telephony.PlayAction;
 import org.visualcti.media.Audio;
 import org.visualcti.media.Sound;
 import org.visualcti.media.mediaParser;
-import org.visualcti.server.hardware.Tone;
+import org.visualcti.core.channel.telephony.Tone;
 /**
  * <p>Title: Visual CTI Java Telephony Server</p>
  * <p>Description: VisualCTI WorkFlow source to Voice stream</p>

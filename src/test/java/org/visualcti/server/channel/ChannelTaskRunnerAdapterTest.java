@@ -69,7 +69,7 @@ import org.visualcti.core.channel.AbstractChannel;
 import org.visualcti.server.core.channel.ChannelTasksRuntime;
 import org.visualcti.server.core.channel.TaskRunnerStream;
 import org.visualcti.core.channel.device.DeviceEvent;
-import org.visualcti.server.core.executable.task.Task;
+import org.visualcti.core.executable.task.Task;
 import org.visualcti.server.core.executable.task.TasksPoolUnit;
 import org.visualcti.server.task.Environment;
 

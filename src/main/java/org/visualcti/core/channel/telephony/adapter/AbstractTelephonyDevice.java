@@ -169,6 +169,8 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
         this.tones = tonesPart().uses(this);
         this.media = mediaPart().uses(this);
         this.faxes = faxPart().uses(this);
+        // install the parameters of device by default before updates from XML
+        initializeDefaultParameters();
     }
 
     /**
@@ -195,6 +197,8 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
         this.tones = tones.uses(this);
         this.media = media.uses(this);
         this.faxes = faxes.uses(this);
+        // install the parameters of device by default before updates from XML
+        initializeDefaultParameters();
     }
 
     /**

@@ -46,7 +46,7 @@ import java.util.stream.Stream;
 import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.server.UnitRegistry;
 import org.visualcti.server.core.channel.ChannelTaskRunner;
-import org.visualcti.server.core.executable.task.Task;
+import org.visualcti.core.executable.task.Task;
 import org.visualcti.server.core.unit.ServerUnit;
 import org.visualcti.server.task.Environment;
 
