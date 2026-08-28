@@ -40,11 +40,10 @@ package org.visualcti.server.hardware.provider.soundcard;
 import org.visualcti.server.hardware.*;
 import org.visualcti.media.*;
 import javax.media.*;
-import javax.media.control.*;
 import javax.media.format.*;
-import javax.media.protocol.*;
+
 import java.io.*;
-import java.util.*;
+
 /**
  * <p>Title: Visual CTI Java Telephony Server</p>
  * <p>Description: VisualCTI WorkFlow, <br>
@@ -92,7 +91,7 @@ private transient String reason = null;
       int counter = -1; byte buffer[]=new byte[4096];
       while( (counter = in.read(buffer)) > 0 ) buf.write(buffer,0,counter);
       in.close(); buffer = null; buffer = buf.toByteArray(); buf = null;
-      Audio fmt = Audio.LINEAR.copy().apply(format);
+      Audio fmt = Audio.from(format);
       byte[] image = mediaProducer.makeSoundImage( fmt, buffer ); buffer=null;
       FileOutputStream out = new FileOutputStream(soundFile);
       out.write(image); out.close(); out = null; System.gc();

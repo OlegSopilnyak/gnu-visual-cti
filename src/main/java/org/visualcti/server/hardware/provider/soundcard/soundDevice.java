@@ -476,7 +476,7 @@ private transient String termMask = "";
     if ( isDTMF_terminated(termmask) ) return Reason.IO.DTMF;
     super.newState(DS_PLAY);
     this.termMask = termmask;
-    String reason = player().play( source, format.getAudioFormat() );
+    String reason = player().play( source, format.toAudioFormat() );
     this.termMask = "";
     super.newState(DS_IDLE);
     return this.reason(reason);
@@ -531,7 +531,7 @@ private Audio recordFormat = Audio.LINEAR;
     super.newState(deviceProxy.DS_RECD);
     this.termMask = termmask;
     String reason =
-        recorder().record(target, this.recordFormat.getAudioFormat(),timeout);
+        recorder().record(target, this.recordFormat.toAudioFormat(),timeout);
     this.termMask = "";
     super.newState(deviceProxy.DS_IDLE);
     return this.reason(reason);

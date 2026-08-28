@@ -72,6 +72,10 @@ public class TelephonyTone {
      * @param definition definition of the tone
      */
     protected void parseTone(final String definition) {
+        if (definition == null || definition.trim().isEmpty()) {
+            // wrong definition for the tone
+            return;
+        }
         String[] parts = definition.split(",");
         for (int partCode = 0; partCode < parts.length; partCode++) {
             final int partValue = parseInt(parts[partCode]);

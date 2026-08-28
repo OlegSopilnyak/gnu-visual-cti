@@ -92,6 +92,19 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
             // the name for the list of audio formats supported by telephony device
             MultimediaEngine.Parameter.ALLOWED_CODECS
     };
+    // XML-Configuration elements' and attributes' names
+    String DEFAULT_ROOT = "default";
+    String DEVICE_ROOT = "device";
+    String DEVICE_NETWORK_ROOT = "network";
+    String DEVICE_MEDIA_ROOT = "media";
+    String DEVICE_MEDIA_TONE_ROOT = "tone";
+    String DEVICE_MEDIA_CODEC_ROOT = "format";
+    String DEVICE_MEDIA_CODEC_TYPE_ATTRIBUTE = "type";
+    String DEVICE_MEDIA_CODEC_VALUE_ATTRIBUTE = "value";
+    String DEVICE_MEDIA_TONE_NAME_ATTRIBUTE = "name";
+    String DEVICE_MEDIA_TONE_VALUE_ATTRIBUTE = "value";
+    String DEVICE_NAME_ATTRIBUTE = "name";
+
 
     /**
      * <accessor>

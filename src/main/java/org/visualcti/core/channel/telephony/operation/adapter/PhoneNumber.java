@@ -37,7 +37,11 @@ Fax number: 217-356-3356
 */
 package org.visualcti.core.channel.telephony.operation.adapter;
 
+import java.util.Locale;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
+import com.google.i18n.phonenumbers.NumberParseException;
+import com.google.i18n.phonenumbers.PhoneNumberUtil;
+import com.google.i18n.phonenumbers.Phonenumber;
 
 /**
  * Call Number: Keep all information about phone number of the call
@@ -47,6 +51,31 @@ public class PhoneNumber implements PhoneCall.Number {
     private final int areaCode;
     private final int number;
     private final int extension;
+
+    public static PhoneCall.Number of(final String phoneNumber) {
+        final PhoneNumberUtil util = PhoneNumberUtil.getInstance();
+        try {
+            final Phonenumber.PhoneNumber parsed = util.parse(phoneNumber, Locale.getDefault().getCountry());
+            final String nationalNumber = String.valueOf(parsed.getNationalNumber());
+            final int nationalNumberLength = nationalNumber.length();
+            final int countryCode = phoneNumber.startsWith("+") ? parsed.getCountryCode() : 0;
+            final int areaCode;
+            final int number;
+            final int extension = parsed.hasExtension() ? Integer.parseInt(parsed.getExtension()) : 0;
+            if (nationalNumberLength > 7) {
+                String areaCodeAsString = nationalNumber.substring(0, nationalNumberLength - 7);
+                areaCode = Integer.parseInt(areaCodeAsString);
+                String numberAsString = nationalNumber.substring(nationalNumberLength - 7, nationalNumberLength);
+                number = Integer.parseInt(numberAsString);
+            } else {
+                areaCode = 0;
+                number = Integer.parseInt(nationalNumber);
+            }
+            return of(countryCode, areaCode, number, extension);
+        } catch (NumberParseException e) {
+            return PhoneCall.Number.EMPTY;
+        }
+    }
 
     public static PhoneNumber of(int countryCode, int areaCode, int number, int extension) {
         return new PhoneNumber(countryCode, areaCode, number, extension);

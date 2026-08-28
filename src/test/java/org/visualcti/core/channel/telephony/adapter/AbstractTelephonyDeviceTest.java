@@ -56,6 +56,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -65,6 +66,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.util.Arrays;
+import java.util.EnumMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -73,6 +75,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
+import org.jdom.DataConversionException;
+import org.jdom.Element;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
@@ -91,6 +95,7 @@ import org.visualcti.core.channel.telephony.operation.Result;
 import org.visualcti.core.channel.telephony.operation.ToneId;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneNumber;
+import org.visualcti.core.channel.telephony.operation.adapter.TelephonyTone;
 import org.visualcti.core.channel.telephony.part.CallsPortEngine;
 import org.visualcti.core.channel.telephony.part.FaxMachineEngine;
 import org.visualcti.core.channel.telephony.part.MultimediaEngine;
@@ -1686,6 +1691,7 @@ public class AbstractTelephonyDeviceTest<H> {
         // preparing test data
         media.uses(device);
         Device.ParameterName name = PLAYBACK_CODEC;
+        Audio defaultCodec = device.defaultPlaybackCodec();
 
         // acting
         Audio rawAudio = device.getRawFormat();
@@ -1694,8 +1700,8 @@ public class AbstractTelephonyDeviceTest<H> {
         verify(media).getRawFormat();
         verify(device).getParameter(name);
         // check results
-        assertThat(rawAudio).isNull();
-        assertThat(device.getParameter(name)).isEmpty();
+        assertThat(rawAudio).isSameAs(defaultCodec);
+        assertThat(device.getParameter(name)).isPresent();
     }
 
     @Test
@@ -1900,6 +1906,7 @@ public class AbstractTelephonyDeviceTest<H> {
     public void shouldCannotRecord_NoAvailableCodecs() {
         // preparing test data
         media.uses(device);
+        Audio defaultCodec = device.defaultRecordCodec();
 
         // acting
         Audio[] all = device.canRecord();
@@ -1909,7 +1916,7 @@ public class AbstractTelephonyDeviceTest<H> {
         verify(media).getRecordFormat();
         verify(device).getParameter(RECORD_CODEC);
         // check results
-        assertThat(all).isEmpty();
+        assertThat(all).containsExactly(defaultCodec);
     }
 
     @Test
@@ -1983,6 +1990,7 @@ public class AbstractTelephonyDeviceTest<H> {
         // preparing test data
         media.uses(device);
         Device.ParameterName name = RECORD_CODEC;
+        Audio defaultCodec = device.defaultRecordCodec();
 
         // acting
         Audio rawAudio = device.getRecordFormat();
@@ -1991,8 +1999,8 @@ public class AbstractTelephonyDeviceTest<H> {
         verify(media).getRecordFormat();
         verify(device).getParameter(name);
         // check results
-        assertThat(rawAudio).isNull();
-        assertThat(device.getParameter(name)).isEmpty();
+        assertThat(rawAudio).isSameAs(defaultCodec);
+        assertThat(device.getParameter(name)).isPresent();
     }
 
     @Test
@@ -2614,6 +2622,180 @@ public class AbstractTelephonyDeviceTest<H> {
         assertThat(session.getState()).isSameAs(Device.State.IDLE);
         assertThat(result).isSameAs(Result.TERMINATED);
         assertThat(session.operationResult()).isEqualTo(Result.TERMINATED);
+    }
+
+    @Test
+    public void shouldSetUpConfiguration_ConcreteDevice() throws IOException, DataConversionException {
+        // preparing test data
+        String configuration =
+                "<device-vendor>\n" +
+                        "  <default>\n" +
+                        "    <network>\n" +
+                        "      <parameter name=\"in\" type=\"boolean\" value=\"true\" />\n" +
+                        "      <parameter name=\"out\" type=\"boolean\" value=\"true\" />\n" +
+                        "      <parameter name=\"share\" type=\"boolean\" value=\"true\" />\n" +
+                        "      <parameter name=\"origin\" type=\"string\" value=\"321\" />\n" +
+                        "    </network>\n" +
+                        "    <media>\n" +
+                        "      <tone name = \"dial\" value = \"1250,400,125,400,125,0,0,0,0,0\"/>\n" +
+                        "      <tone name = \"busy\" value = \"1253,500,200,0,0,55,40,55,40,4\"/>\n" +
+                        "      <tone name = \"ringback\" value = \"1254,450,150,0,0,150,100,550,400,0\"/>\n" +
+                        "      <tone name = \"disconnect\" value = \"1257,900,700,0,0,90,70,90,70,2\"/>\n" +
+                        "      <format type = \"record\" value = \"OKI/6000\" />\n" +
+                        "      <format type = \"play\" value = \"OKI/8000\" />\n" +
+                        "    </media>\n" +
+                        "  </default>\n" +
+                        "  <device name = \"telephony-device\" type = \"analog\">\n" +
+                        "    <network>\n" +
+                        "      <parameter name=\"in\" type=\"boolean\" value=\"false\" />\n" +
+                        "      <parameter name=\"out\" type=\"boolean\" value=\"false\" />\n" +
+                        "      <parameter name=\"share\" type=\"boolean\" value=\"false\" />\n" +
+                        "      <parameter name=\"fax\" type=\"boolean\" value=\"true\" />\n" +
+                        "      <parameter name=\"origin\" type=\"string\" value=\"117\" />\n" +
+                        "    </network>\n" +
+                        "    <media>\n" +
+                        "      <tone name = \"dial\" value = \"250,400,125,400,125,0,0,0,0,0\"/>\n" +
+                        "      <tone name = \"busy\" value = \"253,500,200,0,0,55,40,55,40,4\"/>\n" +
+                        "      <tone name = \"ringback\" value = \"254,450,150,0,0,150,100,550,400,0\"/>\n" +
+                        "      <tone name = \"disconnect\" value = \"257,900,700,0,0,90,70,90,70,2\"/>\n" +
+                        "      <format type = \"record\" value = \"ULAW/8000\" />\n" +
+                        "      <format type = \"play\" value = \"OKI/8000\" />\n" +
+                        "    </media>\n" +
+                        "  </device>\n" +
+                        "</device-vendor>\n";
+        Element xml = device.load(new ByteArrayInputStream(configuration.getBytes()));
+
+        // acting
+        device.setXML(xml);
+
+        // check the behavior
+        // check results
+        // device network parameters values
+        assertThat(device.getParameter(CallsPortEngine.Parameter.ACCEPT_CALL_ALLOWED)).isPresent();
+        ConfigurationParameter canAccept = device.getParameter(CallsPortEngine.Parameter.ACCEPT_CALL_ALLOWED).orElse(null);
+        assertThat(canAccept).isNotNull();
+        assertThat(canAccept.<Boolean>getValue()).isFalse();
+        assertThat(device.getParameter(CallsPortEngine.Parameter.MAKE_CALL_ALLOWED)).isPresent();
+        ConfigurationParameter canMake = device.getParameter(CallsPortEngine.Parameter.MAKE_CALL_ALLOWED).orElse(null);
+        assertThat(canMake).isNotNull();
+        assertThat(canMake.<Boolean>getValue()).isFalse();
+        assertThat(device.getParameter(CallsPortEngine.Parameter.SHARE_CALL_PORT_ALLOWED)).isPresent();
+        ConfigurationParameter canShare = device.getParameter(CallsPortEngine.Parameter.SHARE_CALL_PORT_ALLOWED).orElse(null);
+        assertThat(canShare).isNotNull();
+        assertThat(canShare.<Boolean>getValue()).isFalse();
+        assertThat(device.getParameter(CallsPortEngine.Parameter.ORIGIN)).isPresent();
+        ConfigurationParameter origin = device.getParameter(CallsPortEngine.Parameter.ORIGIN).orElse(null);
+        assertThat(origin).isNotNull();
+        assertThat(origin.<PhoneCall.Number>getValue().number()).isEqualTo(117);
+        assertThat(device.getParameter(FaxMachineEngine.Parameter.FAX_ALLOWED)).isPresent();
+        ConfigurationParameter canFax = device.getParameter(FaxMachineEngine.Parameter.FAX_ALLOWED).orElse(null);
+        assertThat(canFax).isNotNull();
+        assertThat(canFax.<Boolean>getValue()).isTrue();
+
+        // device media parameters values
+        assertThat(device.getParameter(MultimediaEngine.Parameter.PLAYBACK_CODEC)).isPresent();
+        ConfigurationParameter playback = device.getParameter(MultimediaEngine.Parameter.PLAYBACK_CODEC).orElse(null);
+        assertThat(playback).isNotNull();
+        assertThat(playback.<Audio>getValue()).isSameAs(Audio.ADPCM_8);
+        assertThat(device.getParameter(MultimediaEngine.Parameter.RECORD_CODEC)).isPresent();
+        ConfigurationParameter record = device.getParameter(MultimediaEngine.Parameter.RECORD_CODEC).orElse(null);
+        assertThat(record).isNotNull();
+        assertThat(record.<Audio>getValue()).isSameAs(Audio.ULAW_8);
+        assertThat(device.getParameter(TonesEngine.Parameter.TONES_TABLE)).isPresent();
+        ConfigurationParameter tones = device.getParameter(TonesEngine.Parameter.TONES_TABLE).orElse(null);
+        assertThat(tones).isNotNull();
+        EnumMap<ToneId, TelephonyTone> tonesTable = tones.getValue();
+        assertThat(tonesTable.get(ToneId.DIAL).getToneId()).isEqualTo(250);
+        assertThat(tonesTable.get(ToneId.BUSY).getToneId()).isEqualTo(253);
+        assertThat(tonesTable.get(ToneId.RINGBACK).getToneId()).isEqualTo(254);
+        assertThat(tonesTable.get(ToneId.DISCONNECT).getToneId()).isEqualTo(257);
+    }
+
+    @Test
+    public void shouldSetUpConfiguration_DefaultDevice() throws IOException, DataConversionException {
+        // preparing test data
+        String configuration =
+                "<device-vendor>\n" +
+                        "  <default>\n" +
+                        "    <network>\n" +
+                        "      <parameter name=\"in\" type=\"boolean\" value=\"true\" />\n" +
+                        "      <parameter name=\"out\" type=\"boolean\" value=\"true\" />\n" +
+                        "      <parameter name=\"share\" type=\"boolean\" value=\"true\" />\n" +
+                        "      <parameter name=\"origin\" type=\"string\" value=\"321\" />\n" +
+                        "    </network>\n" +
+                        "    <media>\n" +
+                        "      <tone name = \"dial\" value = \"1250,400,125,400,125,0,0,0,0,0\"/>\n" +
+                        "      <tone name = \"busy\" value = \"1253,500,200,0,0,55,40,55,40,4\"/>\n" +
+                        "      <tone name = \"ringback\" value = \"1254,450,150,0,0,150,100,550,400,0\"/>\n" +
+                        "      <tone name = \"disconnect\" value = \"1257,900,700,0,0,90,70,90,70,2\"/>\n" +
+                        "      <format type = \"record\" value = \"OKI/6000\" />\n" +
+                        "      <format type = \"play\" value = \"OKI/8000\" />\n" +
+                        "    </media>\n" +
+                        "  </default>\n" +
+                        "  <device name = \"telephony-device-\" type = \"analog\">\n" +
+                        "    <network>\n" +
+                        "      <parameter name=\"in\" type=\"boolean\" value=\"false\" />\n" +
+                        "      <parameter name=\"out\" type=\"boolean\" value=\"false\" />\n" +
+                        "      <parameter name=\"share\" type=\"boolean\" value=\"false\" />\n" +
+                        "      <parameter name=\"fax\" type=\"boolean\" value=\"true\" />\n" +
+                        "      <parameter name=\"origin\" type=\"string\" value=\"117\" />\n" +
+                        "    </network>\n" +
+                        "    <media>\n" +
+                        "      <tone name = \"dial\" value = \"250,400,125,400,125,0,0,0,0,0\"/>\n" +
+                        "      <tone name = \"busy\" value = \"253,500,200,0,0,55,40,55,40,4\"/>\n" +
+                        "      <tone name = \"ringback\" value = \"254,450,150,0,0,150,100,550,400,0\"/>\n" +
+                        "      <tone name = \"disconnect\" value = \"257,900,700,0,0,90,70,90,70,2\"/>\n" +
+                        "      <format type = \"record\" value = \"ULAW/8000\" />\n" +
+                        "      <format type = \"play\" value = \"OKI/8000\" />\n" +
+                        "    </media>\n" +
+                        "  </device>\n" +
+                        "</device-vendor>\n";
+        Element xml = device.load(new ByteArrayInputStream(configuration.getBytes()));
+
+        // acting
+        device.setXML(xml);
+
+        // check the behavior
+        // check results
+        // device network parameters values
+        assertThat(device.getParameter(CallsPortEngine.Parameter.ACCEPT_CALL_ALLOWED)).isPresent();
+        ConfigurationParameter canAccept = device.getParameter(CallsPortEngine.Parameter.ACCEPT_CALL_ALLOWED).orElse(null);
+        assertThat(canAccept).isNotNull();
+        assertThat(canAccept.<Boolean>getValue()).isTrue();
+        assertThat(device.getParameter(CallsPortEngine.Parameter.MAKE_CALL_ALLOWED)).isPresent();
+        ConfigurationParameter canMake = device.getParameter(CallsPortEngine.Parameter.MAKE_CALL_ALLOWED).orElse(null);
+        assertThat(canMake).isNotNull();
+        assertThat(canMake.<Boolean>getValue()).isTrue();
+        assertThat(device.getParameter(CallsPortEngine.Parameter.SHARE_CALL_PORT_ALLOWED)).isPresent();
+        ConfigurationParameter canShare = device.getParameter(CallsPortEngine.Parameter.SHARE_CALL_PORT_ALLOWED).orElse(null);
+        assertThat(canShare).isNotNull();
+        assertThat(canShare.<Boolean>getValue()).isTrue();
+        assertThat(device.getParameter(CallsPortEngine.Parameter.ORIGIN)).isPresent();
+        ConfigurationParameter origin = device.getParameter(CallsPortEngine.Parameter.ORIGIN).orElse(null);
+        assertThat(origin).isNotNull();
+        assertThat(origin.<PhoneCall.Number>getValue().number()).isEqualTo(321);
+        assertThat(device.getParameter(FaxMachineEngine.Parameter.FAX_ALLOWED)).isEmpty();
+//        ConfigurationParameter canFax = device.getParameter(FaxMachineEngine.Parameter.FAX_ALLOWED).orElse(null);
+//        assertThat(canFax).isNotNull();
+//        assertThat(canFax.<Boolean>getValue()).isTrue();
+
+        // device media parameters values
+        assertThat(device.getParameter(MultimediaEngine.Parameter.PLAYBACK_CODEC)).isPresent();
+        ConfigurationParameter playback = device.getParameter(MultimediaEngine.Parameter.PLAYBACK_CODEC).orElse(null);
+        assertThat(playback).isNotNull();
+        assertThat(playback.<Audio>getValue()).isSameAs(Audio.ADPCM_8);
+        assertThat(device.getParameter(MultimediaEngine.Parameter.RECORD_CODEC)).isPresent();
+        ConfigurationParameter record = device.getParameter(MultimediaEngine.Parameter.RECORD_CODEC).orElse(null);
+        assertThat(record).isNotNull();
+        assertThat(record.<Audio>getValue()).isSameAs(Audio.ADPCM_6);
+        assertThat(device.getParameter(TonesEngine.Parameter.TONES_TABLE)).isPresent();
+        ConfigurationParameter tones = device.getParameter(TonesEngine.Parameter.TONES_TABLE).orElse(null);
+        assertThat(tones).isNotNull();
+        EnumMap<ToneId, TelephonyTone> tonesTable = tones.getValue();
+        assertThat(tonesTable.get(ToneId.DIAL).getToneId()).isEqualTo(1250);
+        assertThat(tonesTable.get(ToneId.BUSY).getToneId()).isEqualTo(1253);
+        assertThat(tonesTable.get(ToneId.RINGBACK).getToneId()).isEqualTo(1254);
+        assertThat(tonesTable.get(ToneId.DISCONNECT).getToneId()).isEqualTo(1257);
     }
 
     /// private methods

@@ -37,249 +37,117 @@ Fax number: 217-356-3356
 */
 package org.visualcti.media;
 
-import java.io.*;
+import java.io.IOException;
 import java.util.*;
+
 import javax.media.format.*;
+
 /**
-class describe the format of audio data
-this is proxy between device and audio formats
-*/
-public final class Audio
-{
-/**
-<predefined algorithm>
-Algorithm  = ULAW
-*/
-public static final String _Ulaw_ALG = "ULAW";
-/**
-<predefined algorithm>
-Algorithm  = ALAW
-*/
-public static final String _Alaw_ALG = "ALAW";
-/**
-<predefined algorithm>
-Algorithm  = LINEAR (8 bit sample)
-*/
-public static final String _Linear8_ALG = "LINEAR8";
-/**
-<predefined algorithm>
-Algorithm  = LINEAR (8 bit sample)
-*/
-public static final String _Linear_ALG = "LINEAR";
-/**
-<predefined algorithm>
-Algorithm  = LINEAR (16 bit sample)
-*/
-public static final String _Linear16_ALG = "LINEAR16";
-/**
-<predefined algorithm>
-Algorithm  = Dialogic/OKI
-*/
-public static final String _Dialogic_ALG = "OKI";
-/**
-valid algorithms pool
-*/
-private final static String valid_ALG[] = new String[]
-{
-    _Ulaw_ALG,
-    _Alaw_ALG,
-    _Linear_ALG,
-    _Linear8_ALG,
-    _Linear16_ALG,
-    _Dialogic_ALG
-};
-/**
-valid sample rates pool
-*/
-private final static double valid_RATE[] = new double[]
-{
-    6000,
-    8000,
-    11025
-};
-/**
-to check audio codec algorithm name
-*/
-private static void checkAlgorithm(String algorithm) throws Exception
-{
-    for(int i=0;i < valid_ALG.length;i++) {
-        if (valid_ALG[i].equals(algorithm)) return;
-    }
-    throw new Exception("invalid audio algorithm "+algorithm);
-}
-/**
-to check audio sample rate
-*/
-private static void checkSampleRate(double rate) throws Exception
-{
-    for(int i=0;i < valid_RATE.length;i++) {
-        if (rate == valid_RATE[i]) return;
-    }
-    throw new Exception("invalid sample rate = "+rate);
-}
-/**
-validate the Audio object
-*/
-private static Audio valid(Audio audio) throws Exception
-{
-    Audio.checkAlgorithm(audio.getCodec());
-    Audio.checkSampleRate(audio.getSampleRate());
-    return audio;
-}
-/**
-<predefined audio>
-Algorithm  = ULAW, Sample rate = 8000 samples per second
-*/
-public static final Audio ULAW_8 = new Audio(_Ulaw_ALG,8000);
-/**
-<predefined audio>
-Algorithm  = ALAW, Sample rate = 8000 samples per second
-*/
-public static final Audio ALAW_8 = new Audio(_Alaw_ALG,8000);
-/**
-<predefined audio>
-Algorithm  = LINEAR 8, Sample rate = 8000 samples per second
-*/
-public static final Audio LINEAR = new Audio(_Linear_ALG,8000);
-/**
-<predefined audio>
-Algorithm  = LINEAR 8, Sample rate = 8000 samples per second
-*/
-public static final Audio LINEAR_8 = new Audio(_Linear8_ALG,8000);
-/**
-<predefined audio>
-Algorithm  = LINEAR 8, Sample rate = 11025 samples per second
-*/
-public static final Audio LINEAR_11 = new Audio(_Linear_ALG,11025);
-/**
-<predefined audio>
-Algorithm  = Dialogic/OKI, Sample rate = 6000 samples per second
-*/
-public static final Audio ADPCM_6 = new Audio(_Dialogic_ALG,6000);
-/**
-<predefined audio>
-Algorithm  = Dialogic/OKI, Sample rate = 8000 samples per second
-*/
-public static final Audio ADPCM_8 = new Audio(_Dialogic_ALG,8000);
-/**
-<attribute>
-Name of codec(algorithm)
-*/
-private String codec;
-    /**
-    <accessor>
-    get Codec's name
-    */
-    public final String getCodec(){return this.codec;}
-/**
-The sample rate of audio data
-*/
-private short sampleRate;
-    /**
-    <accessor>
-    get sample rate of audio data
-    */
-    public final short getSampleRate(){return this.sampleRate;}
-    /**
-    <constructor>
-    For internal use only!
-    */
-    private Audio(String codec,int sampleRate)
-    {
-        this.codec=codec; this.sampleRate=(short)sampleRate;
-    }
-    /**
-     * <mutator>
-     * To adjust the Audio from AudioFormat
-     * */
-    public final Audio apply
-                          (
-                          AudioFormat format
-                          )
-                          throws UnsupportedFormatException
-    {
-      double sampleRate = format.getSampleRate();
-      String codec = "???";
-      try {this.checkSampleRate(sampleRate);
-      }catch(Exception e){
-        throw new UnsupportedFormatException(format);
-      }
-      String coder = format.getEncoding();
-      if ( coder.equals(AudioFormat.ALAW) )
-        codec = Audio._Alaw_ALG; else
-      if ( coder.equals(AudioFormat.ULAW) )
-        codec = Audio._Ulaw_ALG; else
-      if ( coder.equals(AudioFormat.LINEAR) )
-        codec = Audio._Linear8_ALG;
-      else
-        throw new UnsupportedFormatException(format);
-      try {
-        this.checkAlgorithm(codec);
-      }catch(Exception e){
-        throw new UnsupportedFormatException(format);
-      }
-      // to apply changes
-      this.codec = codec;
-      this.sampleRate = (short)sampleRate;
-      return this;
-    }
+ * enumeration describe the formats of audio data
+ * this is proxy between device and audio formats
+ */
+public enum Audio implements AudioMedia {
+    //<predefined audios>
+    //
+    // Algorithm  = ULAW, Sample rate = 8000 samples per second
+    ULAW_8(_Ulaw_ALG, 8000),
+    // Algorithm  = ALAW, Sample rate = 8000 samples per second
+    ALAW_8(_Alaw_ALG, 8000),
+    // Algorithm  = LINEAR 8, Sample rate = 8000 samples per second
+    LINEAR(_Linear_ALG, 8000),
+    // Algorithm  = LINEAR 8, Sample rate = 8000 samples per second
+    LINEAR_8(_Linear8_ALG, 8000),
+    // Algorithm  = LINEAR 8, Sample rate = 11025 samples per second
+    LINEAR_11(_Linear_ALG, 11025),
+    LINEAR_16(_Linear16_ALG, 11025),
+    // Algorithm  = Dialogic/OKI, Sample rate = 6000 samples per second
+    ADPCM_6(_Dialogic_ALG, 6000),
+    // Algorithm  = Dialogic/OKI, Sample rate = 8000 samples per second
+    ADPCM_8(_Dialogic_ALG, 8000);
+
     /**
      * <accessor>
-     * To get access to AudioFormat
-     * @return the format or null if invalid
+     * To get the Audio from AudioFormat
+     *
+     * @see AudioFormat
      */
-    public final AudioFormat getAudioFormat()
-    {
-      if ( this.codec == null ) return null;
-      String coder = "???";
-      if ( this.codec.equalsIgnoreCase(AudioFormat.ALAW) )
-        coder = AudioFormat.ALAW; else
-      if ( this.codec.equalsIgnoreCase(AudioFormat.ULAW) )
-        coder = AudioFormat.ULAW; else
-      if ( this.codec.equalsIgnoreCase(AudioFormat.LINEAR) )
-        coder = AudioFormat.LINEAR;
-      else return null;
-      return new AudioFormat( coder, this.sampleRate, 8, 1 );
-    }
-    /**
-    String representation of object
-    */
-    public final String toString(){return this.codec+"/"+this.sampleRate;}
-    /**
-    equals
-    */
-    public final boolean equals(Object o)
-    {
-        if      (o == this) return true;
-        else if (o == null) return false;
-        else if (o instanceof Audio)
-        {
-            Audio audio = (Audio)o;
-            return audio.codec.equals(this.codec) && audio.sampleRate == this.sampleRate;
-        }
-        else return false;
-    }
-    /**
-    hash code
-    */
-    public final int hashCode(){return this.codec.hashCode() ^ this.sampleRate;}
-    /**
-    to restore object from string
-    */
-    public static final Audio fromString(String audio)
-    {
-        StringTokenizer st = new StringTokenizer(audio,"/");
+    public static Audio from(final AudioFormat format) throws UnsupportedFormatException {
+        final double sampleRate = format.getSampleRate();
         try {
-            String alg = st.nextToken();
-            short rate = Short.parseShort(st.nextToken());
-            return Audio.valid( new Audio(alg,rate) );// valid object
-        }catch(Exception e){}
-        return null;// some mistake detected
+            AudioMedia.checkSampleRate((double) sampleRate);
+        } catch (IOException e) {
+            throw new UnsupportedFormatException(format);
+        }
+        final String algorithmName;
+        final String formatEncodingName = format.getEncoding();
+        switch (formatEncodingName) {
+            case AudioFormat.ALAW:
+                algorithmName = Audio._Alaw_ALG;
+                break;
+            case AudioFormat.ULAW:
+                algorithmName = Audio._Ulaw_ALG;
+                break;
+            case AudioFormat.LINEAR:
+                algorithmName = Audio._Linear8_ALG;
+                break;
+            default:
+                throw new UnsupportedFormatException(format);
+        }
+        return fromString(algorithmName + "/" + sampleRate);
     }
+
     /**
-     * <copy>
-     * To make copy of Audio
-     * @return the copy
+     * <accessor>
+     * To get access to te audio as AudioFormat
+     *
+     * @return the format or null if invalid
+     * @see AudioFormat
      */
-    public final Audio copy(){return new Audio(this.codec,this.sampleRate);}
+    public AudioFormat toAudioFormat() {
+        return new AudioFormat(codec, sampleRate, 8, 1);
+    }
+
+    /**
+     * <accessor>
+     * to restore object from string
+     */
+    public static Audio fromString(final String mediaFormatValue) {
+        try {
+            final String[] split = mediaFormatValue.split("/");
+            final String algorithmName = split[0].trim();
+            final short sampleRate = Short.parseShort(split[1].trim());
+            return Arrays.stream(values()).filter(format ->
+                    format.codec.equalsIgnoreCase(algorithmName) && format.sampleRate == sampleRate
+            ).findFirst().orElse(null);
+        } catch (NullPointerException | NumberFormatException | ArrayIndexOutOfBoundsException e) {
+            return null;
+        }
+    }
+
+    // Name of codec(algorithm)
+    private final String codec;
+    // The sample rate of audio data
+    private final short sampleRate;
+
+    /**
+     * <accessor>
+     * get sample rate of audio data
+     */
+    public final short getSampleRate() {
+        return this.sampleRate;
+    }
+
+    /**
+     * <constructor>
+     * For internal use only!
+     */
+    Audio(String codec, int sampleRate) {
+        this.codec = codec;
+        this.sampleRate = (short) sampleRate;
+    }
+
+    @Override
+    public String toString() {
+        return this.codec + "/" + this.sampleRate;
+    }
 }

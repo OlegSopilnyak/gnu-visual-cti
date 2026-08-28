@@ -51,6 +51,25 @@ import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
  */
 public interface TonesEngine<H> extends TelephonyDevicePart<H> {
     /**
+     * Configured Parameter Names Enumeration: The parameter names of multimedia part of the telephony device
+     */
+    enum Parameter implements Device.ParameterName {
+        // the table of tones available for device
+        TONES_TABLE("TONES");
+
+        private final String name;
+
+        Parameter(String name) {
+            this.name = name;
+        }
+
+        @Override
+        public String value() {
+            return name.toLowerCase();
+        }
+    }
+
+    /**
      * <action>
      * To dial DTMF symbols to phone line
      *

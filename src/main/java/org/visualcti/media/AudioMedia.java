@@ -35,51 +35,63 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.core.channel.telephony.operation;
+package org.visualcti.media;
 
-import java.util.Arrays;
-import java.util.Optional;
+import java.io.IOException;
 
 /**
- * Tone IDs Enumeration: The telephony's tone ids
+ * Algorithms: The names of valid media codecs algorithms
  */
-public enum ToneId {
-    // Tone ID for BEEP before  start record (for example)
-    BEEP("BEEP"),
-    // Tone ID for dial tone signal
-    DIAL("DIAL"),
-    // Tone ID for BUSY signal
-    BUSY("BUSY"),
-    // Tone ID for RINGBACK signal in general
-    RINGBACK("RINGBACK"),
-    // Tone ID for RINGBACK signal
-    RINGBACK1("RINGBACK1"),
-    // Tone ID for RINGBACK signal
-    RINGBACK2("RINGBACK2"),
-    // Tone ID for REORDER signal
-    REORDER("REORDER"),
-    // Tone ID for INTERCEPT signal
-    INTERCEPT("INTERCEPT"),
-    // Tone ID for CALL WAIT signal
-    CALLWAIT1("CALL WAIT 1"),
-    // Tone ID for CALL WAIT signal
-    CALLWAIT2("CALL WAIT 2"),
-    // Tone ID for disconnect signal (handset off)
-    DISCONNECT("DISCONNECT");
-    // status value
-    private final String status;
+public interface AudioMedia {
+    /**
+     * <predefined algorithm>
+     * Algorithm  = ULAW
+     */
+    String _Ulaw_ALG = "ULAW";
+    /**
+     * <predefined algorithm>
+     * Algorithm  = ALAW
+     */
+    String _Alaw_ALG = "ALAW";
+    /**
+     * <predefined algorithm>
+     * Algorithm  = LINEAR (8 bit sample)
+     */
+    String _Linear8_ALG = "LINEAR8";
+    /**
+     * <predefined algorithm>
+     * Algorithm  = LINEAR (8 bit sample)
+     */
+    String _Linear_ALG = "LINEAR";
+    /**
+     * <predefined algorithm>
+     * Algorithm  = LINEAR (16 bit sample)
+     */
+    String _Linear16_ALG = "LINEAR16";
+    /**
+     * <predefined algorithm>
+     * Algorithm  = Dialogic/OKI
+     */
+    String _Dialogic_ALG = "OKI";
 
-    ToneId(String status) {
-        this.status = status;
-    }
+    /**
+     * valid sample rates pool
+     */
+    double[] valid_RATE = new double[]
+            {
+                    6000,
+                    8000,
+                    11025
+            };
 
-    public String getValue() {
-        return status;
-    }
-
-    public static Optional<ToneId> of(final String status) {
-        return status == null
-                ? Optional.empty()
-                : Arrays.stream(values()).filter(id -> id.status.equalsIgnoreCase(status)).findFirst();
+    /**
+     * to check audio sample rate
+     */
+    static void checkSampleRate(final double rate) throws IOException {
+        for (double v : valid_RATE) {
+            if (rate == v) return;
+        }
+        throw new IOException("invalid sample rate = " + rate);
     }
 }
+

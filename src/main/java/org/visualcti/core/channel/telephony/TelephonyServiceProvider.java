@@ -41,11 +41,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import org.visualcti.core.channel.device.Device;
+import org.visualcti.core.channel.device.DeviceActivitySession;
 import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
 import org.visualcti.core.channel.telephony.operation.ToneId;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
+import org.visualcti.core.channel.telephony.operation.adapter.TelephonyTone;
 import org.visualcti.core.channel.telephony.part.CallsPortEngine;
 import org.visualcti.core.channel.telephony.part.FaxMachineEngine;
 import org.visualcti.core.channel.telephony.part.MultimediaEngine;
@@ -69,7 +71,7 @@ public interface TelephonyServiceProvider<H> extends Device.ServiceProvider<H> {
      * @return handle for the opened resource
      * @throws IOException if channel's fax resource cannot be opened or activated
      * @see Device#getName()
-     * @see Device.Session#parameter(Device.ParameterName, Object)
+     * @see DeviceActivitySession#parameter(Device.ParameterName, Object)
      * @see Device.Parameter#FAX_DEVICE_HANDLE
      */
     default H openFaxResource(String name) throws IOException {
@@ -81,8 +83,8 @@ public interface TelephonyServiceProvider<H> extends Device.ServiceProvider<H> {
      * To close the device related resource
      *
      * @param handle the handle of the opened resource (device's implementation)
-     * @see Device.Session#getDeviceHandle()
-     * @see Device.Session#parameter(Device.ParameterName, Object)
+     * @see DeviceActivitySession#getDeviceHandle()
+     * @see DeviceActivitySession#parameter(Device.ParameterName, Object)
      * @see Device.Parameter#FAX_DEVICE_HANDLE
      */
     default void closeFaxResource(H handle) {
@@ -94,7 +96,7 @@ public interface TelephonyServiceProvider<H> extends Device.ServiceProvider<H> {
      * To disable ALL events producing for particular device from the events provider
      *
      * @param deviceHandle device handle of the device for which events producing is disabled
-     * @see Device.Session#getDeviceHandle()
+     * @see DeviceActivitySession#getDeviceHandle()
      * @see DeviceEvent.Provider#disableEvents(H)
      * @see #disableEvents(H, OperationResultValue)
      * @see EventType#ALL
@@ -419,6 +421,43 @@ public interface TelephonyServiceProvider<H> extends Device.ServiceProvider<H> {
      */
     default void stopToneSending(H handle) {
         // doing nothing here
+    }
+
+    /**
+     * <action>
+     * To begin registering tones for the device's tone detection using the device handle
+     *
+     * @param handle the telephony device handle
+     * @see #registerTone(H, TelephonyTone)
+     * @see #commitToneRegistering(H)
+     */
+    default void beginToneRegistering(H handle) {
+        // doing nothing here
+    }
+
+    /**
+     * <action>
+     * To register the tone for the device using the device handle
+     *
+     * @param handle the telephony device handle
+     * @param tone the tone to register
+     * @see #beginToneRegistering(H)
+     * @see #commitToneRegistering(H)
+     */
+    default void registerTone(H handle, TelephonyTone tone) {
+        // doing nothing here
+    }
+
+    /**
+     * <action>
+     * To commit registered tones for the device's tone detection using the device handle
+     *
+     * @param handle the telephony device handle
+     * @see #registerTone(H, TelephonyTone)
+     * @see #beginToneRegistering(H)
+     */
+    default void commitToneRegistering(H handle) {
+
     }
 
     /**

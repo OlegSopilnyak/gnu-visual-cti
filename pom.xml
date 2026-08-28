@@ -98,6 +98,7 @@ Fax number: 217-356-3356
         <mockito.version>4.5.1</mockito.version>
         <assertj.version>3.0.0</assertj.version>
         <awaitility.version>3.0.0</awaitility.version>
+        <libphonenumber>8.12.10</libphonenumber>
     </properties>
     <dependencies>
         <!-- Source: https://mvnrepository.com/artifact/jdom/jdom -->
@@ -136,13 +137,20 @@ Fax number: 217-356-3356
             <artifactId>soap</artifactId>
             <version>${soap.version}</version>
         </dependency>
+        <!-- Source: https://mvnrepository.com/artifact/com.googlecode.libphonenumber/libphonenumber -->
+        <dependency>
+            <groupId>com.googlecode.libphonenumber</groupId>
+            <artifactId>libphonenumber</artifactId>
+            <version>${libphonenumber}</version>
+            <scope>compile</scope>
+        </dependency>
+
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <version>${junit.version}</version>
             <scope>test</scope>
         </dependency>
-
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>

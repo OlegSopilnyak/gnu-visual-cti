@@ -61,6 +61,8 @@ import org.visualcti.media.Sound;
 public interface TelephonyDeviceFactory<H, D extends TelephonyDevice<?, ?>> extends Factory<H, D> {
     // the value of type the server unit
     String UNIT_TYPE = "[telephony-channel-devices-board]";
+    // the suffix of factory vendor's configuration file
+    String CONFIG_FILE_SUFFIX = ".configuration.xml";
 
     /**
      * <accessor>

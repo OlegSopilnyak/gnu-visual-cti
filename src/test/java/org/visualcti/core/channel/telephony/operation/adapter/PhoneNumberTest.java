@@ -40,6 +40,7 @@ package org.visualcti.core.channel.telephony.operation.adapter;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.Test;
+import org.visualcti.core.channel.telephony.operation.PhoneCall;
 
 public class PhoneNumberTest {
 
@@ -204,6 +205,94 @@ public class PhoneNumberTest {
         assertThat(phoneNumber.areaCode()).isZero();
         assertThat(phoneNumber.number()).isEqualTo(number);
         assertThat(phoneNumber.extension()).isZero();
+        assertThat(phoneNumber.toString()).isEqualTo(phoneNumberAsString);
+    }
+
+    @Test
+    public void shouldBuildPhoneNumberFromString_International() {
+        // preparing test data
+        String phoneNumberAsString = "+1 2 123 4567 ext. 4";
+        int countryCode = 1;
+        int areaCode = 2;
+        int number = 1234567;
+        int extension = 4;
+
+        // acting
+        PhoneCall.Number phoneNumber = PhoneNumber.of(phoneNumberAsString);
+
+        // check results
+        assertThat(phoneNumber).isNotNull();
+        assertThat(phoneNumber.countryCode()).isEqualTo(countryCode);
+        assertThat(phoneNumber.areaCode()).isEqualTo(areaCode);
+        assertThat(phoneNumber.number()).isEqualTo(number);
+        assertThat(phoneNumber.extension()).isEqualTo(extension);
+        assertThat(phoneNumber.toString()).isEqualTo(phoneNumberAsString);
+        assertThat(phoneNumber.toString()).isEqualTo(phoneNumberAsString);
+    }
+
+    @Test
+    public void shouldBuildPhoneNumberFromString_Local() {
+        // preparing test data
+        String phoneNumberAsString = "(2) 123 4567";
+        int countryCode = 0;
+        int areaCode = 2;
+        int number = 1234567;
+        int extension = 0;
+
+        // acting
+        PhoneCall.Number phoneNumber = PhoneNumber.of(phoneNumberAsString);
+
+        // check results
+        assertThat(phoneNumber).isNotNull();
+        assertThat(phoneNumber.countryCode()).isEqualTo(countryCode);
+        assertThat(phoneNumber.areaCode()).isEqualTo(areaCode);
+        assertThat(phoneNumber.number()).isEqualTo(number);
+        assertThat(phoneNumber.extension()).isEqualTo(extension);
+        assertThat(phoneNumber.toString()).isEqualTo(phoneNumberAsString);
+        assertThat(phoneNumber.toString()).isEqualTo(phoneNumberAsString);
+    }
+
+    @Test
+    public void shouldBuildPhoneNumberFromString_Domestic() {
+        // preparing test data
+        String phoneNumberAsString = "123 4567 ext. 4";
+        int countryCode = 0;
+        int areaCode = 0;
+        int number = 1234567;
+        int extension = 4;
+
+        // acting
+        PhoneCall.Number phoneNumber = PhoneNumber.of(phoneNumberAsString);
+
+        // check results
+        assertThat(phoneNumber).isNotNull();
+        assertThat(phoneNumber.countryCode()).isEqualTo(countryCode);
+        assertThat(phoneNumber.areaCode()).isEqualTo(areaCode);
+        assertThat(phoneNumber.number()).isEqualTo(number);
+        assertThat(phoneNumber.extension()).isEqualTo(extension);
+        assertThat(phoneNumber.toString()).isEqualTo(phoneNumberAsString);
+        assertThat(phoneNumber.toString()).isEqualTo(phoneNumberAsString);
+    }
+
+    @Test
+    public void shouldBuildPhoneNumberFromString_ShortNumber() {
+        // preparing test data
+        String phoneNumberAsString = "123";
+        int countryCode = 0;
+        int areaCode = 0;
+        int number = 123;
+        int extension = 0;
+
+        // acting
+        PhoneCall.Number phoneNumber = PhoneNumber.of(phoneNumberAsString);
+
+        // check results
+        assertThat(phoneNumber).isNotNull();
+        assertThat(phoneNumber.countryCode()).isEqualTo(countryCode);
+        assertThat(phoneNumber.areaCode()).isEqualTo(areaCode);
+        assertThat(phoneNumber.number()).isEqualTo(number);
+        assertThat(phoneNumber.extension()).isEqualTo(extension);
+        assertThat(phoneNumber.toString()).isEqualTo(phoneNumberAsString);
         assertThat(phoneNumber.toString()).isEqualTo(phoneNumberAsString);
     }
 }
