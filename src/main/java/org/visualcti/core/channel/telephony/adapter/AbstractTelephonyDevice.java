@@ -44,6 +44,7 @@ import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Predicate;
 import org.jdom.DataConversionException;
 import org.jdom.Element;
@@ -72,6 +73,7 @@ import org.visualcti.core.channel.telephony.part.adapter.AbstractTonesEngine;
 import org.visualcti.media.Audio;
 import org.visualcti.media.Fax;
 import org.visualcti.media.Sound;
+import org.visualcti.server.unit.ServerUnitAdapter;
 
 /**
  * Abstract Device of the Channel: The root device through which task communicate with
@@ -174,7 +176,7 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
         this.media = mediaPart().uses(this);
         this.faxes = faxPart().uses(this);
         // install the parameters of device by default before updates from XML
-        initializeDefaultParameters();
+        setupDefaultParameters();
     }
 
     /**
@@ -202,7 +204,7 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
         this.media = media.uses(this);
         this.faxes = faxes.uses(this);
         // install the parameters of device by default before updates from XML
-        initializeDefaultParameters();
+        setupDefaultParameters();
     }
 
     /**
@@ -214,6 +216,17 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
     @Override
     public String getName() {
         return name;
+    }
+
+    /**
+     * <accessor>
+     * To get the Type of the device as string (analog, ISDN, T1/E1, IVR, etc.)
+     * Can be overriden in the concrete vendor's device class
+     *
+     * @return the value
+     */
+    public String getDeviceType() {
+        return DEVICE_TYPE_ANALOG;
     }
 
     /**
@@ -865,52 +878,161 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
      * @throws NumberFormatException   if something went wrong
      * @throws NullPointerException    if something went wrong
      * @see Element
-     * @see #configure(Element)
-     * @see #settingUpBasePart(Element)
-     * @see #settingUpMainPart(Element)
+     * @see ServerUnitAdapter#setXML(Element)
+     * @see #setupDefaultParameters()
+     * @see #applyDeviceParameters(Element)
      */
     @Override
     public void setXML(Element xml) throws IOException, DataConversionException, NumberFormatException, NullPointerException {
         // install the parameters of device by default before updates from XML
-        initializeDefaultParameters();
-        // applying default parameters fot the device
+        setupDefaultParameters();
+        // applying by default device parameters
         applyDeviceParameters(xml.getChild(DEFAULT_ROOT));
-        final String deviceName = getName();
-        final List<Element> devices = xml.getChildren(DEVICE_ROOT);
-        for (final Element deviceXml : devices) {
-            if (deviceName.equals(deviceXml.getAttributeValue(DEVICE_NAME_ATTRIBUTE))) {
-                applyDeviceParameters(deviceXml);
-            }
+        // looking for concrete device parameters in the configuration-xml
+        final Optional<Element> deviceConfiguration = findDeviceConfiguration(xml);
+        if (deviceConfiguration.isPresent()) {
+            // applying by concrete device parameters if any
+            applyDeviceParameters(deviceConfiguration.get());
         }
     }
 
-    /// private methods
-    // applying device's parameters from xml-element of the configuration
-    private void applyDeviceParameters(final Element parametersXml) throws IOException {
-        if (parametersXml != null) {
-            applyDeviceNetworkParameters(parametersXml.getChild(DEVICE_NETWORK_ROOT));
-            applyDeviceMediaParameters(parametersXml.getChild(DEVICE_MEDIA_ROOT));
+    /**
+     * <converter>
+     * To represent entity as an XML element
+     *
+     * @return entity's XML
+     * @see Element
+     * @see ServerUnitAdapter#getXML()
+     */
+    @Override
+    public Element getXML() {
+        if (unitConfiguration != null) {
+            // the device's configuration is actual
+            return unitConfiguration;
+        }
+        // making the device's configuration xml-configuration element
+        final Element rootElement = new Element(DEVICE_ROOT)
+                .setAttribute(DEVICE_NAME_ATTRIBUTE, getName())
+                .setAttribute(DEVICE_TYPE_ATTRIBUTE, getDeviceType());
+        // adding network part configuration of the device
+        addDeviceNetworkPart(rootElement);
+        // adding media part configuration of the device
+        addDeviceMediaPart(rootElement);
+        // storing configured xml-element
+        unitConfiguration = rootElement;
+        return rootElement;
+    }
+
+    /**
+     * <action>
+     * To set up default device's network parameters
+     *
+     * @see CallsPortEngine.Parameter#ACCEPT_CALL_ALLOWED
+     * @see CallsPortEngine.Parameter#MAKE_CALL_ALLOWED
+     * @see CallsPortEngine.Parameter#SHARE_CALL_PORT_ALLOWED
+     * @see CallsPortEngine.Parameter#ORIGIN
+     */
+    protected void setupDefaultNetworkParameters() {
+        setupNetworkParameterFor(CallsPortEngine.Parameter.ACCEPT_CALL_ALLOWED, true);
+        setupNetworkParameterFor(CallsPortEngine.Parameter.MAKE_CALL_ALLOWED, true);
+        setupNetworkParameterFor(CallsPortEngine.Parameter.SHARE_CALL_PORT_ALLOWED, false);
+        setupNetworkParameterFor(CallsPortEngine.Parameter.ORIGIN, PhoneNumber.domesticOf(123));
+    }
+
+    /**
+     * <action>
+     * To apply device's network parameters from xml-element of the configuration
+     *
+     * @param deviceNetworkRoot the network root xml-element in the general device's configuration
+     * @see #setXML(Element)
+     * @see #applyDeviceParameters(Element)
+     * @see #DEFAULT_ROOT
+     * @see #DEVICE_ROOT
+     * @see #DEVICE_NETWORK_ROOT
+     */
+    protected void applyDeviceNetworkParameters(final Element deviceNetworkRoot) {
+        if (deviceNetworkRoot != null) {
+            final List<Element> parameters = deviceNetworkRoot.getChildren(ConfigurationParameter.ELEMENT);
+            // processing the parameters of the device's network XML-elements
+            parameters.stream().map(ConfigurationParameter::of).filter(Objects::nonNull)
+                    .forEach(this::applyNetworkParameter);
         }
     }
 
-    // initializing default device's parameters
-    private void initializeDefaultParameters() {
-        initializeDefaultNetworkParameters();
-        initializeDefaultMediaParameters();
+    /**
+     * <action>
+     * To set up default device's media parameters
+     *
+     * @see ToneId
+     * @see TonesEngine.Parameter#TONES_TABLE
+     * @see #setupDefaultMediaTones()
+     * @see MultimediaEngine.Parameter#PLAYBACK_CODEC
+     * @see MultimediaEngine.Parameter#RECORD_CODEC
+     * @see #setupMediaCodecParameterFor(ParameterName, Audio)
+     */
+    protected void setupDefaultMediaParameters() {
+        //
+        // setting up the default device's media tones parameters table
+        setupDefaultMediaTones();
+        //
+        // setting up the default media codecs parameters
+        setupMediaCodecParameterFor(MultimediaEngine.Parameter.PLAYBACK_CODEC, defaultPlaybackCodec());
+        setupMediaCodecParameterFor(MultimediaEngine.Parameter.RECORD_CODEC, defaultRecordCodec());
     }
 
-    // applying device's media parameters from xml-element of the configuration
-    private void applyDeviceMediaParameters(final Element parametersXml) throws IOException {
-        if (parametersXml != null) {
+    /**
+     * <action>
+     * To apply device's media parameters from xml-element of the configuration
+     *
+     * @param deviceMediaRootXml the media root xml-element in the general device's configuration
+     * @see #setXML(Element)
+     * @see #applyDeviceParameters(Element)
+     * @see #setXML(Element)
+     * @see #applyDeviceParameters(Element)
+     * @see #DEFAULT_ROOT
+     * @see #DEVICE_ROOT
+     * @see #DEVICE_MEDIA_ROOT
+     */
+    protected void applyDeviceMediaParameters(final Element deviceMediaRootXml) throws IOException {
+        if (deviceMediaRootXml != null) {
             // processing the parameters of the device's media codecs XML elements
-            final List<Element> codecs = parametersXml.getChildren(DEVICE_MEDIA_CODEC_ROOT);
+            final List<Element> codecs = deviceMediaRootXml.getChildren(DEVICE_MEDIA_CODEC_ROOT);
             codecs.forEach(this::applyDeviceMediaCodecParameters);
             // processing the parameters of the device's media tones XML elements
-            final List<Element> tones = parametersXml.getChildren(DEVICE_MEDIA_TONE_ROOT);
+            final List<Element> tones = deviceMediaRootXml.getChildren(DEVICE_MEDIA_TONE_ROOT);
             tones.forEach(this::applyDeviceMediaToneParameters);
             // registering configured tones in the service provider for the current device
             registerDeviceTones();
         }
+    }
+
+    /// private methods
+    // looking for concrete device parameters in the configuration-xml
+    private Optional<Element> findDeviceConfiguration(final Element configurationXml) {
+        final String deviceName = getName();
+        final List<Element> devices = configurationXml.getChildren(DEVICE_ROOT);
+        return devices.stream()
+                .filter(xml -> deviceName.equals(xml.getAttributeValue(DEVICE_NAME_ATTRIBUTE)))
+                .findFirst();
+
+    }
+
+    // applying device's parameters from xml-element of the configuration
+    private void applyDeviceParameters(final Element deviceConfigurationXml) throws IOException {
+        if (deviceConfigurationXml != null) {
+            // applying device's network parameters from xml-element of the configuration
+            applyDeviceNetworkParameters(deviceConfigurationXml.getChild(DEVICE_NETWORK_ROOT));
+            // applying device's media parameters from xml-element of the configuration
+            applyDeviceMediaParameters(deviceConfigurationXml.getChild(DEVICE_MEDIA_ROOT));
+        }
+    }
+
+    // initializing default device's parameters
+    private void setupDefaultParameters() {
+        // setting up default device's network parameters
+        setupDefaultNetworkParameters();
+        // setting up default device's media parameters
+        setupDefaultMediaParameters();
     }
 
     // registering configured tones in the service provider for the further device tones detection
@@ -928,31 +1050,25 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
         provider.closeResource(deviceHandle);
     }
 
-    // initializing default device's media parameters
-    private void initializeDefaultMediaParameters() {
-        initializeDefaultMediaToneParameters();
-        initializeDefaultMediaCodecParameters();
-    }
-
     // applying device's media tones parameters table from xml-element of the configuration
     private void applyDeviceMediaToneParameters(final Element toneXml) {
         final EnumMap<ToneId, TelephonyTone> tonesTable = getParameter(TonesEngine.Parameter.TONES_TABLE)
                 .<EnumMap<ToneId, TelephonyTone>>map(ConfigurationParameter::getValue)
                 .orElse(null);
         if (tonesTable == null) {
-            // initializing media tones parameters table
-            initializeDefaultMediaToneParameters();
+            // setting up default media tones parameters table
+            setupDefaultMediaTones();
             // recursive method's call
             applyDeviceMediaToneParameters(toneXml);
         } else {
             final String toneType = toneXml.getAttributeValue(DEVICE_MEDIA_TONE_NAME_ATTRIBUTE);
-            final String toneDefinition = toneXml.getAttributeValue(DEVICE_MEDIA_TONE_VALUE_ATTRIBUTE);
+            final String toneDefinition = toneXml.getAttributeValue(DEVICE_PARAMETER_VALUE_ATTRIBUTE);
             ToneId.of(toneType).ifPresent(id -> storeTone(tonesTable, id, toneDefinition));
         }
     }
 
     // initializing default device's media tones parameters table
-    private void initializeDefaultMediaToneParameters() {
+    private void setupDefaultMediaTones() {
         final EnumMap<ToneId, TelephonyTone> tones = new EnumMap<>(ToneId.class);
         storeTone(tones, ToneId.BEEP, "-1,900,0,0,0,0,0,0,0,0");
         storeTone(tones, ToneId.DIAL, "1,400,125,400,125,0,0,0,0,0");
@@ -971,8 +1087,8 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
     // applying device's media codecs parameters from xml-element of the configuration
     private void applyDeviceMediaCodecParameters(final Element codecXml) {
         // setting up the codec parameters
-        final String codecType = codecXml.getAttributeValue(DEVICE_MEDIA_CODEC_TYPE_ATTRIBUTE);
-        final String codecValue = codecXml.getAttributeValue(DEVICE_MEDIA_CODEC_VALUE_ATTRIBUTE);
+        final String codecType = codecXml.getAttributeValue(DEVICE_PARAMETER_TYPE_ATTRIBUTE);
+        final String codecValue = codecXml.getAttributeValue(DEVICE_PARAMETER_VALUE_ATTRIBUTE);
         if (codecType == null || codecValue == null) {
             // wrong codec XML
             return;
@@ -990,25 +1106,74 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
         }
     }
 
-    // initializing default media codecs parameters
-    private void initializeDefaultMediaCodecParameters() {
-        setupMediaCodecParameterFor(MultimediaEngine.Parameter.PLAYBACK_CODEC, defaultPlaybackCodec());
-        setupMediaCodecParameterFor(MultimediaEngine.Parameter.RECORD_CODEC, defaultRecordCodec());
-    }
-
     // setting up particular codec for the device
     private void setupMediaCodecParameterFor(final Device.ParameterName codecParameter, final Audio value) {
         setParameter(codecParameter, ConfigurationParameter.of(codecParameter.value(), value));
     }
 
-    // applying device's network parameters from xml-element of the configuration
-    private void applyDeviceNetworkParameters(final Element xml) {
-        if (xml != null) {
-            final List<Element> parameters = xml.getChildren(ConfigurationParameter.ELEMENT);
-            // processing the parameters of the device's network XML-elements
-            parameters.stream().map(ConfigurationParameter::of).filter(Objects::nonNull)
-                    .forEach(this::applyNetworkParameter);
+    // collecting media part configuration of the device and adding it to the device's configuration root
+    private void addDeviceMediaPart(final Element rootElement) {
+        final Element partXml = new Element(DEVICE_MEDIA_ROOT);
+        // adding device parameters
+        addToneParametersTo(partXml);
+        addCodecParametersTo(partXml, MultimediaEngine.Parameter.RECORD_CODEC);
+        addCodecParametersTo(partXml, MultimediaEngine.Parameter.PLAYBACK_CODEC);
+        // adding network part to the device's configuration xml
+        rootElement.addContent(partXml);
+    }
+
+    // adding device's tones parameters to the media part
+    private void addToneParametersTo(final Element partXml) {
+        getParameter(TonesEngine.Parameter.TONES_TABLE)
+                .<EnumMap<ToneId, TelephonyTone>>map(ConfigurationParameter::getValue)
+                .ifPresent(tonesTable -> {
+                    addToneParametersTo(partXml, tonesTable.get(ToneId.DIAL));
+                    addToneParametersTo(partXml, tonesTable.get(ToneId.BUSY));
+                    addToneParametersTo(partXml, tonesTable.get(ToneId.RINGBACK));
+                    addToneParametersTo(partXml, tonesTable.get(ToneId.DISCONNECT));
+                });
+    }
+
+    // adding device's tone parameters to the media part
+    private void addToneParametersTo(final Element partXml, final TelephonyTone telephonyTone) {
+        if (telephonyTone != null) {
+            partXml.addContent(new Element(DEVICE_MEDIA_TONE_ROOT)
+                    .setAttribute(DEVICE_MEDIA_TONE_NAME_ATTRIBUTE, telephonyTone.getId().toString().toLowerCase())
+                    .setAttribute(DEVICE_PARAMETER_VALUE_ATTRIBUTE, telephonyTone.toString())
+            );
         }
+    }
+
+    // adding device's codec parameters to the media part
+    private void addCodecParametersTo(final Element partXml, final Device.ParameterName name) {
+        getParameter(name).ifPresent(param -> partXml.addContent(new Element(DEVICE_MEDIA_CODEC_ROOT)
+                .setAttribute(DEVICE_PARAMETER_TYPE_ATTRIBUTE, name.value().toLowerCase())
+                .setAttribute(DEVICE_PARAMETER_VALUE_ATTRIBUTE, param.getValue().toString())
+        ));
+    }
+
+    // collecting network part configuration of the device and adding it to the device's configuration root
+    private void addDeviceNetworkPart(final Element rootElement) {
+        final Element partXml = new Element(DEVICE_NETWORK_ROOT);
+        // adding device parameters
+        addBooleanParameterTo(partXml, CallsPortEngine.Parameter.ACCEPT_CALL_ALLOWED);
+        addBooleanParameterTo(partXml, CallsPortEngine.Parameter.MAKE_CALL_ALLOWED);
+        addBooleanParameterTo(partXml, CallsPortEngine.Parameter.SHARE_CALL_PORT_ALLOWED);
+        addBooleanParameterTo(partXml, FaxMachineEngine.Parameter.FAX_ALLOWED);
+        addPhoneNumberParameterTo(partXml);
+        // adding network part to the device's configuration xml
+        rootElement.addContent(partXml);
+    }
+
+    private void addBooleanParameterTo(final Element partXml, final Device.ParameterName name) {
+        getParameter(name).ifPresent(param -> partXml.addContent(param.getXml()));
+    }
+
+    private void addPhoneNumberParameterTo(final Element partXml) {
+        getParameter(CallsPortEngine.Parameter.ORIGIN).ifPresent(param -> partXml.addContent(param.getXml()
+                .setAttribute(DEVICE_PARAMETER_TYPE_ATTRIBUTE, "string")
+                .setAttribute(DEVICE_PARAMETER_VALUE_ATTRIBUTE, param.getValue().toString())
+        ));
     }
 
     // applying device's network parameters by network parameter type
@@ -1035,18 +1200,11 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
         }
     }
 
-    // initializing default device's network parameters
-    private void initializeDefaultNetworkParameters() {
-        setupNetworkParameterFor(CallsPortEngine.Parameter.ACCEPT_CALL_ALLOWED, true);
-        setupNetworkParameterFor(CallsPortEngine.Parameter.MAKE_CALL_ALLOWED, true);
-        setupNetworkParameterFor(CallsPortEngine.Parameter.SHARE_CALL_PORT_ALLOWED, false);
-        setupNetworkParameterFor(CallsPortEngine.Parameter.ORIGIN, PhoneNumber.domesticOf(123));
-    }
-
     // setting up particular network parameters for the device
     private void setupNetworkParameterFor(final Device.ParameterName networkParameter, final Boolean value) {
         setParameter(networkParameter, ConfigurationParameter.of(networkParameter.value(), value));
     }
+
     // setting up particular network parameters for the device
     private void setupNetworkParameterFor(final Device.ParameterName networkParameter, final Object value) {
         setParameter(networkParameter, ConfigurationParameter.of(networkParameter.value(), value));

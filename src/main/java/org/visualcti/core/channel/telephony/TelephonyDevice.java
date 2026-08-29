@@ -99,11 +99,12 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
     String DEVICE_MEDIA_ROOT = "media";
     String DEVICE_MEDIA_TONE_ROOT = "tone";
     String DEVICE_MEDIA_CODEC_ROOT = "format";
-    String DEVICE_MEDIA_CODEC_TYPE_ATTRIBUTE = "type";
-    String DEVICE_MEDIA_CODEC_VALUE_ATTRIBUTE = "value";
     String DEVICE_MEDIA_TONE_NAME_ATTRIBUTE = "name";
-    String DEVICE_MEDIA_TONE_VALUE_ATTRIBUTE = "value";
+    String DEVICE_PARAMETER_TYPE_ATTRIBUTE = "type";
+    String DEVICE_PARAMETER_VALUE_ATTRIBUTE = "value";
     String DEVICE_NAME_ATTRIBUTE = "name";
+    String DEVICE_TYPE_ATTRIBUTE = "type";
+    String DEVICE_TYPE_ANALOG = "analog";
 
 
     /**

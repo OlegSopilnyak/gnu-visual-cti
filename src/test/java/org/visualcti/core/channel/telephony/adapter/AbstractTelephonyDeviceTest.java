@@ -57,6 +57,7 @@ import static org.mockito.Mockito.verify;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -2669,6 +2670,16 @@ public class AbstractTelephonyDeviceTest<H> {
         device.setXML(xml);
 
         // check the behavior
+        verify(device, times(2)).applyDeviceNetworkParameters(any(Element.class));
+        verify(device, times(3)).setParameter(eq(CallsPortEngine.Parameter.ACCEPT_CALL_ALLOWED), any(ConfigurationParameter.class));
+        verify(device, times(3)).setParameter(eq(CallsPortEngine.Parameter.MAKE_CALL_ALLOWED), any(ConfigurationParameter.class));
+        verify(device, times(3)).setParameter(eq(CallsPortEngine.Parameter.SHARE_CALL_PORT_ALLOWED), any(ConfigurationParameter.class));
+        verify(device, times(3)).setParameter(eq(CallsPortEngine.Parameter.ORIGIN), any(ConfigurationParameter.class));
+        verify(device).setParameter(eq(FaxMachineEngine.Parameter.FAX_ALLOWED), any(ConfigurationParameter.class));
+        verify(device, times(2)).applyDeviceMediaParameters(any(Element.class));
+        verify(device, times(3)).setParameter(eq(MultimediaEngine.Parameter.PLAYBACK_CODEC), any(ConfigurationParameter.class));
+        verify(device, times(3)).setParameter(eq(MultimediaEngine.Parameter.RECORD_CODEC), any(ConfigurationParameter.class));
+        verify(device).setParameter(eq(TonesEngine.Parameter.TONES_TABLE), any(ConfigurationParameter.class));
         // check results
         // device network parameters values
         assertThat(device.getParameter(CallsPortEngine.Parameter.ACCEPT_CALL_ALLOWED)).isPresent();
@@ -2756,6 +2767,16 @@ public class AbstractTelephonyDeviceTest<H> {
         device.setXML(xml);
 
         // check the behavior
+        verify(device).applyDeviceNetworkParameters(any(Element.class));
+        verify(device, times(2)).setParameter(eq(CallsPortEngine.Parameter.ACCEPT_CALL_ALLOWED), any(ConfigurationParameter.class));
+        verify(device, times(2)).setParameter(eq(CallsPortEngine.Parameter.MAKE_CALL_ALLOWED), any(ConfigurationParameter.class));
+        verify(device, times(2)).setParameter(eq(CallsPortEngine.Parameter.SHARE_CALL_PORT_ALLOWED), any(ConfigurationParameter.class));
+        verify(device, times(2)).setParameter(eq(CallsPortEngine.Parameter.ORIGIN), any(ConfigurationParameter.class));
+        verify(device, never()).setParameter(eq(FaxMachineEngine.Parameter.FAX_ALLOWED), any(ConfigurationParameter.class));
+        verify(device).applyDeviceMediaParameters(any(Element.class));
+        verify(device, times(2)).setParameter(eq(MultimediaEngine.Parameter.PLAYBACK_CODEC), any(ConfigurationParameter.class));
+        verify(device, times(2)).setParameter(eq(MultimediaEngine.Parameter.RECORD_CODEC), any(ConfigurationParameter.class));
+        verify(device).setParameter(eq(TonesEngine.Parameter.TONES_TABLE), any(ConfigurationParameter.class));
         // check results
         // device network parameters values
         assertThat(device.getParameter(CallsPortEngine.Parameter.ACCEPT_CALL_ALLOWED)).isPresent();
@@ -2775,9 +2796,6 @@ public class AbstractTelephonyDeviceTest<H> {
         assertThat(origin).isNotNull();
         assertThat(origin.<PhoneCall.Number>getValue().number()).isEqualTo(321);
         assertThat(device.getParameter(FaxMachineEngine.Parameter.FAX_ALLOWED)).isEmpty();
-//        ConfigurationParameter canFax = device.getParameter(FaxMachineEngine.Parameter.FAX_ALLOWED).orElse(null);
-//        assertThat(canFax).isNotNull();
-//        assertThat(canFax.<Boolean>getValue()).isTrue();
 
         // device media parameters values
         assertThat(device.getParameter(MultimediaEngine.Parameter.PLAYBACK_CODEC)).isPresent();
@@ -2798,7 +2816,51 @@ public class AbstractTelephonyDeviceTest<H> {
         assertThat(tonesTable.get(ToneId.DISCONNECT).getToneId()).isEqualTo(1257);
     }
 
+    @Test
+    public void shouldGetDeviceConfiguration() throws IOException, DataConversionException {
+        // preparing test data
+        String configuration = "<device-vendor>\n" +
+                "  <device name = \"telephony-device\" type = \"analog\">\n" +
+                "    <network>\n" +
+                "      <parameter name=\"in\" type=\"boolean\" value=\"false\" />\n" +
+                "      <parameter name=\"out\" type=\"boolean\" value=\"false\" />\n" +
+                "      <parameter name=\"share\" type=\"boolean\" value=\"false\" />\n" +
+                "      <parameter name=\"fax\" type=\"boolean\" value=\"true\" />\n" +
+                "      <parameter name=\"origin\" type=\"string\" value=\"117\" />\n" +
+                "    </network>\n" +
+                "    <media>\n" +
+                "      <tone name = \"dial\" value = \"250,400,125,400,125,0,0,0,0,0\"/>\n" +
+                "      <tone name = \"busy\" value = \"253,500,200,0,0,55,40,55,40,4\"/>\n" +
+                "      <tone name = \"ringback\" value = \"254,450,150,0,0,150,100,550,400,0\"/>\n" +
+                "      <tone name = \"disconnect\" value = \"257,900,700,0,0,90,70,90,70,2\"/>\n" +
+                "      <format type = \"record\" value = \"ULAW/8000\" />\n" +
+                "      <format type = \"play\" value = \"OKI/8000\" />\n" +
+                "    </media>\n" +
+                "  </device>\n" +
+                "</device-vendor>\n";
+        Element xml = device.load(new ByteArrayInputStream(configuration.getBytes()));
+        String loadedConfiguration = asString(xml.getChild("device"));
+        device.setXML(xml);
+
+        // acting
+        Element deviceXml = device.getXML();
+
+        // check the behavior
+        // check results
+        assertThat(deviceXml).isNotNull();
+        assertThat(asString(deviceXml)).isEqualTo(loadedConfiguration);
+    }
+
     /// private methods
+    // represent xml-element as string
+    private String asString(Element xml) throws IOException {
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+            device.store(xml, baos, false);
+            return baos.toString()
+                    .replace("<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + System.lineSeparator(), "");
+        }
+    }
+
     // allowing fax feature
     private void switchFaxPartOn() {
         FaxMachineEngine.Parameter allowed = FaxMachineEngine.Parameter.FAX_ALLOWED;
