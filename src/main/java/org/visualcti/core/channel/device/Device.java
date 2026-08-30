@@ -44,6 +44,7 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import org.visualcti.core.ConfigurationParameter;
+import org.visualcti.core.XmlAware;
 import org.visualcti.server.UnitRegistry;
 import org.visualcti.server.core.channel.ChannelTaskRunner;
 import org.visualcti.core.executable.task.Task;
@@ -61,9 +62,14 @@ import org.visualcti.server.task.Environment;
  * @see ServerUnit
  */
 @SuppressWarnings("unchecked")
-public interface Device<H, F extends Factory<H, ?>> extends ServerUnit {
+public interface Device<H, F extends Factory<H, ?>> extends ServerUnit, XmlAware {
     // the value of type the server unit
     String UNIT_TYPE = "[channel-device]";
+    // XML-Configuration elements' and attributes' names
+    String DEFAULT_ROOT = "default";
+    String DEVICE_ROOT = "device";
+    String DEVICE_NAME_ATTRIBUTE = "name";
+    String DEVICE_TYPE_ATTRIBUTE = "type";
 
     /**
      * <accessor>

@@ -590,7 +590,7 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
      * @see #addBranch(ServerUnit)
      */
     @Override
-    public boolean add(ServerUnit unit) {
+    public boolean add(final ServerUnit unit) {
         return ServerUnit.super.add(unit) && updatedUnitConfiguration();
     }
 

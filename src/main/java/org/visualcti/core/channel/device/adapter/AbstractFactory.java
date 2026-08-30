@@ -37,16 +37,24 @@ Fax number: 217-356-3356
 */
 package org.visualcti.core.channel.device.adapter;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
+import org.jdom.Comment;
+import org.jdom.DataConversionException;
+import org.jdom.Document;
+import org.jdom.Element;
 import org.visualcti.core.channel.Channel;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.Factory;
+import org.visualcti.util.Tools;
 
 /**
  * The Factory of the Devices Adapter: The factory of the channel-devices
@@ -59,6 +67,11 @@ import org.visualcti.core.channel.device.Factory;
 public abstract class AbstractFactory<H, D extends Device<?, ?>> extends AbstractEventProcessor<H> implements Factory<H, D> {
     // the holder of factory's device channels
     private final AtomicReference<Collection<Channel<?>>> channelsHolder = new AtomicReference<>(Collections.emptyList());
+    // XML-Document of the list of tasks in the pool
+    protected final Document factoryConfigurationDocument = new Document().setContent(Arrays.asList(
+            new Comment(Tools.getLicenceHeader()),
+            new Element(getVendor()).addContent(defaultDeviceXml())
+    ));
 
     public AbstractFactory(Executor deviceEventExecutor, DeviceEvent.Provider<H> eventsProvider) {
         this(deviceEventExecutor, eventsProvider, new DefaultDeviceEventListenersHub());
@@ -77,6 +90,66 @@ public abstract class AbstractFactory<H, D extends Device<?, ?>> extends Abstrac
     @Override
     public int hashCode() {
         return super.hashCode();
+    }
+
+    /**
+     * <aceessor>
+     * to get the root xml-document of the configuration
+     *
+     * @return root xml-document of the configuration instance
+     * @see Document
+     * @see #factoryConfigurationDocument
+     */
+    @Override
+    public Document getConfigurationDocument() {
+        return factoryConfigurationDocument;
+    }
+
+    /**
+     * <configuration-loader>
+     * To load the vendor specific configuration of the factory from the external file
+     *
+     * @throws IOException if it cannot load configuration
+     * @see #configurationFile()
+     * @see Factory#loadFactoryConfiguration()
+     */
+    @Override
+    public void loadFactoryConfiguration() throws IOException, DataConversionException {
+        // preparing vendor-configuration external file
+        final File configurationFile = configurationFile();
+        if (configurationFile.exists()) {
+            try (final FileInputStream in = new FileInputStream(configurationFile)) {
+                // getting the factory devices' configuration from external file
+                final Element configuration = restoreDocumentFrom(in).getRootElement();
+                // passing it to all factory's devices
+                for (final D device : (Iterable<D>) devices()::iterator) {
+                    device.setXML(configuration);
+                }
+            }
+        } else {
+            final Element vendorRoot = this.factoryConfigurationDocument.getRootElement();
+            // removing all children of the vendor's xml-element
+            vendorRoot.removeChildren();
+            // saving device's default configuration
+            vendorRoot.addContent(defaultDeviceXml());
+            // saving updated configuration document
+            saveFactoryConfiguration();
+            // recursive call
+            loadFactoryConfiguration();
+        }
+    }
+
+    /**
+     * <accessor>
+     * to get the default configuration for factory's device
+     *
+     * @return the default configuration for factory's device
+     * @see Element
+     * @see #loadFactoryConfiguration()
+     */
+    @Override
+    public Element defaultDeviceXml() {
+        return new Element("default");
     }
 
     /**

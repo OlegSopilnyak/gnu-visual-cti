@@ -107,6 +107,11 @@ public class AbstractCallsPortEngineTest<H> {
         eventsProvider = mock(DeviceEvent.Provider.class);
         factory = spy(new AbstractTelephonyDeviceFactory(deviceEventExecutor, eventsProvider) {
             @Override
+            public String getVendor() {
+                return deviceName + "-factory";
+            }
+
+            @Override
             protected TelephonyChannel makeChannelFor(Device device) {
                 return null;
             }

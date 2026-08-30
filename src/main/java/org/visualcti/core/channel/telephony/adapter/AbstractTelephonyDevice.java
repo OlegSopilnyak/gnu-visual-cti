@@ -77,8 +77,7 @@ import org.visualcti.server.unit.ServerUnitAdapter;
 
 /**
  * Abstract Device of the Channel: The root device through which task communicate with
- * <p>
- * <b>Computer Telephony Equipment</b>
+ * <p> <b>Computer Telephony Equipment</b>
  *
  * @param <H> the type of the device's low-level operations handle
  * @param <T> the type of the devices factory
@@ -91,7 +90,7 @@ import org.visualcti.server.unit.ServerUnitAdapter;
  * @see FaxMachineEngine
  */
 @SuppressWarnings("unchecked")
-public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
+public abstract class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
         extends AbstractDevice<H, T> implements TelephonyDevice<H, T> {
     //
     // predicate to test whether device handle value is valid or not
@@ -893,6 +892,9 @@ public class AbstractTelephonyDevice<H, T extends TelephonyDeviceFactory<H, ?>>
         if (deviceConfiguration.isPresent()) {
             // applying by concrete device parameters if any
             applyDeviceParameters(deviceConfiguration.get());
+        } else {
+            // no entry there (in the configuration) applying default and save factory configuration
+            getFactory().saveFactoryConfigurationFor(this);
         }
     }
 

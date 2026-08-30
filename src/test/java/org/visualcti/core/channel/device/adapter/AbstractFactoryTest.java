@@ -38,7 +38,9 @@ Fax number: 217-356-3356
 package org.visualcti.core.channel.device.adapter;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -48,12 +50,20 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Optional;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Stream;
+import org.jdom.DataConversionException;
+import org.jdom.Document;
+import org.jdom.Element;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -63,15 +73,15 @@ import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceEvent;
 
 @SuppressWarnings("unchecked")
-public class AbstractFactoryTest {
+public class AbstractFactoryTest<H> {
     static String deviceName = "device-name";
     static String deviceVendor = "device-vendor";
     static String deviceVendorVersion = "device-vendor-version";
-    Device<?, ?> device;
+    Device<H, ?> device;
     Executor deviceEventExecutor;
     ExecutorService shadowExecutor;
     DeviceEvent.Provider<?> eventsProvider;
-    AbstractFactory<?, ?> factory;
+    AbstractFactory<H, ?> factory;
 
     @Before
     public void setUp() {
@@ -281,6 +291,78 @@ public class AbstractFactoryTest {
         assertThat(factory.channels()).isEmpty();
     }
 
+    @Test
+    public void shouldLoadFactoryConfiguration_ConfigFileExists() throws IOException, DataConversionException {
+        // preparing test data
+        factory.add(device);
+        doReturn("dxxxB1C3").when(device).getName();
+        File configuration = factory.configurationFile();
+        if (configuration.exists() && !configuration.delete()) {
+            fail("Cannot delete file: " + configuration.getAbsolutePath());
+        }
+        configuration.deleteOnExit();
+        Files.copy(Paths.get("./conf/dialogic.configuration.xml"), configuration.toPath());
+
+        // acting
+        factory.loadFactoryConfiguration();
+
+        // check the behavior
+        verify(factory).restoreDocumentFrom(any(InputStream.class));
+        verify(factory).devices();
+        verify(device).setXML(any(Element.class));
+        // check results
+    }
+
+    @Test
+    public void shouldLoadFactoryConfiguration_ConfigFileNotExists() throws IOException, DataConversionException {
+        // preparing test data
+        factory.add(device);
+        doReturn("dxxxB1C3").when(device).getName();
+        File configuration = factory.configurationFile();
+        if (configuration.exists() && !configuration.delete()) {
+            fail("Cannot delete file: " + configuration.getAbsolutePath());
+        }
+        configuration.deleteOnExit();
+
+        // acting
+        factory.loadFactoryConfiguration();
+
+        // check the behavior
+        verify(factory).saveFactoryConfiguration();
+        verify(factory, times(2)).loadFactoryConfiguration();
+        verify(factory).restoreDocumentFrom(any(InputStream.class));
+        verify(factory).devices();
+        verify(device).setXML(any(Element.class));
+        // check results
+        assertThat(configuration).exists();
+        assertThat(configuration.delete()).isTrue();
+    }
+
+    @Test
+    public void shouldSaveFactoryConfiguration() throws IOException {
+        // preparing test data
+        doReturn("dxxxB1C3").when(device).getName();
+        doReturn(new Element("device").setAttribute("name", "dxxxB1C3")).when(device).getXML();
+        File configuration = factory.configurationFile();
+        if (configuration.exists() && !configuration.delete()) {
+            fail("Cannot delete file: " + configuration.getAbsolutePath());
+        }
+        assertThat(configuration.exists()).isFalse();
+        configuration.deleteOnExit();
+        factory.addDevice(device);
+
+        // acting
+        factory.saveFactoryConfiguration();
+
+        // check the behavior
+        verify(factory, atLeastOnce()).configurationFile();
+        verify(factory, atLeastOnce()).getConfigurationDocument();
+        verify(factory, atLeastOnce()).store(any(Document.class), any(OutputStream.class));
+        // check results
+        assertThat(configuration).exists();
+        assertThat(configuration.delete()).isTrue();
+    }
+
     /// / inner classes
     private static class TestFactory<H, D extends Device<?, ?>> extends AbstractFactory<H, D> {
         public TestFactory(Executor deviceEventExecutor, DeviceEvent.Provider<H> eventsProvider) {
@@ -295,6 +377,11 @@ public class AbstractFactoryTest {
         @Override
         public String getVersion() {
             return deviceVendorVersion;
+        }
+
+        @Override
+        public Element defaultDeviceXml() {
+            return new Element("test-device-default");
         }
 
         @Override

@@ -37,10 +37,11 @@ Fax number: 217-356-3356
 */
 package org.visualcti.media;
 
-import java.io.IOException;
-import java.util.*;
+import javax.media.format.AudioFormat;
+import javax.media.format.UnsupportedFormatException;
 
-import javax.media.format.*;
+import java.io.IOException;
+import java.util.Arrays;
 
 /**
  * enumeration describe the formats of audio data
@@ -72,6 +73,7 @@ public enum Audio implements AudioMedia {
      * @see AudioFormat
      */
     public static Audio from(final AudioFormat format) throws UnsupportedFormatException {
+        javax.sound.sampled.AudioFormat javaSoundFormat;
         final double sampleRate = format.getSampleRate();
         try {
             AudioMedia.checkSampleRate((double) sampleRate);

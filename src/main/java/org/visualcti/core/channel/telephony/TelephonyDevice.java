@@ -93,8 +93,6 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
             MultimediaEngine.Parameter.ALLOWED_CODECS
     };
     // XML-Configuration elements' and attributes' names
-    String DEFAULT_ROOT = "default";
-    String DEVICE_ROOT = "device";
     String DEVICE_NETWORK_ROOT = "network";
     String DEVICE_MEDIA_ROOT = "media";
     String DEVICE_MEDIA_TONE_ROOT = "tone";
@@ -102,8 +100,6 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
     String DEVICE_MEDIA_TONE_NAME_ATTRIBUTE = "name";
     String DEVICE_PARAMETER_TYPE_ATTRIBUTE = "type";
     String DEVICE_PARAMETER_VALUE_ATTRIBUTE = "value";
-    String DEVICE_NAME_ATTRIBUTE = "name";
-    String DEVICE_TYPE_ATTRIBUTE = "type";
     String DEVICE_TYPE_ANALOG = "analog";
 
 
@@ -563,42 +559,6 @@ public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> exte
             PhoneCallSession<H> session, InputStream source, Audio format, String terminationSymbolsMask, int timeout
     ) {
         return Result.ERROR;
-    }
-
-    /**
-     * <action>
-     * Playback the audio stream.
-     * <p>
-     * Possible values of the playing back operation result:
-     * <p>
-     * {@link Result.IO#EOF} - the playback reached end of stream;
-     * {@link Result.IO#DTMF} - the playback is interrupted by symbol from the termination mask.<BR/>
-     * The symbol, which cause the playback interruption can be got by the {@link TonesEngine#getInputSymbols(PhoneCallSession)};<BR/>
-     * {@link Result#TIMEOUT} - the time of playback was exceeded.<BR/>
-     * {@link Result.CALL#DISCONNECT} - the playback is interrupted by telephony line disconnection;<BR/>
-     * {@link Result.IO#FORMAT} - the format of audio does not support by device.<BR/>
-     * {@link Result#TERMINATED} - the operation is interrupted by system.
-     *
-     * @param session                the phone call's session, device is working with
-     * @param sound                  the audio sound which contains format and input stream to the media data
-     * @param terminationSymbolsMask set of symbols finishing up the playing (mask). The mask is passed to the method
-     *                               as any combination of comma separated symbols<BR/>(0-9,*,#), for example: " 1, 2, #, 0 ".
-     * @param timeout                maximum time of playing back in seconds (-1 for unlimited, waiting for end of stream)
-     * @return the operation's result
-     * @see OperationResultValue
-     * @see Sound#getInputStream()
-     * @see Sound#getFormat()
-     * @see MultimediaEngine#playbackAudio(PhoneCallSession, InputStream, Audio, String, int)
-     */
-    default OperationResultValue playbackAudio(
-            final PhoneCallSession<H> session, final Sound sound, final String terminationSymbolsMask,
-            final int timeout) {
-        try {
-            return playbackAudio(session, sound.getInputStream(), sound.getFormat(), terminationSymbolsMask, timeout);
-        } catch (IOException e) {
-            dispatchError(e, "Cannot play audio sound");
-            return Result.ERROR;
-        }
     }
 
     /**

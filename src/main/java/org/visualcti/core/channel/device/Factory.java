@@ -37,11 +37,21 @@ Fax number: 217-356-3356
 */
 package org.visualcti.core.channel.device;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
+import org.jdom.DataConversionException;
+import org.jdom.Document;
+import org.jdom.Element;
 import org.visualcti.core.channel.Channel;
 import org.visualcti.server.core.unit.RunnableServerUnit;
+import org.visualcti.server.core.unit.ServerUnit;
 
 /**
  * The Factory of the Devices: The factory of the channel-devices
@@ -57,6 +67,8 @@ public interface Factory<H, D extends Device<?, ?>> extends RunnableServerUnit, 
     String ELEMENT = "factory";
     // the value of type the server unit
     String UNIT_TYPE = "[channel-devices-board]";
+    // the suffix of factory vendor's configuration file
+    String CONFIG_FILE_SUFFIX = ".configuration.xml";
 
     /**
      * <accessor>
@@ -98,6 +110,21 @@ public interface Factory<H, D extends Device<?, ?>> extends RunnableServerUnit, 
     }
 
     /**
+     * <mutator>
+     * To add new device to the devices factory
+     *
+     * @param device the device to add
+     * @see Device
+     * @see RunnableServerUnit#add(ServerUnit)
+     * @see #devices()
+     * @throws IOException if it cannot add te device
+     */
+    default void addDevice(Device<H, ?> device) throws IOException {
+        this.add(device);
+        saveFactoryConfigurationFor(device);
+    }
+
+    /**
      * <producer>
      * To make the stream of devices.
      *
@@ -111,7 +138,7 @@ public interface Factory<H, D extends Device<?, ?>> extends RunnableServerUnit, 
     }
 
     /**
-     * <aceessor>
+     * <accessor>
      * to get the array of available factory's channels
      *
      * @return the array of available channels
@@ -120,7 +147,7 @@ public interface Factory<H, D extends Device<?, ?>> extends RunnableServerUnit, 
     Collection<Channel<?>> channels();
 
     /**
-     * <aceessor>
+     * <accessor>
      * to get the device instance by the name
      *
      * @param name the name of device in the factory
@@ -131,5 +158,96 @@ public interface Factory<H, D extends Device<?, ?>> extends RunnableServerUnit, 
      */
     default Optional<D> getDevice(String name) {
         return devices().filter(d -> d.getName().equals(name)).findFirst();
+    }
+
+    /**
+     * <accessor>
+     * to get the root xml-document of the configuration
+     *
+     * @return root xml-document of the configuration instance
+     * @see Document
+     */
+    default Document getConfigurationDocument() {
+        throw new UnsupportedOperationException("Not implemented yet.");
+    }
+
+    /**
+     * <accessor>
+     * to get the configuration file
+     *
+     * @return configuration file instance
+     * @see File
+     * @see #getVendor()
+     * @see #CONFIG_FILE_SUFFIX
+     * @see #saveFactoryConfiguration()
+     * @see #loadFactoryConfiguration()
+     */
+    default File configurationFile() {
+        return new File(getVendor().toLowerCase() + CONFIG_FILE_SUFFIX);
+    }
+
+    /**
+     * <configuration-saver>
+     * To save the vendor specific configuration of the factory to the external file
+     *
+     * @throws IOException if it cannot save configuration
+     * @see #configurationFile()
+     * @see #getConfigurationDocument()
+     * @see #store(Document, OutputStream)
+     */
+    default void saveFactoryConfiguration() throws IOException {
+        // saving factory configuration to the external file
+        try (final FileOutputStream out = new FileOutputStream(configurationFile())) {
+            store(getConfigurationDocument(), out);
+        }
+    }
+
+    /**
+     * <configuration-loader>
+     * To load the vendor specific configuration of the factory from the external file
+     *
+     * @throws IOException if it cannot load configuration
+     * @see #configurationFile()
+     * @see #restoreDocumentFrom(InputStream)
+     */
+    default void loadFactoryConfiguration() throws IOException, DataConversionException {
+        throw new UnsupportedOperationException("Not implemented yet.");
+    }
+
+    /**
+     * <accessor>
+     * to get the default configuration for factory's device
+     *
+     * @return the default configuration for factory's device
+     * @see Element
+     * @see #loadFactoryConfiguration()
+     */
+    default Element defaultDeviceXml() {
+        throw new UnsupportedOperationException("Not implemented yet.");
+    }
+
+
+    /**
+     * <configuration-saver>
+     * To save the vendor specific configuration of the factory for updated device only
+     *
+     * @throws IOException if it cannot save configuration
+     * @see #getConfigurationDocument()
+     * @see Document#getRootElement()
+     * @see #saveFactoryConfiguration()
+     */
+    default void saveFactoryConfigurationFor(final Device<H, ?> device) throws IOException {
+        final String deviceName = device.getName();
+        final Element configuration = getConfigurationDocument().getRootElement();
+        final List<Element> children = configuration.getChildren(Device.DEVICE_ROOT);
+        for (final Element deviceXml : children) {
+            if (deviceName.equalsIgnoreCase(deviceXml.getAttributeValue(Device.DEVICE_NAME_ATTRIBUTE))) {
+                configuration.removeContent(deviceXml.detach());
+            }
+        }
+        // adding device's xml-element to the factory's configuration
+        configuration.addContent(device.getXML());
+        // saving updated vendor specific configuration
+        saveFactoryConfiguration();
     }
 }

@@ -121,7 +121,7 @@ Fax number: 217-356-3356
     <system>
       <Hardware>
         <Manager package="org.visualcti.server.hardware" class="Manager" extends="org.visualcti.server.core.executable.Engine">
-          <parent package="org.visualcti.server.hardware" class="HardwareManager" method="getManager">The realization of hardware manager's features</parent>
+          <parent package="org.visualcti.server.hardware" class="HardwareManager" method="getManager">The implementation of hardware manager's features</parent>
         </Manager>
         <factory package="org.visualcti.server.hardware.provider" class="stubDeviceFactory" extends="org.visualcti.server.hardware.deviceFactory">
           <parameter name="device count" type="number" value="4" />
@@ -129,7 +129,7 @@ Fax number: 217-356-3356
         </factory>
         <!--        <factory package="org.visualcti.server.hardware.provider.dialogic" class="Factory" extends="org.visualcti.server.hardware.deviceFactory">-->
         <!--          <parameter name="vendor" type="string" value="Dialogic" />-->
-        <!--          <parameter name="url" type="string" value="file:./dialogic.configuration.xml" />-->
+        <!--          <parameter name="url" type="string" value="file:./conf/dialogic.configuration.xml" />-->
         <!--        </factory>-->
       </Hardware>
     </system>
