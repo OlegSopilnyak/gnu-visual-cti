@@ -65,7 +65,7 @@ import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.adapter.AbstractDeviceEvent;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.TelephonyDevice;
-import org.visualcti.core.channel.telephony.TelephonyDeviceFactory;
+import org.visualcti.core.channel.telephony.TelephonyFactory;
 import org.visualcti.core.channel.telephony.TelephonyServiceProvider;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
 import org.visualcti.core.channel.telephony.operation.Result;
@@ -461,7 +461,7 @@ public class PhoneCallSessionTest {
     public void shouldAccept_DeviceSpecificEvent() {
         // preparing test data
         doReturn(deviceName).when(device).getName();
-        TelephonyDeviceFactory<String, ?> factory = mock(TelephonyDeviceFactory.class);
+        TelephonyFactory<String, ?> factory = mock(TelephonyFactory.class);
         doReturn(factory).when(device).getFactory();
         DeviceEvent<String> event = spy(AbstractDeviceEvent.<String>of(DeviceEvent.Type.DEVICE_SPECIFIC)
                 .deviceName(deviceName).deviceHandle(handle)
@@ -481,7 +481,7 @@ public class PhoneCallSessionTest {
     public void shouldAccept_NotDeviceSpecificEvent() {
         // preparing test data
         doReturn(deviceName).when(device).getName();
-        TelephonyDeviceFactory<String, ?> factory = mock(TelephonyDeviceFactory.class);
+        TelephonyFactory<String, ?> factory = mock(TelephonyFactory.class);
         doReturn(factory).when(device).getFactory();
         DeviceEvent<String> event = spy(AbstractDeviceEvent.<String>of(DeviceEvent.Type.INCOMING)
                 .deviceName(deviceName).deviceHandle(handle)
@@ -501,7 +501,7 @@ public class PhoneCallSessionTest {
     public void shouldProceedDeviceSpecificEvent_RingsReason_Idle() {
         // preparing test data
         doReturn(deviceName).when(device).getName();
-        TelephonyDeviceFactory<String, ?> factory = mock(TelephonyDeviceFactory.class);
+        TelephonyFactory<String, ?> factory = mock(TelephonyFactory.class);
         doReturn(factory).when(device).getFactory();
         DeviceEvent<String> event = spy(AbstractDeviceEvent.<String>of(DeviceEvent.Type.DEVICE_SPECIFIC)
                 .deviceName(deviceName).deviceHandle(handle)
@@ -530,7 +530,7 @@ public class PhoneCallSessionTest {
         // preparing test data
         session.setState(TelephonyDevice.State.WAIT);
         doReturn(deviceName).when(device).getName();
-        TelephonyDeviceFactory<String, ?> factory = mock(TelephonyDeviceFactory.class);
+        TelephonyFactory<String, ?> factory = mock(TelephonyFactory.class);
         doReturn(factory).when(device).getFactory();
         DeviceEvent<String> event = spy(AbstractDeviceEvent.<String>of(DeviceEvent.Type.DEVICE_SPECIFIC)
                 .deviceName(deviceName).deviceHandle(handle)
@@ -551,7 +551,7 @@ public class PhoneCallSessionTest {
     public void shouldProceedDeviceSpecificEvent_Terminated() throws IOException {
         // preparing test data
         doReturn(deviceName).when(device).getName();
-        TelephonyDeviceFactory<String, ?> factory = mock(TelephonyDeviceFactory.class);
+        TelephonyFactory<String, ?> factory = mock(TelephonyFactory.class);
         doReturn(factory).when(device).getFactory();
         DeviceEvent<String> event = spy(AbstractDeviceEvent.<String>of(DeviceEvent.Type.DEVICE_SPECIFIC)
                 .deviceName(deviceName).deviceHandle(handle)
@@ -570,7 +570,7 @@ public class PhoneCallSessionTest {
     public void shouldProceedDeviceSpecificEvent_Disconnected() {
         // preparing test data
         doReturn(deviceName).when(device).getName();
-        TelephonyDeviceFactory<String, ?> factory = mock(TelephonyDeviceFactory.class);
+        TelephonyFactory<String, ?> factory = mock(TelephonyFactory.class);
         doReturn(factory).when(device).getFactory();
         DeviceEvent<String> event = spy(AbstractDeviceEvent.<String>of(DeviceEvent.Type.DEVICE_SPECIFIC)
                 .deviceName(deviceName).deviceHandle(handle)
@@ -591,7 +591,7 @@ public class PhoneCallSessionTest {
         // preparing test data
         String userInput = "123";
         doReturn(deviceName).when(device).getName();
-        TelephonyDeviceFactory<String, ?> factory = mock(TelephonyDeviceFactory.class);
+        TelephonyFactory<String, ?> factory = mock(TelephonyFactory.class);
         doReturn(factory).when(device).getFactory();
         DeviceEvent<String> event = spy(AbstractDeviceEvent.<String>of(DeviceEvent.Type.DEVICE_SPECIFIC)
                 .deviceName(deviceName).deviceHandle(handle)
@@ -619,7 +619,7 @@ public class PhoneCallSessionTest {
     public void shouldAccept_MalfunctionEvent() {
         // preparing test data
         doReturn(deviceName).when(device).getName();
-        TelephonyDeviceFactory<String, ?> factory = mock(TelephonyDeviceFactory.class);
+        TelephonyFactory<String, ?> factory = mock(TelephonyFactory.class);
         doReturn(factory).when(device).getFactory();
         DeviceEvent<String> event = spy(AbstractDeviceEvent.<String>of(DeviceEvent.Type.MALFUNCTION)
                 .deviceName(deviceName).deviceHandle(handle)
@@ -640,7 +640,7 @@ public class PhoneCallSessionTest {
         // preparing test data
         String errorDescription = "error description";
         doReturn(deviceName).when(device).getName();
-        TelephonyDeviceFactory<String, ?> factory = mock(TelephonyDeviceFactory.class);
+        TelephonyFactory<String, ?> factory = mock(TelephonyFactory.class);
         doReturn(factory).when(device).getFactory();
         DeviceEvent<String> event = spy(AbstractDeviceEvent.<String>of(DeviceEvent.Type.MALFUNCTION)
                 .deviceName(deviceName).deviceHandle(handle).description(errorDescription)

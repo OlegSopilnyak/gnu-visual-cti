@@ -85,8 +85,8 @@ public class AbstractDeviceTest<H> {
     public void setUp() throws IOException {
         deviceEventExecutor = mock(Executor.class);
         eventsProvider = mock(DeviceEvent.Provider.class);
-        hub = spy(new AbstractFactory.DefaultDeviceEventListenersHub());
-        factory = spy(new AbstractFactory(deviceEventExecutor, eventsProvider, hub) {
+        hub = spy(new AbstractGeneralFactory.DefaultDeviceEventListenersHub());
+        factory = spy(new AbstractGeneralFactory(deviceEventExecutor, eventsProvider, hub) {
             @Override
             public String getVendor() {
                 return deviceVendor;

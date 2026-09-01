@@ -132,7 +132,7 @@ public class AbstractTelephonyDeviceTest<H> {
     Executor deviceEventExecutor;
     ScheduledExecutorService shadowExecutor;
     DeviceEvent.Provider<?> eventsProvider;
-    AbstractTelephonyDeviceFactory<H, ?> factory;
+    AbstractTelephonyFactory<H, ?> factory;
     AbstractTelephonyDevice<H, ?> device;
     PhoneCallSession<H> session;
     AbstractTelephonyDevice<H, ?> mockedDevice;
@@ -177,8 +177,9 @@ public class AbstractTelephonyDeviceTest<H> {
         }).when(deviceEventExecutor).execute(any(Runnable.class));
         eventsProvider = mock(DeviceEvent.Provider.class);
         factory = spy(new TestFactory<>(deviceEventExecutor, eventsProvider));
-        factory.add(device);
-        factory.add(mockedDevice);
+        factory.addDevice(device);
+        device.setXML(new Element(deviceVendor));
+        factory.addDevice(mockedDevice);
         session = (PhoneCallSession<H>) device.startSession();
     }
 
@@ -1675,6 +1676,7 @@ public class AbstractTelephonyDeviceTest<H> {
         Device.ParameterName name = PLAYBACK_CODEC;
         ConfigurationParameter playbackCodec = spy(ConfigurationParameter.of(name.value(), audio));
         device.setParameter(name, playbackCodec);
+        reset(device);
 
         // acting
         Audio rawAudio = device.getRawFormat();
@@ -1692,7 +1694,8 @@ public class AbstractTelephonyDeviceTest<H> {
         // preparing test data
         media.uses(device);
         Device.ParameterName name = PLAYBACK_CODEC;
-        Audio defaultCodec = device.defaultPlaybackCodec();
+        Audio defaultCodec = factory.defaultPlaybackCodec();
+        reset(device);
 
         // acting
         Audio rawAudio = device.getRawFormat();
@@ -1891,6 +1894,7 @@ public class AbstractTelephonyDeviceTest<H> {
         Audio audio = Audio.LINEAR;
         Device.ParameterName name = RECORD_CODEC;
         device.setParameter(name, spy(ConfigurationParameter.of(name.value(), audio)));
+        reset(device);
 
         // acting
         Audio[] all = device.canRecord();
@@ -1907,7 +1911,8 @@ public class AbstractTelephonyDeviceTest<H> {
     public void shouldCannotRecord_NoAvailableCodecs() {
         // preparing test data
         media.uses(device);
-        Audio defaultCodec = device.defaultRecordCodec();
+        Audio defaultCodec = factory.defaultRecordCodec();
+        reset(device);
 
         // acting
         Audio[] all = device.canRecord();
@@ -1974,6 +1979,7 @@ public class AbstractTelephonyDeviceTest<H> {
         Device.ParameterName name = RECORD_CODEC;
         ConfigurationParameter recordCodec = spy(ConfigurationParameter.of(name.value(), audio));
         device.setParameter(name, recordCodec);
+        reset(device);
 
         // acting
         Audio rawAudio = device.getRecordFormat();
@@ -1991,7 +1997,8 @@ public class AbstractTelephonyDeviceTest<H> {
         // preparing test data
         media.uses(device);
         Device.ParameterName name = RECORD_CODEC;
-        Audio defaultCodec = device.defaultRecordCodec();
+        Audio defaultCodec = factory.defaultRecordCodec();
+        reset(device);
 
         // acting
         Audio rawAudio = device.getRecordFormat();
@@ -2456,9 +2463,10 @@ public class AbstractTelephonyDeviceTest<H> {
         doReturn(faxHandle).when(provider).openFaxResource(telephonyDeviceName);
         doReturn(true).when(provider).startFaxTransmitting(eq(faxHandle), anyString(), eq(issueVoiceRequest),
                 eq(format.isTIFF()), eq(format.isHighResolution()), anyInt(), anyInt());
+        faxes.uses(device);
         faxes.open(session);
         session.alive(true);
-        reset(faxes, session);
+        reset(device, faxes, session);
 
         // acting
         Future<OperationResultValue> action = shadowExecutor.submit(
@@ -2472,7 +2480,7 @@ public class AbstractTelephonyDeviceTest<H> {
         verify(device).isOpened();
         verify(faxes).transmit(session, source, format, issueVoiceRequest);
         verifyEngineSessionProceedingAbility(faxes, session);
-        verify(device).getProvider();
+        verify(device, times(2)).getProvider();
         verifyTransmitFaxEventsManagement(provider, faxHandle);
         verify(provider).startFaxTransmitting(eq(faxHandle), anyString(), eq(issueVoiceRequest),
                 eq(format.isTIFF()), eq(format.isHighResolution()), anyInt(), anyInt());
@@ -2665,21 +2673,22 @@ public class AbstractTelephonyDeviceTest<H> {
                         "  </device>\n" +
                         "</device-vendor>\n";
         Element xml = device.load(new ByteArrayInputStream(configuration.getBytes()));
+        reset(device);
 
         // acting
         device.setXML(xml);
 
         // check the behavior
-        verify(device, times(2)).applyDeviceNetworkParameters(any(Element.class));
+        verify(device, times(3)).applyDeviceNetworkParameters(any(Element.class));
         verify(device, times(3)).setParameter(eq(CallsPortEngine.Parameter.ACCEPT_CALL_ALLOWED), any(ConfigurationParameter.class));
         verify(device, times(3)).setParameter(eq(CallsPortEngine.Parameter.MAKE_CALL_ALLOWED), any(ConfigurationParameter.class));
         verify(device, times(3)).setParameter(eq(CallsPortEngine.Parameter.SHARE_CALL_PORT_ALLOWED), any(ConfigurationParameter.class));
         verify(device, times(3)).setParameter(eq(CallsPortEngine.Parameter.ORIGIN), any(ConfigurationParameter.class));
         verify(device).setParameter(eq(FaxMachineEngine.Parameter.FAX_ALLOWED), any(ConfigurationParameter.class));
-        verify(device, times(2)).applyDeviceMediaParameters(any(Element.class));
+        verify(device, times(3)).applyDeviceMediaParameters(any(Element.class));
         verify(device, times(3)).setParameter(eq(MultimediaEngine.Parameter.PLAYBACK_CODEC), any(ConfigurationParameter.class));
         verify(device, times(3)).setParameter(eq(MultimediaEngine.Parameter.RECORD_CODEC), any(ConfigurationParameter.class));
-        verify(device).setParameter(eq(TonesEngine.Parameter.TONES_TABLE), any(ConfigurationParameter.class));
+        verify(device, never()).setParameter(eq(TonesEngine.Parameter.TONES_TABLE), any(ConfigurationParameter.class));
         // check results
         // device network parameters values
         assertThat(device.getParameter(CallsPortEngine.Parameter.ACCEPT_CALL_ALLOWED)).isPresent();
@@ -2762,21 +2771,22 @@ public class AbstractTelephonyDeviceTest<H> {
                         "  </device>\n" +
                         "</device-vendor>\n";
         Element xml = device.load(new ByteArrayInputStream(configuration.getBytes()));
+        reset(device);
 
         // acting
         device.setXML(xml);
 
         // check the behavior
-        verify(device).applyDeviceNetworkParameters(any(Element.class));
+        verify(device, times(2)).applyDeviceNetworkParameters(any(Element.class));
         verify(device, times(2)).setParameter(eq(CallsPortEngine.Parameter.ACCEPT_CALL_ALLOWED), any(ConfigurationParameter.class));
         verify(device, times(2)).setParameter(eq(CallsPortEngine.Parameter.MAKE_CALL_ALLOWED), any(ConfigurationParameter.class));
         verify(device, times(2)).setParameter(eq(CallsPortEngine.Parameter.SHARE_CALL_PORT_ALLOWED), any(ConfigurationParameter.class));
         verify(device, times(2)).setParameter(eq(CallsPortEngine.Parameter.ORIGIN), any(ConfigurationParameter.class));
         verify(device, never()).setParameter(eq(FaxMachineEngine.Parameter.FAX_ALLOWED), any(ConfigurationParameter.class));
-        verify(device).applyDeviceMediaParameters(any(Element.class));
+        verify(device, times(2)).applyDeviceMediaParameters(any(Element.class));
         verify(device, times(2)).setParameter(eq(MultimediaEngine.Parameter.PLAYBACK_CODEC), any(ConfigurationParameter.class));
         verify(device, times(2)).setParameter(eq(MultimediaEngine.Parameter.RECORD_CODEC), any(ConfigurationParameter.class));
-        verify(device).setParameter(eq(TonesEngine.Parameter.TONES_TABLE), any(ConfigurationParameter.class));
+        verify(device, never()).setParameter(eq(TonesEngine.Parameter.TONES_TABLE), any(ConfigurationParameter.class));
         // check results
         // device network parameters values
         assertThat(device.getParameter(CallsPortEngine.Parameter.ACCEPT_CALL_ALLOWED)).isPresent();
@@ -2945,7 +2955,7 @@ public class AbstractTelephonyDeviceTest<H> {
     }
 
     /// inner classes
-    private static class TestFactory<H, T extends TelephonyDevice<H, ?>> extends AbstractTelephonyDeviceFactory<H, T> {
+    private static class TestFactory<H, T extends TelephonyDevice<H, ?>> extends AbstractTelephonyFactory<H, T> {
         public TestFactory(Executor deviceEventExecutor, DeviceEvent.Provider eventsProvider) {
             super(deviceEventExecutor, eventsProvider);
         }

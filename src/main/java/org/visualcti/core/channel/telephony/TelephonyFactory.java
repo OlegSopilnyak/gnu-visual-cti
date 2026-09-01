@@ -42,7 +42,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Stream;
 import org.visualcti.core.channel.Channel;
-import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.Factory;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
@@ -50,15 +49,15 @@ import org.visualcti.core.channel.telephony.operation.Result;
 import org.visualcti.media.Sound;
 
 /**
- * The Factory of the Telephony Devices: The factory of the telephony channel-devices
+ * The Factory of the Devices: The factory of the telephony channel-devices
  *
- * @param <H> the type of the telephony device's low-level operations handle
- * @param <D> the type of factory's devices
+ * @param <H> the type of the telephony device's low-level operations' handle
+ * @param <TD> the type of factory's telephony device
  * @see TelephonyDevice
  * @see Factory
  */
 @SuppressWarnings({"unchecked", "rawtypes"})
-public interface TelephonyDeviceFactory<H, D extends TelephonyDevice<?, ?>> extends Factory<H, D> {
+public interface TelephonyFactory<H, TD extends TelephonyDevice<?, ?>> extends Factory<H, TD> {
     // the value of type the server unit
     String UNIT_TYPE = "[telephony-channel-devices-board]";
 
@@ -75,17 +74,15 @@ public interface TelephonyDeviceFactory<H, D extends TelephonyDevice<?, ?>> exte
 
     /**
      * <aceessor>
-     * to get the device instance by the name
+     * To get the device instance from the factory by it name
      *
-     * @param name the name of device in the factory
-     * @return the device or empty, if device with name is not in the factory
-     * @see #devices()
-     * @see Device
-     * @see Optional
+     * @param deviceName the name of device in the factory
+     * @return the device or empty, if device with name is not exists in the factory
+     * @see Factory#getDevice(String)
      */
     @Override
-    default Optional<D> getDevice(String name) {
-        return Factory.super.getDevice(name);
+    default Optional<TD> getDevice(final String deviceName) {
+        return Factory.super.getDevice(deviceName);
     }
 
     /**
@@ -98,7 +95,7 @@ public interface TelephonyDeviceFactory<H, D extends TelephonyDevice<?, ?>> exte
      * @see Factory#devices()
      */
     @Override
-    default Stream<D> devices() {
+    default Stream<TD> devices() {
         return Factory.super.devices().filter(TelephonyDevice.class::isInstance);
     }
 
@@ -119,7 +116,7 @@ public interface TelephonyDeviceFactory<H, D extends TelephonyDevice<?, ?>> exte
      * @param handle the phone call's session's device handle, device is working with
      * @see TelephonyDevice#connect(PhoneCallSession, PhoneCall.Number, int, Sound)
      */
-    default void shareDevice(H handle) {
+    default void shareDevice(final H handle) {
         devices()
                 .filter(device -> deviceContainsHandle(device, handle))
                 .map(device -> sessionForHandle(device, handle))

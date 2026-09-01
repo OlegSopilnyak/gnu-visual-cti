@@ -43,6 +43,7 @@ import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
+import org.jdom.Element;
 import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.core.XmlAware;
 import org.visualcti.server.UnitRegistry;
@@ -108,6 +109,18 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit, XmlAware
      */
     default ServiceProvider<H> serviceProvider() {
         throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    /**
+     * <mutator>
+     * To apply device's parameters from the xml-element of the vendor's configuration
+     *
+     * @param vendorSpecificConfigurationXml the configuration of the vendor specific device's parameters
+     * @see Element
+     */
+    default Device<H, F> applyDeviceParameters(final Element vendorSpecificConfigurationXml) throws IOException {
+        // doing nothing here
+        return this;
     }
 
     /**
@@ -211,14 +224,18 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit, XmlAware
      */
     default void fillingDeviceSpecific(H handle) {
         if (!this.hasHardwareParameters()) {
+            //
             // no hardware parameters loaded from service provider
             final ServiceProvider<H> provider = serviceProvider();
-            hardwareParameterNames().forEach(name -> {
-                // getting the hardware parameter from the device service provider
-                provider.resourceParameter(handle, name).ifPresent(
-                        // storing resource's parameter to basic device parameters map
-                        parameter -> setParameter(name, parameter));
-            });
+            //
+            // iterating hardware parameters names
+            hardwareParameterNames().forEach(name ->
+                    // getting the hardware parameter by name from the device's service provider
+                    provider.resourceParameter(handle, name).ifPresent(
+                            // storing resource's hardware parameter to the basic device parameters map
+                            parameter -> setParameter(name, parameter)
+                    )
+            );
         }
     }
 
@@ -355,7 +372,6 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit, XmlAware
     default Optional<DeviceActivitySession<H>> findSessionByHandle(final H deviceHandle) {
         return sessions().filter(session -> session.hasDeviceHandle(deviceHandle)).findFirst();
     }
-
 
     /**
      * <accessor>

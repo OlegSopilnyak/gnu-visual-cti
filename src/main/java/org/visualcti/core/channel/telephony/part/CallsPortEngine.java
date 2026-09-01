@@ -38,7 +38,7 @@ Fax number: 217-356-3356
 package org.visualcti.core.channel.telephony.part;
 
 import org.visualcti.core.channel.device.Device;
-import org.visualcti.core.channel.telephony.TelephonyDeviceFactory;
+import org.visualcti.core.channel.telephony.TelephonyFactory;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
 import org.visualcti.core.channel.telephony.operation.Result;
@@ -150,7 +150,7 @@ public interface CallsPortEngine<H> extends TelephonyDevicePart<H> {
      * This flag, the factory may set in properties of the device
      *
      * @return true if device can make outgoing calls
-     * @see TelephonyDeviceFactory
+     * @see TelephonyFactory
      * @see Parameter#MAKE_CALL_ALLOWED
      */
     default boolean canMakeCall() {
@@ -192,7 +192,7 @@ public interface CallsPortEngine<H> extends TelephonyDevicePart<H> {
      * This flag, the factory may set in properties of the device
      *
      * @return true if device can be shared for another device
-     * @see TelephonyDeviceFactory
+     * @see TelephonyFactory
      * @see Parameter#SHARE_CALL_PORT_ALLOWED
      */
     default boolean canBeConnected() {

@@ -57,14 +57,19 @@ import org.visualcti.core.channel.device.Factory;
 import org.visualcti.util.Tools;
 
 /**
- * The Factory of the Devices Adapter: The factory of the channel-devices
+ * Basic: The Factory of the Devices: The abstract general channel-devices factory
+ * <p>
+ * The parent factory of any type of the devices factory.
+ * <p>
  *
- * @param <H> the type of device's handle (for low-level operations)
- * @param <D> the type of factory's devices
+ * @param <H> the type of the device's low-level operations handle
+ * @param <D> the type of factory's device
  * @see Factory
  * @see AbstractEventProcessor
  */
-public abstract class AbstractFactory<H, D extends Device<?, ?>> extends AbstractEventProcessor<H> implements Factory<H, D> {
+@SuppressWarnings("unchecked")
+public abstract class AbstractGeneralFactory<H, D extends Device<?, ?>>
+        extends AbstractEventProcessor<H> implements Factory<H, D> {
     // the holder of factory's device channels
     private final AtomicReference<Collection<Channel<?>>> channelsHolder = new AtomicReference<>(Collections.emptyList());
     // XML-Document of the list of tasks in the pool
@@ -73,17 +78,20 @@ public abstract class AbstractFactory<H, D extends Device<?, ?>> extends Abstrac
             new Element(getVendor()).addContent(defaultDeviceXml())
     ));
 
-    public AbstractFactory(Executor deviceEventExecutor, DeviceEvent.Provider<H> eventsProvider) {
+    public AbstractGeneralFactory(Executor deviceEventExecutor, DeviceEvent.Provider<H> eventsProvider) {
         this(deviceEventExecutor, eventsProvider, new DefaultDeviceEventListenersHub());
     }
 
-    protected AbstractFactory(Executor deviceEventExecutor, DeviceEvent.Provider<H> eventsProvider, DeviceEvent.Listener.Hub eventListenersHub) {
+    protected AbstractGeneralFactory(Executor deviceEventExecutor, DeviceEvent.Provider<H> eventsProvider, DeviceEvent.Listener.Hub eventListenersHub) {
         super(deviceEventExecutor, eventsProvider, eventListenersHub);
     }
 
     @Override
     public boolean equals(Object o) {
-        if (!(o instanceof AbstractFactory)) return false;
+        return o instanceof AbstractGeneralFactory && equals((AbstractGeneralFactory<H, D>) o);
+    }
+
+    public boolean equals(AbstractGeneralFactory<H, D> o) {
         return super.equals(o);
     }
 
@@ -119,11 +127,11 @@ public abstract class AbstractFactory<H, D extends Device<?, ?>> extends Abstrac
         final File configurationFile = configurationFile();
         if (configurationFile.exists()) {
             try (final FileInputStream in = new FileInputStream(configurationFile)) {
-                // getting the factory devices' configuration from external file
-                final Element configuration = restoreDocumentFrom(in).getRootElement();
+                // getting the factory devices' configuration from the vendor's external file
+                final Element vendorConfigurationXml = restoreDocumentFrom(in).getRootElement();
                 // passing it to all factory's devices
                 for (final D device : (Iterable<D>) devices()::iterator) {
-                    device.setXML(configuration);
+                    device.setXML(vendorConfigurationXml);
                 }
             }
         } else {

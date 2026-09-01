@@ -44,6 +44,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Stream;
 import org.jdom.DataConversionException;
@@ -72,9 +73,9 @@ public interface Factory<H, D extends Device<?, ?>> extends RunnableServerUnit, 
 
     /**
      * <accessor>
-     * get access to factory's vendor name
+     * get access to the devices factory vendor's name value
      *
-     * @return vendor's name
+     * @return vendor's name value
      */
     String getVendor();
 
@@ -110,18 +111,32 @@ public interface Factory<H, D extends Device<?, ?>> extends RunnableServerUnit, 
     }
 
     /**
+     * <builder>
+     * To build the device's instance
+     *
+     * @param deviceName the name of device to build
+     * @param serviceProvider the provider of the devices factory's services
+     * @return built device's instance
+     * @throws IOException if it cannot build the device
+     * @see Device
+     * @see Device.ServiceProvider
+     */
+    default Device<H, ?> buildDevice(String deviceName, Device.ServiceProvider<H> serviceProvider) throws IOException {
+        throw new UnsupportedOperationException("Not implemented yet.");
+    }
+
+    /**
      * <mutator>
      * To add new device to the devices factory
      *
      * @param device the device to add
+     * @throws IOException if it cannot add te device
      * @see Device
      * @see RunnableServerUnit#add(ServerUnit)
      * @see #devices()
-     * @throws IOException if it cannot add te device
      */
-    default void addDevice(Device<H, ?> device) throws IOException {
-        this.add(device);
-        saveFactoryConfigurationFor(device);
+    default void addDevice(final Device<H, ?> device) throws IOException {
+        this.add(device.applyDeviceParameters(this.defaultDeviceXml()));
     }
 
     /**
@@ -148,16 +163,16 @@ public interface Factory<H, D extends Device<?, ?>> extends RunnableServerUnit, 
 
     /**
      * <accessor>
-     * to get the device instance by the name
+     * To get the device instance from the factory by it name
      *
-     * @param name the name of device in the factory
-     * @return the device or empty, if device with name is not in the factory
+     * @param deviceName the name of device in the factory
+     * @return the device or empty, if device with name is not exists in the factory
      * @see #devices()
-     * @see Device
+     * @see Device#getName()
      * @see Optional
      */
-    default Optional<D> getDevice(String name) {
-        return devices().filter(d -> d.getName().equals(name)).findFirst();
+    default Optional<D> getDevice(final String deviceName) {
+        return devices().filter(device -> Objects.equals(device.getName(), deviceName)).findFirst();
     }
 
     /**
@@ -238,15 +253,16 @@ public interface Factory<H, D extends Device<?, ?>> extends RunnableServerUnit, 
      */
     default void saveFactoryConfigurationFor(final Device<H, ?> device) throws IOException {
         final String deviceName = device.getName();
-        final Element configuration = getConfigurationDocument().getRootElement();
-        final List<Element> children = configuration.getChildren(Device.DEVICE_ROOT);
+        final Element factoryConfigurationXml = getConfigurationDocument().getRootElement();
+        final List<Element> children = factoryConfigurationXml.getChildren(Device.DEVICE_ROOT);
         for (final Element deviceXml : children) {
             if (deviceName.equalsIgnoreCase(deviceXml.getAttributeValue(Device.DEVICE_NAME_ATTRIBUTE))) {
-                configuration.removeContent(deviceXml.detach());
+                factoryConfigurationXml.removeContent(deviceXml.detach());
+                break;
             }
         }
         // adding device's xml-element to the factory's configuration
-        configuration.addContent(device.getXML());
+        factoryConfigurationXml.addContent(device.getXML());
         // saving updated vendor specific configuration
         saveFactoryConfiguration();
     }

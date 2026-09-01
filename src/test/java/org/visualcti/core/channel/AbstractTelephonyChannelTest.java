@@ -46,7 +46,7 @@ import static org.mockito.Mockito.verify;
 import org.junit.Before;
 import org.junit.Test;
 import org.visualcti.core.channel.telephony.TelephonyDevice;
-import org.visualcti.core.channel.telephony.TelephonyDeviceFactory;
+import org.visualcti.core.channel.telephony.TelephonyFactory;
 
 public class AbstractTelephonyChannelTest {
     String deviceName = "telephony-device-name";
@@ -114,11 +114,11 @@ public class AbstractTelephonyChannelTest {
     @Test
     public void shouldGetDeviceFactory() {
         // preparing test data
-        TelephonyDeviceFactory<?, ?> factory = mock(TelephonyDeviceFactory.class);
+        TelephonyFactory<?, ?> factory = mock(TelephonyFactory.class);
         doReturn(factory).when(device).getFactory();
 
         // acting
-        TelephonyDeviceFactory<?, ?> channelDeviceFactory = channel.getDeviceFactory();
+        TelephonyFactory<?, ?> channelDeviceFactory = channel.getDeviceFactory();
 
         // check the behavior
         verify(channel).getDevice();

@@ -81,7 +81,7 @@ public class AbstractFactoryTest<H> {
     Executor deviceEventExecutor;
     ExecutorService shadowExecutor;
     DeviceEvent.Provider<?> eventsProvider;
-    AbstractFactory<H, ?> factory;
+    AbstractGeneralFactory<H, ?> factory;
 
     @Before
     public void setUp() {
@@ -364,7 +364,7 @@ public class AbstractFactoryTest<H> {
     }
 
     /// / inner classes
-    private static class TestFactory<H, D extends Device<?, ?>> extends AbstractFactory<H, D> {
+    private static class TestFactory<H, D extends Device<?, ?>> extends AbstractGeneralFactory<H, D> {
         public TestFactory(Executor deviceEventExecutor, DeviceEvent.Provider<H> eventsProvider) {
             super(deviceEventExecutor, eventsProvider);
         }

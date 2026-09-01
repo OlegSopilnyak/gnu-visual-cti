@@ -37,7 +37,8 @@ Fax number: 217-356-3356
 */
 package org.visualcti.core.channel.telephony.adapter;
 
-import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Executor;
@@ -47,41 +48,47 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.jdom.Element;
+import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.Factory;
-import org.visualcti.core.channel.device.adapter.AbstractFactory;
+import org.visualcti.core.channel.device.adapter.AbstractGeneralFactory;
 import org.visualcti.core.channel.telephony.TelephonyChannel;
 import org.visualcti.core.channel.telephony.TelephonyDevice;
-import org.visualcti.core.channel.telephony.TelephonyDeviceFactory;
+import org.visualcti.core.channel.telephony.TelephonyFactory;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
+import org.visualcti.core.channel.telephony.operation.ToneId;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
+import org.visualcti.core.channel.telephony.operation.adapter.PhoneNumber;
+import org.visualcti.core.channel.telephony.part.CallsPortEngine;
+import org.visualcti.core.channel.telephony.part.MultimediaEngine;
+import org.visualcti.media.Audio;
 import org.visualcti.media.Sound;
 
 
 /**
- * The Abstract Factory of the Telephony Devices: The factory of the telephony channel-devices
+ * Basic: The Factory of the Devices: The abstract telephony channel-devices factory
+ * <p>
+ * The parent factory of any type of telephony devices factory.
+ * <p>
  *
- * @param <H> the type of the device's low-level operations handle
- * @param <D> the type of factory's devices
+ * @param <H>  the type of the device's low-level operations handle
+ * @param <TD> the type of factory's telephony device
  * @see TelephonyDevice
- * @see TelephonyDeviceFactory
+ * @see TelephonyFactory
+ * @see AbstractGeneralFactory
  */
 @SuppressWarnings("unchecked")
-public abstract class AbstractTelephonyDeviceFactory<H, D extends TelephonyDevice<H, ?>>
-        extends AbstractFactory<H, D> implements TelephonyDeviceFactory<H, D> {
+public abstract class AbstractTelephonyFactory<H, TD extends TelephonyDevice<H, ?>>
+        extends AbstractGeneralFactory<H, TD> implements TelephonyFactory<H, TD> {
     // to safeguard the access to the shared device sessions set
     private final Lock sessionsLock = new ReentrantLock();
+    // the attribute for the devices factory vendor's name value
+    protected String vendor = "AbstractVendor";
 
-    protected AbstractTelephonyDeviceFactory(final Executor eventsExecutor,
-                                             final DeviceEvent.Provider<H> eventsProvider) {
-        super(eventsExecutor, eventsProvider);
-    }
-
-    // to get the instance of factory's shared device sessions
-    private Set<PhoneCallSession<H>> sharedDeviceSessions() {
-        return (Set<PhoneCallSession<H>>) properties
-                .computeIfAbsent(Device.Parameter.SHARED.value(), propertyName -> new HashSet<>());
+    protected AbstractTelephonyFactory(final Executor deviceEventsExecutor, final DeviceEvent.Provider<H> eventsProvider) {
+        super(deviceEventsExecutor, eventsProvider);
     }
 
     /**
@@ -93,7 +100,7 @@ public abstract class AbstractTelephonyDeviceFactory<H, D extends TelephonyDevic
      */
     @Override
     public String getVendor() {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return vendor;
     }
 
     /**
@@ -123,7 +130,7 @@ public abstract class AbstractTelephonyDeviceFactory<H, D extends TelephonyDevic
                     // adding not exists session to shared sessions holder
                     sharedDeviceSessions().add(session);
                     // setting up session's operation result by default
-                    TelephonyDeviceFactory.super.shareDevice(session);
+                    TelephonyFactory.super.shareDevice(session);
                     return session;
                 }
                 return null;
@@ -141,9 +148,10 @@ public abstract class AbstractTelephonyDeviceFactory<H, D extends TelephonyDevic
     @Override
     public void unShareDevice(PhoneCallSession<H> session) {
         safeOperation(() -> {
-            final Set<PhoneCallSession<H>> current = sharedDeviceSessions();
-            final Set<PhoneCallSession<H>> cut = current.stream().filter(s -> !s.equals(session)).collect(Collectors.toSet());
-            properties.put(Device.Parameter.SHARED.value(), cut);
+            properties.replace(Device.Parameter.SHARED.value(), sharedDeviceSessions().stream()
+                    .filter(s -> !s.equals(session))
+                    .collect(Collectors.toCollection(LinkedHashSet::new))
+            );
             return null;
         });
     }
@@ -163,7 +171,93 @@ public abstract class AbstractTelephonyDeviceFactory<H, D extends TelephonyDevic
     @Override
     public Optional<PhoneCallSession<H>> findConnectableFor(final PhoneCall.Number callableNumber,
                                                             final PhoneCallSession<H> master) {
-        return Optional.ofNullable(safeOperation(() -> lookForNumber(callableNumber, master)));
+        return Optional.ofNullable(safeOperation(() -> lookUpForPhoneNumber(callableNumber, master)));
+    }
+
+    /**
+     * <accessor>
+     * to get the default configuration for factory's device
+     *
+     * @return the default configuration for factory's device
+     * @see Element
+     * @see #loadFactoryConfiguration()
+     */
+    @Override
+    public Element defaultDeviceXml() {
+        final Element rootElement = new Element(Device.DEFAULT_ROOT);
+        rootElement.addContent(defaultNetworkXml());
+        rootElement.addContent(defaultMediaXml());
+        return rootElement;
+    }
+
+    /**
+     * <accessor>
+     * To get the device's default codec for recording depends on the vendor
+     *
+     * @return default codec instance for recording
+     * @implNote Should be redefined in the vendor's factory implementation
+     */
+    protected Audio defaultRecordCodec() {
+        return Audio.LINEAR_16;
+    }
+
+    /**
+     * <accessor>
+     * To get the device's default codec for playing back depends on the vendor
+     *
+     * @return default codec instance for recording
+     */
+    protected Audio defaultPlaybackCodec() {
+        return Audio.LINEAR_16;
+    }
+
+    // preparing network xml-section of the telephony device
+    private Element defaultNetworkXml() {
+        return new Element(TelephonyDevice.DEVICE_NETWORK_ROOT)
+                .addContent(allowedParameter(CallsPortEngine.Parameter.ACCEPT_CALL_ALLOWED))
+                .addContent(allowedParameter(CallsPortEngine.Parameter.MAKE_CALL_ALLOWED))
+                .addContent(allowedParameter(CallsPortEngine.Parameter.SHARE_CALL_PORT_ALLOWED))
+                .addContent(defaultOriginNumber());
+    }
+
+    // prepare boolean xml-parameter
+    private Element allowedParameter(final Device.ParameterName parameterName) {
+        return ConfigurationParameter.of(parameterName.value(), true).getXml();
+    }
+
+    // prepare default origin phone number xml-parameter
+    private Element defaultOriginNumber() {
+        return ConfigurationParameter.of(
+                CallsPortEngine.Parameter.ORIGIN.value(),
+                PhoneNumber.domesticOf(123).toString()
+        ).getXml();
+    }
+
+    // preparing media xml-section of the telephony device
+    private Element defaultMediaXml() {
+        return new Element(TelephonyDevice.DEVICE_MEDIA_ROOT)
+                // tones definitions
+                .addContent(toneDefinition(ToneId.DIAL, "250,400,125,400,125,0,0,0,0,0"))
+                .addContent(toneDefinition(ToneId.BUSY, "253,500,200,0,0,55,40,55,40,4"))
+                .addContent(toneDefinition(ToneId.RINGBACK, "254,450,150,0,0,150,100,550,400,0"))
+                .addContent(toneDefinition(ToneId.DISCONNECT, "257,900,700,0,0,90,70,90,70,2"))
+                .addContent(formatDefinition(MultimediaEngine.Parameter.RECORD_CODEC, defaultRecordCodec()))
+                .addContent(formatDefinition(MultimediaEngine.Parameter.PLAYBACK_CODEC, defaultPlaybackCodec()))
+                ;
+    }
+
+    // prepare tone xml-parameter
+    private Element toneDefinition(final ToneId toneId, final String definition) {
+        return new Element(TelephonyDevice.DEVICE_MEDIA_TONE_ROOT)
+                .setAttribute(TelephonyDevice.DEVICE_MEDIA_TONE_NAME_ATTRIBUTE, toneId.toString().toLowerCase())
+                .setAttribute(TelephonyDevice.DEVICE_PARAMETER_VALUE_ATTRIBUTE, definition);
+    }
+
+    // prepare tone xml-parameter
+    private Element formatDefinition(final Device.ParameterName name, Audio format) {
+        return new Element(TelephonyDevice.DEVICE_MEDIA_CODEC_ROOT)
+                .setAttribute(TelephonyDevice.DEVICE_PARAMETER_TYPE_ATTRIBUTE, name.value().toLowerCase())
+                .setAttribute(TelephonyDevice.DEVICE_PARAMETER_VALUE_ATTRIBUTE, format.toString());
     }
 
     /**
@@ -174,33 +268,45 @@ public abstract class AbstractTelephonyDeviceFactory<H, D extends TelephonyDevic
      * @return built channel
      */
     @Override
-    protected abstract TelephonyChannel<D> makeChannelFor(Device<?, ?> device);
+    protected abstract TelephonyChannel<TD> makeChannelFor(Device<?, ?> device);
 
     @Override
     public boolean equals(Object o) {
-        if (!(o instanceof AbstractTelephonyDeviceFactory)) return false;
-        return super.equals(o);
+        return o instanceof AbstractTelephonyFactory && equals((AbstractTelephonyFactory<H, TD>) o);
+    }
+
+    public boolean equals(AbstractTelephonyFactory<H, TD> that) {
+        return Objects.equals(vendor, that.vendor) && super.equals(that);
     }
 
     @Override
     public int hashCode() {
-        return super.hashCode();
+        return Objects.hash(super.hashCode(), getVendor());
     }
 
     /// private methods
     // to do safe the related to sessions collection operation
     private PhoneCallSession<H> safeOperation(Supplier<PhoneCallSession<H>> operation) {
+        // trying to lock the access shared sessions collection
         sessionsLock.lock();
         try {
+            // doing operation with shared sessions collection
             return operation.get();
         } finally {
+            // freeing the access the shared sessions collection
             sessionsLock.unlock();
         }
     }
 
+    // to get the instance of factory's shared device sessions set
+    private Set<PhoneCallSession<H>> sharedDeviceSessions() {
+        final String sharedSessions = Device.Parameter.SHARED.value();
+        return (Set<PhoneCallSession<H>>) this.properties.computeIfAbsent(sharedSessions, pn -> new LinkedHashSet<>());
+    }
+
     // looking for the shared session which can allow to play as second one for the telephony call by phone call connection feature
-    private PhoneCallSession<H> lookForNumber(final PhoneCall.Number targetPhoneNumber,
-                                              final PhoneCallSession<H> master) {
+    private PhoneCallSession<H> lookUpForPhoneNumber(final PhoneCall.Number targetPhoneNumber,
+                                                     final PhoneCallSession<H> master) {
         // looking for session among live sessions
         final PhoneCallSession<H> aliveSession = aliveSessionWithPhoneNumber(targetPhoneNumber);
         if (Optional.ofNullable(aliveSession).isPresent()) {

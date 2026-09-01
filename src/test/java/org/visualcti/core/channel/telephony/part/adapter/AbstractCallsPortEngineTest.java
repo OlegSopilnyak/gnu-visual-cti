@@ -69,9 +69,9 @@ import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.DeviceMalfunction;
 import org.visualcti.core.channel.telephony.TelephonyChannel;
 import org.visualcti.core.channel.telephony.TelephonyDevice;
-import org.visualcti.core.channel.telephony.TelephonyDeviceFactory;
+import org.visualcti.core.channel.telephony.TelephonyFactory;
 import org.visualcti.core.channel.telephony.TelephonyServiceProvider;
-import org.visualcti.core.channel.telephony.adapter.AbstractTelephonyDeviceFactory;
+import org.visualcti.core.channel.telephony.adapter.AbstractTelephonyFactory;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
 import org.visualcti.core.channel.telephony.operation.Result;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
@@ -88,7 +88,7 @@ public class AbstractCallsPortEngineTest<H> {
     TelephonyServiceProvider<H> provider;
     String deviceName = "device-name";
     H deviceHandle = (H) "handle";
-    TelephonyDeviceFactory<H, ?> factory;
+    TelephonyFactory<H, ?> factory;
     ExecutorService deviceEventExecutor;
     DeviceEvent.Provider<H> eventsProvider;
 
@@ -105,7 +105,7 @@ public class AbstractCallsPortEngineTest<H> {
         executor = Executors.newSingleThreadScheduledExecutor();
         deviceEventExecutor = mock(ExecutorService.class);
         eventsProvider = mock(DeviceEvent.Provider.class);
-        factory = spy(new AbstractTelephonyDeviceFactory(deviceEventExecutor, eventsProvider) {
+        factory = spy(new AbstractTelephonyFactory(deviceEventExecutor, eventsProvider) {
             @Override
             public String getVendor() {
                 return deviceName + "-factory";

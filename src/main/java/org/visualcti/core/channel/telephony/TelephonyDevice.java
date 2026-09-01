@@ -68,12 +68,12 @@ import org.visualcti.server.core.unit.ServerUnit;
  *
  * @param <H> the type of the telephony device's low-level operations handle
  * @param <F> the type of the devices factory
- * @see TelephonyDeviceFactory
+ * @see TelephonyFactory
  * @see Device
  * @see CallsPortEngine
  * @see TonesEngine
  */
-public interface TelephonyDevice<H, F extends TelephonyDeviceFactory<H, ?>> extends Device<H, F>,
+public interface TelephonyDevice<H, F extends TelephonyFactory<H, ?>> extends Device<H, F>,
         // core stuff of the telephony device
         TelephonyDeviceCore<H>,
         // phone calls control engine

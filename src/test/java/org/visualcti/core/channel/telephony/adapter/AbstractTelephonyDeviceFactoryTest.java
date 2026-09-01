@@ -55,7 +55,7 @@ public class AbstractTelephonyDeviceFactoryTest {
     static String deviceVendor = "device-vendor";
     static String deviceVendorVersion = "device-vendor-version";
 
-    AbstractTelephonyDeviceFactory<?, ?> factory;
+    AbstractTelephonyFactory<?, ?> factory;
     Executor deviceEventExecutor;
     DeviceEvent.Provider eventsProvider;
 
@@ -90,7 +90,7 @@ public class AbstractTelephonyDeviceFactoryTest {
     }
 
     /// / inner classes
-    private static class TestFactory<H, T extends TelephonyDevice<H, ?>> extends AbstractTelephonyDeviceFactory<H, T> {
+    private static class TestFactory<H, T extends TelephonyDevice<H, ?>> extends AbstractTelephonyFactory<H, T> {
         public TestFactory(Executor deviceEventExecutor, DeviceEvent.Provider<H> eventsProvider) {
             super(deviceEventExecutor, eventsProvider);
         }
