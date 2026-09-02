@@ -323,6 +323,7 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
      * <converter>
      * To represent base parameters of unit as an XML element
      *
+     * @param rootElement the unit configuration root xml-element
      * @see Element
      * @see #getXML()
      */
@@ -635,6 +636,18 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
     @Override
     public void removeBranch(ServerUnit branch) {
         branches.remove(branch);
+    }
+
+    /**
+     * <mutator>
+     * to remove all branches from the server unit's units tree
+     *
+     * @see ServerUnit
+     * @see #remove(ServerUnit)
+     */
+    @Override
+    public void cleanUnitsTree() {
+        branches.clear();
     }
 
     /**

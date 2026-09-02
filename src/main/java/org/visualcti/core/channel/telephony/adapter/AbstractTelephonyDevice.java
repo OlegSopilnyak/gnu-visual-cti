@@ -845,7 +845,7 @@ public abstract class AbstractTelephonyDevice<H, T extends TelephonyFactory<H, ?
 
     /**
      * <converter>
-     * To update the entity's fields from XML
+     * To update the unit's fields from XML
      *
      * @param vendorConfigurationXml vendor specific devices factory configuration XML
      * @throws IOException             if something went wrong
@@ -875,26 +875,26 @@ public abstract class AbstractTelephonyDevice<H, T extends TelephonyFactory<H, ?
     }
 
     /**
-     * <converter>
-     * To represent entity as an XML element
+     * <mutator>
+     * To apply device's parameters from the xml-element of the device configuration
      *
-     * @return entity's XML
+     * @param vendorSpecificDeviceConfiguration the vendor specific device's configuration xml-element
      * @see Element
-     * @see ServerUnitAdapter#getXML()
+     * @see #setXML(Element)
+     * @see #applyDeviceNetworkParameters(Element)
+     * @see #applyDeviceMediaParameters(Element)
      */
     @Override
-    public Element getXML() {
-        // making the device's configuration xml-configuration element
-        final Element rootElement = new Element(DEVICE_ROOT)
-                .setAttribute(DEVICE_NAME_ATTRIBUTE, getName())
-                .setAttribute(DEVICE_TYPE_ATTRIBUTE, getDeviceType());
-        // adding network part configuration of the device
-        addDeviceNetworkPart(rootElement);
-        // adding media part configuration of the device
-        addDeviceMediaPart(rootElement);
-        // storing configured parameters xml-element
-        unitConfiguration = rootElement;
-        return rootElement;
+    public Device<H, T> applyDeviceParameters(final Element vendorSpecificDeviceConfiguration) throws IOException {
+        if (vendorSpecificDeviceConfiguration != null) {
+            // clearing cached unit-configuration
+            this.unitConfiguration = null;
+            // applying device's network parameters from xml-element of the configuration
+            applyDeviceNetworkParameters(vendorSpecificDeviceConfiguration.getChild(DEVICE_NETWORK_ROOT));
+            // applying device's media parameters from xml-element of the configuration
+            applyDeviceMediaParameters(vendorSpecificDeviceConfiguration.getChild(DEVICE_MEDIA_ROOT));
+        }
+        return this;
     }
 
     /**
@@ -915,26 +915,6 @@ public abstract class AbstractTelephonyDevice<H, T extends TelephonyFactory<H, ?
             parameters.stream().map(ConfigurationParameter::of).filter(Objects::nonNull)
                     .forEach(this::applyNetworkParameter);
         }
-    }
-
-    /**
-     * <mutator>
-     * To apply device's parameters from the xml-element of the device configuration
-     *
-     * @param vendorSpecificDeviceConfiguration the vendor specific device's configuration xml-element
-     * @see Element
-     * @see #applyDeviceNetworkParameters(Element)
-     * @see #applyDeviceMediaParameters(Element)
-     */
-    @Override
-    public Device<H, T> applyDeviceParameters(final Element vendorSpecificDeviceConfiguration) throws IOException {
-        if (vendorSpecificDeviceConfiguration != null) {
-            // applying device's network parameters from xml-element of the configuration
-            applyDeviceNetworkParameters(vendorSpecificDeviceConfiguration.getChild(DEVICE_NETWORK_ROOT));
-            // applying device's media parameters from xml-element of the configuration
-            applyDeviceMediaParameters(vendorSpecificDeviceConfiguration.getChild(DEVICE_MEDIA_ROOT));
-        }
-        return this;
     }
 
     /**
@@ -961,6 +941,40 @@ public abstract class AbstractTelephonyDevice<H, T extends TelephonyFactory<H, ?
             // registering configured tones in the service provider for the current device
             registerDeviceTones();
         }
+    }
+
+    /**
+     * <converter>
+     * To make the root only of the unit configuration xml-element (for the further unit building)
+     *
+     * @return the made root only of the unit configuration xml-element
+     * @see #getXML()
+     * @see #prepareBaseUnitXML(Element)
+     * @see #prepareUnitParametersXML(Element)
+     */
+    @Override
+    protected Element buildUnitRootElement() {
+        return new Element(DEVICE_ROOT)
+                .setAttribute(DEVICE_NAME_ATTRIBUTE, getName())
+                .setAttribute(DEVICE_TYPE_ATTRIBUTE, getDeviceType());
+    }
+
+    /**
+     * <converter>
+     * To represent base parameters of unit as an XML element
+     *
+     * @param rootElement the unit configuration root xml-element
+     * @see Element
+     * @see #getXML()
+     */
+    @Override
+    protected void prepareBaseUnitXML(final Element rootElement) {
+        // adding network part configuration of the device
+        addDeviceNetworkPart(rootElement);
+        // adding media part configuration of the device
+        addDeviceMediaPart(rootElement);
+        // storing configured parameters xml-element to the unit configuration cache
+        unitConfiguration = rootElement;
     }
 
     /// private methods
@@ -1136,15 +1150,5 @@ public abstract class AbstractTelephonyDevice<H, T extends TelephonyFactory<H, ?
         } else {
             dispatchError("Unknown parameter: " + parameterName);
         }
-    }
-
-    // setting up particular network parameters for the device
-    private void setupNetworkParameterFor(final Device.ParameterName networkParameter, final Boolean value) {
-        setParameter(networkParameter, ConfigurationParameter.of(networkParameter.value(), value));
-    }
-
-    // setting up particular network parameters for the device
-    private void setupNetworkParameterFor(final Device.ParameterName networkParameter, final Object value) {
-        setParameter(networkParameter, ConfigurationParameter.of(networkParameter.value(), value));
     }
 }

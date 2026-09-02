@@ -70,6 +70,8 @@ public interface Factory<H, D extends Device<?, ?>> extends RunnableServerUnit, 
     String UNIT_TYPE = "[channel-devices-board]";
     // the suffix of factory vendor's configuration file
     String CONFIG_FILE_SUFFIX = ".configuration.xml";
+    String VENDOR_PARAMETER_NAME = "vendor";
+    String CONFIGURATION_URL_PARAMETER_NAME = "url";
 
     /**
      * <accessor>
@@ -136,11 +138,11 @@ public interface Factory<H, D extends Device<?, ?>> extends RunnableServerUnit, 
      * @see #devices()
      */
     default void addDevice(final Device<H, ?> device) throws IOException {
-        this.add(device.applyDeviceParameters(this.defaultDeviceXml()));
+        this.add(device.applyDeviceParameters(Factory.this.defaultDeviceXml()));
     }
 
     /**
-     * <producer>
+     * <accessor>
      * To make the stream of devices.
      *
      * @return the stream of devices

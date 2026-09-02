@@ -233,7 +233,7 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit, XmlAware
                     // getting the hardware parameter by name from the device's service provider
                     provider.resourceParameter(handle, name).ifPresent(
                             // storing resource's hardware parameter to the basic device parameters map
-                            parameter -> setParameter(name, parameter)
+                            parameter -> Device.this.setParameter(name, parameter)
                     )
             );
         }

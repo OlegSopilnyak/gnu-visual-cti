@@ -43,9 +43,9 @@ import java.util.Optional;
 import java.util.stream.Stream;
 import org.visualcti.core.channel.Channel;
 import org.visualcti.core.channel.device.Factory;
-import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
 import org.visualcti.core.channel.telephony.operation.Result;
+import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.media.Sound;
 
 /**
@@ -86,7 +86,7 @@ public interface TelephonyFactory<H, TD extends TelephonyDevice<?, ?>> extends F
     }
 
     /**
-     * <producer>
+     * <accessor>
      * To make the stream of devices.
      *
      * @return the stream of devices
@@ -167,7 +167,7 @@ public interface TelephonyFactory<H, TD extends TelephonyDevice<?, ?>> extends F
      * To find shared telephony device session for the connection feature
      *
      * @param callableNumber the number to connect to
-     * @param master the session which will capture and join the connectable session
+     * @param master the session which will capture and join the another connectable session
      * @return the ready for connect session or empty if not exists
      * @see Optional
      * @see PhoneCallSession

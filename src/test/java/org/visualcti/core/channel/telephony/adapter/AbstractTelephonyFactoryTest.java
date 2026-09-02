@@ -45,14 +45,14 @@ import static org.mockito.Mockito.spy;
 import java.util.concurrent.Executor;
 import org.junit.Before;
 import org.junit.Test;
+import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.telephony.TelephonyChannel;
 import org.visualcti.core.channel.telephony.TelephonyDevice;
 
 @SuppressWarnings({"unchecked", "rawtypes"})
-public class AbstractTelephonyDeviceFactoryTest {
-    static String deviceVendor = "device-vendor";
+public class AbstractTelephonyFactoryTest {
     static String deviceVendorVersion = "device-vendor-version";
 
     AbstractTelephonyFactory<?, ?> factory;
@@ -89,15 +89,24 @@ public class AbstractTelephonyDeviceFactoryTest {
         assertThat(madeDeviceChannel.getDevice()).isSameAs(device);
     }
 
+    @Test
+    public void shouldApplyUnitParameter_VendorName() {
+        // preparing test data
+        String vendorName = "vendor-name";
+        ConfigurationParameter parameter = ConfigurationParameter.of("vendor", vendorName);
+        assertThat(factory.getVendor()).isNotEqualTo(vendorName);
+
+        // acting
+        factory.applyUnitParameter(parameter);
+
+        // check results
+        assertThat(factory.getVendor()).isEqualTo(vendorName);
+    }
+
     /// / inner classes
     private static class TestFactory<H, T extends TelephonyDevice<H, ?>> extends AbstractTelephonyFactory<H, T> {
         public TestFactory(Executor deviceEventExecutor, DeviceEvent.Provider<H> eventsProvider) {
             super(deviceEventExecutor, eventsProvider);
-        }
-
-        @Override
-        public String getVendor() {
-            return deviceVendor;
         }
 
         @Override

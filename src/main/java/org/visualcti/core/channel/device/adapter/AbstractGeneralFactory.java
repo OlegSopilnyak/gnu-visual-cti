@@ -157,7 +157,7 @@ public abstract class AbstractGeneralFactory<H, D extends Device<?, ?>>
      */
     @Override
     public Element defaultDeviceXml() {
-        return new Element("default");
+        return new Element("abstract-default");
     }
 
     /**

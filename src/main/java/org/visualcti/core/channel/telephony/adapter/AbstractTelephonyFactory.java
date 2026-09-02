@@ -37,6 +37,8 @@ Fax number: 217-356-3356
 */
 package org.visualcti.core.channel.telephony.adapter;
 
+import java.io.IOException;
+import java.net.URL;
 import java.util.LinkedHashSet;
 import java.util.Objects;
 import java.util.Optional;
@@ -48,6 +50,7 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.jdom.DataConversionException;
 import org.jdom.Element;
 import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.core.channel.device.Device;
@@ -65,6 +68,7 @@ import org.visualcti.core.channel.telephony.part.CallsPortEngine;
 import org.visualcti.core.channel.telephony.part.MultimediaEngine;
 import org.visualcti.media.Audio;
 import org.visualcti.media.Sound;
+import org.visualcti.server.unit.ServerUnitAdapter;
 
 
 /**
@@ -91,6 +95,20 @@ public abstract class AbstractTelephonyFactory<H, TD extends TelephonyDevice<H, 
         super(deviceEventsExecutor, eventsProvider);
     }
 
+    @Override
+    public boolean equals(Object o) {
+        return o instanceof AbstractTelephonyFactory && equals((AbstractTelephonyFactory<H, TD>) o);
+    }
+
+    public boolean equals(AbstractTelephonyFactory<H, TD> that) {
+        return Objects.equals(vendor, that.vendor) && super.equals(that);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(super.hashCode(), getVendor());
+    }
+
     /**
      * <accessor>
      * get access to factory's vendor name
@@ -112,6 +130,61 @@ public abstract class AbstractTelephonyFactory<H, TD extends TelephonyDevice<H, 
     @Override
     public String getVersion() {
         throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    /**
+     * <converter>
+     * To update the entity's fields from XML
+     *
+     * @param xml possible entity's XML
+     * @throws IOException             if something went wrong
+     * @throws DataConversionException if something went wrong
+     * @throws NumberFormatException   if something went wrong
+     * @throws NullPointerException    if something went wrong
+     * @see Element
+     * @see ServerUnitAdapter#setXML(Element)
+     * @see #settingUpBasePart(Element)
+     * @see #settingUpMainPart(Element)
+     */
+    @Override
+    public void setXML(Element xml) throws IOException, DataConversionException, NumberFormatException, NullPointerException {
+        // closing the exist devices
+        for (final TD device : (Iterable<TD>) devices()::iterator) {
+            device.close();
+        }
+        // to clean devices list of the factory
+        cleanUnitsTree();
+        // adjusting by xml-configuration the factory as a server unit
+        super.setXML(xml);
+    }
+
+    /**
+     * <converter>
+     * <applier>
+     * To apply configuration parameter of the server unit
+     *
+     * @param parameter the unit parameter to apply
+     * @see ConfigurationParameter
+     * @see #processParameter(ConfigurationParameter)
+     */
+    @Override
+    protected void applyUnitParameter(final ConfigurationParameter parameter) {
+        if (Objects.equals(parameter.getName(), VENDOR_PARAMETER_NAME)) {
+            // configuration parameter of the vendor's name
+            this.vendor = parameter.getValue();
+        } else if (Objects.equals(parameter.getName(), CONFIGURATION_URL_PARAMETER_NAME)) {
+            // configuration parameter of the factory vendor configuration file
+            loadingVendorConfiguration(parameter.getValue());
+        }
+    }
+
+    private void loadingVendorConfiguration(final String vendorConfigurationURL) {
+        try {
+            String configFilePath = new URL(vendorConfigurationURL).getFile();
+            loadFactoryConfiguration();
+        } catch (IOException | DataConversionException e) {
+            dispatchError(e, "Cannot load vendor configuration file: " + vendorConfigurationURL);
+        }
     }
 
     /**
@@ -181,6 +254,8 @@ public abstract class AbstractTelephonyFactory<H, TD extends TelephonyDevice<H, 
      * @return the default configuration for factory's device
      * @see Element
      * @see #loadFactoryConfiguration()
+     * @see #defaultNetworkXml()
+     * @see #defaultMediaXml()
      */
     @Override
     public Element defaultDeviceXml() {
@@ -191,10 +266,49 @@ public abstract class AbstractTelephonyFactory<H, TD extends TelephonyDevice<H, 
     }
 
     /**
+     * <builder>
+     * To prepare the network xml-section of the telephony device
+     *
+     * @return prepared telephony device network configuration-xml-section
+     * @see Element
+     * @see #defaultDeviceXml()
+     * @see #allowedParameter(Device.ParameterName)
+     */
+    protected Element defaultNetworkXml() {
+        return new Element(TelephonyDevice.DEVICE_NETWORK_ROOT)
+                .addContent(allowedParameter(CallsPortEngine.Parameter.ACCEPT_CALL_ALLOWED))
+                .addContent(allowedParameter(CallsPortEngine.Parameter.MAKE_CALL_ALLOWED))
+                .addContent(allowedParameter(CallsPortEngine.Parameter.SHARE_CALL_PORT_ALLOWED))
+                .addContent(defaultOriginNumber());
+    }
+
+    /**
+     * <builder>
+     * To prepare the media xml-section of the telephony device
+     *
+     * @return prepared telephony device media configuration-xml-section
+     * @see Element
+     * @see #defaultDeviceXml()
+     * @see #toneDefinition(ToneId, String)
+     * @see #formatDefinition(Device.ParameterName, Audio)
+     */
+    protected Element defaultMediaXml() {
+        return new Element(TelephonyDevice.DEVICE_MEDIA_ROOT)
+                // tones definitions
+                .addContent(toneDefinition(ToneId.DIAL, "250,400,125,400,125,0,0,0,0,0"))
+                .addContent(toneDefinition(ToneId.BUSY, "253,500,200,0,0,55,40,55,40,4"))
+                .addContent(toneDefinition(ToneId.RINGBACK, "254,450,150,0,0,150,100,550,400,0"))
+                .addContent(toneDefinition(ToneId.DISCONNECT, "257,900,700,0,0,90,70,90,70,2"))
+                .addContent(formatDefinition(MultimediaEngine.Parameter.RECORD_CODEC, defaultRecordCodec()))
+                .addContent(formatDefinition(MultimediaEngine.Parameter.PLAYBACK_CODEC, defaultPlaybackCodec()))
+                ;
+    }
+
+    /**
      * <accessor>
      * To get the device's default codec for recording depends on the vendor
      *
-     * @return default codec instance for recording
+     * @return default codec instance for recording the audio
      * @implNote Should be redefined in the vendor's factory implementation
      */
     protected Audio defaultRecordCodec() {
@@ -205,21 +319,25 @@ public abstract class AbstractTelephonyFactory<H, TD extends TelephonyDevice<H, 
      * <accessor>
      * To get the device's default codec for playing back depends on the vendor
      *
-     * @return default codec instance for recording
+     * @return default codec instance for playing back the audio
+     * @implNote Should be redefined in the vendor's factory implementation
      */
     protected Audio defaultPlaybackCodec() {
         return Audio.LINEAR_16;
     }
 
-    // preparing network xml-section of the telephony device
-    private Element defaultNetworkXml() {
-        return new Element(TelephonyDevice.DEVICE_NETWORK_ROOT)
-                .addContent(allowedParameter(CallsPortEngine.Parameter.ACCEPT_CALL_ALLOWED))
-                .addContent(allowedParameter(CallsPortEngine.Parameter.MAKE_CALL_ALLOWED))
-                .addContent(allowedParameter(CallsPortEngine.Parameter.SHARE_CALL_PORT_ALLOWED))
-                .addContent(defaultOriginNumber());
-    }
+    /**
+     * <builder>
+     * To make the channel for device
+     *
+     * @param device channel to build for
+     * @return built channel
+     */
+    @Override
+    protected abstract TelephonyChannel<TD> makeChannelFor(Device<?, ?> device);
 
+    ///
+    /// private methods
     // prepare boolean xml-parameter
     private Element allowedParameter(final Device.ParameterName parameterName) {
         return ConfigurationParameter.of(parameterName.value(), true).getXml();
@@ -231,19 +349,6 @@ public abstract class AbstractTelephonyFactory<H, TD extends TelephonyDevice<H, 
                 CallsPortEngine.Parameter.ORIGIN.value(),
                 PhoneNumber.domesticOf(123).toString()
         ).getXml();
-    }
-
-    // preparing media xml-section of the telephony device
-    private Element defaultMediaXml() {
-        return new Element(TelephonyDevice.DEVICE_MEDIA_ROOT)
-                // tones definitions
-                .addContent(toneDefinition(ToneId.DIAL, "250,400,125,400,125,0,0,0,0,0"))
-                .addContent(toneDefinition(ToneId.BUSY, "253,500,200,0,0,55,40,55,40,4"))
-                .addContent(toneDefinition(ToneId.RINGBACK, "254,450,150,0,0,150,100,550,400,0"))
-                .addContent(toneDefinition(ToneId.DISCONNECT, "257,900,700,0,0,90,70,90,70,2"))
-                .addContent(formatDefinition(MultimediaEngine.Parameter.RECORD_CODEC, defaultRecordCodec()))
-                .addContent(formatDefinition(MultimediaEngine.Parameter.PLAYBACK_CODEC, defaultPlaybackCodec()))
-                ;
     }
 
     // prepare tone xml-parameter
@@ -260,31 +365,6 @@ public abstract class AbstractTelephonyFactory<H, TD extends TelephonyDevice<H, 
                 .setAttribute(TelephonyDevice.DEVICE_PARAMETER_VALUE_ATTRIBUTE, format.toString());
     }
 
-    /**
-     * <builder>
-     * To make the channel for device
-     *
-     * @param device channel to build for
-     * @return built channel
-     */
-    @Override
-    protected abstract TelephonyChannel<TD> makeChannelFor(Device<?, ?> device);
-
-    @Override
-    public boolean equals(Object o) {
-        return o instanceof AbstractTelephonyFactory && equals((AbstractTelephonyFactory<H, TD>) o);
-    }
-
-    public boolean equals(AbstractTelephonyFactory<H, TD> that) {
-        return Objects.equals(vendor, that.vendor) && super.equals(that);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(super.hashCode(), getVendor());
-    }
-
-    /// private methods
     // to do safe the related to sessions collection operation
     private PhoneCallSession<H> safeOperation(Supplier<PhoneCallSession<H>> operation) {
         // trying to lock the access shared sessions collection

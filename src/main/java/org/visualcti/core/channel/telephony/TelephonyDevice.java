@@ -446,58 +446,6 @@ public interface TelephonyDevice<H, F extends TelephonyFactory<H, ?>> extends De
     default void dispatchError(Throwable exception, String description) {
         Device.super.dispatchError(exception, description);
     }
-//
-//    /**
-//     * <mutator>
-//     * to add unit to the server unit composite units tree as a branch
-//     *
-//     * @param branch the unit to add as a branch
-//     * @see ServerUnit
-//     * @see #add(ServerUnit)
-//     */
-//    @Override
-//    default void addBranch(ServerUnit branch) {
-//
-//    }
-//
-//    /**
-//     * <mutator>
-//     * to remove the branch from the server unit's units tree
-//     *
-//     * @param branch the unit to remove from composite tree
-//     * @see ServerUnit
-//     * @see #remove(ServerUnit)
-//     */
-//    @Override
-//    default void removeBranch(ServerUnit branch) {
-//
-//    }
-//
-//    /**
-//     * <accessor>
-//     * To get access to the owner of this composite (null for root unit)
-//     *
-//     * @return the reference to server composite's owner or null if it isn't exists
-//     * @see ServerUnit
-//     */
-//    @Override
-//    default ServerUnit getOwner() {
-//        return null;
-//    }
-//
-//    /**
-//     * <mutator>
-//     * To set new owner of this composite (null for the root unit)
-//     *
-//     * @param owner new value of composite's owner
-//     * @throws IOException if cannot reregister unit (or children) in units registry
-//     * @see ServerUnit
-//     * @see UnitRegistry#register(ServerUnit)
-//     */
-//    @Override
-//    default void setOwner(ServerUnit owner) throws IOException {
-//
-//    }
 
     /**
      * <config>

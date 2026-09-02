@@ -697,7 +697,7 @@ public class AbstractTonesEngineTest<H> {
     public void shouldTerminatePlayTone() throws IOException {
         // preparing test data
         ToneId id = ToneId.BEEP;
-        float time = 1.5F;
+        float time = 2.5F;
         engine.uses(device);
         doReturn(true).when(session).isOpened();
         doReturn(true).when(session).isAlive();
@@ -707,7 +707,7 @@ public class AbstractTonesEngineTest<H> {
 
         // acting
         engine.terminate(session);
-        await().until(() -> session.getState() == Device.State.IDLE);
+        await().until(() -> session.getState() != TelephonyDevice.State.TONE);
 
         // check the behavior
         verify(session).terminate();

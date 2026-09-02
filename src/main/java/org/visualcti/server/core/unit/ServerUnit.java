@@ -396,6 +396,15 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
 
     /**
      * <mutator>
+     * to remove all branches from the server unit's units tree
+     *
+     * @see ServerUnit
+     * @see #remove(ServerUnit)
+     */
+    void cleanUnitsTree();
+
+    /**
+     * <mutator>
      * To set new owner of this composite (null for the root unit)
      *
      * @param owner new value of composite's owner
