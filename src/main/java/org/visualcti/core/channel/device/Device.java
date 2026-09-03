@@ -624,5 +624,17 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit, XmlAware
         default Optional<H> handleByName(String name) {
             return Optional.empty();
         }
+
+        /**
+         * <acessor>
+         * To get the collection of allowed devices names
+         *
+         * @return collection of allowed names
+         * @see Collection
+         * @see Factory#buildDevice(String, ServiceProvider)
+         */
+        default Collection<String> allowedDevices() {
+            return Collections.emptyList();
+        }
     }
 }

@@ -85,7 +85,6 @@ import org.mockito.stubbing.Answer;
 import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceActivitySession;
-import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.DeviceMalfunction;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.TelephonyChannel;
@@ -131,7 +130,7 @@ public class AbstractTelephonyDeviceTest<H> {
     H deviceHandle = (H) "mock()";
     Executor deviceEventExecutor;
     ScheduledExecutorService shadowExecutor;
-    DeviceEvent.Provider<?> eventsProvider;
+    TelephonyServiceProvider<H> serviceProvider;
     AbstractTelephonyFactory<H, ?> factory;
     AbstractTelephonyDevice<H, ?> device;
     PhoneCallSession<H> session;
@@ -175,8 +174,8 @@ public class AbstractTelephonyDeviceTest<H> {
             shadowExecutor.execute(invocation.getArgument(0, Runnable.class));
             return null;
         }).when(deviceEventExecutor).execute(any(Runnable.class));
-        eventsProvider = mock(DeviceEvent.Provider.class);
-        factory = spy(new TestFactory<>(deviceEventExecutor, eventsProvider));
+        serviceProvider = mock(TelephonyServiceProvider.class);
+        factory = spy(new TestFactory<>(deviceEventExecutor, serviceProvider));
         factory.addDevice(device);
         device.setXML(new Element(deviceVendor));
         factory.addDevice(mockedDevice);
@@ -2956,7 +2955,7 @@ public class AbstractTelephonyDeviceTest<H> {
 
     /// inner classes
     private static class TestFactory<H, T extends TelephonyDevice<H, ?>> extends AbstractTelephonyFactory<H, T> {
-        public TestFactory(Executor deviceEventExecutor, DeviceEvent.Provider eventsProvider) {
+        public TestFactory(Executor deviceEventExecutor, TelephonyServiceProvider<H> eventsProvider) {
             super(deviceEventExecutor, eventsProvider);
         }
 

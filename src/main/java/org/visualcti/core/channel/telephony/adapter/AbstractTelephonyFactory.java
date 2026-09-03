@@ -54,12 +54,11 @@ import org.jdom.DataConversionException;
 import org.jdom.Element;
 import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.core.channel.device.Device;
-import org.visualcti.core.channel.device.DeviceEvent;
-import org.visualcti.core.channel.device.Factory;
 import org.visualcti.core.channel.device.adapter.AbstractGeneralFactory;
 import org.visualcti.core.channel.telephony.TelephonyChannel;
 import org.visualcti.core.channel.telephony.TelephonyDevice;
 import org.visualcti.core.channel.telephony.TelephonyFactory;
+import org.visualcti.core.channel.telephony.TelephonyServiceProvider;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
 import org.visualcti.core.channel.telephony.operation.ToneId;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
@@ -88,74 +87,20 @@ public abstract class AbstractTelephonyFactory<H, TD extends TelephonyDevice<H, 
         extends AbstractGeneralFactory<H, TD> implements TelephonyFactory<H, TD> {
     // to safeguard the access to the shared device sessions set
     private final Lock sessionsLock = new ReentrantLock();
-    // the attribute for the devices factory vendor's name value
-    protected String vendor = "AbstractVendor";
 
-    protected AbstractTelephonyFactory(final Executor deviceEventsExecutor, final DeviceEvent.Provider<H> eventsProvider) {
-        super(deviceEventsExecutor, eventsProvider);
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        return o instanceof AbstractTelephonyFactory && equals((AbstractTelephonyFactory<H, TD>) o);
-    }
-
-    public boolean equals(AbstractTelephonyFactory<H, TD> that) {
-        return Objects.equals(vendor, that.vendor) && super.equals(that);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(super.hashCode(), getVendor());
+    protected AbstractTelephonyFactory(final Executor deviceEventsExecutor, final TelephonyServiceProvider<H> provider) {
+        super(deviceEventsExecutor, provider);
     }
 
     /**
      * <accessor>
-     * get access to factory's vendor name
+     * To get access to the telephony device's service provider
      *
-     * @return vendor's name
-     * @see Factory#getName()
+     * @return the device's service provider reference
      */
     @Override
-    public String getVendor() {
-        return vendor;
-    }
-
-    /**
-     * <accessor>
-     * get access to factory's version
-     *
-     * @return the version
-     */
-    @Override
-    public String getVersion() {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
-
-    /**
-     * <converter>
-     * To update the entity's fields from XML
-     *
-     * @param xml possible entity's XML
-     * @throws IOException             if something went wrong
-     * @throws DataConversionException if something went wrong
-     * @throws NumberFormatException   if something went wrong
-     * @throws NullPointerException    if something went wrong
-     * @see Element
-     * @see ServerUnitAdapter#setXML(Element)
-     * @see #settingUpBasePart(Element)
-     * @see #settingUpMainPart(Element)
-     */
-    @Override
-    public void setXML(Element xml) throws IOException, DataConversionException, NumberFormatException, NullPointerException {
-        // closing the exist devices
-        for (final TD device : (Iterable<TD>) devices()::iterator) {
-            device.close();
-        }
-        // to clean devices list of the factory
-        cleanUnitsTree();
-        // adjusting by xml-configuration the factory as a server unit
-        super.setXML(xml);
+    public TelephonyServiceProvider<H> getProvider() {
+        return (TelephonyServiceProvider<H>) super.getProvider();
     }
 
     /**
@@ -165,22 +110,25 @@ public abstract class AbstractTelephonyFactory<H, TD extends TelephonyDevice<H, 
      *
      * @param parameter the unit parameter to apply
      * @see ConfigurationParameter
-     * @see #processParameter(ConfigurationParameter)
+     * @see ServerUnitAdapter#processParameter(ConfigurationParameter)
      */
     @Override
     protected void applyUnitParameter(final ConfigurationParameter parameter) {
         if (Objects.equals(parameter.getName(), VENDOR_PARAMETER_NAME)) {
-            // configuration parameter of the vendor's name
-            this.vendor = parameter.getValue();
+            // the configuration parameter of the vendor's name
+            this.vendorName = parameter.getValue();
+            // updating the name of devices configuration root-xml
+            vendorDevicesConfigurationDocument.getRootElement().setName(this.vendorName);
         } else if (Objects.equals(parameter.getName(), CONFIGURATION_URL_PARAMETER_NAME)) {
-            // configuration parameter of the factory vendor configuration file
-            loadingVendorConfiguration(parameter.getValue());
+            // the configuration parameter of the vendor's devices configuration file URL
+            loadVendorConfigurationFrom(parameter.getValue());
         }
     }
 
-    private void loadingVendorConfiguration(final String vendorConfigurationURL) {
+    // loading vendor's devices configuration from the URL
+    private void loadVendorConfigurationFrom(final String vendorConfigurationURL) {
         try {
-            String configFilePath = new URL(vendorConfigurationURL).getFile();
+            this.configurationFileName = new URL(vendorConfigurationURL).getFile();
             loadFactoryConfiguration();
         } catch (IOException | DataConversionException e) {
             dispatchError(e, "Cannot load vendor configuration file: " + vendorConfigurationURL);

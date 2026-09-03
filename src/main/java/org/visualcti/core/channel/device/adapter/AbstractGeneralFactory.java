@@ -40,9 +40,11 @@ package org.visualcti.core.channel.device.adapter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Objects;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -54,6 +56,8 @@ import org.visualcti.core.channel.Channel;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.Factory;
+import org.visualcti.server.core.unit.ServerUnit;
+import org.visualcti.server.unit.ServerUnitAdapter;
 import org.visualcti.util.Tools;
 
 /**
@@ -72,18 +76,24 @@ public abstract class AbstractGeneralFactory<H, D extends Device<?, ?>>
         extends AbstractEventProcessor<H> implements Factory<H, D> {
     // the holder of factory's device channels
     private final AtomicReference<Collection<Channel<?>>> channelsHolder = new AtomicReference<>(Collections.emptyList());
+    // the attribute for the devices factory vendor's external configuration file name value
+    protected String configurationFileName = null;
+    // the attribute for the devices factory vendor's name value
+    protected String vendorName = "AbstractVendor";
+    // the attribute for the devices factory vendor's version value
+    protected String vendorVersion = "1.0";
     // XML-Document of the list of tasks in the pool
-    protected final Document factoryConfigurationDocument = new Document().setContent(Arrays.asList(
+    protected final Document vendorDevicesConfigurationDocument = new Document().setContent(Arrays.asList(
             new Comment(Tools.getLicenceHeader()),
             new Element(getVendor()).addContent(defaultDeviceXml())
     ));
 
-    public AbstractGeneralFactory(Executor deviceEventExecutor, DeviceEvent.Provider<H> eventsProvider) {
-        this(deviceEventExecutor, eventsProvider, new DefaultDeviceEventListenersHub());
+    public AbstractGeneralFactory(Executor deviceEventExecutor, Device.ServiceProvider<H> serviceProvider) {
+        this(deviceEventExecutor, serviceProvider, new DefaultDeviceEventListenersHub());
     }
 
-    protected AbstractGeneralFactory(Executor deviceEventExecutor, DeviceEvent.Provider<H> eventsProvider, DeviceEvent.Listener.Hub eventListenersHub) {
-        super(deviceEventExecutor, eventsProvider, eventListenersHub);
+    protected AbstractGeneralFactory(Executor deviceEventExecutor, Device.ServiceProvider<H> serviceProvider, DeviceEvent.Listener.Hub eventListenersHub) {
+        super(deviceEventExecutor, serviceProvider, eventListenersHub);
     }
 
     @Override
@@ -91,13 +101,68 @@ public abstract class AbstractGeneralFactory<H, D extends Device<?, ?>>
         return o instanceof AbstractGeneralFactory && equals((AbstractGeneralFactory<H, D>) o);
     }
 
-    public boolean equals(AbstractGeneralFactory<H, D> o) {
-        return super.equals(o);
+    public boolean equals(AbstractGeneralFactory<H, D> that) {
+        return Objects.equals(vendorName, that.vendorName)
+                && Objects.equals(vendorVersion, that.vendorVersion)
+                && Objects.equals(configurationFileName, that.configurationFileName)
+                && super.equals(that);
     }
 
     @Override
     public int hashCode() {
-        return super.hashCode();
+        return Objects.hash(vendorName, vendorVersion, configurationFileName, super.hashCode());
+    }
+
+    /**
+     * <accessor>
+     * To get access to the device's events provider
+     *
+     * @return the device's events provider reference
+     */
+    @Override
+    public Device.ServiceProvider<H> getProvider() {
+        return (Device.ServiceProvider<H>) super.getProvider();
+    }
+
+    /**
+     * <converter>
+     * To update the factory-unit's fields from XML
+     *
+     * @param devicesFactoryXml possible factory-unit's XML
+     * @throws IOException             if something went wrong
+     * @throws DataConversionException if something went wrong
+     * @throws NumberFormatException   if something went wrong
+     * @throws NullPointerException    if something went wrong
+     * @see Factory#devices()
+     * @see Device#close()
+     * @see ServerUnit#cleanUnitsTree()
+     * @see Factory#getProvider()
+     * @see Factory#addDevice(Device)
+     * @see Factory#buildDevice(String, Device.ServiceProvider)
+     * @see Element
+     * @see ServerUnitAdapter#setXML(Element)
+     */
+    @Override
+    public void setXML(final Element devicesFactoryXml) throws IOException, DataConversionException, NumberFormatException, NullPointerException {
+        //
+        // cleaning the factory of the devices opened earlier
+        // closing the exist devices
+        for (final D device : (Iterable<D>) devices()::iterator) {
+            // closing previously opened device of the factory
+            device.close();
+        }
+        // to clean devices list of the factory
+        cleanUnitsTree();
+        //
+        // building & adding factory's devices for allowed device-names
+        final Device.ServiceProvider<H> provider = getProvider();
+        for (final String deviceName : provider.allowedDevices()) {
+            addDevice(buildDevice(deviceName, provider));
+        }
+        //
+        // adjusting by xml-configuration the factory as a server unit
+        //
+        super.setXML(devicesFactoryXml);
     }
 
     /**
@@ -106,11 +171,11 @@ public abstract class AbstractGeneralFactory<H, D extends Device<?, ?>>
      *
      * @return root xml-document of the configuration instance
      * @see Document
-     * @see #factoryConfigurationDocument
+     * @see #vendorDevicesConfigurationDocument
      */
     @Override
     public Document getConfigurationDocument() {
-        return factoryConfigurationDocument;
+        return vendorDevicesConfigurationDocument;
     }
 
     /**
@@ -135,7 +200,7 @@ public abstract class AbstractGeneralFactory<H, D extends Device<?, ?>>
                 }
             }
         } else {
-            final Element vendorRoot = this.factoryConfigurationDocument.getRootElement();
+            final Element vendorRoot = this.vendorDevicesConfigurationDocument.getRootElement();
             // removing all children of the vendor's xml-element
             vendorRoot.removeChildren();
             // saving device's default configuration
@@ -169,7 +234,7 @@ public abstract class AbstractGeneralFactory<H, D extends Device<?, ?>>
      */
     @Override
     public String getVendor() {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return vendorName;
     }
 
     /**
@@ -180,7 +245,26 @@ public abstract class AbstractGeneralFactory<H, D extends Device<?, ?>>
      */
     @Override
     public String getVersion() {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return vendorVersion;
+    }
+
+    /**
+     * <accessor>
+     * to get the configuration file
+     *
+     * @return configuration file instance
+     * @see File
+     * @see #getVendor()
+     * @see #CONFIG_FILE_SUFFIX
+     * @see #saveFactoryConfiguration()
+     * @see #loadFactoryConfiguration()
+     */
+    @Override
+    public File configurationFile() {
+        final String configurationPath = configurationFileName != null
+                ? configurationFileName
+                : "./conf/" + getVendor().toLowerCase() + CONFIG_FILE_SUFFIX;
+        return Paths.get(configurationPath).toFile();
     }
 
     /**

@@ -69,7 +69,6 @@ import org.visualcti.core.channel.device.Factory;
 
 @SuppressWarnings({"unchecked", "rawtypes"})
 public class AbstractDeviceTest<H> {
-    String vendorVersion = "device-vendor-version";
     String deviceVendor = "device-vendor";
     String deviceName = "device-name";
     H deviceHandle = (H) "handle";
@@ -78,26 +77,19 @@ public class AbstractDeviceTest<H> {
     Device.ServiceProvider<String> serviceProvider;
     DeviceActivitySession<?> session;
     Executor deviceEventExecutor;
-    DeviceEvent.Provider<?> eventsProvider;
     DeviceEvent.Listener.Hub hub;
 
     @Before
     public void setUp() throws IOException {
         deviceEventExecutor = mock(Executor.class);
-        eventsProvider = mock(DeviceEvent.Provider.class);
+        serviceProvider = mock(Device.ServiceProvider.class);
         hub = spy(new AbstractGeneralFactory.DefaultDeviceEventListenersHub());
-        factory = spy(new AbstractGeneralFactory(deviceEventExecutor, eventsProvider, hub) {
+        factory = spy(new AbstractGeneralFactory(deviceEventExecutor, serviceProvider, hub) {
             @Override
             public String getVendor() {
                 return deviceVendor;
             }
-
-            @Override
-            public String getVersion() {
-                return vendorVersion;
-            }
         });
-        serviceProvider = mock(Device.ServiceProvider.class);
         doReturn(deviceHandle).when(serviceProvider).openResource(deviceName);
         session = mock(DeviceActivitySession.class);
         doReturn("handle").when(session).getDeviceHandle();

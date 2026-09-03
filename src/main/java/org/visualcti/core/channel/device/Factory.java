@@ -199,9 +199,7 @@ public interface Factory<H, D extends Device<?, ?>> extends RunnableServerUnit, 
      * @see #saveFactoryConfiguration()
      * @see #loadFactoryConfiguration()
      */
-    default File configurationFile() {
-        return new File(getVendor().toLowerCase() + CONFIG_FILE_SUFFIX);
-    }
+    File configurationFile();
 
     /**
      * <configuration-saver>

@@ -56,6 +56,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.Optional;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -70,9 +71,8 @@ import org.junit.Test;
 import org.visualcti.core.channel.AbstractChannel;
 import org.visualcti.core.channel.Channel;
 import org.visualcti.core.channel.device.Device;
-import org.visualcti.core.channel.device.DeviceEvent;
 
-@SuppressWarnings("unchecked")
+@SuppressWarnings({"unchecked", "rawtypes"})
 public class AbstractFactoryTest<H> {
     static String deviceName = "device-name";
     static String deviceVendor = "device-vendor";
@@ -80,7 +80,7 @@ public class AbstractFactoryTest<H> {
     Device<H, ?> device;
     Executor deviceEventExecutor;
     ExecutorService shadowExecutor;
-    DeviceEvent.Provider<?> eventsProvider;
+    Device.ServiceProvider<H> serviceProvider;
     AbstractGeneralFactory<H, ?> factory;
 
     @Before
@@ -93,8 +93,8 @@ public class AbstractFactoryTest<H> {
             shadowExecutor.execute(invocation.getArgument(0, Runnable.class));
             return null;
         }).when(deviceEventExecutor).execute(any(Runnable.class));
-        eventsProvider = mock(DeviceEvent.Provider.class);
-        factory = spy(new TestFactory(deviceEventExecutor, eventsProvider));
+        serviceProvider = mock(Device.ServiceProvider.class);
+        factory = spy(new TestFactory(deviceEventExecutor, serviceProvider));
     }
 
     @After
@@ -363,10 +363,31 @@ public class AbstractFactoryTest<H> {
         assertThat(configuration.delete()).isTrue();
     }
 
+    @Test
+    public void shouldSetUpFactoryXml() throws IOException, DataConversionException {
+        // preparing test data
+        String[] allowed = new String[]{"device1", "device2"};
+        doReturn(Arrays.asList(allowed)).when(serviceProvider).allowedDevices();
+        Element xml = new Element(factory.getRootElementName());
+
+        // acting
+        factory.setXML(xml);
+
+        // check the behavior
+        verify(factory).devices();
+        verify(factory).cleanUnitsTree();
+        verify(factory).getProvider();
+        verify(serviceProvider).allowedDevices();
+        verify(factory).buildDevice("device1", serviceProvider);
+        verify(factory).buildDevice("device2", serviceProvider);
+        // check results
+        assertThat(factory.devices().count()).isEqualTo(2);
+    }
+
     /// / inner classes
     private static class TestFactory<H, D extends Device<?, ?>> extends AbstractGeneralFactory<H, D> {
-        public TestFactory(Executor deviceEventExecutor, DeviceEvent.Provider<H> eventsProvider) {
-            super(deviceEventExecutor, eventsProvider);
+        public TestFactory(Executor deviceEventExecutor, Device.ServiceProvider<H> serviceProvider) {
+            super(deviceEventExecutor, serviceProvider);
         }
 
         @Override
@@ -382,6 +403,15 @@ public class AbstractFactoryTest<H> {
         @Override
         public Element defaultDeviceXml() {
             return new Element("test-device-default");
+        }
+
+        @Override
+        public Device<H, ?> buildDevice(String deviceName, Device.ServiceProvider<H> serviceProvider) throws IOException {
+            Device<H, ?> device = mock(Device.class);
+            doReturn(deviceName).when(device).getName();
+            doReturn(serviceProvider).when(device).serviceProvider();
+            doReturn(device).when(device).applyDeviceParameters(any(Element.class));
+            return device;
         }
 
         @Override

@@ -41,29 +41,31 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.concurrent.Executor;
+import org.jdom.DataConversionException;
 import org.junit.Before;
 import org.junit.Test;
 import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.core.channel.device.Device;
-import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.telephony.TelephonyChannel;
 import org.visualcti.core.channel.telephony.TelephonyDevice;
+import org.visualcti.core.channel.telephony.TelephonyServiceProvider;
 
-@SuppressWarnings({"unchecked", "rawtypes"})
+@SuppressWarnings({"unchecked"})
 public class AbstractTelephonyFactoryTest {
-    static String deviceVendorVersion = "device-vendor-version";
-
     AbstractTelephonyFactory<?, ?> factory;
     Executor deviceEventExecutor;
-    DeviceEvent.Provider eventsProvider;
+    TelephonyServiceProvider<?> serviceProvider;
 
     @Before
     public void setUp() {
         deviceEventExecutor = mock(Executor.class);
-        eventsProvider = mock(DeviceEvent.Provider.class);
-        factory = spy(new TestFactory<>(deviceEventExecutor, eventsProvider));
+        serviceProvider = mock(TelephonyServiceProvider.class);
+        factory = spy(new TestFactory<>(deviceEventExecutor, serviceProvider));
     }
 
     @Test
@@ -94,6 +96,7 @@ public class AbstractTelephonyFactoryTest {
         // preparing test data
         String vendorName = "vendor-name";
         ConfigurationParameter parameter = ConfigurationParameter.of("vendor", vendorName);
+        assertThat(factory.getConfigurationDocument().getRootElement().getName()).isNotEqualTo(vendorName);
         assertThat(factory.getVendor()).isNotEqualTo(vendorName);
 
         // acting
@@ -101,17 +104,29 @@ public class AbstractTelephonyFactoryTest {
 
         // check results
         assertThat(factory.getVendor()).isEqualTo(vendorName);
+        assertThat(factory.getConfigurationDocument().getRootElement().getName()).isEqualTo(vendorName);
+    }
+
+    @Test
+    public void shouldApplyUnitParameter_ConfigFileUrl() throws IOException, DataConversionException {
+        // preparing test data
+        String value = "file:./conf/dialogic.configuration.xml";
+        ConfigurationParameter parameter = ConfigurationParameter.of("url", value);
+        File defaultConfigFile = factory.configurationFile();
+
+        // acting
+        factory.applyUnitParameter(parameter);
+
+        // check the behavior
+        verify(factory).loadFactoryConfiguration();
+        // check results
+        assertThat(factory.configurationFile()).isNotEqualTo(defaultConfigFile);
     }
 
     /// / inner classes
     private static class TestFactory<H, T extends TelephonyDevice<H, ?>> extends AbstractTelephonyFactory<H, T> {
-        public TestFactory(Executor deviceEventExecutor, DeviceEvent.Provider<H> eventsProvider) {
-            super(deviceEventExecutor, eventsProvider);
-        }
-
-        @Override
-        public String getVersion() {
-            return deviceVendorVersion;
+        public TestFactory(Executor deviceEventExecutor, TelephonyServiceProvider<H> serviceProvider) {
+            super(deviceEventExecutor, serviceProvider);
         }
 
         @Override

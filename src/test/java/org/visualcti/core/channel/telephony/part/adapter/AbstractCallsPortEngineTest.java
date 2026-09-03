@@ -90,7 +90,6 @@ public class AbstractCallsPortEngineTest<H> {
     H deviceHandle = (H) "handle";
     TelephonyFactory<H, ?> factory;
     ExecutorService deviceEventExecutor;
-    DeviceEvent.Provider<H> eventsProvider;
 
     @Before
     public void setUp() {
@@ -104,8 +103,7 @@ public class AbstractCallsPortEngineTest<H> {
         });
         executor = Executors.newSingleThreadScheduledExecutor();
         deviceEventExecutor = mock(ExecutorService.class);
-        eventsProvider = mock(DeviceEvent.Provider.class);
-        factory = spy(new AbstractTelephonyFactory(deviceEventExecutor, eventsProvider) {
+        factory = spy(new AbstractTelephonyFactory(deviceEventExecutor, provider) {
             @Override
             public String getVendor() {
                 return deviceName + "-factory";
