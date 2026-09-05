@@ -863,8 +863,11 @@ public abstract class AbstractTelephonyDevice<H, T extends TelephonyFactory<H, ?
         applyDeviceParameters(getFactory().defaultDeviceXml())
         // applying by default vendor's device parameters
         .applyDeviceParameters(vendorConfigurationXml.getChild(DEFAULT_ROOT));
-        // looking for concrete device parameters in the vendor's configuration-xml
-        final Optional<Element> deviceConfiguration = findDeviceConfigurationIn(vendorConfigurationXml, getName());
+        // looking for concrete device parameters in the vendor's configuration-xml by device name
+        final String deviceName = this.getName();
+        final Optional<Element> deviceConfiguration = vendorConfigurationXml.getChildren(DEVICE_ROOT).stream()
+                .filter(xml -> deviceName.equals(((Element)xml).getAttributeValue(DEVICE_NAME_ATTRIBUTE)))
+                .findFirst();
         if (deviceConfiguration.isPresent()) {
             // applying by concrete device parameters if any
             applyDeviceParameters(deviceConfiguration.get());
@@ -978,15 +981,6 @@ public abstract class AbstractTelephonyDevice<H, T extends TelephonyFactory<H, ?
     }
 
     /// private methods
-    // looking for concrete device parameters in the configuration-xml
-    private Optional<Element> findDeviceConfigurationIn(final Element configurationXml, final String deviceName) {
-        final List<Element> devices = configurationXml.getChildren(DEVICE_ROOT);
-        return devices.stream()
-                .filter(xml -> deviceName.equals(xml.getAttributeValue(DEVICE_NAME_ATTRIBUTE)))
-                .findFirst();
-
-    }
-
     // registering configured tones in the service provider for the further device tones detection
     private void registerDeviceTones() throws IOException {
         final TelephonyServiceProvider<H> provider = getProvider();

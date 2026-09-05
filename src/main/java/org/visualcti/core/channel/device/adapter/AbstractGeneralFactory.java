@@ -76,12 +76,12 @@ public abstract class AbstractGeneralFactory<H, D extends Device<?, ?>>
         extends AbstractEventProcessor<H> implements Factory<H, D> {
     // the holder of factory's device channels
     private final AtomicReference<Collection<Channel<?>>> channelsHolder = new AtomicReference<>(Collections.emptyList());
-    // the attribute for the devices factory vendor's external configuration file name value
+    // the attribute for the devices-factory-vendor's external configuration file name value
     protected String configurationFileName = null;
-    // the attribute for the devices factory vendor's name value
+    // the attribute for the devices-factory-vendor's name value
     protected String vendorName = "AbstractVendor";
-    // the attribute for the devices factory vendor's version value
-    protected String vendorVersion = "1.0";
+    // the attribute for the devices-factory-vendor's version value
+    protected String vendorVersion = VENDOR_FACTORY_DEFAULT_VERSION;
     // XML-Document of the list of tasks in the pool
     protected final Document vendorDevicesConfigurationDocument = new Document().setContent(Arrays.asList(
             new Comment(Tools.getLicenceHeader()),
@@ -146,12 +146,12 @@ public abstract class AbstractGeneralFactory<H, D extends Device<?, ?>>
     public void setXML(final Element devicesFactoryXml) throws IOException, DataConversionException, NumberFormatException, NullPointerException {
         //
         // cleaning the factory of the devices opened earlier
-        // closing the exist devices
+        // closing exist devices
         for (final D device : (Iterable<D>) devices()::iterator) {
             // closing previously opened device of the factory
             device.close();
         }
-        // to clean devices list of the factory
+        // to clean the tree of devices of the factory
         cleanUnitsTree();
         //
         // building & adding factory's devices for allowed device-names
@@ -180,7 +180,7 @@ public abstract class AbstractGeneralFactory<H, D extends Device<?, ?>>
 
     /**
      * <configuration-loader>
-     * To load the vendor specific configuration of the factory from the external file
+     * To load the vendor-specific configuration of the factory from the external file
      *
      * @throws IOException if it cannot load configuration
      * @see #configurationFile()
@@ -194,6 +194,10 @@ public abstract class AbstractGeneralFactory<H, D extends Device<?, ?>>
             try (final FileInputStream in = new FileInputStream(configurationFile)) {
                 // getting the factory devices' configuration from the vendor's external file
                 final Element vendorConfigurationXml = restoreDocumentFrom(in).getRootElement();
+                // updating the name of configuration-xml
+                vendorConfigurationXml.setName(getVendor());
+                // updating root-element of vendor configuration xml-document
+                this.vendorDevicesConfigurationDocument.setRootElement(vendorConfigurationXml);
                 // passing it to all factory's devices
                 for (final D device : (Iterable<D>) devices()::iterator) {
                     device.setXML(vendorConfigurationXml);
@@ -227,7 +231,7 @@ public abstract class AbstractGeneralFactory<H, D extends Device<?, ?>>
 
     /**
      * <accessor>
-     * get access to factory's vendor name
+     * get access to the factory's vendor name
      *
      * @return vendor's name
      * @see Factory#getName()
@@ -235,6 +239,31 @@ public abstract class AbstractGeneralFactory<H, D extends Device<?, ?>>
     @Override
     public String getVendor() {
         return vendorName;
+    }
+
+    /**
+     * <mutator>
+     * To change the value of the factory vendor
+     *
+     * @param vendorName new name of the vendor
+     * @see #vendorDevicesConfigurationDocument
+     */
+    public void setVendor(String vendorName) {
+        // updating the vendor's name
+        this.vendorName = vendorName;
+        // updating the name of devices-configuration root-xml
+        vendorDevicesConfigurationDocument.getRootElement().setName(vendorName);
+    }
+
+    /**
+     * <accessor>
+     * To get the description of the unit
+     *
+     * @see ServerUnitAdapter#buildUnitRootElement()
+     */
+    @Override
+    protected String getUnitDescription() {
+        return null;
     }
 
     /**
@@ -261,10 +290,13 @@ public abstract class AbstractGeneralFactory<H, D extends Device<?, ?>>
      */
     @Override
     public File configurationFile() {
-        final String configurationPath = configurationFileName != null
-                ? configurationFileName
-                : "./conf/" + getVendor().toLowerCase() + CONFIG_FILE_SUFFIX;
-        return Paths.get(configurationPath).toFile();
+        return Paths.get(configurationFilePath()).toFile();
+    }
+
+    protected String configurationFilePath() {
+        return configurationFileName == null
+                ? "./conf/" + getVendor().toLowerCase() + CONFIG_FILE_SUFFIX
+                : configurationFileName;
     }
 
     /**

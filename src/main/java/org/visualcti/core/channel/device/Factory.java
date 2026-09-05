@@ -71,6 +71,8 @@ public interface Factory<H, D extends Device<?, ?>> extends RunnableServerUnit, 
     // the suffix of factory vendor's configuration file
     String CONFIG_FILE_SUFFIX = ".configuration.xml";
     String VENDOR_PARAMETER_NAME = "vendor";
+    String VENDOR_FACTORY_VERSION_PARAMETER_NAME = "version";
+    String VENDOR_FACTORY_DEFAULT_VERSION = "0.0.0";
     String CONFIGURATION_URL_PARAMETER_NAME = "url";
 
     /**
@@ -244,7 +246,7 @@ public interface Factory<H, D extends Device<?, ?>> extends RunnableServerUnit, 
 
     /**
      * <configuration-saver>
-     * To save the vendor specific configuration of the factory for updated device only
+     * To save the vendor-specific configuration of the factory for the updated device only
      *
      * @throws IOException if it cannot save configuration
      * @see #getConfigurationDocument()
@@ -263,7 +265,7 @@ public interface Factory<H, D extends Device<?, ?>> extends RunnableServerUnit, 
         }
         // adding device's xml-element to the factory's configuration
         factoryConfigurationXml.addContent(device.getXML());
-        // saving updated vendor specific configuration
+        // saving updated vendor-specific devices configuration
         saveFactoryConfiguration();
     }
 }

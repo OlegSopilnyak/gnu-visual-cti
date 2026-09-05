@@ -295,9 +295,9 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
 
     /**
      * <converter>
-     * To build parameters of root XML element of the unit (for unit building)
+     * To build parameters of the root XML element of the unit (for unit building)
      *
-     * @return built main unit XML element
+     * @return built the root unit's XML element
      * @see #getXML()
      */
     protected Element buildUnitRootElement() {
@@ -405,8 +405,8 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
             xml.addContent(builder);
         }
         // check data from incoming unit builder xml
-        final String builderClassName = builder == null ? null : className.apply(
-                builder.getAttributeValue(UNIT_TYPE_PACKAGE), builder.getAttributeValue(UNIT_TYPE_CLASS)
+        final String builderClassName = className.apply(
+                builder.getAttributeValue(UNIT_TYPE_PACKAGE),builder.getAttributeValue(UNIT_TYPE_CLASS)
         );
         // check builder class name
         if (!unitBuilderClass.getName().equals(builderClassName)) {
@@ -428,7 +428,7 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
 
     /**
      * <converter>
-     * To prepare main parameters of the unit using XML Element
+     * To prepare the main parameters of the unit using configuration as XML Element
      *
      * @param xml the XML Element of the unit
      * @throws IOException if something went wrong
@@ -739,10 +739,10 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
     }
 
 
-    // private methods
-    // building server unit main classes part
-
+    /// private methods
     /**
+     * building server unit main classes part
+     *
      * @see #buildUnitRootElement()
      */
     private Class<? extends ServerUnit> prepareUnitClassPart(Element rootElement) {

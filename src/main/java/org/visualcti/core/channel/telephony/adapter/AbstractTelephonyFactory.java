@@ -67,6 +67,7 @@ import org.visualcti.core.channel.telephony.part.CallsPortEngine;
 import org.visualcti.core.channel.telephony.part.MultimediaEngine;
 import org.visualcti.media.Audio;
 import org.visualcti.media.Sound;
+import org.visualcti.server.core.unit.ServerUnit;
 import org.visualcti.server.unit.ServerUnitAdapter;
 
 
@@ -111,35 +112,92 @@ public abstract class AbstractTelephonyFactory<H, TD extends TelephonyDevice<H, 
      * @param parameter the unit parameter to apply
      * @see ConfigurationParameter
      * @see ServerUnitAdapter#processParameter(ConfigurationParameter)
+     * @see ServerUnit.Builder#build(Element)
      */
     @Override
     protected void applyUnitParameter(final ConfigurationParameter parameter) {
-        if (Objects.equals(parameter.getName(), VENDOR_PARAMETER_NAME)) {
-            // the configuration parameter of the vendor's name
-            this.vendorName = parameter.getValue();
-            // updating the name of devices configuration root-xml
-            vendorDevicesConfigurationDocument.getRootElement().setName(this.vendorName);
-        } else if (Objects.equals(parameter.getName(), CONFIGURATION_URL_PARAMETER_NAME)) {
-            // the configuration parameter of the vendor's devices configuration file URL
-            loadVendorConfigurationFrom(parameter.getValue());
-        }
-    }
-
-    // loading vendor's devices configuration from the URL
-    private void loadVendorConfigurationFrom(final String vendorConfigurationURL) {
-        try {
-            this.configurationFileName = new URL(vendorConfigurationURL).getFile();
-            loadFactoryConfiguration();
-        } catch (IOException | DataConversionException e) {
-            dispatchError(e, "Cannot load vendor configuration file: " + vendorConfigurationURL);
+        switch (parameter.getName()) {
+            case VENDOR_PARAMETER_NAME:
+                // the configuration parameter of the vendor's name
+                setVendor(parameter.getValue());
+                // cleaning cached unit xml-configuration
+                this.unitConfiguration = null;
+                break;
+            case CONFIGURATION_URL_PARAMETER_NAME:
+                // the configuration parameter of the devices-configurations-file URL from the vendor
+                loadVendorConfigurationFrom(parameter.getValue());
+                // cleaning cached unit xml-configuration
+                this.unitConfiguration = null;
+                break;
+            case VENDOR_FACTORY_VERSION_PARAMETER_NAME:
+                vendorVersion = parameter.getValue();
+                // cleaning cached unit xml-configuration
+                this.unitConfiguration = null;
+                break;
         }
     }
 
     /**
-     * <action>
-     * To share opened phone call session for the connection feature
+     * <accessor>
+     * To get the parent class of the main class of the unit
      *
-     * @param session the phone call's session, device is working with
+     * @return the instance of the class that extends server unit main class
+     * @see ServerUnit#getUnitExtendsClass()
+     * @see TelephonyFactory
+     */
+    @Override
+    public Class<? extends ServerUnit> getUnitExtendsClass() {
+        return TelephonyFactory.class;
+    }
+
+    /**
+     * <converter>
+     * To represent the entity as an XML element
+     *
+     * @return entity's XML
+     * @see Element
+     * @see ServerUnitAdapter#getXML()
+     */
+    @Override
+    public Element getXML() {
+        return this.unitConfiguration = super.getXML();
+    }
+
+    /**
+     * <converter>
+     * To represent the parameters of the unit as an XML element
+     * Here managed the icon of the server unit
+     *
+     * @param rootElement building from unit XML Element
+     * @see Element
+     * @see ServerUnitAdapter#prepareUnitParametersXML(Element)
+     */
+    protected void prepareUnitParametersXML(Element rootElement) {
+        // saving default unit parameters
+        super.prepareUnitParametersXML(rootElement);
+        // saving the vendor's name parameter
+        rootElement.addContent(ConfigurationParameter.of(VENDOR_PARAMETER_NAME, getVendor()).getXml());
+        // saving the vendor's configuration file url parameter
+        rootElement.addContent(
+                ConfigurationParameter.of(CONFIGURATION_URL_PARAMETER_NAME, "file:" + configurationFilePath()).getXml()
+        );
+        // checking the vendor's devices-factory version
+        final String vendorFactoryVersion = getVersion();
+        if (Objects.equals(vendorFactoryVersion, VENDOR_FACTORY_DEFAULT_VERSION)) {
+            // vendor's devices-factory version is default
+            return;
+        }
+        // saving the vendor's devices-factory version
+        rootElement.addContent(
+                ConfigurationParameter.of(VENDOR_FACTORY_VERSION_PARAMETER_NAME, vendorFactoryVersion).getXml()
+        );
+    }
+
+    /**
+     * <action>
+     * To share opened phone-call-session for the connection feature
+     *
+     * @param session the phone-call-session instance the device is working with
      * @see TelephonyDevice#connect(PhoneCallSession, PhoneCall.Number, int, Sound)
      */
     @Override
@@ -161,9 +219,9 @@ public abstract class AbstractTelephonyFactory<H, TD extends TelephonyDevice<H, 
 
     /**
      * <action>
-     * To un-share opened phone call session for the connection feature
+     * To un-share opened phone-call-session for the connection feature
      *
-     * @param session the phone call's session, device is working with
+     * @param session the phone-call-session instance the device is working with
      * @see TelephonyDevice#connect(PhoneCallSession, PhoneCall.Number, int, Sound)
      */
     @Override
@@ -179,11 +237,11 @@ public abstract class AbstractTelephonyFactory<H, TD extends TelephonyDevice<H, 
 
     /**
      * <finder>
-     * To find shared telephony device session for the connection feature
+     * To find a shared telephony device session for the connection feature
      *
      * @param callableNumber the number to connect to
-     * @param master         the session which will capture and join the connectable session
-     * @return the ready for connect session or empty if not exists
+     * @param master         the session that will capture and join the connectable session
+     * @return the ready for connection session or empty if not exists
      * @see Optional
      * @see PhoneCallSession
      * @see PhoneCall.Number
@@ -276,7 +334,7 @@ public abstract class AbstractTelephonyFactory<H, TD extends TelephonyDevice<H, 
 
     /**
      * <builder>
-     * To make the channel for device
+     * To make the channel for the device
      *
      * @param device channel to build for
      * @return built channel
@@ -286,6 +344,16 @@ public abstract class AbstractTelephonyFactory<H, TD extends TelephonyDevice<H, 
 
     ///
     /// private methods
+    // loading the configurations of devices of the vendor from the URL
+    private void loadVendorConfigurationFrom(final String vendorConfigurationURL) {
+        try {
+            this.configurationFileName = new URL(vendorConfigurationURL).getFile();
+            loadFactoryConfiguration();
+        } catch (IOException | DataConversionException e) {
+            dispatchError(e, "Cannot load vendor configuration file: " + vendorConfigurationURL);
+        }
+    }
+
     // prepare boolean xml-parameter
     private Element allowedParameter(final Device.ParameterName parameterName) {
         return ConfigurationParameter.of(parameterName.value(), true).getXml();

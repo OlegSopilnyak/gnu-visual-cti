@@ -517,11 +517,11 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
 
         /**
          * <builder method>
-         * To build the instance of server unit from XML Element
+         * To build the instance of the server unit from XML Element
          *
          * @param configuration XML configuration of the server unit
          * @return built server unit instance
-         * @throws IOException if something wrong it te XML-document
+         * @throws IOException if something wrong in the XML-document
          */
         @SuppressWarnings("unchecked")
         default T build(Element configuration) throws IOException {
