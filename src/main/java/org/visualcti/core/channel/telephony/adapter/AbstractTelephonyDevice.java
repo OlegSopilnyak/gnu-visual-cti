@@ -244,7 +244,7 @@ public abstract class AbstractTelephonyDevice<H, T extends TelephonyFactory<H, ?
      * <accessor>
      * To get access to the wrong value device's low-level handle
      *
-     * @return the value for handle of unopened device
+     * @return the value for a handle of the unopened device
      * @see #isInvalidHandle(H)
      */
     protected H wrongHandle() {
@@ -255,7 +255,7 @@ public abstract class AbstractTelephonyDevice<H, T extends TelephonyFactory<H, ?
      * <accessor>
      * To get access to the error value device's low-level handle
      *
-     * @return the value for handle of corrupted device
+     * @return the value for a handle of the corrupted device
      * @see #isInvalidHandle(H)
      */
     protected H errorHandle() {

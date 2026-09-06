@@ -49,6 +49,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import org.visualcti.core.channel.device.Device;
+import org.visualcti.core.channel.device.DeviceActivitySession;
 import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.DeviceEventsProcessor;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
@@ -72,13 +73,13 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
 
     /**
      * <action>
-     * To open the device related resource (device's implementation)
+     * To open the device-related resource (device's implementation)
      *
      * @param name the name of the resource
      * @return handle for the opened resource
-     * @throws IOException if channel's resource cannot be opened or activated
+     * @throws IOException if the channel's resource cannot be opened or activated
      * @see Device#getName()
-     * @see Device.Session#getDeviceHandle()
+     * @see DeviceActivitySession#getDeviceHandle()
      * @see #nativeResourceOpen(String)
      */
     @Override
@@ -95,39 +96,52 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
 
     /**
      * <native-call>
-     * To open the device related resource (device's implementation)
+     * To open the device-related resource (device's implementation)
      *
      * @param name the name of the resource
      * @return handle for the opened resource
-     * @throws IOException if channel's resource cannot be opened or activated
+     * @throws IOException if the channel's resource cannot be opened or activated
      * @see #openResource(String)
      */
     protected H nativeResourceOpen(String name) throws IOException {
         return null;
     }
 
-
     /**
      * <accessor>
-     * To check is resource was opened successfully
+     * To check is the resource opened successfully
      *
      * @param handle the connected telephony device handle
      * @return true if resource was opened
      * @see #openResource(String)
      * @see #closeResource(H)
      */
-    protected boolean isOpened(H handle) {
+    protected boolean isOpened(final H handle) {
         return openedResources.values().stream().flatMap(Collection::stream)
                 .distinct().anyMatch(h -> h.equals(handle));
     }
 
     /**
+     * <accessor>
+     * To check is the resource with name already opened successfully
+     *
+     * @param name the name of the telephony device
+     * @return true if the resource was already opened
+     * @see #openResource(String)
+     * @see #closeResource(H)
+     */
+    protected boolean isOpened(final String name) {
+        final List<H> handles = openedResources.get(name);
+        return handles != null && !handles.isEmpty();
+    }
+
+    /**
      * <action>
-     * To open the device related resource
+     * To open the device-related resource
      *
      * @param handle the handle of the opened resource (device's implementation)
-     * @throws IOException if channel's resource cannot be closed
-     * @see Device.Session#getDeviceHandle()
+     * @throws IOException if the channel's resource cannot be closed
+     * @see DeviceActivitySession#getDeviceHandle()
      * @see #nativeResourceClose(H)
      */
     @Override
@@ -152,7 +166,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
 
     /**
      * <native-call>
-     * To close the device related resource (device's implementation)
+     * To close the device-related resource (device's implementation)
      *
      * @param handle the handle of the opened resource (device's implementation)
      * @see #closeResource(H)
@@ -166,7 +180,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * To end up (handset off) the phone call.
      *
      * @param handle the telephony device handle
-     * @return true if operation complete successfully or device with handle is already disconnected
+     * @return true if the operation completed successfully or device with handle is already disconnected
      * @see CallsPortEngine#dropCall(PhoneCallSession)
      * @see #nativeHandsetOff(H)
      */
@@ -182,7 +196,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * To end up (handset off) the phone call.
      *
      * @param handle the handle of the opened resource (device's implementation)
-     * @return true if operation complete successfully
+     * @return true if the operation completed successfully
      * @see #handsetOff(H)
      */
     protected boolean nativeHandsetOff(H handle) {
@@ -208,7 +222,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * To answer to an incoming phone call.
      *
      * @param handle the telephony device handle
-     * @return true if operation complete successfully
+     * @return true if the operation completed successfully
      * @see CallsPortEngine#waitForCall(PhoneCallSession, int, int, boolean)
      * @see #nativeAnswerCall(H)
      */
@@ -224,8 +238,8 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * To answer to an incoming phone call.
      *
      * @param handle the handle of the opened resource (device's implementation)
-     * @return true if operation complete successfully
-     * @see #answerCall(Object)
+     * @return true if the operation completed successfully
+     * @see #answerCall(H)
      */
     protected boolean nativeAnswerCall(H handle) {
         // doing nothing here
@@ -284,7 +298,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * @param handle  the handle of the opened resource (device's implementation)
      * @param number  the called phone number
      * @param timeout the maximum waiting time for the answer (sec) from outgoing call side
-     * @return true if operation complete successfully
+     * @return true if the operation completed successfully
      * @see #startCalling(H, PhoneCall.Number, int)
      */
     protected boolean nativeStartCalling(H handle, PhoneCall.Number number, int timeout) {
@@ -294,7 +308,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
 
     /**
      * <action>
-     * To get the device event from events native during particular timeframe
+     * To get the device event from events native during a particular timeframe
      *
      * @param during time-frame for event's getting
      * @return detected event or empty
@@ -310,7 +324,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
 
     /**
      * <native-call>
-     * To get the device event from events provider during particular timeframe
+     * To get the device event from the events provider during a particular timeframe
      *
      * @param during time-frame for event's getting
      * @return detected event or empty
@@ -323,11 +337,11 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
 
     /**
      * <action>
-     * To enable particular type events producing for particular device from the events provider
+     * To enable particular type events producing for the particular device from the events provider
      *
      * @param deviceHandle device handle of the device for which events producing is enabled
      * @param eventType    the type of events to enable
-     * @see Device.Session#getDeviceHandle()
+     * @see DeviceActivitySession#getDeviceHandle()
      * @see OperationResultValue
      * @see #enableEvent(H, OperationResultValue)
      * @see #nativeEnableEvents(H, String)
@@ -339,7 +353,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
 
     /**
      * <accessor>
-     * To get event types enabled for te opened resource
+     * To get event types enabled for the opened resource
      *
      * @param deviceHandle the handle to the opened resource
      * @return the set of enabled event types for the resource
@@ -368,7 +382,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      *
      * @param deviceHandle device handle of the device for which events producing is disabled
      * @param eventType    the type of events to disable
-     * @see Device.Session#getDeviceHandle()
+     * @see DeviceActivitySession#getDeviceHandle()
      * @see OperationResultValue
      * @see #nativeDisableEvents(H, String)
      */

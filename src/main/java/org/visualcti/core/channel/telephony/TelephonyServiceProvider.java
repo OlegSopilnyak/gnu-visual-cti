@@ -65,11 +65,11 @@ import org.visualcti.media.Sound;
 public interface TelephonyServiceProvider<H> extends Device.ServiceProvider<H> {
     /**
      * <action>
-     * To open the device related resource (device's implementation)
+     * To open the device-related resource (device's implementation)
      *
      * @param name the name of the resource
      * @return handle for the opened resource
-     * @throws IOException if channel's fax resource cannot be opened or activated
+     * @throws IOException if the channel's fax resource cannot be opened or activated
      * @see Device#getName()
      * @see DeviceActivitySession#parameter(Device.ParameterName, Object)
      * @see Device.Parameter#FAX_DEVICE_HANDLE
