@@ -39,22 +39,29 @@ package org.visualcti.server.hardware.provider.javasound;
 
 import javax.sound.sampled.Line;
 
+import java.util.function.Predicate;
+
 /**
  * <p>Title: Visual CTI Java Telephony Server</p>
  * <p>Description: VisualCTI WorkFlow, <br>
  * sound-device handle for the telephony device operations</p>
+ *
  * @author Sopilnyak Oleg
  * @version 3.2
- * @see org.visualcti.core.channel.telephony.TelephonyServiceProvider#openResource(String)
+ * @see org.visualcti.core.channel.device.Device.ServiceProvider#openResource(String)
  */
+@SuppressWarnings("unchecked")
 public class SoundCardHandle {
+    // predicate to test is it impossible to use this handle
+    private static final Predicate<SoundCardHandle> isWrong = handle ->
+            handle.source == null && handle.target == null;
     // the source line info
     private final Line.Info source;
     private final Line.Info target;
 
     /**
      * <builder>
-     * To create a new instance of SoundCardHandle
+     * To create a new instance of the valid SoundCardHandle
      *
      * @param source info about the source line
      * @param target info about the target line
@@ -64,12 +71,32 @@ public class SoundCardHandle {
         return new SoundCardHandle(source, target);
     }
 
+    /**
+     * <builder>
+     * To create a new instance of the invalid (wrong) SoundCardHandle
+     *
+     * @return built instance of SoundCardHandle
+     */
+    public static <H extends SoundCardHandle> H wrong() {
+        return (H) of(null, null);
+    }
+
     public Line.Info getSource() {
         return source;
     }
 
     public Line.Info getTarget() {
         return target;
+    }
+
+    /**
+     * <accessor>
+     * To test is it possible to use this handle
+     *
+     * @return true if it is possible to use this handle
+     */
+    public boolean canUse() {
+        return isWrong.negate().test(this);
     }
 
     private SoundCardHandle(Line.Info source, Line.Info target) {

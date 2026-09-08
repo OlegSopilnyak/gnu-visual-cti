@@ -577,32 +577,32 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit, XmlAware
     interface ServiceProvider<H> extends DeviceEvent.Provider<H> {
         /**
          * <action>
-         * To open the device related resource (device's implementation)
+         * To open the device-related resource (device's implementation)
          *
          * @param name the name of the resource
          * @return handle for the opened resource
-         * @throws IOException if channel's resource cannot be opened or activated
+         * @throws IOException if the channel's resource cannot be opened or activated
          * @see DeviceActivitySession#getDeviceHandle()
          */
         H openResource(String name) throws IOException;
 
         /**
          * <action>
-         * To close the device related resource
+         * To close the device-related resource
          *
          * @param handle the handle of the opened resource (device's implementation)
-         * @throws IOException if channel's resource cannot be closed
+         * @throws IOException if the channel's resource cannot be closed
          * @see DeviceActivitySession#getDeviceHandle()
          */
         void closeResource(H handle) throws IOException;
 
         /**
          * <acessor>
-         * To get resource's specific device parameter by parameter name
+         * To get the resource-specific device parameter by parameter name
          *
          * @param handle the handle of the opened resource
          * @param name   the name of parameter to get
-         * @return exists parameter value or empty if not exists
+         * @return there exists parameter value or empty if not exists
          * @see ParameterName
          * @see ConfigurationParameter
          * @see Optional

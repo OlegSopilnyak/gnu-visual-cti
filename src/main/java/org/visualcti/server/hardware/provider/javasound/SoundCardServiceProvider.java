@@ -46,7 +46,9 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.telephony.adapter.AbstractTelephonyServiceProvider;
+import org.visualcti.core.channel.telephony.operation.PhoneCall;
 
 /**
  * <p>Title: Visual CTI Java Telephony Server</p>
@@ -61,11 +63,14 @@ import org.visualcti.core.channel.telephony.adapter.AbstractTelephonyServiceProv
  */
 @SuppressWarnings("unchecked")
 public class SoundCardServiceProvider<H extends SoundCardHandle> extends AbstractTelephonyServiceProvider<H> {
+    // the name of sound card device as a telephony device
     public static final String SOUND_DEVICE = "SoundCard";
     // reference to the sound-card handle as singleton
     private static final AtomicReference<SoundCardHandle> handle = new AtomicReference<>(null);
     // the state of handset true = handset is off false = handset is on
-    private static final AtomicBoolean handsetOff = new AtomicBoolean(true);
+    private final AtomicBoolean handsetOff = new AtomicBoolean(true);
+    // reference to the sound-card phone number as singleton
+    private final AtomicReference<PhoneCall.Number> callerID = new AtomicReference<>(PhoneCall.Number.EMPTY);
 
     @Override
     public Collection<String> allowedDevices() {
@@ -73,14 +78,26 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
     }
 
     @Override
-    protected H nativeResourceOpen(String name) throws IOException {
+    protected H nativeResourceOpen(final String name) throws IOException {
         if (isOpened(name)) {
             throw new IOException("Device :" + name + ": is already opened");
-        } else if (SOUND_DEVICE.equals(name)) {
-            return (H) soundCardHandle();
-        } else {
-            throw new IOException("Unsupported device: " + name);
         }
+        return SOUND_DEVICE.equals(name) ? (H) soundCardResourceHandle() : SoundCardHandle.wrong();
+    }
+
+    @Override
+    protected boolean isOpened(final H handle) {
+        return super.isOpened(handle);
+    }
+
+    @Override
+    protected boolean isValid(final H handle) {
+        return super.isValid(handle) && handle.canUse();
+    }
+
+    @Override
+    protected void nativeResourceClose(H handle) {
+        super.nativeResourceClose(handle);
     }
 
     @Override
@@ -91,7 +108,8 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
     @Override
     protected boolean nativeHandsetOff(H handle) {
         if (isOpened(handle)) {
-            handsetOff.set(true);
+            handsetOff.getAndSet(true);
+            callerID.getAndSet(PhoneCall.Number.EMPTY);
             return true;
         }
         return false;
@@ -99,25 +117,49 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
 
     @Override
     protected boolean nativeAnswerCall(H handle) {
-        if (isOpened(handle)) {
-            handsetOff.set(false);
+        if (isOpened(handle) && handsetOff.get()) {
+            handsetOff.getAndSet(false);
             return true;
         }
         return false;
     }
 
+    @Override
+    protected PhoneCall.Number nativeCallerID(H handle) {
+        return isOpened(handle) ? callerID.get() : PhoneCall.Number.EMPTY;
+    }
+
+    public void callerID(final PhoneCall.Number phoneNumber) {
+        this.callerID.getAndSet(phoneNumber);
+    }
+
+    @Override
+    protected boolean nativeStartCalling(H handle, PhoneCall.Number number, int timeout) {
+        return isOpened(handle) && number != null && number != PhoneCall.Number.EMPTY && timeout > 0;
+    }
+
+    @Override
+    protected DeviceEvent<H> nativeGetEvent(long during) {
+        return null;
+    }
+
+    @Override
+    protected DeviceEvent<H> allowedEvent(final DeviceEvent<H> event) {
+        return super.allowedEvent(event);
+    }
+
     /// private methods
     // Returns the singleton instance of SoundCardHandle.
-    private static SoundCardHandle soundCardHandle() {
+    private static <H extends SoundCardHandle> H soundCardResourceHandle() {
         if (handle.get() != null) {
-            return handle.get();
+            return (H) handle.get();
         }
         synchronized (SoundCardHandle.class) {
             if (handle.get() == null) {
                 handle.getAndSet(createHandle());
             }
         }
-        return handle.get();
+        return (H) handle.get();
     }
 
     private static SoundCardHandle createHandle() {

@@ -51,9 +51,41 @@ import org.visualcti.core.channel.device.operation.OperationResultValue;
 @SuppressWarnings({"rawtypes"})
 public interface DeviceEvent<H> {
     /**
+     * Enumeration: The types of device's events
+     */
+    enum Type {
+        // received signal from device about incoming activity (incoming call, HTTP request, incoming message, etc.)
+        INCOMING,
+        // detected malfunction during device working activity
+        MALFUNCTION,
+        // channel-device-specific event
+        DEVICE_SPECIFIC
+    }
+
+    /**
+     * Enumeration: Parameter names for device event options
+     */
+    enum Option implements Device.ParameterName {
+        INPUT("USER-INPUT"),
+        REASON("DEVICE-EVENT-REASON");
+
+        private final String name;
+
+        Option(String name) {
+            this.name = name;
+        }
+
+        @Override
+        public String value() {
+            return name.toLowerCase();
+        }
+    }
+
+    /**
      * Special Event: The event marker for the events queue
      */
-    DeviceEvent<?> EMPTY = new DeviceEvent(){};
+    DeviceEvent<?> EMPTY = new DeviceEvent() {
+    };
 
     /**
      * <accessor>
@@ -71,7 +103,7 @@ public interface DeviceEvent<H> {
      * To get the device's internal handle
      *
      * @return the value
-     * @see Device.Session#getDeviceHandle()
+     * @see DeviceActivitySession#getDeviceHandle()
      */
     default H getDeviceHandle() {
         throw new UnsupportedOperationException("Not supported yet.");
@@ -79,7 +111,7 @@ public interface DeviceEvent<H> {
 
     /**
      * <accessor>
-     * to get the name of device, where the event has occurred
+     * to get the name of the device, where the event has occurred
      *
      * @return the value
      * @see Device#getName()
@@ -90,7 +122,7 @@ public interface DeviceEvent<H> {
 
     /**
      * <accessor>
-     * get access to event device's vendor name
+     * get access to the event device's vendor name
      *
      * @return vendor's name
      * @see Factory#getVendor()
@@ -114,8 +146,8 @@ public interface DeviceEvent<H> {
      * To get event option value by name
      *
      * @param name the name of option's parameter
+     * @param <T>  the type of event option's value
      * @return the value or empty
-     * @param <T> the type of event option's value
      * @see Device.ParameterName
      */
     default <T> Optional<T> getOption(Device.ParameterName name) {
@@ -134,39 +166,9 @@ public interface DeviceEvent<H> {
     default Stream<Device.ParameterName> options() {
         return Stream.empty();
     }
-    /**
-     * Enumeration: Parameter names for device event options
-     */
-    enum Option implements Device.ParameterName {
-        INPUT("USER-INPUT"),
-        REASON("DEVICE-EVENT-REASON");
-
-        private final String name;
-
-        Option(String name) {
-            this.name = name;
-        }
-
-        @Override
-        public String value() {
-            return name.toLowerCase();
-        }
-    }
 
     /**
-     * The types of device's events
-     */
-    enum Type {
-        // received signal from device about incoming activity (incoming call, HTTP request, incoming message, etc.)
-        INCOMING,
-        // detected malfunction during device working activity
-        MALFUNCTION,
-        // channel-device specific event
-        DEVICE_SPECIFIC
-    }
-
-    /**
-     * EventListener: The listener of the channel device events
+     * EventsListener: The listener of the channel device events
      */
     interface Listener {
         /**
@@ -230,7 +232,7 @@ public interface DeviceEvent<H> {
     interface Provider<H> {
         /**
          * <action>
-         * To get the device event from events provider during particular timeframe
+         * To get the device event from the events provider during a particular timeframe
          *
          * @param during time-frame for event's getting
          * @return detected event or empty
@@ -242,35 +244,32 @@ public interface DeviceEvent<H> {
 
         /**
          * <action>
-         * To enable particular type events producing for particular device from the events provider
-         *
+         * To enable particular type events producing for the particular device from the events provider
          *
          * @param deviceHandle device handle of the device for which events producing is enabled
-         * @param eventType the type of events to enable
-         * @see Device.Session#getDeviceHandle()
+         * @param eventType    the type of events to enable
+         * @see DeviceActivitySession#getDeviceHandle()
          * @see OperationResultValue
          */
         void enableEvents(H deviceHandle, OperationResultValue eventType);
 
         /**
          * <action>
-         * To disable particular type events producing for particular device from the events provider
-         *
+         * To disable particular type events producing for the particular device from the events provider
          *
          * @param deviceHandle device handle of the device for which events producing is disabled
-         * @param eventType the type of events to disable
-         * @see Device.Session#getDeviceHandle()
+         * @param eventType    the type of events to disable
+         * @see DeviceActivitySession#getDeviceHandle()
          * @see OperationResultValue
          */
         void disableEvents(H deviceHandle, OperationResultValue eventType);
 
         /**
          * <action>
-         * To disable ALL events producing for particular device from the events provider
-         *
+         * To disable ALL events producing for the particular device from the events provider
          *
          * @param deviceHandle device handle of the device for which events producing is disabled
-         * @see Device.Session#getDeviceHandle()
+         * @see DeviceActivitySession#getDeviceHandle()
          * @see DeviceEvent.Listener
          */
         void disableEvents(H deviceHandle);

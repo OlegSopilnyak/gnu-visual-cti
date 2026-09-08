@@ -163,10 +163,10 @@ public interface TelephonyServiceProvider<H> extends Device.ServiceProvider<H> {
 
     /**
      * <accessor>
-     * To check, whether service provider can accept incoming calls for device with name
+     * To check whether a service provider can accept incoming calls for the device with name
      *
      * @param name the device's name to check in the provider
-     * @return true if device can accept incoming phone calls
+     * @return true if a device can accept incoming phone calls
      * @see TelephonyDevice#getName()
      * @see TelephonyDevice#canAcceptCall()
      */
@@ -176,10 +176,10 @@ public interface TelephonyServiceProvider<H> extends Device.ServiceProvider<H> {
 
     /**
      * <accessor>
-     * To check, whether service provider can make the outgoing calls for device by handle
+     * To check whether the service provider can make the outgoing calls for the device by handle
      *
      * @param handle the device's opened handle to check the feature in the service provider
-     * @return true if device can make the outgoing phone calls
+     * @return true if a device can make the outgoing phone calls
      * @see TelephonyDevice#getName()
      * @see TelephonyDevice#canMakeCall()
      */
@@ -189,10 +189,10 @@ public interface TelephonyServiceProvider<H> extends Device.ServiceProvider<H> {
 
     /**
      * <accessor>
-     * To check, whether service provider can make the outgoing calls for device with name
+     * To check whether the service provider can make the outgoing calls for the device with name
      *
      * @param name the device's name to check in the provider
-     * @return true if device can make the outgoing phone calls
+     * @return true if a device can make the outgoing phone calls
      * @see TelephonyDevice#getName()
      * @see TelephonyDevice#canMakeCall()
      */
@@ -202,10 +202,10 @@ public interface TelephonyServiceProvider<H> extends Device.ServiceProvider<H> {
 
     /**
      * <accessor>
-     * To check, whether device can be used in operations of connections (conference)
+     * To check whether a device can be used in operations of connections (conference)
      *
      * @param handle the device's opened handle to check the feature in the service provider
-     * @return true if device can be shared for another device
+     * @return true if a device can be shared for another device
      * @see TelephonyDevice#getName()
      * @see TelephonyDevice#canBeConnected()
      */

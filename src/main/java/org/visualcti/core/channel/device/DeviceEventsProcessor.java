@@ -81,7 +81,7 @@ public interface DeviceEventsProcessor<H> extends RunnableServerUnit {
 
     /**
      * <mutator>
-     * To set up new option's value
+     * To setting up the new value of the option
      *
      * @param name the name of the option
      * @param value new value of the option

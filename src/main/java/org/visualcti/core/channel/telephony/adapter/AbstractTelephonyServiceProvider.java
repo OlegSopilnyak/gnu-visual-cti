@@ -38,16 +38,23 @@ Fax number: 217-356-3356
 package org.visualcti.core.channel.telephony.adapter;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceActivitySession;
 import org.visualcti.core.channel.device.DeviceEvent;
@@ -57,6 +64,7 @@ import org.visualcti.core.channel.telephony.TelephonyServiceProvider;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.core.channel.telephony.part.CallsPortEngine;
+import org.visualcti.util.Tools;
 
 /**
  * Provider Facade: The telephony service provider facade 'basic implementation'
@@ -70,6 +78,10 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
     private final Map<String, List<H>> openedResources = new ConcurrentHashMap<>();
     // holder of the enabled event-types by opened resource handlers
     private final Map<H, Set<OperationResultValue>> resourceEventTypes = new ConcurrentHashMap<>();
+    // native events access lock
+    private final Lock nativeEventsAccessLock = new ReentrantLock(true);
+    // the blocking queue of the native events
+    private final BlockingQueue<DeviceEvent<H>> nativeEvents = new LinkedBlockingQueue<>();
 
     /**
      * <action>
@@ -83,15 +95,26 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * @see #nativeResourceOpen(String)
      */
     @Override
-    public H openResource(String name) throws IOException {
+    public H openResource(final String name) throws IOException {
         final H handle = nativeResourceOpen(name);
-        if (handle != null) {
+        if (isValid(handle)) {
             // adding handle to the opened resource handlers
             openedResources.compute(name,
                     (resourceName, handlesList) -> handlesList == null ? new LinkedList<>() : handlesList
             ).add(handle);
         }
         return handle;
+    }
+
+    /**
+     * <accessor>
+     * Checks whether the provided handle is valid.
+     *
+     * @param handle the handle to be validated
+     * @return true if the handle is valid, false otherwise
+     */
+    protected boolean isValid(final H handle) {
+        return handle != null;
     }
 
     /**
@@ -103,7 +126,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * @throws IOException if the channel's resource cannot be opened or activated
      * @see #openResource(String)
      */
-    protected H nativeResourceOpen(String name) throws IOException {
+    protected H nativeResourceOpen(final String name) throws IOException {
         return null;
     }
 
@@ -136,23 +159,38 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
     }
 
     /**
+     * <acessor>
+     * To find any handler for the resource by name
+     *
+     * @param name the name of the opened resource
+     * @return handle to opened resource or empty
+     * @see Optional
+     * @see #openResource(String)
+     */
+    @Override
+    public Optional<H> handleByName(String name) {
+        final List<H> handles = openedResources.get(name);
+        return handles != null && !handles.isEmpty() ? Optional.ofNullable(handles.get(0)) : Optional.empty();
+    }
+
+    /**
      * <action>
-     * To open the device-related resource
+     * To close the device-related resource
      *
      * @param handle the handle of the opened resource (device's implementation)
-     * @throws IOException if the channel's resource cannot be closed
      * @see DeviceActivitySession#getDeviceHandle()
      * @see #nativeResourceClose(H)
      */
     @Override
-    public void closeResource(H handle) throws IOException {
+    public void closeResource(final H handle) {
         resourcesByHandle(handle).ifPresent(resourceEntry -> {
             final String deviceName = resourceEntry.getKey();
-            final List<H> handles = new ArrayList<>(resourceEntry.getValue());
+            // removing closed resource handle from device's list of the opened handles
+            final List<H> handles = resourceEntry.getValue().stream()
+                    .filter(this::isValid).filter(h -> !Objects.equals(h, handle))
+                    .collect(Collectors.toList());
             // closing resource natively
             nativeResourceClose(handle);
-            // removing closed resource handle from device's handles list
-            handles.remove(handle);
             // dealing with opened resource map-entry
             if (handles.isEmpty()) {
                 // there is no any opened handle associated with device name
@@ -279,8 +317,8 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      *
      * @param handle  the telephony device handle
      * @param number  the called phone number
-     * @param timeout the maximum waiting time for the answer (sec) to outgoing call
-     * @return true if operation started successfully
+     * @param timeout the maximum waiting time for the answer (sec) to the outgoing call
+     * @return true if the operation started successfully
      * @see CallsPortEngine#makeCall(PhoneCallSession, PhoneCall.Number, int)
      * @see #nativeStartCalling(Object, PhoneCall.Number, int)
      */
@@ -310,7 +348,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * <action>
      * To get the device event from events native during a particular timeframe
      *
-     * @param during time-frame for event's getting
+     * @param during time-frame for event's getting (milliseconds)
      * @return detected event or empty
      * @see DeviceEvent
      * @see Optional
@@ -318,15 +356,74 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * @see #nativeGetEvent(long)
      */
     @Override
-    public Optional<DeviceEvent<H>> getEvent(long during) {
-        return Optional.ofNullable(nativeGetEvent(during));
+    public Optional<DeviceEvent<H>> getEvent(final long during) {
+        return Optional.ofNullable(safeEvent(() -> {
+            if (during < 0) {
+                // wrong timeout value
+                return null;
+            }
+            // calculating timeout for native event polling and native event getting
+            final long timeout = during / 2;
+            final DeviceEvent<H> nativeEvent;
+            try {
+                nativeEvent = nativeEvents.poll(timeout, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException e) {
+                Tools.error("Interrupted while waiting for native event");
+                e.printStackTrace(Tools.err);
+                /* Clean up whatever needs to be handled before interrupting  */
+                Thread.currentThread().interrupt();
+                return null;
+            }
+            // according to polled event, whether it is null or not, we return allowed device-event
+            // or allowed device-event getting from the native
+            return allowedEvent(nativeEvent == null ? nativeGetEvent(timeout) : nativeEvent);
+        }));
+    }
+
+    /**
+     * <checker>
+     * To check the event's allowance and return it if allowed
+     *
+     * @param event the event to check
+     * @return the input event if it's allowed or null otherwise
+     */
+    protected DeviceEvent<H> allowedEvent(final DeviceEvent<H> event) {
+        if (event == null) {
+            // event is null
+            return null;
+        }
+        // analyzing the event's device handle
+        final H deviceHandle = event.getDeviceHandle();
+        if (isOpened(deviceHandle)) {
+            // analyzing the reason of the event's occurrence to decide whether to return the event or not
+            return event.<OperationResultValue>getOption(DeviceEvent.Option.REASON)
+                    .filter(allowedEventTypesFor(deviceHandle)::contains)
+                    .map(reason -> event)
+                    .orElse(null);
+        } else {
+            // event's handle of device ain't opened
+            return null;
+        }
+
+    }
+
+    /**
+     * <action>
+     * To put the device event for further processing
+     * used for special device events or for regular device events (from native)
+     *
+     * @param deviceEvent device event for further processing
+     * @return true if the event was put successfully
+     */
+    public boolean putEvent(final DeviceEvent<H> deviceEvent) {
+        return safeEvent(() -> nativeEvents.offer(deviceEvent));
     }
 
     /**
      * <native-call>
      * To get the device event from the events provider during a particular timeframe
      *
-     * @param during time-frame for event's getting
+     * @param during time-frame for event's getting (milliseconds)
      * @return detected event or empty
      * @see DeviceEvent
      * @see #getEvent(long)
@@ -416,35 +513,52 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
 
     /// private methods
     // to look for map-entry contains the handle value in opened resources map
-    private Optional<Map.Entry<String, List<H>>> resourcesByHandle(H handle) {
+    private Optional<Map.Entry<String, List<H>>> resourcesByHandle(final H handle) {
         return openedResources.entrySet().stream()
                 .filter(resourceEntry -> resourceEntry.getValue().contains(handle))
                 .findFirst();
     }
 
+    // to get the set of allowed event types for the opened resource by handle
+    private Set<OperationResultValue> allowedEventTypesFor(final H handle) {
+        return resourceEventTypes.getOrDefault(handle, Collections.emptySet());
+    }
+
     // enabling events type for the opened resource by handle
-    private void enableEvent(H handle, OperationResultValue type) {
+    private void enableEvent(final H handle, final OperationResultValue type) {
         final Set<OperationResultValue> enabledEventTypes = new HashSet<>(
                 resourceEventTypes.compute(handle, (k, v) -> v == null ? new HashSet<>() : v)
         );
         if (!enabledEventTypes.contains(type) && enabledEventTypes.add(type)) {
+            // put the updated set of enabled event types back into the map
             resourceEventTypes.put(handle, enabledEventTypes);
+            // notify about the enabled event type
             nativeEnableEvents(handle, type.getValue());
         }
     }
 
     // disabling events type for the opened resource by handle
-    private void disableEvent(H handle, OperationResultValue type) {
-        final Set<OperationResultValue> enabledEventTypes = new HashSet<>(
-                resourceEventTypes.compute(handle, (k, v) -> v == null ? new HashSet<>() : v)
-        );
-        if (type == EventType.ALL || (enabledEventTypes.contains(type) && enabledEventTypes.remove(type))) {
+    private void disableEvent(final H handle, final OperationResultValue type) {
+        final Set<OperationResultValue> enabledEventTypes = new HashSet<>(allowedEventTypesFor(handle));
+        if (type == EventType.ALL || enabledEventTypes.remove(type)) {
             if (enabledEventTypes.isEmpty() || type == EventType.ALL) {
+                // there are no more allowed event types for the handle, or the disabling of ALL events has been requested
                 resourceEventTypes.remove(handle);
             } else {
+                // put the updated set of enabled event types back into the map
                 resourceEventTypes.put(handle, enabledEventTypes);
             }
             nativeDisableEvents(handle, type.getValue());
+        }
+    }
+
+    // to do operation with native events safely
+    private <T> T safeEvent(final Supplier<T> eventSupplier) {
+        try {
+            nativeEventsAccessLock.lock();
+            return eventSupplier.get();
+        } finally {
+            nativeEventsAccessLock.unlock();
         }
     }
 }
