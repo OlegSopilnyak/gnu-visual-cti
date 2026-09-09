@@ -38,6 +38,8 @@ Fax number: 217-356-3356
 package org.visualcti.core.channel.telephony.adapter;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -53,6 +55,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import org.visualcti.core.channel.device.Device;
@@ -64,6 +67,8 @@ import org.visualcti.core.channel.telephony.TelephonyServiceProvider;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.core.channel.telephony.part.CallsPortEngine;
+import org.visualcti.core.channel.telephony.part.FaxMachineEngine;
+import org.visualcti.media.Fax;
 import org.visualcti.util.Tools;
 
 /**
@@ -96,25 +101,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      */
     @Override
     public H openResource(final String name) throws IOException {
-        final H handle = nativeResourceOpen(name);
-        if (isValid(handle)) {
-            // adding handle to the opened resource handlers
-            openedResources.compute(name,
-                    (resourceName, handlesList) -> handlesList == null ? new LinkedList<>() : handlesList
-            ).add(handle);
-        }
-        return handle;
-    }
-
-    /**
-     * <accessor>
-     * Checks whether the provided handle is valid.
-     *
-     * @param handle the handle to be validated
-     * @return true if the handle is valid, false otherwise
-     */
-    protected boolean isValid(final H handle) {
-        return handle != null;
+        return internalResourceOpen(name, this::nativeResourceOpen);
     }
 
     /**
@@ -126,8 +113,19 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * @throws IOException if the channel's resource cannot be opened or activated
      * @see #openResource(String)
      */
-    protected H nativeResourceOpen(final String name) throws IOException {
+    protected H nativeResourceOpen(String name) throws IOException {
         return null;
+    }
+
+    /**
+     * <accessor>
+     * Checks whether the provided handle is valid.
+     *
+     * @param handle the handle to be validated
+     * @return true if the handle is valid, false otherwise
+     */
+    protected boolean isValid(H handle) {
+        return handle != null;
     }
 
     /**
@@ -139,7 +137,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * @see #openResource(String)
      * @see #closeResource(H)
      */
-    protected boolean isOpened(final H handle) {
+    protected boolean isOpened(H handle) {
         return openedResources.values().stream().flatMap(Collection::stream)
                 .distinct().anyMatch(h -> h.equals(handle));
     }
@@ -153,7 +151,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * @see #openResource(String)
      * @see #closeResource(H)
      */
-    protected boolean isOpened(final String name) {
+    protected boolean isOpened(String name) {
         final List<H> handles = openedResources.get(name);
         return handles != null && !handles.isEmpty();
     }
@@ -168,7 +166,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * @see #openResource(String)
      */
     @Override
-    public Optional<H> handleByName(String name) {
+    public Optional<H> handleByName(final String name) {
         final List<H> handles = openedResources.get(name);
         return handles != null && !handles.isEmpty() ? Optional.ofNullable(handles.get(0)) : Optional.empty();
     }
@@ -183,23 +181,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      */
     @Override
     public void closeResource(final H handle) {
-        resourcesByHandle(handle).ifPresent(resourceEntry -> {
-            final String deviceName = resourceEntry.getKey();
-            // removing closed resource handle from device's list of the opened handles
-            final List<H> handles = resourceEntry.getValue().stream()
-                    .filter(this::isValid).filter(h -> !Objects.equals(h, handle))
-                    .collect(Collectors.toList());
-            // closing resource natively
-            nativeResourceClose(handle);
-            // dealing with opened resource map-entry
-            if (handles.isEmpty()) {
-                // there is no any opened handle associated with device name
-                openedResources.remove(deviceName);
-            } else {
-                // there is an opened handle associated with device name
-                openedResources.put(deviceName, handles);
-            }
-        });
+        internalCloseResource(handle, this::nativeResourceClose);
     }
 
     /**
@@ -223,7 +205,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * @see #nativeHandsetOff(H)
      */
     @Override
-    public boolean handsetOff(H handle) {
+    public boolean handsetOff(final H handle) {
         return resourcesByHandle(handle)
                 .map(entry -> isHandsetOff(handle) || nativeHandsetOff(handle))
                 .orElse(false);
@@ -265,7 +247,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * @see #nativeAnswerCall(H)
      */
     @Override
-    public boolean answerCall(H handle) {
+    public boolean answerCall(final H handle) {
         return resourcesByHandle(handle)
                 .map(resourceEntry -> nativeAnswerCall(handle))
                 .orElse(false);
@@ -293,7 +275,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * @see #nativeCallerID(H)
      */
     @Override
-    public PhoneCall.Number getCallerID(H handle) {
+    public PhoneCall.Number getCallerID(final H handle) {
         return resourcesByHandle(handle)
                 .map(resourceEntry -> nativeCallerID(handle))
                 .orElse(PhoneCall.Number.EMPTY);
@@ -323,7 +305,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * @see #nativeStartCalling(Object, PhoneCall.Number, int)
      */
     @Override
-    public boolean startCalling(H handle, PhoneCall.Number number, int timeout) {
+    public boolean startCalling(final H handle, final PhoneCall.Number number, final int timeout) {
         return resourcesByHandle(handle)
                 .map(resourceEntry -> nativeStartCalling(handle, number, timeout))
                 .orElse(false);
@@ -335,7 +317,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      *
      * @param handle  the handle of the opened resource (device's implementation)
      * @param number  the called phone number
-     * @param timeout the maximum waiting time for the answer (sec) from outgoing call side
+     * @param timeout the maximum waiting time for the answer (sec) from the outgoing call side
      * @return true if the operation completed successfully
      * @see #startCalling(H, PhoneCall.Number, int)
      */
@@ -381,6 +363,19 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
     }
 
     /**
+     * <native-call>
+     * To get the device event from the events provider during a particular timeframe
+     *
+     * @param during time-frame for event's getting (milliseconds)
+     * @return detected event or empty
+     * @see DeviceEvent
+     * @see #getEvent(long)
+     */
+    protected DeviceEvent<H> nativeGetEvent(long during) {
+        return null;
+    }
+
+    /**
      * <checker>
      * To check the event's allowance and return it if allowed
      *
@@ -420,19 +415,6 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
     }
 
     /**
-     * <native-call>
-     * To get the device event from the events provider during a particular timeframe
-     *
-     * @param during time-frame for event's getting (milliseconds)
-     * @return detected event or empty
-     * @see DeviceEvent
-     * @see #getEvent(long)
-     */
-    protected DeviceEvent<H> nativeGetEvent(long during) {
-        return null;
-    }
-
-    /**
      * <action>
      * To enable particular type events producing for the particular device from the events provider
      *
@@ -444,8 +426,20 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * @see #nativeEnableEvents(H, String)
      */
     @Override
-    public void enableEvents(H deviceHandle, OperationResultValue eventType) {
+    public void enableEvents(final H deviceHandle, final OperationResultValue eventType) {
         resourcesByHandle(deviceHandle).ifPresent(e -> enableEvent(deviceHandle, eventType));
+    }
+
+    /**
+     * <native-call>
+     * To enable particular type events producing for the particular device from the events provider
+     *
+     * @param deviceHandle device handle of the device for which events producing is enabled
+     * @param eventType    the type of events to enable
+     * @see #enableEvents(H, OperationResultValue)
+     */
+    protected void nativeEnableEvents(H deviceHandle, String eventType) {
+        // doing nothing here yet
     }
 
     /**
@@ -462,37 +456,25 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
     }
 
     /**
-     * <native-call>
-     * To enable particular type events producing for particular device from the events provider
-     *
-     * @param deviceHandle device handle of the device for which events producing is enabled
-     * @param eventType    the type of events to enable
-     * @see #enableEvents(H, OperationResultValue)
-     */
-    protected void nativeEnableEvents(H deviceHandle, String eventType) {
-        // doing nothing here yet
-    }
-
-    /**
      * <action>
-     * To disable particular type events producing for particular device from the events provider
+     * To disable particular type events producing for the particular device from the events provider
      *
-     * @param deviceHandle device handle of the device for which events producing is disabled
+     * @param deviceHandle device handle of the device for which events producing are disabled
      * @param eventType    the type of events to disable
      * @see DeviceActivitySession#getDeviceHandle()
      * @see OperationResultValue
      * @see #nativeDisableEvents(H, String)
      */
     @Override
-    public void disableEvents(H deviceHandle, OperationResultValue eventType) {
+    public void disableEvents(final H deviceHandle, final OperationResultValue eventType) {
         resourcesByHandle(deviceHandle).ifPresent(e -> disableEvent(deviceHandle, eventType));
     }
 
     /**
      * <native-call>
-     * To disable particular type events producing for particular device from the events provider
+     * To disable particular type events producing for the particular device from the events provider
      *
-     * @param deviceHandle device handle of the device for which events producing is enabled
+     * @param deviceHandle device handle of the device for which events producing are enabled
      * @param eventType    the type of events to enable
      * @see #disableEvents(H, OperationResultValue)
      */
@@ -507,11 +489,241 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * @param event device event to reject
      */
     @Override
-    public void reject(DeviceEvent<H> event) {
+    public void reject(final DeviceEvent<H> event) {
+        final H handle = event.getDeviceHandle();
+        resourcesByHandle(handle).ifPresent(e -> nativeEventRejected(handle, event));
+    }
+
+    /**
+     * <native-call>
+     * To reject unprocessing device event
+     *
+     * @param handle the handle of the opened resource (device's implementation)
+     * @param event  device event to reject
+     */
+    protected void nativeEventRejected(H handle, DeviceEvent<H> event) {
         // doing nothing here yet
     }
 
+    /**
+     * <action>
+     * To open the device-related fax-resource (device's implementation)
+     *
+     * @param name the name of the resource
+     * @return handle for the opened resource
+     * @throws IOException if the channel's fax resource cannot be opened or activated
+     * @see Device#getName()
+     * @see DeviceActivitySession#parameter(Device.ParameterName, Object)
+     * @see Device.Parameter#FAX_DEVICE_HANDLE
+     */
+    @Override
+    public H openFaxResource(String name) throws IOException {
+        return internalResourceOpen(name, this::nativeFaxResourceOpen);
+    }
+
+    /**
+     * <native-call>
+     * To open the device-related fax-resource (device's implementation)
+     *
+     * @param name the name of the resource
+     * @return handle for the opened resource
+     * @throws IOException if the channel's resource cannot be opened or activated
+     * @see #openResource(String)
+     */
+    protected H nativeFaxResourceOpen(String name) throws IOException {
+        return null;
+    }
+
+    /**
+     * <action>
+     * To close the device-related fax-resource
+     *
+     * @param handle the handle of the opened resource (device's implementation)
+     * @see DeviceActivitySession#getDeviceHandle()
+     * @see DeviceActivitySession#parameter(Device.ParameterName, Object)
+     * @see Device.Parameter#FAX_DEVICE_HANDLE
+     */
+    @Override
+    public void closeFaxResource(final H handle) {
+        internalCloseResource(handle, this::nativeFaxResourceClose);
+    }
+
+    /**
+     * <native-call>
+     * To close the device-related fax-resource (device's implementation)
+     *
+     * @param handle the handle of the opened resource (device's implementation)
+     * @see #closeFaxResource(H)
+     */
+    protected void nativeFaxResourceClose(H handle) {
+        // doing nothing here
+    }
+
+    /**
+     * <action>
+     * To start receiving the fax document
+     *
+     * @param handle            the telephony device handle
+     * @param filePath          the path to the file for the receiving fax document content
+     * @param issueVoiceRequest upon termination of receiver to give out a
+     *                          sound signal on the remote fax-device
+     * @return true if the operation started successfully
+     * @see FaxMachineEngine#receive(PhoneCallSession, OutputStream, boolean, boolean)
+     */
+    @Override
+    public boolean startFaxReceiving(final H handle, final String filePath, final boolean issueVoiceRequest) {
+        return nativeStartFaxReceiving(handle, filePath, issueVoiceRequest);
+    }
+
+    /**
+     * <native-call>
+     * To start receiving the fax document
+     *
+     * @param handle            the telephony device handle
+     * @param filePath          the path to the file for the receiving fax document content
+     * @param issueVoiceRequest upon termination of receiver to give out a
+     *                          sound signal on the remote fax-device
+     * @return true if the operation started successfully
+     * @see FaxMachineEngine#receive(PhoneCallSession, OutputStream, boolean, boolean)
+     */
+    protected boolean nativeStartFaxReceiving(H handle, String filePath, boolean issueVoiceRequest) {
+        return isOpened(handle) && filePath != null && !filePath.trim().isEmpty();
+    }
+
+    /**
+     * <action>
+     * To stop (interrupt) receiving the fax document
+     *
+     * @param handle the telephony device handle
+     * @see FaxMachineEngine#transmit(PhoneCallSession, InputStream, Fax, boolean)
+     */
+    @Override
+    public void stopFaxReceiving(final H handle) {
+        nativeStopFaxReceiving(handle);
+    }
+
+    /**
+     * <native-call>
+     * To stop (interrupt) receiving the fax document
+     *
+     * @param handle the telephony device handle
+     * @see FaxMachineEngine#transmit(PhoneCallSession, InputStream, Fax, boolean)
+     */
+    protected void nativeStopFaxReceiving(H handle) {
+        // doing nothing here
+    }
+
+    /**
+     * <action>
+     * To start transmitting the fax document
+     *
+     * @param handle            the telephony device handle
+     * @param filePath          the path to the file, fax document content
+     * @param issueVoiceRequest upon termination of receiver to give out a
+     *                          sound signal on the remote fax-device
+     * @param isTiff            the parameter of transmitting document page
+     * @param isHighResolution  the parameter of transmitting document page
+     * @param firstPageNumber   transmit from page
+     * @param totalPages        transmit pages (negative value means all available pages)
+     *                          sound signal on the remote fax-device
+     * @return true if the operation started successfully
+     * @see FaxMachineEngine#transmit(PhoneCallSession, InputStream, Fax, boolean)
+     */
+    @Override
+    public boolean startFaxTransmitting(final H handle, final String filePath, final boolean issueVoiceRequest,
+                                        final boolean isTiff, final boolean isHighResolution,
+                                        final int firstPageNumber, final int totalPages) {
+        return nativeStartFaxTransmitting(
+                handle, filePath, issueVoiceRequest, isTiff, isHighResolution, firstPageNumber, totalPages
+        );
+    }
+
+    /**
+     * <native-call>
+     * To start transmitting the fax document
+     *
+     * @param handle            the telephony device handle
+     * @param filePath          the path to the file, fax document content
+     * @param issueVoiceRequest upon termination of receiver to give out a
+     *                          sound signal on the remote fax-device
+     * @param isTiff            the parameter of transmitting document page
+     * @param isHighResolution  the parameter of transmitting document page
+     * @param firstPageNumber   transmit from page
+     * @param totalPages        transmit pages (negative value means all available pages)
+     *                          sound signal on the remote fax-device
+     * @return true if the operation started successfully
+     * @see FaxMachineEngine#transmit(PhoneCallSession, InputStream, Fax, boolean)
+     */
+    protected boolean nativeStartFaxTransmitting(H handle, String filePath, boolean issueVoiceRequest,
+                                                 boolean isTiff, boolean isHighResolution,
+                                                 int firstPageNumber, int totalPages) {
+        return isOpened(handle) && filePath != null && !filePath.trim().isEmpty();
+    }
+
+    /**
+     * <action>
+     * To stop (interrupt) transmitting the fax document
+     *
+     * @param handle the telephony device handle
+     * @see FaxMachineEngine#transmit(PhoneCallSession, InputStream, Fax, boolean)
+     */
+    @Override
+    public void stopFaxTransmitting(final H handle) {
+        nativeStopFaxTransmitting(handle);
+    }
+
+    /**
+     * <native-call>
+     * To stop (interrupt) transmitting the fax document
+     *
+     * @param handle the telephony device handle
+     * @see FaxMachineEngine#transmit(PhoneCallSession, InputStream, Fax, boolean)
+     */
+    protected void nativeStopFaxTransmitting(H handle) {
+        // doing nothing here
+    }
+
     /// private methods
+    @FunctionalInterface
+    private interface NativeResourceOpen<T, R> {
+        R apply(T t) throws IOException;
+    }
+
+    // common used resource's open method
+    private H internalResourceOpen(final String name, final NativeResourceOpen<String, H> nativeOpen) throws IOException {
+        final H handle = nativeOpen.apply(name);
+        if (isValid(handle)) {
+            // adding handle to the opened resource handlers
+            openedResources.compute(name,
+                    (resourceName, handlesList) -> handlesList == null ? new LinkedList<>() : handlesList
+            ).add(handle);
+        }
+        return handle;
+    }
+
+    // common used resource's open method
+    private void internalCloseResource(H handle, Consumer<H> nativeClose) {
+        final Optional<Map.Entry<String, List<H>>> handleEntry = resourcesByHandle(handle);
+        if (handleEntry.isPresent()) {
+            final Map.Entry<String, List<H>> resourceEntry = handleEntry.get();
+            final String deviceName = resourceEntry.getKey();
+            // removing closed resource handle from device's list of the opened handles
+            final List<H> handles = resourceEntry.getValue().stream()
+                    .filter(this::isValid).filter(h -> !Objects.equals(h, handle))
+                    .collect(Collectors.toList());
+            // closing resource natively
+            nativeClose.accept(handle);
+            // dealing with opened resource map-entry
+            if (handles.isEmpty()) {
+                // there is no any opened handle associated with device name
+                openedResources.remove(deviceName);
+            } else {
+                // there is an opened handle associated with device name
+                openedResources.put(deviceName, handles);
+            }
+        }
+    }
+
     // to look for map-entry contains the handle value in opened resources map
     private Optional<Map.Entry<String, List<H>>> resourcesByHandle(final H handle) {
         return openedResources.entrySet().stream()

@@ -64,7 +64,8 @@ public class AbstractTelephonyServiceProviderTest<H> {
 
     @Before
     public void setUp() {
-        provider = spy(new AbstractTelephonyServiceProvider() {});
+        provider = spy(new AbstractTelephonyServiceProvider() {
+        });
     }
 
     @Test
@@ -357,14 +358,15 @@ public class AbstractTelephonyServiceProviderTest<H> {
     public void shouldGetEvent() {
         // preparing test data
         DeviceEvent<H> event = mock(DeviceEvent.class);
-        int timeout = 1;
-        doReturn(event).when(provider).nativeGetEvent(timeout);
+        int timeout = 10;
+        doReturn(event).when(provider).nativeGetEvent(timeout / 2);
+        doReturn(event).when(provider).allowedEvent(event);
 
         // acting
         Optional<DeviceEvent<H>> result = provider.getEvent(timeout);
 
         // check the behavior
-        verify(provider).nativeGetEvent(timeout);
+        verify(provider).nativeGetEvent(timeout / 2);
         // check results
         assertThat(result).contains(event);
     }
@@ -372,13 +374,13 @@ public class AbstractTelephonyServiceProviderTest<H> {
     @Test
     public void shouldNotGetEvent_NativeDoesNotReturn() {
         // preparing test data
-        int timeout = 1;
+        int timeout = 10;
 
         // acting
         Optional<DeviceEvent<H>> result = provider.getEvent(timeout);
 
         // check the behavior
-        verify(provider).nativeGetEvent(timeout);
+        verify(provider).nativeGetEvent(timeout / 2);
         // check results
         assertThat(result).isEmpty();
     }
@@ -535,5 +537,235 @@ public class AbstractTelephonyServiceProviderTest<H> {
         verify(provider).nativeDisableEvents(resourceHandle, "ALL");
         // check results
         assertThat(provider.enabledEventTypes(resourceHandle)).isEmpty();
+    }
+
+    @Test
+    public void shouldRejectDeviceEvent() throws IOException {
+        // preparing test data
+        String eventTypeName = "eventTypeName";
+        String resourceName = "resourceName";
+        H handle = (H) "handle";
+        doReturn(handle).when(provider).nativeResourceOpen(resourceName);
+        H resourceHandle = provider.openResource(resourceName);
+        assertThat(provider.isOpened(resourceHandle)).isTrue();
+        OperationResultValue eventType = mock(OperationResultValue.class);
+        doReturn(eventTypeName).when(eventType).getValue();
+        DeviceEvent<H> event = mock(DeviceEvent.class);
+        doReturn(DeviceEvent.Type.MALFUNCTION).when(event).getEventType();
+        doReturn(resourceHandle).when(event).getDeviceHandle();
+        reset(provider);
+
+        // acting
+        provider.reject(event);
+
+        // check the behavior
+        verify(provider).nativeEventRejected(resourceHandle, event);
+        // check results
+    }
+
+    @Test
+    public void shouldNotRejectDeviceEvent_Closed() throws IOException {
+        // preparing test data
+        String eventTypeName = "eventTypeName";
+        String resourceName = "resourceName";
+        H handle = (H) "handle";
+        doReturn(handle).when(provider).nativeResourceOpen(resourceName);
+        H resourceHandle = provider.openResource(resourceName);
+        assertThat(provider.isOpened(resourceHandle)).isTrue();
+        OperationResultValue eventType = mock(OperationResultValue.class);
+        doReturn(eventTypeName).when(eventType).getValue();
+        DeviceEvent<H> event = mock(DeviceEvent.class);
+        doReturn(DeviceEvent.Type.MALFUNCTION).when(event).getEventType();
+        doReturn(resourceHandle).when(event).getDeviceHandle();
+        provider.closeResource(resourceHandle);
+        reset(provider);
+
+        // acting
+        provider.reject(event);
+
+        // check the behavior
+        verify(provider, never()).nativeEventRejected(any(), any(DeviceEvent.class));
+        // check results
+    }
+
+    @Test
+    public void shouldOpenFaxResource() throws IOException {
+        // preparing test data
+        String resourceName = "faxResourceName";
+        H handle = (H) "fax-handle";
+        doReturn(handle).when(provider).nativeFaxResourceOpen(resourceName);
+
+        // acting
+        H resourceHandle = provider.openFaxResource(resourceName);
+
+        // check the behavior
+        verify(provider).nativeFaxResourceOpen(resourceName);
+        // check results
+        assertThat(provider.isOpened(resourceHandle)).isTrue();
+        assertThat(resourceHandle).isNotNull().isSameAs(handle);
+    }
+
+    @Test
+    public void shouldNotOpenFaxResource_WrongName() throws IOException {
+        // preparing test data
+        String resourceName = "faxResourceName";
+        H handle = (H) "fax-handle";
+        doReturn(handle).when(provider).nativeFaxResourceOpen(resourceName);
+
+        // acting
+        H resourceHandle = provider.openFaxResource("resourceName");
+
+        // check the behavior
+        verify(provider).nativeFaxResourceOpen("resourceName");
+        verify(provider, never()).nativeFaxResourceOpen(resourceName);
+        // check results
+        assertThat(resourceHandle).isNull();
+    }
+
+    @Test
+    public void shouldCloseFaxResource() throws IOException {
+        // preparing test data
+        String resourceName = "faxResourceName";
+        H handle = (H) "fax-handle";
+        doReturn(handle).when(provider).nativeFaxResourceOpen(resourceName);
+        H resourceHandle = provider.openFaxResource(resourceName);
+        assertThat(provider.isOpened(resourceHandle)).isTrue();
+
+        // acting
+        provider.closeFaxResource(resourceHandle);
+
+        // check the behavior
+        verify(provider).nativeFaxResourceClose(resourceHandle);
+        // check results
+        assertThat(provider.isOpened(resourceHandle)).isFalse();
+    }
+
+    @Test
+    public void shouldNotCloseFaxResource_Closed() throws IOException {
+        // preparing test data
+        String resourceName = "faxResourceName";
+        H handle = (H) "fax-handle";
+        doReturn(handle).when(provider).nativeFaxResourceOpen(resourceName);
+        H resourceHandle = provider.openFaxResource(resourceName);
+        provider.closeFaxResource(resourceHandle);
+        reset(provider);
+
+        // acting
+        provider.closeFaxResource(resourceHandle);
+
+        // check the behavior
+        verify(provider, never()).nativeFaxResourceClose(any());
+        // check results
+        assertThat(provider.isOpened(resourceHandle)).isFalse();
+    }
+
+    @Test
+    public void shouldStartFaxReceiving() throws IOException {
+        // preparing test data
+        String resourceName = "faxResourceName";
+        H handle = (H) "fax-handle";
+        String file = "fax-file";
+        doReturn(handle).when(provider).nativeFaxResourceOpen(resourceName);
+        H resourceHandle = provider.openFaxResource(resourceName);
+
+        // acting
+        boolean starts = provider.startFaxReceiving(resourceHandle, file, false);
+
+        // check the behavior
+        verify(provider).nativeStartFaxReceiving(resourceHandle, file, false);
+        verify(provider).isOpened(resourceHandle);
+        // check results
+        assertThat(starts).isTrue();
+    }
+
+    @Test
+    public void shouldNotStartFaxReceiving_Closed() throws IOException {
+        // preparing test data
+        String resourceName = "faxResourceName";
+        H handle = (H) "fax-handle";
+        String file = "fax-file";
+        doReturn(handle).when(provider).nativeFaxResourceOpen(resourceName);
+        H resourceHandle = provider.openFaxResource(resourceName);
+        provider.closeFaxResource(resourceHandle);
+
+        // acting
+        boolean starts = provider.startFaxReceiving(resourceHandle, file, false);
+
+        // check the behavior
+        verify(provider).nativeStartFaxReceiving(resourceHandle, file, false);
+        verify(provider).isOpened(resourceHandle);
+        // check results
+        assertThat(starts).isFalse();
+    }
+
+    @Test
+    public void shouldStopFaxReceiving() throws IOException {
+        // preparing test data
+        String resourceName = "faxResourceName";
+        H handle = (H) "fax-handle";
+        doReturn(handle).when(provider).nativeFaxResourceOpen(resourceName);
+        H resourceHandle = provider.openFaxResource(resourceName);
+
+        // acting
+        provider.stopFaxReceiving(resourceHandle);
+
+        // check the behavior
+        verify(provider).nativeStopFaxReceiving(resourceHandle);
+        // check results
+    }
+
+    @Test
+    public void shouldStartFaxTransmitting() throws IOException {
+        // preparing test data
+        String resourceName = "faxResourceName";
+        H handle = (H) "fax-handle";
+        String file = "fax-file";
+        doReturn(handle).when(provider).nativeFaxResourceOpen(resourceName);
+        H resourceHandle = provider.openFaxResource(resourceName);
+
+        // acting
+        boolean starts = provider.startFaxTransmitting(handle, file, false, true, true, 1, 10);
+
+        // check the behavior
+        verify(provider).nativeStartFaxTransmitting(handle, file, false, true, true, 1, 10);
+        verify(provider).isOpened(resourceHandle);
+        // check results
+        assertThat(starts).isTrue();
+    }
+
+    @Test
+    public void shouldNotStartFaxTransmitting_Closed() throws IOException {
+        // preparing test data
+        String resourceName = "faxResourceName";
+        H handle = (H) "fax-handle";
+        String file = "fax-file";
+        doReturn(handle).when(provider).nativeFaxResourceOpen(resourceName);
+        H resourceHandle = provider.openFaxResource(resourceName);
+        provider.closeFaxResource(resourceHandle);
+
+        // acting
+        boolean starts = provider.startFaxTransmitting(handle, file, false, true, true, 1, 10);
+
+        // check the behavior
+        verify(provider).nativeStartFaxTransmitting(handle, file, false, true, true, 1, 10);
+        verify(provider).isOpened(resourceHandle);
+        // check results
+        assertThat(starts).isFalse();
+    }
+
+    @Test
+    public void shouldStopFaxTransmitting() throws IOException {
+        // preparing test data
+        String resourceName = "faxResourceName";
+        H handle = (H) "fax-handle";
+        doReturn(handle).when(provider).nativeFaxResourceOpen(resourceName);
+        H resourceHandle = provider.openFaxResource(resourceName);
+
+        // acting
+        provider.stopFaxTransmitting(resourceHandle);
+
+        // check the behavior
+        verify(provider).nativeStopFaxTransmitting(resourceHandle);
+        // check results
     }
 }

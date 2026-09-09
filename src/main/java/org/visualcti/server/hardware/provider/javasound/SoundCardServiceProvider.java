@@ -49,6 +49,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.telephony.adapter.AbstractTelephonyServiceProvider;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
+import org.visualcti.core.channel.telephony.operation.Result;
 
 /**
  * <p>Title: Visual CTI Java Telephony Server</p>
@@ -65,6 +66,7 @@ import org.visualcti.core.channel.telephony.operation.PhoneCall;
 public class SoundCardServiceProvider<H extends SoundCardHandle> extends AbstractTelephonyServiceProvider<H> {
     // the name of sound card device as a telephony device
     public static final String SOUND_DEVICE = "SoundCard";
+    public static final String DEVICE_FACTORY_VENDOR = "JavaSound";
     // reference to the sound-card handle as singleton
     private static final AtomicReference<SoundCardHandle> handle = new AtomicReference<>(null);
     // the state of handset true = handset is off false = handset is on
@@ -97,7 +99,7 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
 
     @Override
     protected void nativeResourceClose(H handle) {
-        super.nativeResourceClose(handle);
+        // doing nothing here
     }
 
     @Override
@@ -113,6 +115,11 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
             return true;
         }
         return false;
+    }
+
+    @Override
+    public boolean canAcceptCall(final H handle) {
+        return isOpened(handle);
     }
 
     @Override
@@ -134,6 +141,11 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
     }
 
     @Override
+    public boolean canMakeCall(final H handle) {
+        return isOpened(handle);
+    }
+
+    @Override
     protected boolean nativeStartCalling(H handle, PhoneCall.Number number, int timeout) {
         return isOpened(handle) && number != null && number != PhoneCall.Number.EMPTY && timeout > 0;
     }
@@ -148,8 +160,66 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
         return super.allowedEvent(event);
     }
 
+    @Override
+    protected void nativeEnableEvents(H deviceHandle, String eventType) {
+        // doing nothing here yet
+    }
+
+    @Override
+    protected void nativeDisableEvents(H deviceHandle, String eventType) {
+        // doing nothing here yet
+    }
+
+    @Override
+    protected void nativeEventRejected(H handle, DeviceEvent<H> event) {
+        // doing nothing here yet
+    }
+
+    @Override
+    public boolean canFax(final H handle) {
+        return isOpened(handle);
+    }
+
+    @Override
+    protected H nativeFaxResourceOpen(String name) {
+        return SOUND_DEVICE.equals(name) ? (H) soundCardResourceHandle() : SoundCardHandle.wrong();
+    }
+
+    @Override
+    protected void nativeFaxResourceClose(H handle) {
+        // doing nothing here
+    }
+
+    @Override
+    protected boolean nativeStartFaxTransmitting(H handle, String filePath, boolean issueVoiceRequest,
+                                                 boolean isTiff, boolean isHighResolution,
+                                                 int firstPageNumber, int totalPages) {
+        return isOpened(handle);
+    }
+
+    @Override
+    protected void nativeStopFaxTransmitting(H handle) {
+        if (isOpened(handle)) {
+            // stopping the fax-operation
+            putEvent(stopIt(handle, "Stopping fax transmission"));
+        }
+    }
+
+    @Override
+    protected boolean nativeStartFaxReceiving(H handle, String filePath, boolean issueVoiceRequest) {
+        return isOpened(handle);
+    }
+
+    @Override
+    protected void nativeStopFaxReceiving(H handle) {
+        if (isOpened(handle)) {
+            // stopping the fax-operation
+            putEvent(stopIt(handle, "Stopping fax receiving"));
+        }
+    }
+
     /// private methods
-    // Returns the singleton instance of SoundCardHandle.
+    // returns the singleton instance of SoundCardHandle.
     private static <H extends SoundCardHandle> H soundCardResourceHandle() {
         if (handle.get() != null) {
             return (H) handle.get();
@@ -168,5 +238,11 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
         final Line.Info[] speakers = AudioSystem.getTargetLineInfo(Port.Info.SPEAKER);
         final Line.Info target = speakers.length > 0 ? speakers[0] : null;
         return SoundCardHandle.of(source, target);
+    }
+
+    private static <H> DeviceEvent<H> stopIt(H handle, String description) {
+        return SoundCardEvent.<H>of(DeviceEvent.Type.DEVICE_SPECIFIC).description(description)
+                .deviceHandle(handle).deviceName(SOUND_DEVICE).vendor(DEVICE_FACTORY_VENDOR)
+                .option(DeviceEvent.Option.REASON, Result.IO.EOF);
     }
 }

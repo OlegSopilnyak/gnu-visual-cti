@@ -80,7 +80,7 @@ public interface TelephonyServiceProvider<H> extends Device.ServiceProvider<H> {
 
     /**
      * <action>
-     * To close the device related resource
+     * To close the device-related resource
      *
      * @param handle the handle of the opened resource (device's implementation)
      * @see DeviceActivitySession#getDeviceHandle()
@@ -93,7 +93,7 @@ public interface TelephonyServiceProvider<H> extends Device.ServiceProvider<H> {
 
     /**
      * <action>
-     * To disable ALL events producing for particular device from the events provider
+     * To disable ALL events producing for the particular device from the events provider
      *
      * @param deviceHandle device handle of the device for which events producing is disabled
      * @see DeviceActivitySession#getDeviceHandle()
@@ -108,10 +108,10 @@ public interface TelephonyServiceProvider<H> extends Device.ServiceProvider<H> {
 
     /**
      * <action>
-     * To end up (handset off) the phone call for the telephony device with handle.
+     * To end up (handset off) the phone call for the telephony device with the handle.
      *
      * @param handle the telephony device handle
-     * @return true if operation complete successfully or device with handle is already disconnected
+     * @return true if operation complete successfully or the device with the handle is already disconnected
      * @see CallsPortEngine#dropCall(PhoneCallSession)
      */
     boolean handsetOff(H handle);
@@ -121,7 +121,7 @@ public interface TelephonyServiceProvider<H> extends Device.ServiceProvider<H> {
      * To answer to an incoming phone call.
      *
      * @param handle the telephony device handle
-     * @return true if operation complete successfully
+     * @return true if the operation completed successfully
      * @see CallsPortEngine#waitForCall(PhoneCallSession, int, int, boolean)
      */
     boolean answerCall(H handle);
@@ -142,18 +142,18 @@ public interface TelephonyServiceProvider<H> extends Device.ServiceProvider<H> {
      *
      * @param handle  the telephony device handle
      * @param number  the called phone number
-     * @param timeout maximal waiting time for the answer (sec) to outgoing call
-     * @return true if operation started successfully
+     * @param timeout maximal waiting time for the answer (sec) to the outgoing call
+     * @return true if the operation started successfully
      * @see CallsPortEngine#makeCall(PhoneCallSession, PhoneCall.Number, int)
      */
     boolean startCalling(H handle, PhoneCall.Number number, int timeout);
 
     /**
      * <accessor>
-     * To check, whether service provider can accept incoming calls for device by handle
+     * To check whether the service provider can accept incoming calls for the device by handle
      *
      * @param handle the device's opened handle to check the feature in the service provider
-     * @return true if device can accept incoming phone calls
+     * @return true if the device can accept incoming phone calls
      * @see TelephonyDevice#getName()
      * @see TelephonyDevice#canAcceptCall()
      */
@@ -215,10 +215,10 @@ public interface TelephonyServiceProvider<H> extends Device.ServiceProvider<H> {
 
     /**
      * <accessor>
-     * To check, whether device can be used in operations of connections (conference)
+     * To check whether the device can be used in operations of connections (conference)
      *
      * @param name the device's name to check in the provider
-     * @return true if device can be shared for another device
+     * @return true if the device can be shared for another device
      * @see TelephonyDevice#getName()
      * @see TelephonyDevice#canBeConnected()
      */
@@ -228,10 +228,10 @@ public interface TelephonyServiceProvider<H> extends Device.ServiceProvider<H> {
 
     /**
      * <accessor>
-     * To check, whether device can operate with fax-machines
+     * To check whether the device can operate with fax-machines
      *
      * @param handle the device's opened handle to check the feature in the service provider
-     * @return true if device can operate with fax-machines
+     * @return true if the device can operate with fax-machines
      * @see TelephonyDevice#getName()
      * @see TelephonyDevice#canFax()
      */
@@ -241,10 +241,10 @@ public interface TelephonyServiceProvider<H> extends Device.ServiceProvider<H> {
 
     /**
      * <accessor>
-     * To check, whether device can operate with fax-machines
+     * To check whether the device can operate with fax-machines
      *
      * @param name the device's name to check in the provider
-     * @return true if device can operate with fax-machines
+     * @return true if the device can operate with fax-machines
      * @see TelephonyDevice#getName()
      * @see TelephonyDevice#canFax()
      */
@@ -254,7 +254,7 @@ public interface TelephonyServiceProvider<H> extends Device.ServiceProvider<H> {
 
     /**
      * <action>
-     * To separate two resources on the low-level after the conference connection finished
+     * To separate two resources on the low level after the conference connection finished
      *
      * @param secondHandle  the second resource's handle
      * @param primaryHandle the primary resource's handle
@@ -266,7 +266,7 @@ public interface TelephonyServiceProvider<H> extends Device.ServiceProvider<H> {
 
     /**
      * <action>
-     * To join two resources on the low-level for the conference connection
+     * To join two resources on the low level for the conference connection
      *
      * @param secondHandle  the second resource's handle
      * @param primaryHandle the primary resource's handle
@@ -279,13 +279,13 @@ public interface TelephonyServiceProvider<H> extends Device.ServiceProvider<H> {
 
     /**
      * <action>
-     * To start receiving fax document
+     * To start receiving the fax document
      *
      * @param handle            the telephony device handle
      * @param filePath          the path to the file for the receiving fax document content
-     * @param issueVoiceRequest upon termination of receive to give out a
+     * @param issueVoiceRequest upon termination of receiver to give out a
      *                          sound signal on the remote fax-device
-     * @return true if operation started successfully
+     * @return true if the operation started successfully
      * @see FaxMachineEngine#receive(PhoneCallSession, OutputStream, boolean, boolean)
      */
     default boolean startFaxReceiving(H handle, String filePath, boolean issueVoiceRequest) {
@@ -294,7 +294,7 @@ public interface TelephonyServiceProvider<H> extends Device.ServiceProvider<H> {
 
     /**
      * <action>
-     * To stop (interrupt) receiving fax document
+     * To stop (interrupt) receiving the fax document
      *
      * @param handle the telephony device handle
      * @see FaxMachineEngine#transmit(PhoneCallSession, InputStream, Fax, boolean)
@@ -305,17 +305,18 @@ public interface TelephonyServiceProvider<H> extends Device.ServiceProvider<H> {
 
     /**
      * <action>
-     * To start transmitting fax document
+     * To start transmitting the fax document
      *
      * @param handle            the telephony device handle
      * @param filePath          the path to the file, fax document content
-     * @param issueVoiceRequest upon termination of receive to give out a
+     * @param issueVoiceRequest upon termination of receiver to give out a
+     *                          sound signal on the remote fax-device
      * @param isTiff            the parameter of transmitting document page
      * @param isHighResolution  the parameter of transmitting document page
      * @param firstPageNumber   transmit from page
      * @param totalPages        transmit pages (negative value means all available pages)
      *                          sound signal on the remote fax-device
-     * @return true if operation started successfully
+     * @return true if the operation started successfully
      * @see FaxMachineEngine#transmit(PhoneCallSession, InputStream, Fax, boolean)
      */
     default boolean startFaxTransmitting(H handle, String filePath, boolean issueVoiceRequest,
@@ -325,7 +326,7 @@ public interface TelephonyServiceProvider<H> extends Device.ServiceProvider<H> {
 
     /**
      * <action>
-     * To stop (interrupt) transmitting fax document
+     * To stop (interrupt) transmitting the fax document
      *
      * @param handle the telephony device handle
      * @see FaxMachineEngine#transmit(PhoneCallSession, InputStream, Fax, boolean)
@@ -336,13 +337,13 @@ public interface TelephonyServiceProvider<H> extends Device.ServiceProvider<H> {
 
     /**
      * <action>
-     * To start playing media from temporary file with particular media format
+     * To start playing media from the temporary file with the particular media format
      *
      * @param handle   the telephony device handle
      * @param filePath the path to the file which contents the media data
-     * @param format   parameter determining type of the decoder for transformation the sound data
+     * @param format   parameter determining the type of the decoder for transformation the sound data
      * @param timeout  maximum time of playing back in seconds (-1 for unlimited, waiting for end of stream)
-     * @return true if operation started successfully
+     * @return true if the operation started successfully
      * @see MultimediaEngine#playbackAudio(PhoneCallSession, InputStream, Audio, String, int)
      */
     default boolean startAudioPlaying(H handle, String filePath, Audio format, int timeout) {
@@ -362,14 +363,14 @@ public interface TelephonyServiceProvider<H> extends Device.ServiceProvider<H> {
 
     /**
      * <action>
-     * To start recording media to the temporary file with particular media format
+     * To start recording media to the temporary file with the particular media format
      *
      * @param handle   the telephony device handle
      * @param filePath the path to the file which contents the media data
-     * @param format   parameter determining type of the decoder for transformation the sound data
+     * @param format   parameter determining the type of the decoder for transformation the sound data
      * @param silence  time (seconds) how long silence in a line is allowed, after which the record operation will be finished.
      * @param timeout  maximum time of playing back in seconds (-1 for unlimited, waiting for end of stream)
-     * @return true if operation started successfully
+     * @return true if the operation started successfully
      * @see MultimediaEngine#recordAudio(PhoneCallSession, OutputStream, Audio, String, int, int)
      */
     default boolean startAudioRecording(H handle, String filePath, Audio format, int silence, int timeout) {
@@ -405,7 +406,7 @@ public interface TelephonyServiceProvider<H> extends Device.ServiceProvider<H> {
      *
      * @param handle the telephony device handle
      * @param toneId the id of tone to send
-     * @return true if operation started successfully
+     * @return true if the operation started successfully
      * @see TonesEngine#playTone(PhoneCallSession, ToneId, float)
      */
     default boolean startToneSending(H handle, ToneId toneId) {

@@ -54,7 +54,10 @@ import java.util.Optional;
 import org.junit.Before;
 import org.junit.Test;
 import org.visualcti.core.channel.device.DeviceEvent;
+import org.visualcti.core.channel.device.adapter.AbstractDeviceEvent;
+import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
+import org.visualcti.core.channel.telephony.operation.Result;
 
 @SuppressWarnings("unchecked")
 public class SoundCardServiceProviderTest {
@@ -281,6 +284,35 @@ public class SoundCardServiceProviderTest {
     }
 
     @Test
+    public void shouldCanAnswerCall() throws IOException {
+        // preparing test data
+        SoundCardHandle handle = provider.openResource(SoundCardServiceProvider.SOUND_DEVICE);
+
+        // acting
+        boolean canAcceptCall = provider.canAcceptCall(handle);
+
+        // check the behavior
+        verify(provider).isOpened(handle);
+        // check results
+        assertThat(canAcceptCall).isTrue();
+    }
+
+    @Test
+    public void shouldCannotAnswerCall_Closed() throws IOException {
+        // preparing test data
+        SoundCardHandle handle = provider.openResource(SoundCardServiceProvider.SOUND_DEVICE);
+        provider.closeResource(handle);
+
+        // acting
+        boolean canAcceptCall = provider.canAcceptCall(handle);
+
+        // check the behavior
+        verify(provider).isOpened(handle);
+        // check results
+        assertThat(canAcceptCall).isFalse();
+    }
+
+    @Test
     public void shouldAnswerCall() throws IOException {
         // preparing test data
         SoundCardHandle handle = provider.openResource(SoundCardServiceProvider.SOUND_DEVICE);
@@ -369,6 +401,35 @@ public class SoundCardServiceProviderTest {
         verify(provider, never()).nativeCallerID(handle);
         // check results
         assertThat(callerID).isSameAs(PhoneCall.Number.EMPTY);
+    }
+
+    @Test
+    public void shouldCanMakeCall() throws IOException {
+        // preparing test data
+        SoundCardHandle handle = provider.openResource(SoundCardServiceProvider.SOUND_DEVICE);
+
+        // acting
+        boolean canMakeCall = provider.canMakeCall(handle);
+
+        // check the behavior
+        verify(provider).isOpened(handle);
+        // check results
+        assertThat(canMakeCall).isTrue();
+    }
+
+    @Test
+    public void shouldCannotMakeCall_Closed() throws IOException {
+        // preparing test data
+        SoundCardHandle handle = provider.openResource(SoundCardServiceProvider.SOUND_DEVICE);
+        provider.closeResource(handle);
+
+        // acting
+        boolean canMakeCall = provider.canMakeCall(handle);
+
+        // check the behavior
+        verify(provider).isOpened(handle);
+        // check results
+        assertThat(canMakeCall).isFalse();
     }
 
     @Test
@@ -501,5 +562,99 @@ public class SoundCardServiceProviderTest {
         // check results
         assertThat(put).isTrue();
         assertThat(provider.getEvent(timeout)).isNotNull().contains(mocked);
+    }
+
+    @Test
+    public void shouldEnableEvents() throws IOException {
+        // preparing test data
+        OperationResultValue eventReason = Result.IO.EOF;
+        SoundCardHandle handle = provider.openResource(SoundCardServiceProvider.SOUND_DEVICE);
+        AbstractDeviceEvent<SoundCardHandle> event = spy(SoundCardEvent.of(DeviceEvent.Type.DEVICE_SPECIFIC));
+        event.deviceHandle(handle).option(DeviceEvent.Option.REASON, eventReason);
+        provider.putEvent(event);
+        assertThat(provider.getEvent(50)).isNotNull().isEmpty();
+        reset(event);
+
+        // acting
+        provider.enableEvents(handle, eventReason);
+        provider.putEvent(event);
+        Optional<DeviceEvent<SoundCardHandle>> receivedEvent = provider.getEvent(50);
+
+        // check the behavior
+        verify(provider).nativeEnableEvents(handle, eventReason.getValue());
+        verify(event).getDeviceHandle();
+        verify(event).getOption(DeviceEvent.Option.REASON);
+        // check results
+        assertThat(receivedEvent).isNotNull().contains(event);
+    }
+
+    @Test
+    public void shouldDisableEvents() throws IOException {
+        // preparing test data
+        OperationResultValue eventReason = Result.IO.EOF;
+        SoundCardHandle handle = provider.openResource(SoundCardServiceProvider.SOUND_DEVICE);
+        AbstractDeviceEvent<SoundCardHandle> event = spy(SoundCardEvent.of(DeviceEvent.Type.DEVICE_SPECIFIC));
+        event.deviceHandle(handle).option(DeviceEvent.Option.REASON, eventReason);
+        provider.enableEvents(handle, eventReason);
+        provider.putEvent(event);
+        assertThat(provider.getEvent(50)).isNotNull().contains(event);
+        reset(event);
+
+        // acting
+        provider.disableEvents(handle, eventReason);
+        provider.putEvent(event);
+        Optional<DeviceEvent<SoundCardHandle>> receivedEvent = provider.getEvent(50);
+
+        // check the behavior
+        verify(provider).nativeDisableEvents(handle, eventReason.getValue());
+        verify(event).getDeviceHandle();
+        verify(event).getOption(DeviceEvent.Option.REASON);
+        // check results
+        assertThat(receivedEvent).isNotNull().isEmpty();
+    }
+
+    @Test
+    public void shouldRejectEvent() throws IOException {
+        // preparing test data
+        SoundCardHandle handle = provider.openResource(SoundCardServiceProvider.SOUND_DEVICE);
+        DeviceEvent<SoundCardHandle> mocked = mock(DeviceEvent.class);
+        doReturn(handle).when(mocked).getDeviceHandle();
+
+        // acting
+        provider.reject(mocked);
+
+        // check the behavior
+        verify(mocked).getDeviceHandle();
+        verify(provider).nativeEventRejected(handle, mocked);
+        // check results
+    }
+
+    @Test
+    public void shouldOpenFaxResource() throws IOException {
+        // preparing test data
+        String deviceName = SoundCardServiceProvider.SOUND_DEVICE;
+
+        // acting
+        SoundCardHandle handle = provider.openFaxResource(deviceName);
+
+        // check the behavior
+        verify(provider).nativeFaxResourceOpen(deviceName);
+        // check results
+        assertThat(handle).isNotNull();
+    }
+
+    @Test
+    public void shouldCloseFaxResource() throws IOException {
+        // preparing test data
+        SoundCardHandle handle = provider.openFaxResource(SoundCardServiceProvider.SOUND_DEVICE);
+        assertThat(provider.isOpened(handle)).isTrue();
+
+        // acting
+        provider.closeFaxResource(handle);
+
+        // check the behavior
+        verify(provider).nativeFaxResourceClose(handle);
+        // check results
+        assertThat(provider.isOpened(handle)).isFalse();
     }
 }

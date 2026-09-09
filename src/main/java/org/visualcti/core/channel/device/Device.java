@@ -591,10 +591,9 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit, XmlAware
          * To close the device-related resource
          *
          * @param handle the handle of the opened resource (device's implementation)
-         * @throws IOException if the channel's resource cannot be closed
          * @see DeviceActivitySession#getDeviceHandle()
          */
-        void closeResource(H handle) throws IOException;
+        void closeResource(H handle);
 
         /**
          * <acessor>

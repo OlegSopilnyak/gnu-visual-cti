@@ -45,6 +45,7 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 import org.visualcti.core.channel.device.Device;
+import org.visualcti.core.channel.device.DeviceActivitySession;
 import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.Factory;
 
@@ -54,6 +55,7 @@ import org.visualcti.core.channel.device.Factory;
  * @param <H> the type of device's handle (for low-level operations)
  * @see DeviceEvent
  */
+@SuppressWarnings({"unchecked", "rawtypes"})
 public abstract class AbstractDeviceEvent<H> implements DeviceEvent<H> {
     private final Type eventType;
     private H deviceHandle;
@@ -76,10 +78,10 @@ public abstract class AbstractDeviceEvent<H> implements DeviceEvent<H> {
 
     /**
      * <builder>
-     * The builder of device event instance from previous device event (parent event type is ignoring)
+     * The builder of device event instance from the previous device event (the parent event type is ignoring)
      *
      * @param eventType the type of the event
-     * @param parent the parent of new event instance
+     * @param parent the parent of the new event instance
      * @return built device event instance
      * @param <H> the type of device's handle (for low-level operations)
      * @see #of(Type)
@@ -106,9 +108,9 @@ public abstract class AbstractDeviceEvent<H> implements DeviceEvent<H> {
 
     /**
      * <builder>
-     * The builder of the incoming device event instance from previous device event (parent event type is ignoring)
+     * The builder of the incoming device event instance from the previous device event (the parent event type is ignoring)
      *
-     * @param parent the parent of new event instance
+     * @param parent the parent of the new event instance
      * @return built device event instance
      * @param <H> the type of device's handle (for low-level operations)
      * @see #of(Type, DeviceEvent)
@@ -120,9 +122,9 @@ public abstract class AbstractDeviceEvent<H> implements DeviceEvent<H> {
 
     /**
      * <builder>
-     * The builder of the malfunction device event instance from previous device event (parent event type is ignoring)
+     * The builder of the malfunction device event instance from the previous device event (the parent event type is ignoring)
      *
-     * @param parent the parent of new event instance
+     * @param parent the parent of the new event instance
      * @return built device event instance
      * @param <H> the type of device's handle (for low-level operations)
      * @see #of(Type, DeviceEvent)
@@ -132,7 +134,7 @@ public abstract class AbstractDeviceEvent<H> implements DeviceEvent<H> {
         return of(MALFUNCTION, parent);
     }
 
-    private AbstractDeviceEvent(Type eventType) {
+    protected AbstractDeviceEvent(Type eventType) {
         this.eventType = eventType;
     }
 
@@ -153,7 +155,7 @@ public abstract class AbstractDeviceEvent<H> implements DeviceEvent<H> {
      * To get the device's internal handle
      *
      * @return the value
-     * @see Device.Session#getDeviceHandle()
+     * @see DeviceActivitySession#getDeviceHandle()
      */
     @Override
     public H getDeviceHandle() {
@@ -167,7 +169,7 @@ public abstract class AbstractDeviceEvent<H> implements DeviceEvent<H> {
 
     /**
      * <accessor>
-     * to get the name of device, where the event has occurred
+     * to get the name of the device, where the event has occurred
      *
      * @return the value
      * @see Device#getName()
@@ -184,7 +186,7 @@ public abstract class AbstractDeviceEvent<H> implements DeviceEvent<H> {
 
     /**
      * <accessor>
-     * get access to event device's vendor name
+     * get access to the event device's vendor name
      *
      * @return vendor's name
      * @see Factory#getVendor()

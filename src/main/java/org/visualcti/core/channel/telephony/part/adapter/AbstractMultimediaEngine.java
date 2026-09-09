@@ -106,14 +106,14 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
      * <action>
      * Playback the audio stream data.
      *
-     * @param session                the phone call's session, device is working with
+     * @param session                a phone call's session, the device is working with
      * @param source                 the input stream, from which undertake sound data for playback in a telephone line
-     * @param format                 parameter determining type of the decoder for transformation the sound data
+     * @param format                 parameter determining the type of the decoder for transformation the sound data
      * @param terminationSymbolsMask set of symbols finishing up the playing (mask). The mask is passed to the method
      *                               as any combination of comma separated symbols<BR/>(0-9,*,#), for example: " 1, 2, #, 0 ".
      * @param timeout                maximum time of playing back in seconds (-1 for unlimited, waiting for end of stream)
      * @return the operation's result<p>
-     * {@link Result.IO#EOF} - the playback reached end of stream;
+     * {@link Result.IO#EOF} - the playback reached the end of stream;
      * {@link Result.IO#DTMF} - the playback is interrupted by symbol from the termination mask.<BR/>
      * The symbol, which cause the playback interruption can be got by the {@link TonesEngine#getInputSymbols(PhoneCallSession)};<BR/>
      * {@link Result#TIMEOUT} - the time of playback was exceeded.<BR/>
@@ -155,21 +155,24 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
                 final String tempFileName = tempFile.getAbsolutePath();
                 final boolean starting = serviceProvider.startAudioPlaying(deviceHandle, tempFileName, format, timeout);
                 if (!starting) {
-                    // start playing is failed
+                    // to start playing is failed
                     final String errorReason = "Cannot start playing the audio file.";
                     return playbackAudioError(deviceHandle, tempFile, session, errorReason);
                 }
+                // enabling end-of-file operation results
+                serviceProvider.enableEvents(deviceHandle, Result.IO.EOF);
+                // prepare the time mark of the end of waiting
                 final long endMark = System.currentTimeMillis() + timeout * 1000L;
                 // start waiting for the final operation result
                 waitingForTheNextEvent(session, timeout * 1000L);
                 //
-                // processing the operation result after started waiting (several iterations may be)
+                // processing the operation result after started waiting (several iterations maybe)
                 while (true) {
                     // getting the operation result after waiting for operation complete
                     final OperationResultValue operationResult = session.operationResult();
                     // checking the operation result value after waiting operation complete
                     //
-                    // checking end of file operation results
+                    // checking end-of-file operation results
                     if (operationResult == Result.IO.EOF) {
                         // deleting temporary file
                         if (tempFile.delete()) {
@@ -177,7 +180,7 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
                             // finishing processing of the operation
                             break;
                         } else {
-                            // the temporary file wasn't deleted by some reason
+                            // for some reason didn't delete the temporary file
                             session.setState(Device.State.ERROR);
                             return Result.ERROR;
                         }
