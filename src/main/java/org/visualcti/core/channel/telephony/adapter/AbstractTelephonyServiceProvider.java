@@ -58,16 +58,15 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceActivitySession;
 import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.DeviceEventsProcessor;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
+import org.visualcti.core.channel.telephony.TelephonyDevice;
 import org.visualcti.core.channel.telephony.TelephonyServiceProvider;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
-import org.visualcti.core.channel.telephony.part.CallsPortEngine;
-import org.visualcti.core.channel.telephony.part.FaxMachineEngine;
+import org.visualcti.media.Audio;
 import org.visualcti.media.Fax;
 import org.visualcti.util.Tools;
 
@@ -95,9 +94,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * @param name the name of the resource
      * @return handle for the opened resource
      * @throws IOException if the channel's resource cannot be opened or activated
-     * @see Device#getName()
-     * @see DeviceActivitySession#getDeviceHandle()
-     * @see #nativeResourceOpen(String)
+     * @see TelephonyServiceProvider#openResource(String)
      */
     @Override
     public H openResource(final String name) throws IOException {
@@ -162,8 +159,8 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      *
      * @param name the name of the opened resource
      * @return handle to opened resource or empty
+     * @see TelephonyServiceProvider#handleByName(String)
      * @see Optional
-     * @see #openResource(String)
      */
     @Override
     public Optional<H> handleByName(final String name) {
@@ -177,7 +174,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      *
      * @param handle the handle of the opened resource (device's implementation)
      * @see DeviceActivitySession#getDeviceHandle()
-     * @see #nativeResourceClose(H)
+     * @see TelephonyServiceProvider#closeResource(H)
      */
     @Override
     public void closeResource(final H handle) {
@@ -200,9 +197,9 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * To end up (handset off) the phone call.
      *
      * @param handle the telephony device handle
-     * @return true if the operation completed successfully or device with handle is already disconnected
-     * @see CallsPortEngine#dropCall(PhoneCallSession)
-     * @see #nativeHandsetOff(H)
+     * @return true if the operation completed successfully or the device with the handle is already disconnected
+     * @see TelephonyDevice#dropCall(PhoneCallSession)
+     * @see TelephonyServiceProvider#handsetOff(H)
      */
     @Override
     public boolean handsetOff(final H handle) {
@@ -243,8 +240,8 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      *
      * @param handle the telephony device handle
      * @return true if the operation completed successfully
-     * @see CallsPortEngine#waitForCall(PhoneCallSession, int, int, boolean)
-     * @see #nativeAnswerCall(H)
+     * @see TelephonyDevice#waitForCall(PhoneCallSession, int, int, boolean)
+     * @see TelephonyServiceProvider#answerCall(H)
      */
     @Override
     public boolean answerCall(final H handle) {
@@ -272,7 +269,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      *
      * @param handle the connected telephony device handle
      * @return caller's phone number value
-     * @see #nativeCallerID(H)
+     * @see TelephonyServiceProvider#getCallerID(H)
      */
     @Override
     public PhoneCall.Number getCallerID(final H handle) {
@@ -301,8 +298,8 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * @param number  the called phone number
      * @param timeout the maximum waiting time for the answer (sec) to the outgoing call
      * @return true if the operation started successfully
-     * @see CallsPortEngine#makeCall(PhoneCallSession, PhoneCall.Number, int)
-     * @see #nativeStartCalling(Object, PhoneCall.Number, int)
+     * @see TelephonyDevice#makeCall(PhoneCallSession, PhoneCall.Number, int)
+     * @see TelephonyServiceProvider#startCalling(H, PhoneCall.Number, int)
      */
     @Override
     public boolean startCalling(final H handle, final PhoneCall.Number number, final int timeout) {
@@ -335,7 +332,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * @see DeviceEvent
      * @see Optional
      * @see DeviceEventsProcessor#grabProviderEvents()
-     * @see #nativeGetEvent(long)
+     * @see TelephonyServiceProvider#getEvent(long)
      */
     @Override
     public Optional<DeviceEvent<H>> getEvent(final long during) {
@@ -381,6 +378,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      *
      * @param event the event to check
      * @return the input event if it's allowed or null otherwise
+     * @see #getEvent(long)
      */
     protected DeviceEvent<H> allowedEvent(final DeviceEvent<H> event) {
         if (event == null) {
@@ -422,8 +420,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * @param eventType    the type of events to enable
      * @see DeviceActivitySession#getDeviceHandle()
      * @see OperationResultValue
-     * @see #internalEnableEventsFor(H, OperationResultValue)
-     * @see #nativeEnableEvents(H, String)
+     * @see TelephonyServiceProvider#enableEvents(H, OperationResultValue)
      */
     @Override
     public void enableEvents(final H deviceHandle, final OperationResultValue eventType) {
@@ -463,7 +460,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * @param eventType    the type of events to disable
      * @see DeviceActivitySession#getDeviceHandle()
      * @see OperationResultValue
-     * @see #nativeDisableEvents(H, String)
+     * @see TelephonyServiceProvider#disableEvents(H, OperationResultValue)
      */
     @Override
     public void disableEvents(final H deviceHandle, final OperationResultValue eventType) {
@@ -487,6 +484,8 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * To reject unprocessing device event
      *
      * @param event device event to reject
+     * @see DeviceEventsProcessor#notifyListeners(DeviceEvent)
+     * @see TelephonyServiceProvider#reject(DeviceEvent)
      */
     @Override
     public void reject(final DeviceEvent<H> event) {
@@ -500,6 +499,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      *
      * @param handle the handle of the opened resource (device's implementation)
      * @param event  device event to reject
+     * @see #reject(DeviceEvent)
      */
     protected void nativeEventRejected(H handle, DeviceEvent<H> event) {
         // doing nothing here yet
@@ -512,9 +512,8 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * @param name the name of the resource
      * @return handle for the opened resource
      * @throws IOException if the channel's fax resource cannot be opened or activated
-     * @see Device#getName()
-     * @see DeviceActivitySession#parameter(Device.ParameterName, Object)
-     * @see Device.Parameter#FAX_DEVICE_HANDLE
+     * @see org.visualcti.core.channel.telephony.part.FaxMachineEngine#open(PhoneCallSession)
+     * @see TelephonyServiceProvider#openFaxResource(String)
      */
     @Override
     public H openFaxResource(String name) throws IOException {
@@ -528,7 +527,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * @param name the name of the resource
      * @return handle for the opened resource
      * @throws IOException if the channel's resource cannot be opened or activated
-     * @see #openResource(String)
+     * @see #openFaxResource(String)
      */
     protected H nativeFaxResourceOpen(String name) throws IOException {
         return null;
@@ -539,9 +538,8 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * To close the device-related fax-resource
      *
      * @param handle the handle of the opened resource (device's implementation)
-     * @see DeviceActivitySession#getDeviceHandle()
-     * @see DeviceActivitySession#parameter(Device.ParameterName, Object)
-     * @see Device.Parameter#FAX_DEVICE_HANDLE
+     * @see org.visualcti.core.channel.telephony.part.FaxMachineEngine#close(PhoneCallSession)
+     * @see TelephonyServiceProvider#closeFaxResource(H)
      */
     @Override
     public void closeFaxResource(final H handle) {
@@ -568,7 +566,8 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * @param issueVoiceRequest upon termination of receiver to give out a
      *                          sound signal on the remote fax-device
      * @return true if the operation started successfully
-     * @see FaxMachineEngine#receive(PhoneCallSession, OutputStream, boolean, boolean)
+     * @see TelephonyDevice#receive(PhoneCallSession, OutputStream, boolean, boolean)
+     * @see TelephonyServiceProvider#startFaxReceiving(H, String, boolean)
      */
     @Override
     public boolean startFaxReceiving(final H handle, final String filePath, final boolean issueVoiceRequest) {
@@ -584,7 +583,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * @param issueVoiceRequest upon termination of receiver to give out a
      *                          sound signal on the remote fax-device
      * @return true if the operation started successfully
-     * @see FaxMachineEngine#receive(PhoneCallSession, OutputStream, boolean, boolean)
+     * @see #startFaxReceiving(H, String, boolean)
      */
     protected boolean nativeStartFaxReceiving(H handle, String filePath, boolean issueVoiceRequest) {
         return isOpened(handle) && filePath != null && !filePath.trim().isEmpty();
@@ -595,7 +594,8 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * To stop (interrupt) receiving the fax document
      *
      * @param handle the telephony device handle
-     * @see FaxMachineEngine#transmit(PhoneCallSession, InputStream, Fax, boolean)
+     * @see TelephonyDevice#transmit(PhoneCallSession, InputStream, Fax, boolean)
+     * @see TelephonyServiceProvider#stopFaxReceiving(H)
      */
     @Override
     public void stopFaxReceiving(final H handle) {
@@ -607,7 +607,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * To stop (interrupt) receiving the fax document
      *
      * @param handle the telephony device handle
-     * @see FaxMachineEngine#transmit(PhoneCallSession, InputStream, Fax, boolean)
+     * @see #stopFaxReceiving(H)
      */
     protected void nativeStopFaxReceiving(H handle) {
         // doing nothing here
@@ -627,7 +627,8 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * @param totalPages        transmit pages (negative value means all available pages)
      *                          sound signal on the remote fax-device
      * @return true if the operation started successfully
-     * @see FaxMachineEngine#transmit(PhoneCallSession, InputStream, Fax, boolean)
+     * @see TelephonyDevice#transmit(PhoneCallSession, InputStream, Fax, boolean)
+     * @see TelephonyServiceProvider#startFaxTransmitting(H, String, boolean, boolean, boolean, int, int)
      */
     @Override
     public boolean startFaxTransmitting(final H handle, final String filePath, final boolean issueVoiceRequest,
@@ -652,7 +653,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * @param totalPages        transmit pages (negative value means all available pages)
      *                          sound signal on the remote fax-device
      * @return true if the operation started successfully
-     * @see FaxMachineEngine#transmit(PhoneCallSession, InputStream, Fax, boolean)
+     * @see #startFaxTransmitting(H, String, boolean, boolean, boolean, int, int)
      */
     protected boolean nativeStartFaxTransmitting(H handle, String filePath, boolean issueVoiceRequest,
                                                  boolean isTiff, boolean isHighResolution,
@@ -665,7 +666,8 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * To stop (interrupt) transmitting the fax document
      *
      * @param handle the telephony device handle
-     * @see FaxMachineEngine#transmit(PhoneCallSession, InputStream, Fax, boolean)
+     * @see TelephonyDevice#transmit(PhoneCallSession, InputStream, Fax, boolean)
+     * @see TelephonyServiceProvider#stopFaxTransmitting(H)
      */
     @Override
     public void stopFaxTransmitting(final H handle) {
@@ -677,10 +679,84 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * To stop (interrupt) transmitting the fax document
      *
      * @param handle the telephony device handle
-     * @see FaxMachineEngine#transmit(PhoneCallSession, InputStream, Fax, boolean)
+     * @see #stopFaxTransmitting(H)
      */
     protected void nativeStopFaxTransmitting(H handle) {
         // doing nothing here
+    }
+
+    /**
+     * <action>
+     * To start playing media from the temporary file with the particular media format
+     *
+     * @param handle   the telephony device handle
+     * @param filePath the path to the file which contents the media data
+     * @param format   parameter determining the type of the decoder for transformation the sound data
+     * @param timeout  maximum time of playing back in seconds (-1 for unlimited, waiting for end of stream)
+     * @return true if the operation started successfully
+     * @see TelephonyDevice#playbackAudio(PhoneCallSession, InputStream, Audio, String, int)
+     * @see TelephonyServiceProvider#startAudioPlaying(H, String, Audio, int)
+     */
+    @Override
+    public boolean startAudioPlaying(H handle, String filePath, Audio format, int timeout) {
+        return nativeStartAudioPlaying(handle, filePath, format, timeout);
+    }
+
+    /**
+     * <native-call>
+     * To start playing media from the temporary file with the particular media format
+     *
+     * @param handle   the telephony device handle
+     * @param filePath the path to the file which contents the media data
+     * @param format   parameter determining the type of the decoder for transformation the sound data
+     * @param timeout  maximum time of playing back in seconds (-1 for unlimited, waiting for end of stream)
+     * @return true if the operation started successfully
+     * @see #startAudioPlaying(H, String, Audio, int)
+    */
+    protected boolean nativeStartAudioPlaying(H handle, String filePath, Audio format, int timeout) {
+        return isOpened(handle) && filePath != null && !filePath.trim().isEmpty();
+    }
+
+    /**
+     * <action>
+     * To stop (interrupt) playing media
+     *
+     * @param handle the telephony device handle
+     * @see TelephonyServiceProvider#stopAudioPlaying(H)
+     */
+    @Override
+    public void stopAudioPlaying(H handle) {
+        TelephonyServiceProvider.super.stopAudioPlaying(handle);
+    }
+
+    /**
+     * <action>
+     * To start recording media to the temporary file with the particular media format
+     *
+     * @param handle   the telephony device handle
+     * @param filePath the path to the file which contents the media data
+     * @param format   parameter determining the type of the decoder for transformation the sound data
+     * @param silence  time (seconds) how long silence in a line is allowed, after which the record operation will be finished.
+     * @param timeout  maximum time of playing back in seconds (-1 for unlimited, waiting for end of stream)
+     * @return true if the operation started successfully
+     * @see TelephonyDevice#recordAudio(PhoneCallSession, OutputStream, Audio, String, int, int)
+     * @see TelephonyServiceProvider#startAudioRecording(H, String, Audio, int, int)
+     */
+    @Override
+    public boolean startAudioRecording(H handle, String filePath, Audio format, int silence, int timeout) {
+        return TelephonyServiceProvider.super.startAudioRecording(handle, filePath, format, silence, timeout);
+    }
+
+    /**
+     * <action>
+     * To stop (interrupt) playing media
+     *
+     * @param handle the telephony device handle
+     * @see TelephonyServiceProvider#stopAudioRecording(H)
+     */
+    @Override
+    public void stopAudioRecording(H handle) {
+        TelephonyServiceProvider.super.stopAudioRecording(handle);
     }
 
     /// private methods

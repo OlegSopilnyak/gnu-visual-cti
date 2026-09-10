@@ -211,16 +211,9 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
     protected boolean nativeStartFaxTransmitting(H handle, String filePath, boolean issueVoiceRequest,
                                                  boolean isTiff, boolean isHighResolution,
                                                  int firstPageNumber, int totalPages) {
-        if (isOpened(handle) && Paths.get(filePath).toFile().exists()) {
-            // emulating transmission starting, trowing the hardware error in 50 millis
-            startActivity(handle, scheduler.schedule(
-                    () -> putEvent(faxDeviceError(handle, "Started fax transmission")),
-                    50, TimeUnit.MILLISECONDS)
-            );
-            return true;
-        }
-        return false;
+        return nativeStartFax(handle, filePath, "Started fax transmission");
     }
+
 
     @Override
     protected void nativeStopFaxTransmitting(H handle) {
@@ -234,15 +227,7 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
 
     @Override
     protected boolean nativeStartFaxReceiving(H handle, String filePath, boolean issueVoiceRequest) {
-        if (isOpened(handle) && Paths.get(filePath).toFile().exists()) {
-            // emulating transmission starting, trowing the hardware error in 50 millis
-            startActivity(handle, scheduler.schedule(
-                    () -> putEvent(faxDeviceError(handle, "Started fax receiving")),
-                    50, TimeUnit.MILLISECONDS)
-            );
-            return true;
-        }
-        return false;
+        return nativeStartFax(handle, filePath, "Started fax receiving");
     }
 
 
@@ -269,6 +254,23 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
     }
 
     /// private methods
+    // starting fax activity
+    private boolean nativeStartFax(H handle, String filePath, String errorReason) {
+        if (isOpened(handle) && Paths.get(filePath).toFile().exists()) {
+            // preparing the hardware error event putting
+            final Runnable activity = () -> {
+                putEvent(faxDeviceError(handle, errorReason));
+                deviceActivity.remove(handle);
+            };
+            // postpone hardware error trowing in 50 millis
+            startActivity(handle, scheduler.schedule(activity, 50, TimeUnit.MILLISECONDS));
+            return true;
+        } else {
+            // wasn't start operation
+            return false;
+        }
+    }
+
     // returns the singleton instance of SoundCardHandle.
     private static <H extends SoundCardHandle> H soundCardResourceHandle() {
         if (handle.get() != null) {

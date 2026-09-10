@@ -38,6 +38,7 @@ Fax number: 217-356-3356
 package org.visualcti.server.hardware.provider.javasound;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -55,9 +56,11 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.Callable;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
@@ -72,10 +75,18 @@ public class SoundCardServiceProviderTest {
 
     SoundCardServiceProvider<SoundCardHandle> provider;
     ScheduledExecutorService scheduler = mock(ScheduledExecutorService.class);
+    ScheduledExecutorService shadowScheduler;
 
     @Before
     public void setUp() throws Exception {
         provider = spy(new SoundCardServiceProvider<>(scheduler));
+        shadowScheduler = Executors.newSingleThreadScheduledExecutor();
+    }
+
+    @After
+    public void tearDown() throws Exception {
+        shadowScheduler.shutdown();
+        shadowScheduler = null;
     }
 
     @Test
@@ -675,23 +686,27 @@ public class SoundCardServiceProviderTest {
         File faxFile = new File(file);
         assertThat(faxFile.createNewFile()).isTrue();
         faxFile.deleteOnExit();
-        doAnswer(invocation -> {
-            invocation.getArgument(0, Callable.class).call();
-            return mock(ScheduledFuture.class);
-        }).when(scheduler).schedule(any(Callable.class), eq(50L), eq(TimeUnit.MILLISECONDS));
+        doAnswer(invocation -> shadowScheduler.schedule(
+                invocation.getArgument(0, Runnable.class),
+                invocation.getArgument(1, Long.class),
+                invocation.getArgument(2, TimeUnit.class)
+        )).when(scheduler).schedule(any(Runnable.class), eq(50L), eq(TimeUnit.MILLISECONDS));
 
         // acting
         boolean starts = provider.startFaxReceiving(handle, file, false);
+        assertThat(provider.hasShadowActivity(handle)).isTrue();
+        await().until(() -> !provider.hasShadowActivity(handle));
 
         // check the behavior
         verify(provider).nativeStartFaxReceiving(handle, file, false);
         verify(provider).isOpened(handle);
-        verify(scheduler).schedule(any(Callable.class), eq(50L), eq(TimeUnit.MILLISECONDS));
+        verify(scheduler).schedule(any(Runnable.class), eq(50L), eq(TimeUnit.MILLISECONDS));
         ArgumentCaptor<DeviceEvent<SoundCardHandle>> eventCaptor = ArgumentCaptor.forClass(DeviceEvent.class);
         verify(provider).putEvent(eventCaptor.capture());
         // check results
-        DeviceEvent<SoundCardHandle> event = eventCaptor.getValue();
+        assertThat(provider.hasShadowActivity(handle)).isFalse();
         assertThat(starts).isTrue();
+        DeviceEvent<SoundCardHandle> event = eventCaptor.getValue();
         assertThat(event.getEventType()).isSameAs(DeviceEvent.Type.MALFUNCTION);
         assertThat(event.getDeviceHandle()).isSameAs(handle);
         assertThat(event.getOption(DeviceEvent.Option.REASON)).isPresent().contains(Result.FAX.COMPATIBILITY);
@@ -744,9 +759,9 @@ public class SoundCardServiceProviderTest {
         assertThat(faxFile.createNewFile()).isTrue();
         faxFile.deleteOnExit();
         doAnswer(invocation -> {
-            invocation.getArgument(0, Callable.class).call();
+            invocation.getArgument(0, Runnable.class).run();
             return mock(ScheduledFuture.class);
-        }).when(scheduler).schedule(any(Callable.class), eq(50L), eq(TimeUnit.MILLISECONDS));
+        }).when(scheduler).schedule(any(Runnable.class), eq(50L), eq(TimeUnit.MILLISECONDS));
         assertThat(provider.startFaxReceiving(handle, file, false)).isTrue();
         assertThat(provider.hasShadowActivity(handle)).isTrue();
         reset(provider);
@@ -820,23 +835,27 @@ public class SoundCardServiceProviderTest {
         File faxFile = new File(file);
         assertThat(faxFile.createNewFile()).isTrue();
         faxFile.deleteOnExit();
-        doAnswer(invocation -> {
-            invocation.getArgument(0, Callable.class).call();
-            return mock(ScheduledFuture.class);
-        }).when(scheduler).schedule(any(Callable.class), eq(50L), eq(TimeUnit.MILLISECONDS));
+        doAnswer(invocation -> shadowScheduler.schedule(
+                invocation.getArgument(0, Runnable.class),
+                invocation.getArgument(1, Long.class),
+                invocation.getArgument(2, TimeUnit.class)
+        )).when(scheduler).schedule(any(Runnable.class), eq(50L), eq(TimeUnit.MILLISECONDS));
 
         // acting
         boolean starts = provider.startFaxTransmitting(handle, file, false, true, true, 1, 10);
+        assertThat(provider.hasShadowActivity(handle)).isTrue();
+        await().until(() -> !provider.hasShadowActivity(handle));
 
         // check the behavior
         verify(provider).nativeStartFaxTransmitting(handle, file, false, true, true, 1, 10);
         verify(provider).isOpened(handle);
-        verify(scheduler).schedule(any(Callable.class), eq(50L), eq(TimeUnit.MILLISECONDS));
+        verify(scheduler).schedule(any(Runnable.class), eq(50L), eq(TimeUnit.MILLISECONDS));
         ArgumentCaptor<DeviceEvent<SoundCardHandle>> eventCaptor = ArgumentCaptor.forClass(DeviceEvent.class);
         verify(provider).putEvent(eventCaptor.capture());
         // check results
-        DeviceEvent<SoundCardHandle> event = eventCaptor.getValue();
+        assertThat(provider.hasShadowActivity(handle)).isFalse();
         assertThat(starts).isTrue();
+        DeviceEvent<SoundCardHandle> event = eventCaptor.getValue();
         assertThat(event.getEventType()).isSameAs(DeviceEvent.Type.MALFUNCTION);
         assertThat(event.getDeviceHandle()).isSameAs(handle);
         assertThat(event.getOption(DeviceEvent.Option.REASON)).isPresent().contains(Result.FAX.COMPATIBILITY);
@@ -889,9 +908,9 @@ public class SoundCardServiceProviderTest {
         assertThat(faxFile.createNewFile()).isTrue();
         faxFile.deleteOnExit();
         doAnswer(invocation -> {
-            invocation.getArgument(0, Callable.class).call();
+            invocation.getArgument(0, Runnable.class).run();
             return mock(ScheduledFuture.class);
-        }).when(scheduler).schedule(any(Callable.class), eq(50L), eq(TimeUnit.MILLISECONDS));
+        }).when(scheduler).schedule(any(Runnable.class), eq(50L), eq(TimeUnit.MILLISECONDS));
         assertThat(provider.startFaxTransmitting(handle, file, false, true, true, 1, 10)).isTrue();
         assertThat(provider.hasShadowActivity(handle)).isTrue();
         reset(provider);

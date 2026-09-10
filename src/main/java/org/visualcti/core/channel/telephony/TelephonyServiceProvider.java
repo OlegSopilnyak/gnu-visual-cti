@@ -112,7 +112,7 @@ public interface TelephonyServiceProvider<H> extends Device.ServiceProvider<H> {
      *
      * @param handle the telephony device handle
      * @return true if operation complete successfully or the device with the handle is already disconnected
-     * @see CallsPortEngine#dropCall(PhoneCallSession)
+     * @see TelephonyDevice#dropCall(PhoneCallSession)
      */
     boolean handsetOff(H handle);
 
