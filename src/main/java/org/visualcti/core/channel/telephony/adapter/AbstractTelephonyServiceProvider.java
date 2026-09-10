@@ -339,16 +339,16 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      */
     @Override
     public Optional<DeviceEvent<H>> getEvent(final long during) {
-        return Optional.ofNullable(safeEvent(() -> {
+        return Optional.ofNullable(safeEventOperation(() -> {
             if (during < 0) {
                 // wrong timeout value
                 return null;
             }
             // calculating timeout for native event polling and native event getting
             final long timeout = during / 2;
-            final DeviceEvent<H> nativeEvent;
+            final DeviceEvent<H> nativeDeviceEvent;
             try {
-                nativeEvent = nativeEvents.poll(timeout, TimeUnit.MILLISECONDS);
+                nativeDeviceEvent = nativeEvents.poll(timeout, TimeUnit.MILLISECONDS);
             } catch (InterruptedException e) {
                 Tools.error("Interrupted while waiting for native event");
                 e.printStackTrace(Tools.err);
@@ -358,7 +358,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
             }
             // according to polled event, whether it is null or not, we return allowed device-event
             // or allowed device-event getting from the native
-            return allowedEvent(nativeEvent == null ? nativeGetEvent(timeout) : nativeEvent);
+            return allowedEvent(nativeDeviceEvent == null ? nativeGetEvent(timeout) : nativeDeviceEvent);
         }));
     }
 
@@ -411,7 +411,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * @return true if the event was put successfully
      */
     public boolean putEvent(final DeviceEvent<H> deviceEvent) {
-        return safeEvent(() -> nativeEvents.offer(deviceEvent));
+        return safeEventOperation(() -> nativeEvents.offer(deviceEvent));
     }
 
     /**
@@ -422,12 +422,12 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * @param eventType    the type of events to enable
      * @see DeviceActivitySession#getDeviceHandle()
      * @see OperationResultValue
-     * @see #enableEvent(H, OperationResultValue)
+     * @see #internalEnableEventsFor(H, OperationResultValue)
      * @see #nativeEnableEvents(H, String)
      */
     @Override
     public void enableEvents(final H deviceHandle, final OperationResultValue eventType) {
-        resourcesByHandle(deviceHandle).ifPresent(e -> enableEvent(deviceHandle, eventType));
+        resourcesByHandle(deviceHandle).ifPresent(e -> internalEnableEventsFor(deviceHandle, eventType));
     }
 
     /**
@@ -467,7 +467,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      */
     @Override
     public void disableEvents(final H deviceHandle, final OperationResultValue eventType) {
-        resourcesByHandle(deviceHandle).ifPresent(e -> disableEvent(deviceHandle, eventType));
+        resourcesByHandle(deviceHandle).ifPresent(e -> internalDisableEventsFor(deviceHandle, eventType));
     }
 
     /**
@@ -737,7 +737,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
     }
 
     // enabling events type for the opened resource by handle
-    private void enableEvent(final H handle, final OperationResultValue type) {
+    private void internalEnableEventsFor(final H handle, final OperationResultValue type) {
         final Set<OperationResultValue> enabledEventTypes = new HashSet<>(
                 resourceEventTypes.compute(handle, (k, v) -> v == null ? new HashSet<>() : v)
         );
@@ -750,7 +750,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
     }
 
     // disabling events type for the opened resource by handle
-    private void disableEvent(final H handle, final OperationResultValue type) {
+    private void internalDisableEventsFor(final H handle, final OperationResultValue type) {
         final Set<OperationResultValue> enabledEventTypes = new HashSet<>(allowedEventTypesFor(handle));
         if (type == EventType.ALL || enabledEventTypes.remove(type)) {
             if (enabledEventTypes.isEmpty() || type == EventType.ALL) {
@@ -765,10 +765,10 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
     }
 
     // to do operation with native events safely
-    private <T> T safeEvent(final Supplier<T> eventSupplier) {
+    private <T> T safeEventOperation(final Supplier<T> operation) {
         try {
             nativeEventsAccessLock.lock();
-            return eventSupplier.get();
+            return operation.get();
         } finally {
             nativeEventsAccessLock.unlock();
         }

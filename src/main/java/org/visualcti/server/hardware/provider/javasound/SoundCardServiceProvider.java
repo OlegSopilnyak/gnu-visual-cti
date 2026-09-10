@@ -42,11 +42,18 @@ import javax.sound.sampled.Line;
 import javax.sound.sampled.Port;
 
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import org.visualcti.core.channel.device.DeviceEvent;
+import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.adapter.AbstractTelephonyServiceProvider;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
 import org.visualcti.core.channel.telephony.operation.Result;
@@ -73,6 +80,14 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
     private final AtomicBoolean handsetOff = new AtomicBoolean(true);
     // reference to the sound-card phone number as singleton
     private final AtomicReference<PhoneCall.Number> callerID = new AtomicReference<>(PhoneCall.Number.EMPTY);
+    // executor for scheduling device activities tasks
+    private final ScheduledExecutorService scheduler;
+    // map of device activity tasks
+    private final Map<H, ScheduledFuture<?>> deviceActivity = new ConcurrentHashMap<>();
+
+    public SoundCardServiceProvider(ScheduledExecutorService scheduler) {
+        this.scheduler = scheduler;
+    }
 
     @Override
     public Collection<String> allowedDevices() {
@@ -100,6 +115,7 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
     @Override
     protected void nativeResourceClose(H handle) {
         // doing nothing here
+        super.nativeResourceClose(handle);
     }
 
     @Override
@@ -188,34 +204,68 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
     @Override
     protected void nativeFaxResourceClose(H handle) {
         // doing nothing here
+        super.nativeFaxResourceClose(handle);
     }
 
     @Override
     protected boolean nativeStartFaxTransmitting(H handle, String filePath, boolean issueVoiceRequest,
                                                  boolean isTiff, boolean isHighResolution,
                                                  int firstPageNumber, int totalPages) {
-        return isOpened(handle);
+        if (isOpened(handle) && Paths.get(filePath).toFile().exists()) {
+            // emulating transmission starting, trowing the hardware error in 50 millis
+            startActivity(handle, scheduler.schedule(
+                    () -> putEvent(faxDeviceError(handle, "Started fax transmission")),
+                    50, TimeUnit.MILLISECONDS)
+            );
+            return true;
+        }
+        return false;
     }
 
     @Override
     protected void nativeStopFaxTransmitting(H handle) {
-        if (isOpened(handle)) {
+        if (isOpened(handle) && hasShadowActivity(handle)) {
             // stopping the fax-operation
             putEvent(stopIt(handle, "Stopping fax transmission"));
+            // cancelling current shadow activity associated with the given handle
+            cancelActivity(handle);
         }
     }
 
     @Override
     protected boolean nativeStartFaxReceiving(H handle, String filePath, boolean issueVoiceRequest) {
-        return isOpened(handle);
+        if (isOpened(handle) && Paths.get(filePath).toFile().exists()) {
+            // emulating transmission starting, trowing the hardware error in 50 millis
+            startActivity(handle, scheduler.schedule(
+                    () -> putEvent(faxDeviceError(handle, "Started fax receiving")),
+                    50, TimeUnit.MILLISECONDS)
+            );
+            return true;
+        }
+        return false;
     }
+
 
     @Override
     protected void nativeStopFaxReceiving(H handle) {
-        if (isOpened(handle)) {
+        if (isOpened(handle) && hasShadowActivity(handle)) {
             // stopping the fax-operation
             putEvent(stopIt(handle, "Stopping fax receiving"));
+            // cancelling current shadow activity associated with the given handle
+            cancelActivity(handle);
         }
+    }
+
+    /**
+     * <accessor>
+     * To check is there any shadow activity running for the given handle
+     *
+     * @param handle the handle of the opened resource (sound card device's handle)
+     * @return true if there is any shadow activity running for the given handle
+     */
+    public boolean hasShadowActivity(final H handle) {
+        final ScheduledFuture<?> currentActivity = deviceActivity.get(handle);
+        return currentActivity != null && !currentActivity.isDone();
     }
 
     /// private methods
@@ -244,5 +294,27 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
         return SoundCardEvent.<H>of(DeviceEvent.Type.DEVICE_SPECIFIC).description(description)
                 .deviceHandle(handle).deviceName(SOUND_DEVICE).vendor(DEVICE_FACTORY_VENDOR)
                 .option(DeviceEvent.Option.REASON, Result.IO.EOF);
+    }
+
+    private static <H> DeviceEvent<H> faxDeviceError(H handle, String description) {
+        return SoundCardEvent.<H>of(DeviceEvent.Type.MALFUNCTION).description(description)
+                .deviceHandle(handle).deviceName(SOUND_DEVICE).vendor(DEVICE_FACTORY_VENDOR)
+                .option(DeviceEvent.Option.REASON, (OperationResultValue) Result.FAX.COMPATIBILITY);
+    }
+
+    // to cancel any shadow activity running for the given handle
+    private void cancelActivity(H handle) {
+        final ScheduledFuture<?> currentActivity = deviceActivity.remove(handle);
+        if (currentActivity != null && !currentActivity.isDone()) {
+            currentActivity.cancel(true);
+        }
+    }
+
+    // to make started the shadow activity for the given handle
+    private void startActivity(H handle, ScheduledFuture<?> activity) {
+        final ScheduledFuture<?> previousActivity = deviceActivity.put(handle, activity);
+        if (previousActivity != null && !previousActivity.isDone()) {
+            previousActivity.cancel(true);
+        }
     }
 }

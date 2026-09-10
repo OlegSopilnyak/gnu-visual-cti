@@ -41,7 +41,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -49,10 +51,16 @@ import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Optional;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.adapter.AbstractDeviceEvent;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
@@ -63,10 +71,11 @@ import org.visualcti.core.channel.telephony.operation.Result;
 public class SoundCardServiceProviderTest {
 
     SoundCardServiceProvider<SoundCardHandle> provider;
+    ScheduledExecutorService scheduler = mock(ScheduledExecutorService.class);
 
     @Before
     public void setUp() throws Exception {
-        provider = spy(new SoundCardServiceProvider<>());
+        provider = spy(new SoundCardServiceProvider<>(scheduler));
     }
 
     @Test
@@ -656,5 +665,295 @@ public class SoundCardServiceProviderTest {
         verify(provider).nativeFaxResourceClose(handle);
         // check results
         assertThat(provider.isOpened(handle)).isFalse();
+    }
+
+    @Test
+    public void shouldStartFaxReceiving() throws IOException {
+        // preparing test data
+        SoundCardHandle handle = provider.openFaxResource(SoundCardServiceProvider.SOUND_DEVICE);
+        String file = "fax-file";
+        File faxFile = new File(file);
+        assertThat(faxFile.createNewFile()).isTrue();
+        faxFile.deleteOnExit();
+        doAnswer(invocation -> {
+            invocation.getArgument(0, Callable.class).call();
+            return mock(ScheduledFuture.class);
+        }).when(scheduler).schedule(any(Callable.class), eq(50L), eq(TimeUnit.MILLISECONDS));
+
+        // acting
+        boolean starts = provider.startFaxReceiving(handle, file, false);
+
+        // check the behavior
+        verify(provider).nativeStartFaxReceiving(handle, file, false);
+        verify(provider).isOpened(handle);
+        verify(scheduler).schedule(any(Callable.class), eq(50L), eq(TimeUnit.MILLISECONDS));
+        ArgumentCaptor<DeviceEvent<SoundCardHandle>> eventCaptor = ArgumentCaptor.forClass(DeviceEvent.class);
+        verify(provider).putEvent(eventCaptor.capture());
+        // check results
+        DeviceEvent<SoundCardHandle> event = eventCaptor.getValue();
+        assertThat(starts).isTrue();
+        assertThat(event.getEventType()).isSameAs(DeviceEvent.Type.MALFUNCTION);
+        assertThat(event.getDeviceHandle()).isSameAs(handle);
+        assertThat(event.getOption(DeviceEvent.Option.REASON)).isPresent().contains(Result.FAX.COMPATIBILITY);
+        assertThat(faxFile.delete()).isTrue();
+    }
+
+    @Test
+    public void shouldDoNotStartFaxReceiving_Closed() throws IOException {
+        // preparing test data
+        SoundCardHandle handle = provider.openFaxResource(SoundCardServiceProvider.SOUND_DEVICE);
+        String file = "fax-file";
+        provider.closeFaxResource(handle);
+
+        // acting
+        boolean starts = provider.startFaxReceiving(handle, file, false);
+
+        // check the behavior
+        verify(provider).nativeStartFaxReceiving(handle, file, false);
+        verify(provider).isOpened(handle);
+        verify(scheduler, never()).schedule(any(Callable.class), anyLong(), any(TimeUnit.class));
+        verify(provider, never()).putEvent(any(DeviceEvent.class));
+        // check results
+        assertThat(starts).isFalse();
+    }
+
+    @Test
+    public void shouldDoNotStartFaxReceiving_WrongFileName() throws IOException {
+        // preparing test data
+        SoundCardHandle handle = provider.openFaxResource(SoundCardServiceProvider.SOUND_DEVICE);
+        String file = "fax-file";
+
+        // acting
+        boolean starts = provider.startFaxReceiving(handle, file, false);
+
+        // check the behavior
+        verify(provider).nativeStartFaxReceiving(handle, file, false);
+        verify(provider).isOpened(handle);
+        verify(scheduler, never()).schedule(any(Callable.class), anyLong(), any(TimeUnit.class));
+        verify(provider, never()).putEvent(any(DeviceEvent.class));
+        // check results
+        assertThat(starts).isFalse();
+    }
+
+    @Test
+    public void shouldStopFaxReceiving() throws IOException {
+        // preparing test data
+        SoundCardHandle handle = provider.openFaxResource(SoundCardServiceProvider.SOUND_DEVICE);
+        String file = "fax-file";
+        File faxFile = new File(file);
+        assertThat(faxFile.createNewFile()).isTrue();
+        faxFile.deleteOnExit();
+        doAnswer(invocation -> {
+            invocation.getArgument(0, Callable.class).call();
+            return mock(ScheduledFuture.class);
+        }).when(scheduler).schedule(any(Callable.class), eq(50L), eq(TimeUnit.MILLISECONDS));
+        assertThat(provider.startFaxReceiving(handle, file, false)).isTrue();
+        assertThat(provider.hasShadowActivity(handle)).isTrue();
+        reset(provider);
+
+        // acting
+        provider.stopFaxReceiving(handle);
+
+        // check the behavior
+        verify(provider).nativeStopFaxReceiving(handle);
+        verify(provider).isOpened(handle);
+        verify(provider).hasShadowActivity(handle);
+        ArgumentCaptor<DeviceEvent<SoundCardHandle>> eventCaptor = ArgumentCaptor.forClass(DeviceEvent.class);
+        verify(provider).putEvent(eventCaptor.capture());
+        // check results
+        DeviceEvent<SoundCardHandle> event = eventCaptor.getValue();
+        assertThat(event.getEventType()).isSameAs(DeviceEvent.Type.DEVICE_SPECIFIC);
+        assertThat(event.getDeviceHandle()).isSameAs(handle);
+        assertThat(event.getOption(DeviceEvent.Option.REASON)).isPresent().contains(Result.IO.EOF);
+        assertThat(provider.hasShadowActivity(handle)).isFalse();
+        assertThat(faxFile.delete()).isTrue();
+    }
+
+    @Test
+    public void shouldDoNotStopFaxReceiving_Closed() throws IOException {
+        // preparing test data
+        SoundCardHandle handle = provider.openFaxResource(SoundCardServiceProvider.SOUND_DEVICE);
+        provider.closeFaxResource(handle);
+        String file = "fax-file";
+        File faxFile = new File(file);
+        assertThat(faxFile.createNewFile()).isTrue();
+        faxFile.deleteOnExit();
+        assertThat(provider.startFaxReceiving(handle, file, false)).isFalse();
+        assertThat(provider.hasShadowActivity(handle)).isFalse();
+        reset(provider);
+
+        // acting
+        provider.stopFaxReceiving(handle);
+
+        // check the behavior
+        verify(provider).nativeStopFaxReceiving(handle);
+        verify(provider).isOpened(handle);
+        verify(provider, never()).hasShadowActivity(any());
+        // check results
+        assertThat(provider.hasShadowActivity(handle)).isFalse();
+        assertThat(faxFile.delete()).isTrue();
+    }
+
+    @Test
+    public void shouldDoNotStopFaxReceiving_NotStarted() throws IOException {
+        // preparing test data
+        SoundCardHandle handle = provider.openFaxResource(SoundCardServiceProvider.SOUND_DEVICE);
+        assertThat(provider.hasShadowActivity(handle)).isFalse();
+        reset(provider);
+
+        // acting
+        provider.stopFaxReceiving(handle);
+
+        // check the behavior
+        verify(provider).nativeStopFaxReceiving(handle);
+        verify(provider).isOpened(handle);
+        verify(provider).hasShadowActivity(handle);
+        // check results
+        assertThat(provider.hasShadowActivity(handle)).isFalse();
+    }
+
+    @Test
+    public void shouldStartFaxTransmitting() throws IOException {
+        // preparing test data
+        SoundCardHandle handle = provider.openFaxResource(SoundCardServiceProvider.SOUND_DEVICE);
+        String file = "fax-file";
+        File faxFile = new File(file);
+        assertThat(faxFile.createNewFile()).isTrue();
+        faxFile.deleteOnExit();
+        doAnswer(invocation -> {
+            invocation.getArgument(0, Callable.class).call();
+            return mock(ScheduledFuture.class);
+        }).when(scheduler).schedule(any(Callable.class), eq(50L), eq(TimeUnit.MILLISECONDS));
+
+        // acting
+        boolean starts = provider.startFaxTransmitting(handle, file, false, true, true, 1, 10);
+
+        // check the behavior
+        verify(provider).nativeStartFaxTransmitting(handle, file, false, true, true, 1, 10);
+        verify(provider).isOpened(handle);
+        verify(scheduler).schedule(any(Callable.class), eq(50L), eq(TimeUnit.MILLISECONDS));
+        ArgumentCaptor<DeviceEvent<SoundCardHandle>> eventCaptor = ArgumentCaptor.forClass(DeviceEvent.class);
+        verify(provider).putEvent(eventCaptor.capture());
+        // check results
+        DeviceEvent<SoundCardHandle> event = eventCaptor.getValue();
+        assertThat(starts).isTrue();
+        assertThat(event.getEventType()).isSameAs(DeviceEvent.Type.MALFUNCTION);
+        assertThat(event.getDeviceHandle()).isSameAs(handle);
+        assertThat(event.getOption(DeviceEvent.Option.REASON)).isPresent().contains(Result.FAX.COMPATIBILITY);
+        assertThat(faxFile.delete()).isTrue();
+    }
+
+    @Test
+    public void shouldDoNotStartFaxTransmitting_Closed() throws IOException {
+        // preparing test data
+        SoundCardHandle handle = provider.openFaxResource(SoundCardServiceProvider.SOUND_DEVICE);
+        String file = "fax-file";
+        provider.closeFaxResource(handle);
+
+        // acting
+        boolean starts = provider.startFaxTransmitting(handle, file, false, true, true, 1, 10);
+
+        // check the behavior
+        verify(provider).nativeStartFaxTransmitting(handle, file, false, true, true, 1, 10);
+        verify(provider).isOpened(handle);
+        verify(scheduler, never()).schedule(any(Callable.class), eq(50L), eq(TimeUnit.MILLISECONDS));
+        verify(provider, never()).putEvent(any(DeviceEvent.class));
+        // check results
+        assertThat(starts).isFalse();
+    }
+
+    @Test
+    public void shouldDoNotStartFaxTransmitting_WrongFilename() throws IOException {
+        // preparing test data
+        SoundCardHandle handle = provider.openFaxResource(SoundCardServiceProvider.SOUND_DEVICE);
+        String file = "fax-file";
+
+        // acting
+        boolean starts = provider.startFaxTransmitting(handle, file, false, true, true, 1, 10);
+
+        // check the behavior
+        verify(provider).nativeStartFaxTransmitting(handle, file, false, true, true, 1, 10);
+        verify(provider).isOpened(handle);
+        verify(scheduler, never()).schedule(any(Callable.class), eq(50L), eq(TimeUnit.MILLISECONDS));
+        verify(provider, never()).putEvent(any(DeviceEvent.class));
+        // check results
+        assertThat(starts).isFalse();
+    }
+
+    @Test
+    public void shouldStopFaxTransmitting() throws IOException {
+        // preparing test data
+        SoundCardHandle handle = provider.openFaxResource(SoundCardServiceProvider.SOUND_DEVICE);
+        String file = "fax-file";
+        File faxFile = new File(file);
+        assertThat(faxFile.createNewFile()).isTrue();
+        faxFile.deleteOnExit();
+        doAnswer(invocation -> {
+            invocation.getArgument(0, Callable.class).call();
+            return mock(ScheduledFuture.class);
+        }).when(scheduler).schedule(any(Callable.class), eq(50L), eq(TimeUnit.MILLISECONDS));
+        assertThat(provider.startFaxTransmitting(handle, file, false, true, true, 1, 10)).isTrue();
+        assertThat(provider.hasShadowActivity(handle)).isTrue();
+        reset(provider);
+
+        // acting
+        provider.stopFaxTransmitting(handle);
+
+        // check the behavior
+        verify(provider).nativeStopFaxTransmitting(handle);
+        verify(provider).isOpened(handle);
+        verify(provider).hasShadowActivity(handle);
+        ArgumentCaptor<DeviceEvent<SoundCardHandle>> eventCaptor = ArgumentCaptor.forClass(DeviceEvent.class);
+        verify(provider).putEvent(eventCaptor.capture());
+        // check results
+        DeviceEvent<SoundCardHandle> event = eventCaptor.getValue();
+        assertThat(event.getEventType()).isSameAs(DeviceEvent.Type.DEVICE_SPECIFIC);
+        assertThat(event.getDeviceHandle()).isSameAs(handle);
+        assertThat(event.getOption(DeviceEvent.Option.REASON)).isPresent().contains(Result.IO.EOF);
+        assertThat(provider.hasShadowActivity(handle)).isFalse();
+        assertThat(faxFile.delete()).isTrue();
+    }
+
+    @Test
+    public void shouldDoNotStopFaxTransmitting_Closed() throws IOException {
+        // preparing test data
+        SoundCardHandle handle = provider.openFaxResource(SoundCardServiceProvider.SOUND_DEVICE);
+        provider.closeFaxResource(handle);
+        String file = "fax-file";
+        File faxFile = new File(file);
+        assertThat(faxFile.createNewFile()).isTrue();
+        faxFile.deleteOnExit();
+        assertThat(provider.startFaxTransmitting(handle, file, false, true, true, 1, 10)).isFalse();
+        assertThat(provider.hasShadowActivity(handle)).isFalse();
+        reset(provider);
+
+        // acting
+        provider.stopFaxTransmitting(handle);
+
+        // check the behavior
+        verify(provider).nativeStopFaxTransmitting(handle);
+        verify(provider).isOpened(handle);
+        verify(provider, never()).hasShadowActivity(any());
+        // check results
+        assertThat(provider.hasShadowActivity(handle)).isFalse();
+        assertThat(faxFile.delete()).isTrue();
+    }
+
+    @Test
+    public void shouldDoNotStopFaxTransmitting_NotStarted() throws IOException {
+        // preparing test data
+        SoundCardHandle handle = provider.openFaxResource(SoundCardServiceProvider.SOUND_DEVICE);
+        assertThat(provider.hasShadowActivity(handle)).isFalse();
+        reset(provider);
+
+        // acting
+        provider.stopFaxTransmitting(handle);
+
+        // check the behavior
+        verify(provider).nativeStopFaxTransmitting(handle);
+        verify(provider).isOpened(handle);
+        verify(provider).hasShadowActivity(handle);
+        // check results
+        assertThat(provider.hasShadowActivity(handle)).isFalse();
     }
 }
