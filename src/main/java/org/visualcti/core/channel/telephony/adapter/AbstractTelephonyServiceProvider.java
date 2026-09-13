@@ -726,7 +726,20 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      */
     @Override
     public void stopAudioPlaying(H handle) {
-        TelephonyServiceProvider.super.stopAudioPlaying(handle);
+        if (isOpened(handle)) {
+            nativeStopAudioPlaying(handle);
+        }
+    }
+
+    /**
+     * <native-call>
+     * To stop (interrupt) playing media
+     *
+     * @param handle the telephony device handle
+     * @see #stopAudioPlaying(H)
+     */
+    protected void nativeStopAudioPlaying(H handle) {
+        // doing nothing here
     }
 
     /**
@@ -744,7 +757,23 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      */
     @Override
     public boolean startAudioRecording(H handle, String filePath, Audio format, int silence, int timeout) {
-        return TelephonyServiceProvider.super.startAudioRecording(handle, filePath, format, silence, timeout);
+        return nativeStartAudioRecording(handle, filePath, format, silence, timeout);
+    }
+
+    /**
+     * <native-call>
+     * To start recording media to the temporary file with the particular media format
+     *
+     * @param handle   the telephony device handle
+     * @param filePath the path to the file which contents the media data
+     * @param format   parameter determining the type of the decoder for transformation the sound data
+     * @param silence  time (seconds) how long silence in a line is allowed, after which the record operation will be finished.
+     * @param timeout  maximum time of playing back in seconds (-1 for unlimited, waiting for end of stream)
+     * @return true if the operation started successfully
+     * @see #startAudioRecording(H, String, Audio, int, int)
+     */
+    protected boolean nativeStartAudioRecording(H handle, String filePath, Audio format, int silence, int timeout) {
+        return isOpened(handle) && filePath != null && !filePath.trim().isEmpty();
     }
 
     /**
@@ -756,7 +785,20 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      */
     @Override
     public void stopAudioRecording(H handle) {
-        TelephonyServiceProvider.super.stopAudioRecording(handle);
+        if (isOpened(handle)) {
+            nativeStopAudioRecording(handle);
+        }
+    }
+
+    /**
+     * <action>
+     * To stop (interrupt) playing media
+     *
+     * @param handle the telephony device handle
+     * @see #stopAudioRecording(H)
+     */
+    protected void nativeStopAudioRecording(H handle) {
+        // doing nothing here
     }
 
     /// private methods

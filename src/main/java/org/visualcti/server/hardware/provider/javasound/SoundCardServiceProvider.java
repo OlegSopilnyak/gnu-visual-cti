@@ -37,11 +37,24 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.hardware.provider.javasound;
 
+import javax.sound.sampled.AudioFileFormat;
+import javax.sound.sampled.AudioFormat;
+import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.DataLine;
 import javax.sound.sampled.Line;
+import javax.sound.sampled.LineEvent;
+import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.Port;
+import javax.sound.sampled.SourceDataLine;
+import javax.sound.sampled.TargetDataLine;
+import javax.sound.sampled.UnsupportedAudioFileException;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.Collections;
@@ -57,6 +70,8 @@ import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.adapter.AbstractTelephonyServiceProvider;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
 import org.visualcti.core.channel.telephony.operation.Result;
+import org.visualcti.media.Audio;
+import org.visualcti.util.Tools;
 
 /**
  * <p>Title: Visual CTI Java Telephony Server</p>
@@ -71,6 +86,7 @@ import org.visualcti.core.channel.telephony.operation.Result;
  */
 @SuppressWarnings("unchecked")
 public class SoundCardServiceProvider<H extends SoundCardHandle> extends AbstractTelephonyServiceProvider<H> {
+    private static final int BUFFER_SIZE = 2048;
     // the name of sound card device as a telephony device
     public static final String SOUND_DEVICE = "SoundCard";
     public static final String DEVICE_FACTORY_VENDOR = "JavaSound";
@@ -241,6 +257,84 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
         }
     }
 
+    @Override
+    protected boolean nativeStartAudioPlaying(H handle, String filePath, Audio format, int timeout) {
+        final File audioFile = Paths.get(filePath).toFile();
+        if (isOpened(handle) && audioFile.exists() && handle.getSource() != null) {
+            // starting playing back the file in the separate thread
+            scheduler.schedule(() -> nativePlayingBackAudioFile(handle, audioFile), 0, TimeUnit.MILLISECONDS);
+            // stopping playing when the playing timeout is reached
+            postponedActivity(handle, scheduler.schedule(
+                    () -> {
+                        // finishing up the playing back audio loop
+                        handle.setSourceLine(null);
+                        // sending operation timeout event
+                        putEvent(stopIt(handle, "Audio playback...", Result.TIMEOUT));
+                        // finishing up postponed activity
+                        deviceActivity.remove(handle);
+                    }, timeout, TimeUnit.SECONDS));
+            return true;
+        } else {
+            // didn't start playing
+            return false;
+        }
+    }
+
+    @Override
+    protected void nativeStopAudioPlaying(H handle) {
+        // getting the playback channel line from the handle instance
+        final SourceDataLine playbackChannel = handle.getSourceLine();
+        // checking is there alive playback channel line
+        if (playbackChannel != null) {
+            // stopping the playing back on the channel and closing it
+            playbackChannel.stop();
+            playbackChannel.close();
+        }
+        // removing the playback channel line from the handle
+        handle.setSourceLine(null);
+        // cancelling current shadow activity associated with the given handle
+        cancelActivity(handle);
+    }
+
+    @Override
+    protected boolean nativeStartAudioRecording(H handle, String filePath, Audio format, int silence, int timeout) {
+        final File audioFile = Paths.get(filePath).toFile();
+        if (isOpened(handle) && audioFile.exists() && handle.getTarget() != null) {
+            // starting recording input audio to the file in the separate thread
+            scheduler.schedule(() -> nativeRecordingAudioToFile(handle, audioFile, format), 0, TimeUnit.MILLISECONDS);
+            // stopping record when the recording timeout is reached
+            postponedActivity(handle, scheduler.schedule(
+                    () -> {
+                        // finishing up the recording audio loop
+                        handle.setTargetLine(null);
+//                         sending operation timeout event
+//                        putEvent(stopIt(handle, "Audio recording...", Result.TIMEOUT));
+                        // finishing up postponed activity
+                        deviceActivity.remove(handle);
+                    }, timeout, TimeUnit.SECONDS));
+            return true;
+        } else {
+            // didn't start recording
+            return false;
+        }
+    }
+
+    @Override
+    protected void nativeStopAudioRecording(H handle) {
+        // getting the record channel line from the handle instance
+        final TargetDataLine recordChannel = handle.getTargetLine();
+        // checking is there alive record channel line
+        if (recordChannel != null) {
+            // stopping the recording on the channel and closing it
+            recordChannel.stop();
+            recordChannel.close();
+        }
+        // removing the record channel line from the handle
+        handle.setTargetLine(null);
+        // cancelling current shadow activity associated with the given handle
+        cancelActivity(handle);
+    }
+
     /**
      * <accessor>
      * To check is there any shadow activity running for the given handle
@@ -263,11 +357,140 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
                 deviceActivity.remove(handle);
             };
             // postpone hardware error trowing in 50 millis
-            startActivity(handle, scheduler.schedule(activity, 50, TimeUnit.MILLISECONDS));
+            postponedActivity(handle, scheduler.schedule(activity, 50, TimeUnit.MILLISECONDS));
             return true;
         } else {
             // wasn't start operation
             return false;
+        }
+    }
+
+    // playing back the audio file using handle's source line
+    private void nativePlayingBackAudioFile(final H handle, final File audioFile) {
+        try (final AudioInputStream audioStream = AudioSystem.getAudioInputStream(audioFile)) {
+            handle.inProgress(true);
+            final AudioFormat audioFormat = audioStream.getFormat();
+            final SourceDataLine channel = AudioSystem.getSourceDataLine(audioFormat);
+            channel.open(audioFormat);
+            //
+            channel.addLineListener(event -> {
+                if (event.getType().equals(LineEvent.Type.START)) {
+                    Tools.print("--- Starting playing file: " + audioFile.getName());
+                } else if (event.getType() == LineEvent.Type.STOP) {
+                    Tools.print("--- Stopped playing file: " + audioFile.getName());
+                    // detaching the line from device's handle
+                    handle.setSourceLine(null);
+                    // putting the event about end of file reached state
+                    putEvent(stopIt(handle, "Audio playback...", Result.IO.EOF));
+                }
+            });
+            // adjusting and starting the source data line channel
+            channel.open(audioFormat);
+            handle.setSourceLine(channel);
+            channel.start();
+            //
+            // playing back audio stuff preparation
+            final byte[] buffer = new byte[BUFFER_SIZE];
+            int bytesToPlay;
+            // getting audio chunks from the file and playing them back
+            while (handle.isSourceActive()) {
+                // getting audio chunk from the file
+                if ((bytesToPlay = audioStream.read(buffer, 0, buffer.length)) > 0) {
+                    // playing back the audio chunk through the started channel
+                    channel.write(buffer, 0, bytesToPlay);
+                } else {
+                    break;
+                }
+            }
+            // Wait for buffer to empty before closing
+            channel.drain();
+            //
+            // finishing up the channel's playback
+            channel.stop();
+            channel.close();
+        } catch (LineUnavailableException | UnsupportedAudioFileException | IOException e) {
+            // detaching the line from device's handle
+            handle.setSourceLine(null);
+            Tools.error("Failed to playback the audio");
+            e.printStackTrace(Tools.err);
+        } finally {
+            handle.inProgress(false);
+        }
+    }
+
+    // recording the audio to file using handle's target line
+    private void nativeRecordingAudioToFile(final H handle, final File outputFile, Audio format) {
+        final AudioFormat audioFormat = new AudioFormat(8000, 8, 1, false, false);
+        try {
+            final TargetDataLine target = AudioSystem.getTargetDataLine(audioFormat);
+            target.addLineListener(event -> {
+                if (event.getType().equals(LineEvent.Type.START)) {
+                    Tools.print("--- Starting recording to file: " + outputFile.getName());
+                } else if (event.getType() == LineEvent.Type.STOP) {
+                    Tools.print("--- Stopped recording to file: " + outputFile.getName());
+                    // detaching the line from device's handle
+                    handle.setTargetLine(null);
+//                    // putting the event about end of file reached state
+//                    putEvent(stopIt(handle, "Audio recording...", Result.IO.EOF));
+                }
+            });
+            // adjusting and starting the target line
+            target.open(audioFormat);
+            handle.setTargetLine(target);
+            target.start();
+            //
+            // recording audio stuff preparation
+            final File tempRawAudioFile = Files.createTempFile("audio", ".rawdata").toFile();
+            tempRawAudioFile.deleteOnExit();
+            final byte[] buffer = new byte[BUFFER_SIZE];
+            int bytesCaptured;
+            try (final FileOutputStream out = new FileOutputStream(tempRawAudioFile)) {
+                // audio capturing operation is started
+                handle.inProgress(true);
+                while (handle.isTargetActive()) {
+                    // getting audio chunk from the audio input
+                    if ((bytesCaptured = target.read(buffer, 0, buffer.length)) > 0) {
+                        // saving chunk to the temporary file
+                        out.write(buffer, 0, bytesCaptured);
+                    } else {
+                        break;
+                    }
+                }
+                // audio capturing operation is finished
+                if (target.available() > 0) {
+                    // there is audio data to capture
+                    // sending operation timeout event
+                    putEvent(stopIt(handle, "Audio recording...", Result.TIMEOUT));
+
+                } else {
+                    // capturing is stopped outside
+                    // putting the event about end of file reached state
+                    putEvent(stopIt(handle, "Audio recording...", Result.IO.EOF));
+                }
+            }
+            Tools.print("--- Finished recording to file: " + tempRawAudioFile.getName());
+            // saving the recording result
+            try (
+                    final FileInputStream fileIn = new FileInputStream(tempRawAudioFile);
+                    final AudioInputStream audioIn = new AudioInputStream(fileIn, audioFormat, tempRawAudioFile.length())
+            ) {
+                AudioSystem.write(audioIn, AudioFileFormat.Type.WAVE, outputFile);
+            }
+            // finalizing the last record operation's stuff
+            if (!tempRawAudioFile.delete()) {
+                throw new IOException("Failed to delete temp file: " + tempRawAudioFile.getAbsolutePath());
+            }
+            //
+            // finalizing the record
+            target.stop();
+            target.close();
+        } catch (LineUnavailableException | IOException e) {
+            // detaching the line from device's handle
+            handle.setTargetLine(null);
+            Tools.error("Failed to record the audio");
+            e.printStackTrace(Tools.err);
+        } finally {
+            handle.inProgress(false);
         }
     }
 
@@ -278,24 +501,38 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
         }
         synchronized (SoundCardHandle.class) {
             if (handle.get() == null) {
-                handle.getAndSet(createHandle());
+                handle.getAndSet(SoundCardHandle.of(supportedSourceDataLine(), supportedTargetDataLine()));
             }
         }
         return (H) handle.get();
     }
 
-    private static SoundCardHandle createHandle() {
-        final Line.Info[] microphones = AudioSystem.getSourceLineInfo(Port.Info.MICROPHONE);
-        final Line.Info source = microphones.length > 0 ? microphones[0] : null;
-        final Line.Info[] speakers = AudioSystem.getTargetLineInfo(Port.Info.SPEAKER);
-        final Line.Info target = speakers.length > 0 ? speakers[0] : null;
-        return SoundCardHandle.of(source, target);
+    private static Line.Info supportedSourceDataLine() {
+        if (AudioSystem.getSourceLineInfo(Port.Info.MICROPHONE).length > 0) {
+            final DataLine.Info dataSource = new DataLine.Info(SourceDataLine.class, null);
+            return AudioSystem.isLineSupported(dataSource) ? dataSource : null;
+        } else {
+            return null;
+        }
+    }
+
+    private static Line.Info supportedTargetDataLine() {
+        if (AudioSystem.getTargetLineInfo(Port.Info.SPEAKER).length > 0) {
+            final DataLine.Info dataSource = new DataLine.Info(TargetDataLine.class, null);
+            return AudioSystem.isLineSupported(dataSource) ? dataSource : null;
+        } else {
+            return null;
+        }
     }
 
     private static <H> DeviceEvent<H> stopIt(H handle, String description) {
+        return stopIt(handle, description, Result.IO.EOF);
+    }
+
+    private static <H> DeviceEvent<H> stopIt(H handle, String description, OperationResultValue reason) {
         return SoundCardEvent.<H>of(DeviceEvent.Type.DEVICE_SPECIFIC).description(description)
                 .deviceHandle(handle).deviceName(SOUND_DEVICE).vendor(DEVICE_FACTORY_VENDOR)
-                .option(DeviceEvent.Option.REASON, Result.IO.EOF);
+                .option(DeviceEvent.Option.REASON, reason);
     }
 
     private static <H> DeviceEvent<H> faxDeviceError(H handle, String description) {
@@ -313,7 +550,7 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
     }
 
     // to make started the shadow activity for the given handle
-    private void startActivity(H handle, ScheduledFuture<?> activity) {
+    private void postponedActivity(H handle, ScheduledFuture<?> activity) {
         final ScheduledFuture<?> previousActivity = deviceActivity.put(handle, activity);
         if (previousActivity != null && !previousActivity.isDone()) {
             previousActivity.cancel(true);

@@ -56,6 +56,7 @@ import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.TelephonyServiceProvider;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
+import org.visualcti.media.Audio;
 
 @SuppressWarnings({"unchecked", "rawtypes"})
 public class AbstractTelephonyServiceProviderTest<H> {
@@ -766,6 +767,134 @@ public class AbstractTelephonyServiceProviderTest<H> {
 
         // check the behavior
         verify(provider).nativeStopFaxTransmitting(resourceHandle);
+        // check results
+    }
+
+    @Test
+    public void shouldStartAudioPlaying() throws IOException {
+        // preparing test data
+        String resourceName = "resourceName";
+        H handle = (H) "handle";
+        String file = "audio-file";
+        Audio audio = Audio.LINEAR_8;
+        int timeout = 1000;
+        doReturn(handle).when(provider).nativeResourceOpen(resourceName);
+        H resourceHandle = provider.openResource(resourceName);
+        assertThat(provider.isOpened(resourceHandle)).isTrue();
+        reset(provider);
+
+        // acting
+        boolean starts = provider.startAudioPlaying(resourceHandle, file, audio, timeout);
+
+        // check the behavior
+        verify(provider).nativeStartAudioPlaying(resourceHandle, file, audio, timeout);
+        // check results
+        assertThat(starts).isTrue();
+    }
+
+    @Test
+    public void shouldDoNotStartAudioPlaying_Closed() throws IOException {
+        // preparing test data
+        String resourceName = "resourceName";
+        H handle = (H) "handle";
+        String file = "audio-file";
+        Audio audio = Audio.LINEAR_8;
+        int timeout = 1000;
+        doReturn(handle).when(provider).nativeResourceOpen(resourceName);
+        H resourceHandle = provider.openResource(resourceName);
+        assertThat(provider.isOpened(resourceHandle)).isTrue();
+        provider.closeResource(resourceHandle);
+        reset(provider);
+
+        // acting
+        boolean starts = provider.startAudioPlaying(resourceHandle, file, audio, timeout);
+
+        // check the behavior
+        verify(provider).nativeStartAudioPlaying(resourceHandle, file, audio, timeout);
+        // check results
+        assertThat(starts).isFalse();
+    }
+
+    @Test
+    public void shouldStopAudioPlaying() throws IOException {
+        // preparing test data
+        String resourceName = "resourceName";
+        H handle = (H) "handle";
+        doReturn(handle).when(provider).nativeResourceOpen(resourceName);
+        H resourceHandle = provider.openResource(resourceName);
+        assertThat(provider.isOpened(resourceHandle)).isTrue();
+        reset(provider);
+
+        // acting
+        provider.stopAudioPlaying(resourceHandle);
+
+        // check the behavior
+        verify(provider).nativeStopAudioPlaying(resourceHandle);
+        // check results
+    }
+
+    @Test
+    public void shouldStartAudioRecording() throws IOException {
+        // preparing test data
+        String resourceName = "resourceName";
+        H handle = (H) "handle";
+        String file = "audio-file";
+        Audio audio = Audio.LINEAR_8;
+        int silence = 10;
+        int timeout = 1000;
+        doReturn(handle).when(provider).nativeResourceOpen(resourceName);
+        H resourceHandle = provider.openResource(resourceName);
+        assertThat(provider.isOpened(resourceHandle)).isTrue();
+        reset(provider);
+
+        // acting
+        boolean starts = provider.startAudioRecording(resourceHandle, file, audio, silence, timeout);
+
+        // check the behavior
+        verify(provider).nativeStartAudioRecording(resourceHandle, file, audio, silence, timeout);
+        // check results
+        assertThat(starts).isTrue();
+    }
+
+    @Test
+    public void shouldDoNotStartAudioRecording_Closed() throws IOException {
+        // preparing test data
+        String resourceName = "resourceName";
+        H handle = (H) "handle";
+        String file = "audio-file";
+        Audio audio = Audio.LINEAR_8;
+        int silence = 10;
+        int timeout = 1000;
+        doReturn(handle).when(provider).nativeResourceOpen(resourceName);
+        H resourceHandle = provider.openResource(resourceName);
+        assertThat(provider.isOpened(resourceHandle)).isTrue();
+        provider.closeResource(resourceHandle);
+        reset(provider);
+
+        // acting
+        boolean starts = provider.startAudioRecording(resourceHandle, file, audio, silence, timeout);
+
+        // check the behavior
+        verify(provider).nativeStartAudioRecording(resourceHandle, file, audio, silence, timeout);
+        // check results
+        assertThat(starts).isFalse();
+    }
+
+    @Test
+    public void shouldStopAudioRecording() throws IOException {
+        // preparing test data
+        String resourceName = "resourceName";
+        H handle = (H) "handle";
+        doReturn(handle).when(provider).nativeResourceOpen(resourceName);
+        H resourceHandle = provider.openResource(resourceName);
+        assertThat(provider.isOpened(resourceHandle)).isTrue();
+        reset(provider);
+
+        // acting
+        provider.stopAudioRecording(resourceHandle);
+
+        // check the behavior
+        verify(provider).nativeStopAudioRecording(resourceHandle);
         // check results
     }
 }

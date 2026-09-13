@@ -38,7 +38,11 @@ Fax number: 217-356-3356
 package org.visualcti.server.hardware.provider.javasound;
 
 import javax.sound.sampled.Line;
+import javax.sound.sampled.SourceDataLine;
+import javax.sound.sampled.TargetDataLine;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 
 /**
@@ -58,6 +62,13 @@ public class SoundCardHandle {
     // the source line info
     private final Line.Info source;
     private final Line.Info target;
+    // flag is current operation is in progress
+    private final AtomicBoolean inProgress = new AtomicBoolean(false);
+
+    private final AtomicReference<SourceDataLine> sourceLine = new AtomicReference<>(null);
+    private final AtomicBoolean sourceActive = new AtomicBoolean(false);
+    private final AtomicReference<TargetDataLine> targetLine = new AtomicReference<>(null);
+    private final AtomicBoolean targetActive = new AtomicBoolean(false);
 
     /**
      * <builder>
@@ -102,5 +113,51 @@ public class SoundCardHandle {
     private SoundCardHandle(Line.Info source, Line.Info target) {
         this.source = source;
         this.target = target;
+    }
+
+    public void setSourceLine(final SourceDataLine line) {
+        sourceLine.getAndSet(line);
+        sourceActive.getAndSet(line != null);
+    }
+
+    public Boolean isSourceActive() {
+        return sourceActive.get();
+    }
+
+    public SourceDataLine getSourceLine() {
+        return sourceLine.get();
+    }
+
+    public void setTargetLine(final TargetDataLine line) {
+        targetLine.getAndSet(line);
+        targetActive.getAndSet(line != null);
+    }
+
+    public TargetDataLine getTargetLine() {
+        return targetLine.get();
+    }
+
+    public Boolean isTargetActive() {
+        return targetActive.get();
+    }
+
+    /**
+     * <accessor>
+     * To get the state of the current media operation
+     *
+     * @return true if operation is in progress
+     */
+    public boolean isOperationInProgress() {
+        return inProgress.get();
+    }
+
+    /**
+     * <mutator>
+     * To set the state of the current media operation
+     *
+     * @param inProgress new state value
+     */
+    public void inProgress(boolean inProgress) {
+        this.inProgress.getAndSet(inProgress);
     }
 }
