@@ -42,6 +42,7 @@ import static org.awaitility.Awaitility.await;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
@@ -1001,9 +1002,6 @@ public class SoundCardServiceProviderTest {
         boolean started = provider.startAudioPlaying(handle, tempFile.getCanonicalPath(), format, timeout);
         await().until(handle::isOperationInProgress);
         await().until(() -> !handle.isOperationInProgress());
-//        await().until(handle::isSourceActive);
-//        assertThat(provider.hasShadowActivity(handle)).isTrue();
-//        await().until(() -> !provider.hasShadowActivity(handle));
 
         // check the behavior
         verify(provider).isOpened(handle);
@@ -1016,7 +1014,7 @@ public class SoundCardServiceProviderTest {
         assertThat(event.getOption(DeviceEvent.Option.REASON)).isPresent().contains(Result.TIMEOUT);
         assertThat(started).isTrue();
         assertThat(provider.hasShadowActivity(handle)).isFalse();
-        assertThat(handle.isSourceActive()).isTrue();
+        assertThat(handle.isSourceActive()).isFalse();
         assertThat(tempFile.delete()).isTrue();
     }
 
@@ -1080,14 +1078,14 @@ public class SoundCardServiceProviderTest {
 
         // check the behavior
         verify(provider).isOpened(handle);
+        verify(provider).nativeStartAudioRecording(eq(handle), anyString(), eq(format), eq(silence), eq(timeout));
         ArgumentCaptor<DeviceEvent<SoundCardHandle>> eventCaptor = ArgumentCaptor.forClass(DeviceEvent.class);
         verify(provider, atLeastOnce()).putEvent(eventCaptor.capture());
         // check results
         DeviceEvent<SoundCardHandle> event = eventCaptor.getValue();
         assertThat(event.getEventType()).isSameAs(DeviceEvent.Type.DEVICE_SPECIFIC);
         assertThat(event.getDeviceHandle()).isSameAs(handle);
-        assertThat(event.getOption(DeviceEvent.Option.REASON)).isPresent().contains(Result.IO.EOF);
-//        assertThat(event.getOption(DeviceEvent.Option.REASON)).isPresent().contains(Result.TIMEOUT);
+        assertThat(event.getOption(DeviceEvent.Option.REASON)).isPresent().contains(Result.TIMEOUT);
         assertThat(started).isTrue();
         assertThat(provider.hasShadowActivity(handle)).isFalse();
         assertThat(handle.isTargetActive()).isFalse();
@@ -1126,8 +1124,7 @@ public class SoundCardServiceProviderTest {
         DeviceEvent<SoundCardHandle> event = eventCaptor.getValue();
         assertThat(event.getEventType()).isSameAs(DeviceEvent.Type.DEVICE_SPECIFIC);
         assertThat(event.getDeviceHandle()).isSameAs(handle);
-//        assertThat(event.getOption(DeviceEvent.Option.REASON)).isPresent().contains(Result.IO.EOF);
-        assertThat(event.getOption(DeviceEvent.Option.REASON)).isPresent().contains(Result.TIMEOUT);
+        assertThat(event.getOption(DeviceEvent.Option.REASON)).isPresent().contains(Result.IO.EOF);
         assertThat(provider.hasShadowActivity(handle)).isFalse();
         assertThat(handle.isTargetActive()).isFalse();
         assertThat(tempFile.delete()).isTrue();

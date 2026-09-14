@@ -145,7 +145,7 @@ public class SoundCardHandle {
      * <accessor>
      * To get the state of the current media operation
      *
-     * @return true if operation is in progress
+     * @return true if the operation is in progress
      */
     public boolean isOperationInProgress() {
         return inProgress.get();
