@@ -49,9 +49,13 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
 import java.io.IOException;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Optional;
 import org.junit.Before;
 import org.junit.Test;
+import org.visualcti.core.ConfigurationParameter;
+import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.TelephonyServiceProvider;
@@ -896,5 +900,115 @@ public class AbstractTelephonyServiceProviderTest<H> {
         // check the behavior
         verify(provider).nativeStopAudioRecording(resourceHandle);
         // check results
+    }
+
+    @Test
+    public void shouldGetResourceParameter() throws IOException {
+        // preparing test data
+        String resourceName = "resourceName";
+        H handle = (H) "handle";
+        Device.ParameterName parameterName = mock(Device.ParameterName.class);
+        ConfigurationParameter configurationParameter = mock(ConfigurationParameter.class);
+        doReturn(handle).when(provider).nativeResourceOpen(resourceName);
+        H resourceHandle = provider.openResource(resourceName);
+        assertThat(provider.isOpened(resourceHandle)).isTrue();
+        provider.nativeSetResourceParameter(resourceHandle, parameterName, configurationParameter);
+        reset(provider);
+
+        // acting
+        Optional<ConfigurationParameter> parameter = provider.resourceParameter(resourceHandle, parameterName);
+
+        // check the behavior
+        verify(provider).isOpened(resourceHandle);
+        verify(provider).nativeFindResourceParameter(resourceHandle, parameterName);
+        // check results
+        assertThat(parameter).isNotNull().isPresent().contains(configurationParameter);
+    }
+
+    @Test
+    public void shouldNotGetResourceParameter_Closed() throws IOException {
+        // preparing test data
+        String resourceName = "resourceName";
+        H handle = (H) "handle";
+        Device.ParameterName parameterName = mock(Device.ParameterName.class);
+        ConfigurationParameter configurationParameter = mock(ConfigurationParameter.class);
+        doReturn(handle).when(provider).nativeResourceOpen(resourceName);
+        H resourceHandle = provider.openResource(resourceName);
+        assertThat(provider.isOpened(resourceHandle)).isTrue();
+        provider.nativeSetResourceParameter(resourceHandle, parameterName, configurationParameter);
+        assertThat(provider.resourceParameter(resourceHandle, parameterName)).contains(configurationParameter);
+        provider.closeResource(resourceHandle);
+        reset(provider);
+
+        // acting
+        Optional<ConfigurationParameter> parameter = provider.resourceParameter(resourceHandle, parameterName);
+
+        // check the behavior
+        verify(provider).isOpened(handle);
+        verify(provider, never()).nativeFindResourceParameter(any(), any(Device.ParameterName.class));
+        // check results
+        assertThat(parameter).isNotNull().isEmpty();
+    }
+
+    @Test
+    public void shouldSetResourceParameter() throws IOException {
+        // preparing test data
+        String resourceName = "resourceName";
+        H handle = (H) "handle";
+        Device.ParameterName parameterName = mock(Device.ParameterName.class);
+        ConfigurationParameter configurationParameter = mock(ConfigurationParameter.class);
+        doReturn(handle).when(provider).nativeResourceOpen(resourceName);
+        H resourceHandle = provider.openResource(resourceName);
+        assertThat(provider.isOpened(resourceHandle)).isTrue();
+        assertThat(provider.resourceParameter(resourceHandle, parameterName)).isEmpty();
+        reset(provider);
+
+        // acting
+        boolean setUp = provider.nativeSetResourceParameter(resourceHandle, parameterName, configurationParameter);
+
+        // check the behavior
+        verify(provider).isValid(handle);
+        // check results
+        assertThat(setUp).isTrue();
+        assertThat(provider.resourceParameter(resourceHandle, parameterName)).contains(configurationParameter);
+    }
+
+    @Test
+    public void shouldNotSetResourceParameter_Closed() throws IOException {
+        // preparing test data
+        String resourceName = "resourceName";
+        H handle = (H) "handle";
+        Device.ParameterName parameterName = mock(Device.ParameterName.class);
+        ConfigurationParameter configurationParameter = mock(ConfigurationParameter.class);
+        doReturn(handle).when(provider).nativeResourceOpen(resourceName);
+        H resourceHandle = provider.openResource(resourceName);
+        assertThat(provider.isOpened(resourceHandle)).isTrue();
+        assertThat(provider.resourceParameter(resourceHandle, parameterName)).isEmpty();
+        provider.closeResource(resourceHandle);
+        reset(provider);
+
+        // acting
+        boolean setUp = provider.nativeSetResourceParameter(resourceHandle, parameterName, configurationParameter);
+
+        // check the behavior
+        verify(provider).isValid(handle);
+        // check results
+        assertThat(setUp).isTrue();
+        assertThat(provider.resourceParameter(resourceHandle, parameterName)).isEmpty();
+    }
+
+    @Test
+    public void shouldGetAllowedDevices() {
+        // preparing test data
+        String resourceName = "resourceName";
+        doReturn(Collections.singleton(resourceName)).when(provider).nativeAllowedDevices();
+
+        // acting
+        Collection<String> allowedDevices = provider.allowedDevices();
+
+        // check the behavior
+        verify(provider).nativeAllowedDevices();
+        // check results
+        assertThat(allowedDevices).containsExactly(resourceName);
     }
 }

@@ -42,28 +42,29 @@ import javax.media.format.UnsupportedFormatException;
 
 import java.io.IOException;
 import java.util.Arrays;
+import org.visualcti.util.Tools;
 
 /**
- * enumeration describe the formats of audio data
+ * enumeration describes the formats of audio data
  * this is proxy between device and audio formats
  */
 public enum Audio implements AudioMedia {
     //<predefined audios>
     //
-    // Algorithm  = ULAW, Sample rate = 8000 samples per second
+    // Algorithm = ULAW, Sample rate = 8000 samples per second
     ULAW_8(_Ulaw_ALG, 8000),
-    // Algorithm  = ALAW, Sample rate = 8000 samples per second
+    // Algorithm = ALAW, Sample rate = 8000 samples per second
     ALAW_8(_Alaw_ALG, 8000),
-    // Algorithm  = LINEAR 8, Sample rate = 8000 samples per second
+    // Algorithm = LINEAR 8, Sample rate = 8000 samples per second
     LINEAR(_Linear_ALG, 8000),
-    // Algorithm  = LINEAR 8, Sample rate = 8000 samples per second
+    // Algorithm = LINEAR 8, Sample rate = 8000 samples per second
     LINEAR_8(_Linear8_ALG, 8000),
-    // Algorithm  = LINEAR 8, Sample rate = 11025 samples per second
+    // Algorithm = LINEAR 8, Sample rate = 11,025 samples per second
     LINEAR_11(_Linear_ALG, 11025),
     LINEAR_16(_Linear16_ALG, 11025),
-    // Algorithm  = Dialogic/OKI, Sample rate = 6000 samples per second
+    // Algorithm = Dialogic/OKI, Sample rate = 6000 samples per second
     ADPCM_6(_Dialogic_ALG, 6000),
-    // Algorithm  = Dialogic/OKI, Sample rate = 8000 samples per second
+    // Algorithm = Dialogic/OKI, Sample rate = 8000 samples per second
     ADPCM_8(_Dialogic_ALG, 8000);
 
     /**
@@ -71,9 +72,10 @@ public enum Audio implements AudioMedia {
      * To get the Audio from AudioFormat
      *
      * @see AudioFormat
+     * @deprecated
      */
+    @Deprecated
     public static Audio from(final AudioFormat format) throws UnsupportedFormatException {
-        javax.sound.sampled.AudioFormat javaSoundFormat;
         final double sampleRate = format.getSampleRate();
         try {
             AudioMedia.checkSampleRate((double) sampleRate);
@@ -95,25 +97,83 @@ public enum Audio implements AudioMedia {
             default:
                 throw new UnsupportedFormatException(format);
         }
-        return fromString(algorithmName + "/" + sampleRate);
+        return of(algorithmName + "/" + sampleRate);
     }
 
     /**
      * <accessor>
-     * To get access to te audio as AudioFormat
+     * To get the Audio from AudioFormat
+     *
+     * @see javax.sound.sampled.AudioFormat
+     */
+    public static Audio of(final javax.sound.sampled.AudioFormat format) {
+        // dealing with format's sample rate
+        final float sampleRate = format.getSampleRate();
+        try {
+            AudioMedia.checkSampleRate(sampleRate);
+        } catch (IOException e) {
+            e.printStackTrace(Tools.err);
+            return null;
+        }
+        // dealing with format's encoding
+        final javax.sound.sampled.AudioFormat.Encoding encoding = format.getEncoding();
+        if (javax.sound.sampled.AudioFormat.Encoding.ALAW.equals(encoding)) {
+            return of(Audio._Alaw_ALG + "/" + sampleRate);
+        } else if (javax.sound.sampled.AudioFormat.Encoding.ULAW.equals(encoding)) {
+            return of(Audio._Ulaw_ALG + "/" + sampleRate);
+        } else if (javax.sound.sampled.AudioFormat.Encoding.PCM_SIGNED.equals(encoding)) {
+            return of(Audio._Linear8_ALG + "/" + sampleRate);
+        }
+        Tools.error("Not supported encoding :" + encoding);
+        return null;
+    }
+
+    /**
+     * <accessor>
+     * To get access to the audio as AudioFormat
      *
      * @return the format or null if invalid
      * @see AudioFormat
+     * @deprecated
      */
+    @Deprecated
     public AudioFormat toAudioFormat() {
         return new AudioFormat(codec, sampleRate, 8, 1);
     }
 
     /**
      * <accessor>
-     * to restore object from string
+     * To get access to the audio as AudioFormat
+     *
+     * @return the format or null if invalid
+     * @see javax.sound.sampled.AudioFormat
      */
-    public static Audio fromString(final String mediaFormatValue) {
+    public javax.sound.sampled.AudioFormat toFormat() {
+        switch (codec) {
+            case _Linear_ALG:
+            case _Linear8_ALG:
+                return new javax.sound.sampled.AudioFormat(javax.sound.sampled.AudioFormat.Encoding.PCM_UNSIGNED,
+                        sampleRate, 8, 1, 1, sampleRate, false);
+            case _Linear16_ALG:
+                return new javax.sound.sampled.AudioFormat(javax.sound.sampled.AudioFormat.Encoding.PCM_UNSIGNED,
+                        sampleRate, 16, 1, 1, sampleRate, false);
+            case _Alaw_ALG:
+                return new javax.sound.sampled.AudioFormat(javax.sound.sampled.AudioFormat.Encoding.ALAW,
+                        sampleRate, 8, 1, 1, sampleRate, false);
+            case _Ulaw_ALG:
+                return new javax.sound.sampled.AudioFormat(javax.sound.sampled.AudioFormat.Encoding.ULAW,
+                        sampleRate, 8, 1, 1, sampleRate, false);
+            default:
+//                Tools.error("Unknown codec :" + codec);
+                return null;
+        }
+    }
+
+    /**
+     * <accessor>
+     * to restore the Audio instance from string
+     */
+    public static Audio of(final String mediaFormatValue) {
         try {
             final String[] split = mediaFormatValue.split("/");
             final String algorithmName = split[0].trim();

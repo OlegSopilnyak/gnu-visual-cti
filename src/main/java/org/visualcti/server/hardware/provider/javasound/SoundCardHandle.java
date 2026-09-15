@@ -37,7 +37,7 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.hardware.provider.javasound;
 
-import javax.sound.sampled.Line;
+import javax.sound.sampled.DataLine;
 import javax.sound.sampled.SourceDataLine;
 import javax.sound.sampled.TargetDataLine;
 
@@ -60,8 +60,8 @@ public class SoundCardHandle {
     private static final Predicate<SoundCardHandle> isWrong = handle ->
             handle.source == null && handle.target == null;
     // the source line info
-    private final Line.Info source;
-    private final Line.Info target;
+    private final DataLine.Info source;
+    private final DataLine.Info target;
     // flag is current operation is in progress
     private final AtomicBoolean inProgress = new AtomicBoolean(false);
 
@@ -78,7 +78,7 @@ public class SoundCardHandle {
      * @param target info about the target line
      * @return built instance of SoundCardHandle
      */
-    public static SoundCardHandle of(Line.Info source, Line.Info target) {
+    public static SoundCardHandle of(DataLine.Info source, DataLine.Info target) {
         return new SoundCardHandle(source, target);
     }
 
@@ -92,11 +92,11 @@ public class SoundCardHandle {
         return (H) of(null, null);
     }
 
-    public Line.Info getSource() {
+    public DataLine.Info getSource() {
         return source;
     }
 
-    public Line.Info getTarget() {
+    public DataLine.Info getTarget() {
         return target;
     }
 
@@ -110,7 +110,7 @@ public class SoundCardHandle {
         return isWrong.negate().test(this);
     }
 
-    private SoundCardHandle(Line.Info source, Line.Info target) {
+    private SoundCardHandle(DataLine.Info source, DataLine.Info target) {
         this.source = source;
         this.target = target;
     }

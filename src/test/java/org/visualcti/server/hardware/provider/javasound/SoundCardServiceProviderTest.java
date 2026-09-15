@@ -52,12 +52,15 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
+import static org.visualcti.server.hardware.provider.javasound.SoundCardServiceProvider.SOUND_DEVICE;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
@@ -68,15 +71,19 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
+import org.visualcti.core.ConfigurationParameter;
+import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.adapter.AbstractDeviceEvent;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
 import org.visualcti.core.channel.telephony.operation.Result;
+import org.visualcti.core.channel.telephony.part.MultimediaEngine;
 import org.visualcti.media.Audio;
 
 @SuppressWarnings("unchecked")
 public class SoundCardServiceProviderTest {
+    Device.ParameterName ALLOWED_CODECS = MultimediaEngine.Parameter.ALLOWED_CODECS;
 
     SoundCardServiceProvider<SoundCardHandle> provider;
     ScheduledExecutorService scheduler = mock(ScheduledExecutorService.class);
@@ -97,15 +104,20 @@ public class SoundCardServiceProviderTest {
     @Test
     public void shouldOpenResource() throws IOException {
         // preparing test data
-        String deviceName = SoundCardServiceProvider.SOUND_DEVICE;
+        String deviceName = SOUND_DEVICE;
 
         // acting
         SoundCardHandle handle = provider.openResource(deviceName);
 
         // check the behavior
         verify(provider).nativeResourceOpen(deviceName);
+        verify(provider).availableFormatsFor(handle);
         // check results
         assertThat(handle).isNotNull();
+        assertThat(handle.canUse()).isTrue();
+        Optional<ConfigurationParameter> codecs = provider.resourceParameter(handle, ALLOWED_CODECS);
+        assertThat(codecs).isPresent();
+        assertThat(codecs.get().<List<?>>getValue()).isNotEmpty();
     }
 
     @Test
@@ -118,15 +130,17 @@ public class SoundCardServiceProviderTest {
 
         // check the behavior
         verify(provider).nativeResourceOpen(deviceName);
+        verify(provider).availableFormatsFor(any());
         // check results
         assertThat(handle).isNotNull();
         assertThat(handle.canUse()).isFalse();
+        assertThat(provider.resourceParameter(handle, ALLOWED_CODECS)).isEmpty();
     }
 
     @Test
     public void shouldNotOpenResource_AlreadyOpened() throws IOException {
         // preparing test data
-        String deviceName = SoundCardServiceProvider.SOUND_DEVICE;
+        String deviceName = SOUND_DEVICE;
         provider.openResource(deviceName);
         reset(provider);
 
@@ -143,7 +157,7 @@ public class SoundCardServiceProviderTest {
     @Test
     public void shouldCloseResource() throws IOException {
         // preparing test data
-        SoundCardHandle handle = provider.openResource(SoundCardServiceProvider.SOUND_DEVICE);
+        SoundCardHandle handle = provider.openResource(SOUND_DEVICE);
         assertThat(provider.isOpened(handle)).isTrue();
 
         // acting
@@ -158,7 +172,7 @@ public class SoundCardServiceProviderTest {
     @Test
     public void shouldNotCloseResource_Closed() throws IOException {
         // preparing test data
-        SoundCardHandle handle = provider.openResource(SoundCardServiceProvider.SOUND_DEVICE);
+        SoundCardHandle handle = provider.openResource(SOUND_DEVICE);
         assertThat(provider.isOpened(handle)).isTrue();
         provider.closeResource(handle);
         reset(provider);
@@ -175,7 +189,7 @@ public class SoundCardServiceProviderTest {
     @Test
     public void shouldGetHandleByName() throws IOException {
         // preparing test data
-        String deviceName = SoundCardServiceProvider.SOUND_DEVICE;
+        String deviceName = SOUND_DEVICE;
         SoundCardHandle handle = provider.openResource(deviceName);
         assertThat(provider.isOpened(handle)).isTrue();
 
@@ -190,10 +204,9 @@ public class SoundCardServiceProviderTest {
     @Test
     public void shouldNotGetHandleByName_NotOpened() {
         // preparing test data
-        String deviceName = SoundCardServiceProvider.SOUND_DEVICE;
 
         // acting
-        Optional<SoundCardHandle> byName = provider.handleByName(deviceName);
+        Optional<SoundCardHandle> byName = provider.handleByName(SOUND_DEVICE);
 
         // check the behavior
         // check results
@@ -203,7 +216,7 @@ public class SoundCardServiceProviderTest {
     @Test
     public void shouldBeHandsetOff() throws IOException {
         // preparing test data
-        SoundCardHandle handle = provider.openResource(SoundCardServiceProvider.SOUND_DEVICE);
+        SoundCardHandle handle = provider.openResource(SOUND_DEVICE);
         assertThat(provider.isHandsetOff(handle)).isTrue();
         assertThat(provider.isOpened(handle)).isTrue();
         reset(provider);
@@ -220,7 +233,7 @@ public class SoundCardServiceProviderTest {
     @Test
     public void shouldNotBeHandsetOff_Closed() throws IOException {
         // preparing test data
-        SoundCardHandle handle = provider.openResource(SoundCardServiceProvider.SOUND_DEVICE);
+        SoundCardHandle handle = provider.openResource(SOUND_DEVICE);
         assertThat(provider.isHandsetOff(handle)).isTrue();
         assertThat(provider.isOpened(handle)).isTrue();
         provider.closeResource(handle);
@@ -238,7 +251,7 @@ public class SoundCardServiceProviderTest {
     @Test
     public void shouldNotBeHandsetOff_AnsweredCall() throws IOException {
         // preparing test data
-        SoundCardHandle handle = provider.openResource(SoundCardServiceProvider.SOUND_DEVICE);
+        SoundCardHandle handle = provider.openResource(SOUND_DEVICE);
         assertThat(provider.isHandsetOff(handle)).isTrue();
         assertThat(provider.isOpened(handle)).isTrue();
         provider.answerCall(handle);
@@ -256,7 +269,7 @@ public class SoundCardServiceProviderTest {
     @Test
     public void shouldSetUpHandsetOff() throws IOException {
         // preparing test data
-        SoundCardHandle handle = provider.openResource(SoundCardServiceProvider.SOUND_DEVICE);
+        SoundCardHandle handle = provider.openResource(SOUND_DEVICE);
         assertThat(provider.isHandsetOff(handle)).isTrue();
         assertThat(provider.isOpened(handle)).isTrue();
         provider.answerCall(handle);
@@ -276,7 +289,7 @@ public class SoundCardServiceProviderTest {
     @Test
     public void shouldNotSetUpHandsetOff_Closed() throws IOException {
         // preparing test data
-        SoundCardHandle handle = provider.openResource(SoundCardServiceProvider.SOUND_DEVICE);
+        SoundCardHandle handle = provider.openResource(SOUND_DEVICE);
         provider.closeResource(handle);
         reset(provider);
 
@@ -292,7 +305,7 @@ public class SoundCardServiceProviderTest {
     @Test
     public void shouldNotSetUpHandsetOff_StillOff() throws IOException {
         // preparing test data
-        SoundCardHandle handle = provider.openResource(SoundCardServiceProvider.SOUND_DEVICE);
+        SoundCardHandle handle = provider.openResource(SOUND_DEVICE);
         assertThat(provider.isHandsetOff(handle)).isTrue();
         assertThat(provider.isOpened(handle)).isTrue();
         reset(provider);
@@ -311,7 +324,7 @@ public class SoundCardServiceProviderTest {
     @Test
     public void shouldCanAnswerCall() throws IOException {
         // preparing test data
-        SoundCardHandle handle = provider.openResource(SoundCardServiceProvider.SOUND_DEVICE);
+        SoundCardHandle handle = provider.openResource(SOUND_DEVICE);
 
         // acting
         boolean canAcceptCall = provider.canAcceptCall(handle);
@@ -325,7 +338,7 @@ public class SoundCardServiceProviderTest {
     @Test
     public void shouldCannotAnswerCall_Closed() throws IOException {
         // preparing test data
-        SoundCardHandle handle = provider.openResource(SoundCardServiceProvider.SOUND_DEVICE);
+        SoundCardHandle handle = provider.openResource(SOUND_DEVICE);
         provider.closeResource(handle);
 
         // acting
@@ -340,7 +353,7 @@ public class SoundCardServiceProviderTest {
     @Test
     public void shouldAnswerCall() throws IOException {
         // preparing test data
-        SoundCardHandle handle = provider.openResource(SoundCardServiceProvider.SOUND_DEVICE);
+        SoundCardHandle handle = provider.openResource(SOUND_DEVICE);
         assertThat(provider.isHandsetOff(handle)).isTrue();
         assertThat(provider.isOpened(handle)).isTrue();
         reset(provider);
@@ -359,7 +372,7 @@ public class SoundCardServiceProviderTest {
     @Test
     public void shouldNotAnswerCall_HandsetOn() throws IOException {
         // preparing test data
-        SoundCardHandle handle = provider.openResource(SoundCardServiceProvider.SOUND_DEVICE);
+        SoundCardHandle handle = provider.openResource(SOUND_DEVICE);
         assertThat(provider.isHandsetOff(handle)).isTrue();
         assertThat(provider.isOpened(handle)).isTrue();
         provider.nativeAnswerCall(handle);
@@ -379,7 +392,7 @@ public class SoundCardServiceProviderTest {
     @Test
     public void shouldSetupCallerID() throws IOException {
         // preparing test data
-        SoundCardHandle handle = provider.openResource(SoundCardServiceProvider.SOUND_DEVICE);
+        SoundCardHandle handle = provider.openResource(SOUND_DEVICE);
         PhoneCall.Number callerId = mock(PhoneCall.Number.class);
         assertThat(provider.getCallerID(handle)).isSameAs(PhoneCall.Number.EMPTY);
 
@@ -393,7 +406,7 @@ public class SoundCardServiceProviderTest {
     @Test
     public void shouldGetCallerID() throws IOException {
         // preparing test data
-        SoundCardHandle handle = provider.openResource(SoundCardServiceProvider.SOUND_DEVICE);
+        SoundCardHandle handle = provider.openResource(SOUND_DEVICE);
         PhoneCall.Number mockedCallerId = mock(PhoneCall.Number.class);
         assertThat(provider.getCallerID(handle)).isSameAs(PhoneCall.Number.EMPTY);
         provider.callerID(mockedCallerId);
@@ -411,7 +424,7 @@ public class SoundCardServiceProviderTest {
     @Test
     public void shouldNotGetCallerID_Closed() throws IOException {
         // preparing test data
-        SoundCardHandle handle = provider.openResource(SoundCardServiceProvider.SOUND_DEVICE);
+        SoundCardHandle handle = provider.openResource(SOUND_DEVICE);
         PhoneCall.Number mockedCallerId = mock(PhoneCall.Number.class);
         assertThat(provider.getCallerID(handle)).isSameAs(PhoneCall.Number.EMPTY);
         provider.callerID(mockedCallerId);
@@ -431,7 +444,7 @@ public class SoundCardServiceProviderTest {
     @Test
     public void shouldCanMakeCall() throws IOException {
         // preparing test data
-        SoundCardHandle handle = provider.openResource(SoundCardServiceProvider.SOUND_DEVICE);
+        SoundCardHandle handle = provider.openResource(SOUND_DEVICE);
 
         // acting
         boolean canMakeCall = provider.canMakeCall(handle);
@@ -445,7 +458,7 @@ public class SoundCardServiceProviderTest {
     @Test
     public void shouldCannotMakeCall_Closed() throws IOException {
         // preparing test data
-        SoundCardHandle handle = provider.openResource(SoundCardServiceProvider.SOUND_DEVICE);
+        SoundCardHandle handle = provider.openResource(SOUND_DEVICE);
         provider.closeResource(handle);
 
         // acting
@@ -460,7 +473,7 @@ public class SoundCardServiceProviderTest {
     @Test
     public void shouldStartCalling() throws IOException {
         // preparing test data
-        SoundCardHandle handle = provider.openResource(SoundCardServiceProvider.SOUND_DEVICE);
+        SoundCardHandle handle = provider.openResource(SOUND_DEVICE);
         PhoneCall.Number mockedPhoneNumber = mock(PhoneCall.Number.class);
         int timeout = 5;
 
@@ -476,7 +489,7 @@ public class SoundCardServiceProviderTest {
     @Test
     public void shouldNotStartCalling_Closed() throws IOException {
         // preparing test data
-        SoundCardHandle handle = provider.openResource(SoundCardServiceProvider.SOUND_DEVICE);
+        SoundCardHandle handle = provider.openResource(SOUND_DEVICE);
         PhoneCall.Number mockedPhoneNumber = mock(PhoneCall.Number.class);
         int timeout = 5;
         provider.closeResource(handle);
@@ -493,7 +506,7 @@ public class SoundCardServiceProviderTest {
     @Test
     public void shouldNotStartCalling_WrongNumber() throws IOException {
         // preparing test data
-        SoundCardHandle handle = provider.openResource(SoundCardServiceProvider.SOUND_DEVICE);
+        SoundCardHandle handle = provider.openResource(SOUND_DEVICE);
         PhoneCall.Number mockedPhoneNumber = PhoneCall.Number.EMPTY;
         int timeout = 5;
 
@@ -509,7 +522,7 @@ public class SoundCardServiceProviderTest {
     @Test
     public void shouldNotStartCalling_WrongTimeout() throws IOException {
         // preparing test data
-        SoundCardHandle handle = provider.openResource(SoundCardServiceProvider.SOUND_DEVICE);
+        SoundCardHandle handle = provider.openResource(SOUND_DEVICE);
         PhoneCall.Number mockedPhoneNumber = mock(PhoneCall.Number.class);
         int timeout = -5;
 
@@ -593,7 +606,7 @@ public class SoundCardServiceProviderTest {
     public void shouldEnableEvents() throws IOException {
         // preparing test data
         OperationResultValue eventReason = Result.IO.EOF;
-        SoundCardHandle handle = provider.openResource(SoundCardServiceProvider.SOUND_DEVICE);
+        SoundCardHandle handle = provider.openResource(SOUND_DEVICE);
         AbstractDeviceEvent<SoundCardHandle> event = spy(SoundCardEvent.of(DeviceEvent.Type.DEVICE_SPECIFIC));
         event.deviceHandle(handle).option(DeviceEvent.Option.REASON, eventReason);
         provider.putEvent(event);
@@ -617,7 +630,7 @@ public class SoundCardServiceProviderTest {
     public void shouldDisableEvents() throws IOException {
         // preparing test data
         OperationResultValue eventReason = Result.IO.EOF;
-        SoundCardHandle handle = provider.openResource(SoundCardServiceProvider.SOUND_DEVICE);
+        SoundCardHandle handle = provider.openResource(SOUND_DEVICE);
         AbstractDeviceEvent<SoundCardHandle> event = spy(SoundCardEvent.of(DeviceEvent.Type.DEVICE_SPECIFIC));
         event.deviceHandle(handle).option(DeviceEvent.Option.REASON, eventReason);
         provider.enableEvents(handle, eventReason);
@@ -641,7 +654,7 @@ public class SoundCardServiceProviderTest {
     @Test
     public void shouldRejectEvent() throws IOException {
         // preparing test data
-        SoundCardHandle handle = provider.openResource(SoundCardServiceProvider.SOUND_DEVICE);
+        SoundCardHandle handle = provider.openResource(SOUND_DEVICE);
         DeviceEvent<SoundCardHandle> mocked = mock(DeviceEvent.class);
         doReturn(handle).when(mocked).getDeviceHandle();
 
@@ -657,7 +670,7 @@ public class SoundCardServiceProviderTest {
     @Test
     public void shouldOpenFaxResource() throws IOException {
         // preparing test data
-        String deviceName = SoundCardServiceProvider.SOUND_DEVICE;
+        String deviceName = SOUND_DEVICE;
 
         // acting
         SoundCardHandle handle = provider.openFaxResource(deviceName);
@@ -671,7 +684,7 @@ public class SoundCardServiceProviderTest {
     @Test
     public void shouldCloseFaxResource() throws IOException {
         // preparing test data
-        SoundCardHandle handle = provider.openFaxResource(SoundCardServiceProvider.SOUND_DEVICE);
+        SoundCardHandle handle = provider.openFaxResource(SOUND_DEVICE);
         assertThat(provider.isOpened(handle)).isTrue();
 
         // acting
@@ -686,7 +699,7 @@ public class SoundCardServiceProviderTest {
     @Test
     public void shouldStartFaxReceiving() throws IOException {
         // preparing test data
-        SoundCardHandle handle = provider.openFaxResource(SoundCardServiceProvider.SOUND_DEVICE);
+        SoundCardHandle handle = provider.openFaxResource(SOUND_DEVICE);
         String file = "fax-file";
         File faxFile = new File(file);
         assertThat(faxFile.createNewFile()).isTrue();
@@ -721,7 +734,7 @@ public class SoundCardServiceProviderTest {
     @Test
     public void shouldDoNotStartFaxReceiving_Closed() throws IOException {
         // preparing test data
-        SoundCardHandle handle = provider.openFaxResource(SoundCardServiceProvider.SOUND_DEVICE);
+        SoundCardHandle handle = provider.openFaxResource(SOUND_DEVICE);
         String file = "fax-file";
         provider.closeFaxResource(handle);
 
@@ -740,7 +753,7 @@ public class SoundCardServiceProviderTest {
     @Test
     public void shouldDoNotStartFaxReceiving_WrongFileName() throws IOException {
         // preparing test data
-        SoundCardHandle handle = provider.openFaxResource(SoundCardServiceProvider.SOUND_DEVICE);
+        SoundCardHandle handle = provider.openFaxResource(SOUND_DEVICE);
         String file = "fax-file";
 
         // acting
@@ -758,7 +771,7 @@ public class SoundCardServiceProviderTest {
     @Test
     public void shouldStopFaxReceiving() throws IOException {
         // preparing test data
-        SoundCardHandle handle = provider.openFaxResource(SoundCardServiceProvider.SOUND_DEVICE);
+        SoundCardHandle handle = provider.openFaxResource(SOUND_DEVICE);
         String file = "fax-file";
         File faxFile = new File(file);
         assertThat(faxFile.createNewFile()).isTrue();
@@ -792,7 +805,7 @@ public class SoundCardServiceProviderTest {
     @Test
     public void shouldDoNotStopFaxReceiving_Closed() throws IOException {
         // preparing test data
-        SoundCardHandle handle = provider.openFaxResource(SoundCardServiceProvider.SOUND_DEVICE);
+        SoundCardHandle handle = provider.openFaxResource(SOUND_DEVICE);
         provider.closeFaxResource(handle);
         String file = "fax-file";
         File faxFile = new File(file);
@@ -817,7 +830,7 @@ public class SoundCardServiceProviderTest {
     @Test
     public void shouldDoNotStopFaxReceiving_NotStarted() throws IOException {
         // preparing test data
-        SoundCardHandle handle = provider.openFaxResource(SoundCardServiceProvider.SOUND_DEVICE);
+        SoundCardHandle handle = provider.openFaxResource(SOUND_DEVICE);
         assertThat(provider.hasShadowActivity(handle)).isFalse();
         reset(provider);
 
@@ -835,7 +848,7 @@ public class SoundCardServiceProviderTest {
     @Test
     public void shouldStartFaxTransmitting() throws IOException {
         // preparing test data
-        SoundCardHandle handle = provider.openFaxResource(SoundCardServiceProvider.SOUND_DEVICE);
+        SoundCardHandle handle = provider.openFaxResource(SOUND_DEVICE);
         String file = "fax-file";
         File faxFile = new File(file);
         assertThat(faxFile.createNewFile()).isTrue();
@@ -870,7 +883,7 @@ public class SoundCardServiceProviderTest {
     @Test
     public void shouldDoNotStartFaxTransmitting_Closed() throws IOException {
         // preparing test data
-        SoundCardHandle handle = provider.openFaxResource(SoundCardServiceProvider.SOUND_DEVICE);
+        SoundCardHandle handle = provider.openFaxResource(SOUND_DEVICE);
         String file = "fax-file";
         provider.closeFaxResource(handle);
 
@@ -889,7 +902,7 @@ public class SoundCardServiceProviderTest {
     @Test
     public void shouldDoNotStartFaxTransmitting_WrongFilename() throws IOException {
         // preparing test data
-        SoundCardHandle handle = provider.openFaxResource(SoundCardServiceProvider.SOUND_DEVICE);
+        SoundCardHandle handle = provider.openFaxResource(SOUND_DEVICE);
         String file = "fax-file";
 
         // acting
@@ -907,7 +920,7 @@ public class SoundCardServiceProviderTest {
     @Test
     public void shouldStopFaxTransmitting() throws IOException {
         // preparing test data
-        SoundCardHandle handle = provider.openFaxResource(SoundCardServiceProvider.SOUND_DEVICE);
+        SoundCardHandle handle = provider.openFaxResource(SOUND_DEVICE);
         String file = "fax-file";
         File faxFile = new File(file);
         assertThat(faxFile.createNewFile()).isTrue();
@@ -941,7 +954,7 @@ public class SoundCardServiceProviderTest {
     @Test
     public void shouldDoNotStopFaxTransmitting_Closed() throws IOException {
         // preparing test data
-        SoundCardHandle handle = provider.openFaxResource(SoundCardServiceProvider.SOUND_DEVICE);
+        SoundCardHandle handle = provider.openFaxResource(SOUND_DEVICE);
         provider.closeFaxResource(handle);
         String file = "fax-file";
         File faxFile = new File(file);
@@ -966,7 +979,7 @@ public class SoundCardServiceProviderTest {
     @Test
     public void shouldDoNotStopFaxTransmitting_NotStarted() throws IOException {
         // preparing test data
-        SoundCardHandle handle = provider.openFaxResource(SoundCardServiceProvider.SOUND_DEVICE);
+        SoundCardHandle handle = provider.openFaxResource(SOUND_DEVICE);
         assertThat(provider.hasShadowActivity(handle)).isFalse();
         reset(provider);
 
@@ -984,7 +997,7 @@ public class SoundCardServiceProviderTest {
     @Test
     public void shouldStartAudioPlaying() throws IOException {
         // preparing test data
-        SoundCardHandle handle = provider.openResource(SoundCardServiceProvider.SOUND_DEVICE);
+        SoundCardHandle handle = provider.openResource(SOUND_DEVICE);
         Audio format = Audio.LINEAR;
         InputStream in = provider.getClass().getResourceAsStream("/VM/prompts/MAIN_MENU1.WAV");
         assertThat(in).isNotNull();
@@ -1021,7 +1034,7 @@ public class SoundCardServiceProviderTest {
     @Test
     public void shouldStopAudioPlaying() throws IOException {
         // preparing test data
-        SoundCardHandle handle = provider.openResource(SoundCardServiceProvider.SOUND_DEVICE);
+        SoundCardHandle handle = provider.openResource(SOUND_DEVICE);
         Audio format = Audio.LINEAR;
         InputStream in = provider.getClass().getResourceAsStream("/VM/prompts/MAIN_MENU1.WAV");
         assertThat(in).isNotNull();
@@ -1059,8 +1072,8 @@ public class SoundCardServiceProviderTest {
     @Test
     public void shouldStartAudioRecording() throws IOException {
         // preparing test data
-        SoundCardHandle handle = provider.openResource(SoundCardServiceProvider.SOUND_DEVICE);
-        Audio format = Audio.LINEAR;
+        SoundCardHandle handle = provider.openResource(SOUND_DEVICE);
+        Audio format = Audio.LINEAR_11;
         File tempFile = File.createTempFile("audio", ".WAV");
         tempFile.deleteOnExit();
         int silence = 2;
@@ -1078,6 +1091,7 @@ public class SoundCardServiceProviderTest {
 
         // check the behavior
         verify(provider).isOpened(handle);
+//        verify(provider, times(2)).isOpened(handle);
         verify(provider).nativeStartAudioRecording(eq(handle), anyString(), eq(format), eq(silence), eq(timeout));
         ArgumentCaptor<DeviceEvent<SoundCardHandle>> eventCaptor = ArgumentCaptor.forClass(DeviceEvent.class);
         verify(provider, atLeastOnce()).putEvent(eventCaptor.capture());
@@ -1095,7 +1109,7 @@ public class SoundCardServiceProviderTest {
     @Test
     public void shouldStopAudioRecording() throws IOException {
         // preparing test data
-        SoundCardHandle handle = provider.openResource(SoundCardServiceProvider.SOUND_DEVICE);
+        SoundCardHandle handle = provider.openResource(SOUND_DEVICE);
         Audio format = Audio.LINEAR;
         File tempFile = File.createTempFile("audio", ".WAV");
         tempFile.deleteOnExit();
@@ -1128,5 +1142,37 @@ public class SoundCardServiceProviderTest {
         assertThat(provider.hasShadowActivity(handle)).isFalse();
         assertThat(handle.isTargetActive()).isFalse();
         assertThat(tempFile.delete()).isTrue();
+    }
+
+    @Test
+    public void shouldGetResourceParameter() throws IOException {
+        // preparing test data
+        SoundCardHandle handle = provider.openResource(SOUND_DEVICE);
+        Device.ParameterName parameterName = mock(Device.ParameterName.class);
+        ConfigurationParameter parameterValue = mock(ConfigurationParameter.class);
+        provider.nativeSetResourceParameter(handle, parameterName, parameterValue);
+
+        // acting
+        Optional<ConfigurationParameter> parameter = provider.resourceParameter(handle, parameterName);
+
+        // check the behavior
+        verify(provider).isOpened(handle);
+        verify(provider).availableFormatsFor(handle);
+        verify(provider).nativeFindResourceParameter(handle, parameterName);
+        // check results
+        assertThat(parameter).isNotNull().isPresent().contains(parameterValue);
+    }
+
+    @Test
+    public void shouldGetAllowedDevices() {
+        // preparing test data
+
+        // acting
+        Collection<String> allowedDevices = provider.allowedDevices();
+
+        // check the behavior
+        verify(provider).nativeAllowedDevices();
+        // check results
+        assertThat(allowedDevices).containsExactly(SOUND_DEVICE);
     }
 }

@@ -65,7 +65,7 @@ public interface MultimediaEngine<H> extends TelephonyDevicePart<H> {
         PLAYBACK_CODEC("PLAY"),
         // the list of audio formats can be used for multimedia (from telephony service provider)
         ALLOWED_CODECS("ALLOWED-CODECS-LIST"),
-        // the temporary file which is used to by media transmitting operations (for tests purposes)
+        // the temporary file that is using for media transmitting operations (for tests purposes)
         AUDIO_TEMPORARY("AUDIO-TEMP-FILE"),
         ;
 

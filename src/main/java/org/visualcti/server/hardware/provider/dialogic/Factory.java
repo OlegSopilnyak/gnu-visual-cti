@@ -323,7 +323,7 @@ static Map defaultTones=new HashMap();
         {
           Element formatXML = (Element)i.next();
           String type = formatXML.getAttributeValue("type");
-          Audio format=Audio.fromString( formatXML.getAttributeValue("value") );
+          Audio format=Audio.of( formatXML.getAttributeValue("value") );
           if ( type != null && format != null) this.formats.put(type,format);
         }
       }

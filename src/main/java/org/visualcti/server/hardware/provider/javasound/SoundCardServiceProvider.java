@@ -42,7 +42,6 @@ import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.DataLine;
-import javax.sound.sampled.Line;
 import javax.sound.sampled.LineEvent;
 import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.Port;
@@ -56,15 +55,20 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import org.visualcti.core.ConfigurationParameter;
+import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.adapter.AbstractTelephonyServiceProvider;
@@ -86,7 +90,6 @@ import org.visualcti.util.Tools;
  */
 @SuppressWarnings("unchecked")
 public class SoundCardServiceProvider<H extends SoundCardHandle> extends AbstractTelephonyServiceProvider<H> {
-    private static final int BUFFER_SIZE = 2048;
     // the name of sound card device as a telephony device
     public static final String SOUND_DEVICE = "SoundCard";
     public static final String DEVICE_FACTORY_VENDOR = "JavaSound";
@@ -100,13 +103,15 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
     private final ScheduledExecutorService scheduler;
     // map of device activity tasks
     private final Map<H, ScheduledFuture<?>> deviceActivity = new ConcurrentHashMap<>();
+    // the size of buffer that is using for media-transmitting operations
+    private static final int BUFFER_SIZE = 2048;
 
     public SoundCardServiceProvider(ScheduledExecutorService scheduler) {
         this.scheduler = scheduler;
     }
 
     @Override
-    public Collection<String> allowedDevices() {
+    protected Collection<String> nativeAllowedDevices() {
         return Collections.singleton(SOUND_DEVICE);
     }
 
@@ -115,7 +120,43 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
         if (isOpened(name)) {
             throw new IOException("Device :" + name + ": is already opened");
         }
-        return SOUND_DEVICE.equals(name) ? (H) soundCardResourceHandle() : SoundCardHandle.wrong();
+        // registering codecs for the opened resource
+        return registerResourceCodecs(SOUND_DEVICE.equals(name)
+                // building the device's handle instance
+                ? soundCardResourceHandle()
+                // wrong handle instance
+                : SoundCardHandle.wrong()
+        );
+    }
+
+    @Override
+    protected List<Audio> availableFormatsFor(H handle) {
+        if (!isValid(handle)) {
+            return Collections.emptyList();
+        }
+        // getting the available formats for the correctly opened resource
+        final List<Audio> formats = new ArrayList<>(20);
+        // iterating over the available audio formats
+        for (final Audio audio : Audio.values()) {
+            final AudioFormat format = audio.toFormat();
+            if (format != null) {
+                if (AudioSystem.isLineSupported(new DataLine.Info(DataLine.class, format))) {
+                    formats.add(audio);
+                }
+            }
+        }
+        // returning the available formats
+        return formats;
+    }
+
+    @Override
+    protected Optional<ConfigurationParameter> nativeFindResourceParameter(H handle, Device.ParameterName name) {
+        return super.nativeFindResourceParameter(handle, name);
+    }
+
+    @Override
+    protected boolean nativeSetResourceParameter(H handle, Device.ParameterName name, ConfigurationParameter parameter) {
+        return super.nativeSetResourceParameter(handle, name, parameter);
     }
 
     @Override
@@ -342,6 +383,14 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
     }
 
     /// private methods
+    // registering the available codecs for the opened resource by the resource's handle
+    private H registerResourceCodecs(H handle) {
+        nativeSetResourceParameter(handle, ALLOWED_CODECS,
+                ConfigurationParameter.of(ALLOWED_CODECS.value(), availableFormatsFor(handle))
+        );
+        return handle;
+    }
+
     // starting fax activity
     private boolean nativeStartFax(H handle, String filePath, String errorReason) {
         if (isOpened(handle) && Paths.get(filePath).toFile().exists()) {
@@ -407,7 +456,8 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
                 break;
             }
         }
-        // Tools.print("--- Finished playing file: " + audioFile.getName());
+        final String message = "--- Finished playing file: " + audioFile.getName();
+        // Tools.print(message);
         // audio playing operation is completed
         if (handle.isSourceActive()) {
             // the end of audio stream is reached, sending EOF event
@@ -437,8 +487,12 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
     }
 
     // recording the audio to file using handle's target line
-    private void nativeRecordingAudioToFile(final H handle, final File outputFile, Audio format) {
-        final AudioFormat audioFormat = new AudioFormat(8000, 8, 1, false, false);
+    private void nativeRecordingAudioToFile(final H handle, final File outputFile, final Audio format) {
+        final AudioFormat audioFormat = format.toFormat();
+        if (audioFormat == null) {
+            Tools.error("Invalid audio format :" + format);
+            return;
+        }
         try {
             final TargetDataLine target = AudioSystem.getTargetDataLine(audioFormat);
             target.addLineListener(event -> {
@@ -484,6 +538,7 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
                     break;
                 }
             }
+            //
             // audio capturing operation is completed
             if (target.isActive()) {
                 // there is audio data to capture
@@ -527,7 +582,7 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
         return (H) handle.get();
     }
 
-    private static Line.Info supportedSourceDataLine() {
+    private static DataLine.Info supportedSourceDataLine() {
         if (AudioSystem.getSourceLineInfo(Port.Info.MICROPHONE).length > 0) {
             final DataLine.Info dataSource = new DataLine.Info(SourceDataLine.class, null);
             return AudioSystem.isLineSupported(dataSource) ? dataSource : null;
@@ -536,7 +591,7 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
         }
     }
 
-    private static Line.Info supportedTargetDataLine() {
+    private static DataLine.Info supportedTargetDataLine() {
         if (AudioSystem.getTargetLineInfo(Port.Info.SPEAKER).length > 0) {
             final DataLine.Info dataSource = new DataLine.Info(TargetDataLine.class, null);
             return AudioSystem.isLineSupported(dataSource) ? dataSource : null;

@@ -92,7 +92,7 @@ final class VOX
         while( st.hasMoreTokens() )
         {
           String descriptor = st.nextToken();
-          Audio format = Audio.fromString(descriptor);
+          Audio format = Audio.of(descriptor);
           if (format != null)
           {
             list.add( format );

@@ -58,6 +58,8 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import org.visualcti.core.ConfigurationParameter;
+import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceActivitySession;
 import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.DeviceEventsProcessor;
@@ -65,7 +67,10 @@ import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.TelephonyDevice;
 import org.visualcti.core.channel.telephony.TelephonyServiceProvider;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
+import org.visualcti.core.channel.telephony.operation.ToneId;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
+import org.visualcti.core.channel.telephony.operation.adapter.TelephonyTone;
+import org.visualcti.core.channel.telephony.part.MultimediaEngine;
 import org.visualcti.media.Audio;
 import org.visualcti.media.Fax;
 import org.visualcti.util.Tools;
@@ -78,8 +83,11 @@ import org.visualcti.util.Tools;
  * @see TelephonyServiceProvider
  */
 public abstract class AbstractTelephonyServiceProvider<H> implements TelephonyServiceProvider<H> {
+    public static final Device.ParameterName ALLOWED_CODECS = MultimediaEngine.Parameter.ALLOWED_CODECS;
     // holder of the opened resource handlers by resource name
     private final Map<String, List<H>> openedResources = new ConcurrentHashMap<>();
+    // holder of the opened resource parameters by resource handle
+    protected final Map<H, Map<Device.ParameterName, ConfigurationParameter>> resourceParameters = new ConcurrentHashMap<>();
     // holder of the enabled event-types by opened resource handlers
     private final Map<H, Set<OperationResultValue>> resourceEventTypes = new ConcurrentHashMap<>();
     // native events access lock
@@ -112,6 +120,19 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      */
     protected H nativeResourceOpen(String name) throws IOException {
         return null;
+    }
+
+    /**
+     * <native-call>
+     * To get the device-related resource audio codecs list
+     *
+     * @param handle the handle of the opened resource
+     * @return the list of audio codecs supported by the resource
+     * @see #openResource(String)
+     * @see #internalResourceOpen(String, NativeResourceOpen)
+     */
+    protected List<Audio> availableFormatsFor(H handle) {
+        return Collections.emptyList();
     }
 
     /**
@@ -151,6 +172,82 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
     protected boolean isOpened(String name) {
         final List<H> handles = openedResources.get(name);
         return handles != null && !handles.isEmpty();
+    }
+
+    /**
+     * <acessor>
+     * To get the resource-specific device parameter by parameter name
+     *
+     * @param handle the handle of the opened resource
+     * @param name   the name of parameter to get
+     * @return there exists parameter value or empty if not exists
+     * @see Device.ParameterName
+     * @see ConfigurationParameter
+     * @see Optional
+     * @see #isOpened(H)
+     */
+    @Override
+    public Optional<ConfigurationParameter> resourceParameter(final H handle, final Device.ParameterName name) {
+        return isOpened(handle) ? nativeFindResourceParameter(handle, name) : Optional.empty();
+    }
+
+    /**
+     * <native-call>
+     * <finder>
+     * To get the opened resource-specific device parameter by parameter name
+     *
+     * @param handle the handle of the opened resource
+     * @param name   the name of parameter to get
+     * @return there exists parameter value or empty if not exists
+     * @see #resourceParameter(H, Device.ParameterName)
+     */
+    protected Optional<ConfigurationParameter> nativeFindResourceParameter(H handle, Device.ParameterName name) {
+        final Map<Device.ParameterName, ConfigurationParameter> parameters = resourceParameters.get(handle);
+        return parameters == null ? Optional.empty() : Optional.ofNullable(parameters.get(name));
+    }
+
+    /**
+     * <native-call>
+     * <updater>
+     * To set up the opened resource-specific device parameter with parameter name
+     *
+     * @param handle the handle of the opened resource
+     * @param name   the name of parameter to get
+     * @return true if the parameter is set up successfully, false otherwise
+     * @see #nativeFindResourceParameter(H, Device.ParameterName)
+     */
+    protected boolean nativeSetResourceParameter(H handle, Device.ParameterName name, ConfigurationParameter parameter) {
+        if (isValid(handle)) {
+            resourceParameters.computeIfAbsent(handle, h -> new ConcurrentHashMap<>()).put(name, parameter);
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * <acessor>
+     * To get the collection of allowed devices names
+     *
+     * @return collection of allowed names
+     * @see Collection
+     * @see org.visualcti.core.channel.device.Factory#buildDevice(String, Device.ServiceProvider)
+     */
+    @Override
+    public Collection<String> allowedDevices() {
+        return nativeAllowedDevices();
+    }
+
+    /**
+     * <native-call>
+     * To get the collection of allowed devices names
+     *
+     * @return collection of allowed names
+     * @see Collection
+     * @see #allowedDevices()
+     */
+    protected Collection<String> nativeAllowedDevices() {
+        return Collections.emptyList();
     }
 
     /**
@@ -712,7 +809,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * @param timeout  maximum time of playing back in seconds (-1 for unlimited, waiting for end of stream)
      * @return true if the operation started successfully
      * @see #startAudioPlaying(H, String, Audio, int)
-    */
+     */
     protected boolean nativeStartAudioPlaying(H handle, String filePath, Audio format, int timeout) {
         return isOpened(handle) && filePath != null && !filePath.trim().isEmpty();
     }
@@ -791,13 +888,174 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
     }
 
     /**
-     * <action>
+     * <native-call>
      * To stop (interrupt) playing media
      *
      * @param handle the telephony device handle
      * @see #stopAudioRecording(H)
      */
     protected void nativeStopAudioRecording(H handle) {
+        // doing nothing here
+    }
+
+    /**
+     * <action>
+     * To dial DTMF symbols to the phone line
+     *
+     * @param handle the telephony device handle
+     * @param toDial the symbols to dial
+     * @see TelephonyDevice#dial(PhoneCallSession, String)
+     */
+    @Override
+    public void dialingDtmf(final H handle, final String toDial) {
+        if (isOpened(handle)) {
+            nativeDialingDtmf(handle, toDial);
+        }
+    }
+
+    /**
+     * <native-call>
+     * To dial DTMF symbols to the phone line
+     *
+     * @param handle the telephony device handle
+     * @param toDial the symbols to dial
+     * @see #dialingDtmf(H, String)
+     */
+    protected void nativeDialingDtmf(H handle, String toDial) {
+        // doing nothing here
+    }
+
+    /**
+     * <action>
+     * To start sending the tone to the connected phone line
+     *
+     * @param handle the telephony device handle
+     * @param toneId the id of tone to send
+     * @return true if the operation started successfully
+     * @see TelephonyDevice#playTone(PhoneCallSession, ToneId, float)
+     */
+    @Override
+    public boolean startToneSending(final H handle, final ToneId toneId) {
+        return isOpened(handle) && nativeStartToneSending(handle, toneId);
+    }
+
+    /**
+     * <native-call>
+     * To start sending the tone to the connected phone line
+     *
+     * @param handle the telephony device handle
+     * @param toneId the id of tone to send
+     * @return true if the operation started successfully
+     * @see #startToneSending(H, ToneId)
+     */
+    protected boolean nativeStartToneSending(H handle, ToneId toneId) {
+        return handle != null && toneId != null;
+    }
+
+    /**
+     * <action>
+     * To stop (interrupt) sending the tone
+     *
+     * @param handle the telephony device handle
+     * @see #startToneSending(H, ToneId)
+     */
+    @Override
+    public void stopToneSending(final H handle) {
+        if (isOpened(handle)) {
+            nativeStopToneSending(handle);
+        }
+    }
+
+    /**
+     * <native-call>
+     * To stop (interrupt) sending the tone
+     *
+     * @param handle the telephony device handle
+     * @see #stopToneSending(H)
+     */
+    protected void nativeStopToneSending(H handle) {
+        // doing nothing here
+    }
+
+    /**
+     * <action>
+     * To begin registering tones for the device's tone detection using the device handle
+     *
+     * @param handle the telephony device handle
+     * @see #registerTone(H, TelephonyTone)
+     * @see #commitToneRegistering(H)
+     */
+    @Override
+    public void beginToneRegistering(final H handle) {
+        if (isOpened(handle)) {
+            nativeBeginToneRegistering(handle);
+        }
+    }
+
+    /**
+     * <native-call>
+     * To begin registering tones for the device's tone detection using the device handle
+     *
+     * @param handle the telephony device handle
+     * @see #registerTone(H, TelephonyTone)
+     * @see #beginToneRegistering(H)
+     */
+    protected void nativeBeginToneRegistering(H handle) {
+        // doing nothing here
+    }
+
+    /**
+     * <action>
+     * To register the tone for the device using the device handle
+     *
+     * @param handle the telephony device handle
+     * @param tone   the tone to register
+     * @see #beginToneRegistering(H)
+     * @see #commitToneRegistering(H)
+     */
+    @Override
+    public void registerTone(final H handle, final TelephonyTone tone) {
+        if (isOpened(handle)) {
+            nativeRegisterTone(handle, tone);
+        }
+    }
+
+    /**
+     * <native-call>
+     * To register the tone for the device using the device handle
+     *
+     * @param handle the telephony device handle
+     * @param tone   the tone to register
+     * @see #registerTone(H, TelephonyTone)
+     */
+    protected void nativeRegisterTone(H handle, TelephonyTone tone) {
+        // doing nothing here
+    }
+
+    /**
+     * <action>
+     * To commit registered tones for the device's tone detection using the device handle
+     *
+     * @param handle the telephony device handle
+     * @see #registerTone(H, TelephonyTone)
+     * @see #beginToneRegistering(H)
+     */
+    @Override
+    public void commitToneRegistering(final H handle) {
+        if (isOpened(handle)) {
+            nativeCommitToneRegistering(handle);
+        }
+    }
+
+    /**
+     * <native-call>
+     * To commit registered tones for the device's tone detection using the device handle
+     *
+     * @param handle the telephony device handle
+     * @see #registerTone(H, TelephonyTone)
+     * @see #beginToneRegistering(H)
+     */
+    protected void nativeCommitToneRegistering(H handle) {
         // doing nothing here
     }
 
@@ -821,16 +1079,19 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
 
     // common used resource's open method
     private void internalCloseResource(H handle, Consumer<H> nativeClose) {
-        final Optional<Map.Entry<String, List<H>>> handleEntry = resourcesByHandle(handle);
-        if (handleEntry.isPresent()) {
-            final Map.Entry<String, List<H>> resourceEntry = handleEntry.get();
-            final String deviceName = resourceEntry.getKey();
-            // removing closed resource handle from device's list of the opened handles
-            final List<H> handles = resourceEntry.getValue().stream()
-                    .filter(this::isValid).filter(h -> !Objects.equals(h, handle))
-                    .collect(Collectors.toList());
+        if (!isValid(handle)) {
+            // nothing to close (invalid handle)
+            return;
+        }
+        resourcesByHandle(handle).ifPresent(entry -> {
             // closing resource natively
             nativeClose.accept(handle);
+            // getting device name
+            final String deviceName = entry.getKey();
+            // removing closed resource handle from device's list of the opened handles
+            final List<H> handles = entry.getValue().stream()
+                    .filter(this::isValid).filter(h -> !Objects.equals(h, handle))
+                    .collect(Collectors.toList());
             // dealing with opened resource map-entry
             if (handles.isEmpty()) {
                 // there is no any opened handle associated with device name
@@ -839,7 +1100,11 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
                 // there is an opened handle associated with device name
                 openedResources.put(deviceName, handles);
             }
-        }
+        });
+        // clearing allowed events set of the handle
+        resourceEventTypes.remove(handle);
+        // clearing resource parameters of the handle
+        resourceParameters.remove(handle);
     }
 
     // to look for map-entry contains the handle value in opened resources map

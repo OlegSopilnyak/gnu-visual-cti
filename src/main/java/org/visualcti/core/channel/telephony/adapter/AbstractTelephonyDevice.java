@@ -1040,7 +1040,7 @@ public abstract class AbstractTelephonyDevice<H, T extends TelephonyFactory<H, ?
             return;
         }
         // getting codec from string
-        final Audio codec = Audio.fromString(codecValue);
+        final Audio codec = Audio.of(codecValue);
         if (codec == null) {
             dispatchError("Unknown codec value: " + codecValue);
         } else if (MultimediaEngine.Parameter.PLAYBACK_CODEC.value().equalsIgnoreCase(codecType)) {
