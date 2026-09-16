@@ -73,6 +73,7 @@ import java.util.function.Consumer;
 import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceEvent;
+import org.visualcti.core.channel.device.adapter.AbstractDeviceEvent;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.adapter.AbstractTelephonyServiceProvider;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
@@ -90,8 +91,8 @@ import org.visualcti.util.Tools;
  * @param <H> sound-card device handle type
  * @author Sopilnyak Oleg
  * @version 3.2
- * @see org.visualcti.core.channel.telephony.TelephonyServiceProvider#openResource(String)
  * @see AbstractTelephonyServiceProvider
+ * @see SoundCardHandle
  */
 @SuppressWarnings("unchecked")
 public class SoundCardServiceProvider<H extends SoundCardHandle> extends AbstractTelephonyServiceProvider<H> {
@@ -100,6 +101,7 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
     public static final String DEVICE_FACTORY_VENDOR = "JavaSound";
     // reference to the sound-card handle as singleton
     private static final AtomicReference<SoundCardHandle> handle = new AtomicReference<>(null);
+    public static final String AUDIO_RECORDING = "Audio recording...";
     // the state of handset true = handset is off false = handset is on
     private final AtomicBoolean handsetOff = new AtomicBoolean(true);
     // reference to the sound-card phone number as singleton
@@ -144,10 +146,8 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
         // iterating over the available audio formats
         for (final Audio audio : Audio.values()) {
             final AudioFormat format = audio.toFormat();
-            if (format != null) {
-                if (AudioSystem.isLineSupported(new DataLine.Info(DataLine.class, format))) {
-                    formats.add(audio);
-                }
+            if (format != null && AudioSystem.isLineSupported(new DataLine.Info(DataLine.class, format))) {
+                formats.add(audio);
             }
         }
         // returning the available formats
@@ -564,7 +564,6 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
             // adjusting source line listener
             channel.addLineListener(event -> {
                 if (event.getType() == LineEvent.Type.STOP) {
-                    // Tools.print("--- Stopped playing file: " + audioFile.getName());
                     // removing the source line from the handle (to stop capturing the audio loop)
                     handle.setSourceLine(null);
                 }
@@ -594,7 +593,7 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
         // playing back audio operation is started
         handle.inProgress(true);
         // getting audio chunks from the file and playing them back
-        while (handle.isSourceActive()) {
+        while (Boolean.TRUE.equals(handle.isSourceActive())) {
             // getting audio chunk from the file
             if ((bytesToPlay = audioStream.read(buffer, 0, buffer.length)) > 0) {
                 // playing back the audio chunk through the started channel
@@ -606,20 +605,20 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
         final String message = "--- Finished playing file: " + audioFile.getName();
         // Tools.print(message);
         // audio playing operation is completed
-        if (handle.isSourceActive()) {
+        if (Boolean.TRUE.equals(handle.isSourceActive())) {
             // the end of audio stream is reached, sending EOF event
             // putting the event about the end of file reached
-            putEvent(stopIt(handle, "Audio recording...", Result.IO.EOF));
+            putEvent(stopIt(handle, AUDIO_RECORDING, Result.IO.EOF));
         } else
             // audio playing back is terminated outside
             if (channel.isActive()) {
                 // timeout state applied outside
                 // putting the operation timeout event
-                putEvent(stopIt(handle, "Audio recording...", Result.TIMEOUT));
+                putEvent(stopIt(handle, AUDIO_RECORDING, Result.TIMEOUT));
             } else {
                 // audio playing back is stopped outside
                 // putting the event about the end of file reached
-                putEvent(stopIt(handle, "Audio recording...", Result.IO.EOF));
+                putEvent(stopIt(handle, AUDIO_RECORDING, Result.IO.EOF));
             }
         //
         // finalizing the audio playing if source data line is active
@@ -644,7 +643,6 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
             final TargetDataLine target = AudioSystem.getTargetDataLine(audioFormat);
             target.addLineListener(event -> {
                 if (event.getType() == LineEvent.Type.STOP) {
-                    // Tools.print("--- Stopped recording to file: " + outputFile.getName());
                     // detaching the line from device's handle
                     handle.setTargetLine(null);
                 }
@@ -676,7 +674,7 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
         try (final FileOutputStream out = new FileOutputStream(tempRawAudioFile)) {
             // audio capturing operation is started
             handle.inProgress(true);
-            while (handle.isTargetActive()) {
+            while (Boolean.TRUE.equals(handle.isTargetActive())) {
                 // getting audio chunk from the audio input
                 if ((bytesCaptured = target.read(buffer, 0, buffer.length)) > 0) {
                     // saving chunk to the temporary file
@@ -690,7 +688,7 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
             if (target.isActive()) {
                 // there is audio data to capture
                 // sending operation timeout event
-                putEvent(stopIt(handle, "Audio recording...", Result.TIMEOUT));
+                putEvent(stopIt(handle, AUDIO_RECORDING, Result.TIMEOUT));
                 //
                 // finalizing the audio capturing
                 target.stop();
@@ -698,10 +696,9 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
             } else {
                 // audio capturing is stopped outside
                 // putting the event about end of file reached state
-                putEvent(stopIt(handle, "Audio recording...", Result.IO.EOF));
+                putEvent(stopIt(handle, AUDIO_RECORDING, Result.IO.EOF));
             }
         }
-        // Tools.print("--- Finished recording to file: " + tempRawAudioFile.getName());
         // saving the audio recording result
         try (
                 final FileInputStream fileIn = new FileInputStream(tempRawAudioFile);
@@ -711,9 +708,7 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
         }
         //
         // cleaning the operation's stuff
-        if (!tempRawAudioFile.delete()) {
-            throw new IOException("Failed to delete temp file: " + tempRawAudioFile.getAbsolutePath());
-        }
+        Files.delete(tempRawAudioFile.toPath());
     }
 
     // returns the singleton instance of SoundCardHandle.
@@ -752,13 +747,13 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
     }
 
     private static <H> DeviceEvent<H> stopIt(H handle, String description, OperationResultValue reason) {
-        return SoundCardEvent.<H>of(DeviceEvent.Type.DEVICE_SPECIFIC).description(description)
+        return AbstractDeviceEvent.<H>of(DeviceEvent.Type.DEVICE_SPECIFIC).description(description)
                 .deviceHandle(handle).deviceName(SOUND_DEVICE).vendor(DEVICE_FACTORY_VENDOR)
                 .option(DeviceEvent.Option.REASON, reason);
     }
 
     private static <H> DeviceEvent<H> faxDeviceError(H handle, String description) {
-        return SoundCardEvent.<H>of(DeviceEvent.Type.MALFUNCTION).description(description)
+        return AbstractDeviceEvent.<H>of(DeviceEvent.Type.MALFUNCTION).description(description)
                 .deviceHandle(handle).deviceName(SOUND_DEVICE).vendor(DEVICE_FACTORY_VENDOR)
                 .option(DeviceEvent.Option.REASON, (OperationResultValue) Result.FAX.COMPATIBILITY);
     }
