@@ -146,7 +146,7 @@ public abstract class AbstractTelephonyDevice<H, T extends TelephonyFactory<H, ?
 
     /**
      * <builder>
-     * To build fax machine part of the telephony device
+     * To build the fax machine part of the telephony device
      *
      * @return built part instance
      * @see AbstractFaxMachineEngine
@@ -1021,11 +1021,11 @@ public abstract class AbstractTelephonyDevice<H, T extends TelephonyFactory<H, ?
         storeTone(tones, ToneId.BUSY, "2,500,200,0,0,55,40,55,40,4");
         storeTone(tones, ToneId.RINGBACK, "3,450,150,0,0,150,100,550,400,0");
         storeTone(tones, ToneId.DISCONNECT, "4,900,700,0,0,90,70,90,70,2");
-        final Device.ParameterName tonesTable = TonesEngine.Parameter.TONES_TABLE;
-        setParameter(tonesTable, ConfigurationParameter.of(tonesTable.value(), tones));
+        final Device.ParameterName tonesTableParameterName = TonesEngine.Parameter.TONES_TABLE;
+        setParameter(tonesTableParameterName, ConfigurationParameter.of(tonesTableParameterName.value(), tones));
     }
 
-    // setting up media tone into device's tones table
+    // setting up media tone into device's the tone table
     private static void storeTone(final EnumMap<ToneId, TelephonyTone> tones, final ToneId toneId, final String toneAsString) {
         tones.put(toneId, new TelephonyTone(toneId, toneAsString));
     }

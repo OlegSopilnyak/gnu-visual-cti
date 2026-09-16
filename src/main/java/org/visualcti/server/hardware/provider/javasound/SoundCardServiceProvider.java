@@ -49,6 +49,7 @@ import javax.sound.sampled.SourceDataLine;
 import javax.sound.sampled.TargetDataLine;
 import javax.sound.sampled.UnsupportedAudioFileException;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -60,6 +61,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
@@ -67,6 +69,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceEvent;
@@ -74,6 +77,8 @@ import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.adapter.AbstractTelephonyServiceProvider;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
 import org.visualcti.core.channel.telephony.operation.Result;
+import org.visualcti.core.channel.telephony.operation.ToneId;
+import org.visualcti.core.channel.telephony.operation.adapter.TelephonyTone;
 import org.visualcti.media.Audio;
 import org.visualcti.util.Tools;
 
@@ -368,6 +373,148 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
         handle.setTargetLine(null);
         // cancelling postponed activity associated with the given handle
         cancelPostponedActivity(handle);
+    }
+
+    @Override
+    protected void nativeDialingDtmf(H handle, String toDial) {
+        if (handle.getSource() != null && toDial != null && !toDial.trim().isEmpty()) {
+            final ByteArrayOutputStream finalBuffer = new ByteArrayOutputStream();
+            final Consumer<byte[]> concatBuffers = buffer -> {
+                try {
+                    finalBuffer.write(buffer);
+                } catch (IOException e) {
+                    // doing nothing here
+                }
+            };
+            try {
+                // composing buffer from DTMF string
+                toDial.chars().mapToObj(c -> DTMF.get((char) c)).filter(Objects::nonNull)
+                        .map(SoundCardServiceProvider::simpleToneBuffer).forEach(concatBuffers);
+                finalBuffer.flush();
+                finalBuffer.close();
+            } catch (IOException e) {
+                Tools.error("Error during dialing DTMF :" + toDial);
+                e.printStackTrace(Tools.err);
+                return;
+            }
+            // playing composed buffer
+            playToneFrom(finalBuffer.toByteArray());
+        }
+    }
+
+    // the container of DTMF tones
+    private static final Map<Character, TelephonyTone> DTMF = new ConcurrentHashMap<>();
+
+    static {
+        DTMF.put('1', makeDtmfTone(697, 1209));
+        DTMF.put('2', makeDtmfTone(697, 1336));
+        DTMF.put('3', makeDtmfTone(697, 1477));
+        DTMF.put('4', makeDtmfTone(770, 1209));
+        DTMF.put('5', makeDtmfTone(770, 1336));
+        DTMF.put('6', makeDtmfTone(770, 1477));
+        DTMF.put('7', makeDtmfTone(852, 1209));
+        DTMF.put('8', makeDtmfTone(852, 1336));
+        DTMF.put('9', makeDtmfTone(852, 1477));
+        DTMF.put('*', makeDtmfTone(941, 1209));
+        DTMF.put('0', makeDtmfTone(941, 1336));
+        DTMF.put('#', makeDtmfTone(941, 1477));
+    }
+
+    private static TelephonyTone makeDtmfTone(int lowFreqHz, int highFreqHz) {
+        final TelephonyTone tone = new TelephonyTone(ToneId.DTMF);
+        tone.getPrimary().setFrequencyHz(lowFreqHz);
+        tone.getSecondary().setFrequencyHz(highFreqHz);
+        tone.getDuration().setOnTime(200);
+        return tone;
+    }
+
+    // to make raw audio data for the tone's playing
+    private static byte[] simpleToneBuffer(TelephonyTone tone) {
+        final int duration = tone.getDuration().getOnTime() < 0 ? 200 : tone.getDuration().getOnTime();
+        if (tone.getSecondary().getFrequencyHz() == 0) {
+            return singleTonesBuffer(tone.getPrimary().getFrequencyHz(), duration);
+        } else {
+            return dualTonesBuffer(tone.getPrimary().getFrequencyHz(), tone.getSecondary().getFrequencyHz(), duration);
+        }
+    }
+
+    // to make raw audio data for dual tones playing
+    private static byte[] dualTonesBuffer(int lowFreqHz, int highFreqHz, int durationMs) {
+        final int numSamples = (int) ((SAMPLE_RATE * durationMs) / 1000.0);
+        final byte[] buffer = new byte[numSamples * 2]; // 16-bit PCM (2 bytes per sample)
+
+        for (int i = 0; i < numSamples; i++) {
+            double angle1 = 2.0 * Math.PI * lowFreqHz * i / SAMPLE_RATE;
+            double angle2 = 2.0 * Math.PI * highFreqHz * i / SAMPLE_RATE;
+
+            // Combine both sine waves and scale amplitude to avoid clipping
+            double sample = 0.5 * (Math.sin(angle1) + Math.sin(angle2));
+            short val = (short) (sample * Short.MAX_VALUE);
+
+            // Write little-endian 16-bit PCM sample into byte buffer
+            buffer[2 * i] = (byte) (val & 0x00ff);
+            buffer[2 * i + 1] = (byte) ((val & 0xff00) >>> 8);
+        }
+        return buffer;
+    }
+
+    // to make raw audio data for single tone playing
+    private static byte[] singleTonesBuffer(int hz, int durationMs) {
+        int numSamples = (int) (SAMPLE_RATE * (durationMs / 1000.0));
+        byte[] buffer = new byte[numSamples * 2]; // 16-bit PCM, 2 bytes per sample
+
+        for (int i = 0; i < numSamples; i++) {
+            double angle = 2.0 * Math.PI * i * hz / SAMPLE_RATE;
+            short sample = (short) (Math.sin(angle) * 10000); // Scale amplitude
+
+            // Low byte
+            buffer[2 * i] = (byte) (sample & 0xFF);
+            // High byte
+            buffer[2 * i + 1] = (byte) ((sample >> 8) & 0xFF);
+        }
+        return buffer;
+    }
+
+    // to play tone from the buffer
+    private void playToneFrom(byte[] buffer) {
+        if (buffer != null && buffer.length > 0) {
+            try {
+                final AudioFormat format = new AudioFormat(SAMPLE_RATE, 16, 1, true, false);
+                final SourceDataLine line = AudioSystem.getSourceDataLine(format);
+                line.open(format);
+                line.start();
+                line.write(buffer, 0, buffer.length);
+                line.drain();
+                line.close();
+            } catch (LineUnavailableException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    @Override
+    protected boolean nativeStartToneSending(H handle, ToneId toneId) {
+        return super.nativeStartToneSending(handle, toneId);
+    }
+
+    @Override
+    protected void nativeStopToneSending(H handle) {
+        super.nativeStopToneSending(handle);
+    }
+
+    @Override
+    protected void nativeBeginToneRegistering(H handle) {
+        super.nativeBeginToneRegistering(handle);
+    }
+
+    @Override
+    protected void nativeRegisterTone(H handle, TelephonyTone tone) {
+        super.nativeRegisterTone(handle, tone);
+    }
+
+    @Override
+    protected void nativeCommitToneRegistering(H handle) {
+        super.nativeCommitToneRegistering(handle);
     }
 
     /**

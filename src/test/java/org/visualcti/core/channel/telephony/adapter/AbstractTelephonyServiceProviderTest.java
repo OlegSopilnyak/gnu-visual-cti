@@ -60,6 +60,8 @@ import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.TelephonyServiceProvider;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
+import org.visualcti.core.channel.telephony.operation.ToneId;
+import org.visualcti.core.channel.telephony.operation.adapter.TelephonyTone;
 import org.visualcti.media.Audio;
 
 @SuppressWarnings({"unchecked", "rawtypes"})
@@ -1010,5 +1012,166 @@ public class AbstractTelephonyServiceProviderTest<H> {
         verify(provider).nativeAllowedDevices();
         // check results
         assertThat(allowedDevices).containsExactly(resourceName);
+    }
+
+    @Test
+    public void shouldDialDtmfString() throws IOException {
+        // preparing test data
+        String resourceName = "resourceName";
+        H handle = (H) "handle";
+        String dtmf = "12345#*";
+        doReturn(handle).when(provider).nativeResourceOpen(resourceName);
+        H resourceHandle = provider.openResource(resourceName);
+        assertThat(provider.isOpened(resourceHandle)).isTrue();
+        reset(provider);
+
+        // acting
+        provider.dialingDtmf(handle, dtmf);
+
+        // check the behavior
+        verify(provider).isOpened(handle);
+        verify(provider).nativeDialingDtmf(handle, dtmf);
+        // check results
+    }
+
+    @Test
+    public void shouldDoNotDialDtmfString_Closed() throws IOException {
+        // preparing test data
+        String resourceName = "resourceName";
+        H handle = (H) "handle";
+        String dtmf = "12345#*";
+        doReturn(handle).when(provider).nativeResourceOpen(resourceName);
+        H resourceHandle = provider.openResource(resourceName);
+        assertThat(provider.isOpened(resourceHandle)).isTrue();
+        provider.closeResource(resourceHandle);
+        reset(provider);
+
+        // acting
+        provider.dialingDtmf(handle, dtmf);
+
+        // check the behavior
+        verify(provider).isOpened(handle);
+        verify(provider, never()).nativeDialingDtmf(any(), anyString());
+        // check results
+    }
+
+    @Test
+    public void shouldStartToneSending() throws IOException {
+        // preparing test data
+        String resourceName = "resourceName";
+        H handle = (H) "handle";
+        ToneId tone = ToneId.BEEP;
+        doReturn(handle).when(provider).nativeResourceOpen(resourceName);
+        H resourceHandle = provider.openResource(resourceName);
+        assertThat(provider.isOpened(resourceHandle)).isTrue();
+        reset(provider);
+
+        // acting
+        boolean started = provider.startToneSending(handle, tone);
+
+        // check the behavior
+        verify(provider).isOpened(handle);
+        verify(provider).nativeStartToneSending(handle, tone);
+        // check results
+        assertThat(started).isTrue();
+    }
+
+    @Test
+    public void shouldDoNotStartToneSending_Closed() throws IOException {
+        // preparing test data
+        String resourceName = "resourceName";
+        H handle = (H) "handle";
+        ToneId tone = ToneId.BEEP;
+        doReturn(handle).when(provider).nativeResourceOpen(resourceName);
+        H resourceHandle = provider.openResource(resourceName);
+        assertThat(provider.isOpened(resourceHandle)).isTrue();
+        provider.closeResource(resourceHandle);
+        reset(provider);
+
+        // acting
+        boolean started = provider.startToneSending(handle, tone);
+
+        // check the behavior
+        verify(provider).isOpened(handle);
+        verify(provider, never()).nativeStartToneSending(any(), any(ToneId.class));
+        // check results
+        assertThat(started).isFalse();
+    }
+
+    @Test
+    public void shouldStopToneSending() throws IOException {
+        // preparing test data
+        String resourceName = "resourceName";
+        H handle = (H) "handle";
+        doReturn(handle).when(provider).nativeResourceOpen(resourceName);
+        H resourceHandle = provider.openResource(resourceName);
+        assertThat(provider.isOpened(resourceHandle)).isTrue();
+        reset(provider);
+
+        // acting
+        provider.stopToneSending(handle);
+
+        // check the behavior
+        verify(provider).isOpened(handle);
+        verify(provider).nativeStopToneSending(handle);
+        // check results
+    }
+
+    @Test
+    public void shouldBeginToneRegistering() throws IOException {
+        // preparing test data
+        String resourceName = "resourceName";
+        H handle = (H) "handle";
+        doReturn(handle).when(provider).nativeResourceOpen(resourceName);
+        H resourceHandle = provider.openResource(resourceName);
+        assertThat(provider.isOpened(resourceHandle)).isTrue();
+        reset(provider);
+
+        // acting
+        provider.beginToneRegistering(handle);
+
+        // check the behavior
+        verify(provider).isOpened(handle);
+        verify(provider).nativeBeginToneRegistering(handle);
+        // check results
+    }
+
+    @Test
+    public void shouldRegisterTone() throws IOException {
+        // preparing test data
+        String resourceName = "resourceName";
+        H handle = (H) "handle";
+        TelephonyTone telephonyTone = mock(TelephonyTone.class);
+        doReturn(handle).when(provider).nativeResourceOpen(resourceName);
+        H resourceHandle = provider.openResource(resourceName);
+        assertThat(provider.isOpened(resourceHandle)).isTrue();
+        reset(provider);
+
+        // acting
+        provider.registerTone(handle, telephonyTone);
+
+        // check the behavior
+        verify(provider).isOpened(handle);
+        verify(provider).nativeRegisterTone(handle, telephonyTone);
+        // check results
+    }
+
+    @Test
+    public void shouldCommitToneRegistering() throws IOException {
+        // preparing test data
+        String resourceName = "resourceName";
+        H handle = (H) "handle";
+        doReturn(handle).when(provider).nativeResourceOpen(resourceName);
+        H resourceHandle = provider.openResource(resourceName);
+        assertThat(provider.isOpened(resourceHandle)).isTrue();
+        reset(provider);
+
+        // acting
+        provider.commitToneRegistering(handle);
+
+        // check the behavior
+        verify(provider).isOpened(handle);
+        verify(provider).nativeCommitToneRegistering(handle);
+        // check results
     }
 }

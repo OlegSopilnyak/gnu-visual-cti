@@ -44,7 +44,9 @@ import java.util.Optional;
  * Tone IDs Enumeration: The telephony's tone ids
  */
 public enum ToneId {
-    // Tone ID for BEEP before  start record (for example)
+    // Tone ID for Dual-Tone Multi-Frequency signal
+    DTMF("Dual-Tone Multi-Frequency"),
+    // Tone ID for BEEP before start record (for example)
     BEEP("BEEP"),
     // Tone ID for dial tone signal
     DIAL("DIAL"),
@@ -64,7 +66,7 @@ public enum ToneId {
     CALLWAIT1("CALL WAIT 1"),
     // Tone ID for CALL WAIT signal
     CALLWAIT2("CALL WAIT 2"),
-    // Tone ID for disconnect signal (handset off)
+    // Tone ID for disconnect signal (handset's off)
     DISCONNECT("DISCONNECT");
     // status value
     private final String status;

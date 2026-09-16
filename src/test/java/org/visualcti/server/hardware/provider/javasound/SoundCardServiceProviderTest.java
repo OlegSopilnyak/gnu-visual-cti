@@ -1175,4 +1175,21 @@ public class SoundCardServiceProviderTest {
         // check results
         assertThat(allowedDevices).containsExactly(SOUND_DEVICE);
     }
+
+    @Test
+    public void shouldDialDtmfString() throws IOException {
+        // preparing test data
+        SoundCardHandle handle = provider.openResource(SOUND_DEVICE);
+        String dtmf = "1234-555(#*)";
+        assertThat(provider.isOpened(handle)).isTrue();
+        reset(provider);
+
+        // acting
+        provider.dialingDtmf(handle, dtmf);
+
+        // check the behavior
+        verify(provider).isOpened(handle);
+        verify(provider).nativeDialingDtmf(handle, dtmf);
+        // check results
+    }
 }

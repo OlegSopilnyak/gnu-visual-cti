@@ -83,6 +83,7 @@ import org.visualcti.util.Tools;
  * @see TelephonyServiceProvider
  */
 public abstract class AbstractTelephonyServiceProvider<H> implements TelephonyServiceProvider<H> {
+    public static final float SAMPLE_RATE = 8000.0f; // Standard telephony sample rate
     public static final Device.ParameterName ALLOWED_CODECS = MultimediaEngine.Parameter.ALLOWED_CODECS;
     // holder of the opened resource handlers by resource name
     private final Map<String, List<H>> openedResources = new ConcurrentHashMap<>();
