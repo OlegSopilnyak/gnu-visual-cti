@@ -431,239 +431,9 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
         }
     }
 
-    private static TelephonyTone makeDtmfTone(int lowFreqHz, int highFreqHz) {
-        final TelephonyTone tone = new TelephonyTone(ToneId.DTMF);
-        tone.getPrimary().setFrequencyHz(lowFreqHz);
-        tone.getSecondary().setFrequencyHz(highFreqHz);
-        tone.getDuration().setOnTime(200);
-        return tone;
-    }
-
-    // to make raw audio data for the tone's playing
-    private static byte[] simpleToneBuffer(TelephonyTone tone) {
-        final int duration = tone.getDuration().getOnTime() < 0 ? 200 : tone.getDuration().getOnTime();
-        if (tone.getSecondary().getFrequencyHz() == 0) {
-            return singleTonesBuffer(tone.getPrimary().getFrequencyHz(), duration);
-        } else {
-            return dualTonesBuffer(tone.getPrimary().getFrequencyHz(), tone.getSecondary().getFrequencyHz(), duration);
-        }
-    }
-
-    // to make raw audio data for dual tones playing
-    private static byte[] dualTonesBuffer(int lowFreqHz, int highFreqHz, int durationMs) {
-        if (durationMs <= 0) {
-            // wrong duration value
-            return new byte[0];
-        }
-        final int numSamples = (int) ((SAMPLE_RATE * durationMs) / 1000.0);
-        final byte[] buffer = new byte[numSamples * 2]; // 16-bit PCM (2 bytes per sample)
-
-        for (int i = 0; i < numSamples; i++) {
-            double angle1 = 2.0 * Math.PI * lowFreqHz * i / SAMPLE_RATE;
-            double angle2 = 2.0 * Math.PI * highFreqHz * i / SAMPLE_RATE;
-
-            // Combine both sine waves and scale amplitude to avoid clipping
-            double sample = 0.5 * (Math.sin(angle1) + Math.sin(angle2));
-            short val = (short) (sample * Short.MAX_VALUE);
-
-            // Write little-endian 16-bit PCM sample into byte buffer
-            buffer[2 * i] = (byte) (val & 0x00ff);
-            buffer[2 * i + 1] = (byte) ((val & 0xff00) >>> 8);
-        }
-        return buffer;
-    }
-
-    // to make raw audio data for single tone playing
-    private static byte[] singleTonesBuffer(int hz, int durationMs) {
-        int numSamples = (int) (SAMPLE_RATE * ((durationMs <= 0 ? 200 : durationMs) / 1000.0));
-        byte[] buffer = new byte[numSamples * 2]; // 16-bit PCM, 2 bytes per sample
-
-        for (int i = 0; i < numSamples; i++) {
-            double angle = 2.0 * Math.PI * i * hz / SAMPLE_RATE;
-            short sample = (short) (Math.sin(angle) * 10000); // Scale amplitude
-
-            // Low byte
-            buffer[2 * i] = (byte) (sample & 0xFF);
-            // High byte
-            buffer[2 * i + 1] = (byte) ((sample >> 8) & 0xFF);
-        }
-        return buffer;
-    }
-
-    // to make raw audio data for silence playing
-    private static byte[] silenceBuffer(int durationMs) {
-        int numSamples = (int) (SAMPLE_RATE * (durationMs / 1000.0));
-        byte[] buffer = new byte[numSamples * 2]; // 16-bit PCM, 2 bytes per sample
-        Arrays.fill(buffer, (byte) 0);
-        return buffer;
-    }
-
-    // to play tone from the buffer
-    private void playToneFrom(byte[] buffer) {
-        if (buffer != null && buffer.length > 0) {
-            try {
-                final SourceDataLine line = AudioSystem.getSourceDataLine(TONE_AUDIO_FORMAT);
-                line.open(TONE_AUDIO_FORMAT);
-                line.start();
-                line.write(buffer, 0, buffer.length);
-                line.drain();
-                line.close();
-            } catch (LineUnavailableException e) {
-                throw new RuntimeException(e);
-            }
-        }
-    }
-
     @Override
     protected boolean nativeStartToneSending(H handle, TelephonyTone tone) {
-        return super.nativeStartToneSending(handle, tone) && startTelephonyTonePlaying(handle, tone);
-    }
-
-    // to start tone's sending as audio playback
-    private boolean startTelephonyTonePlaying(H handle, TelephonyTone tone) {
-        if (handle.getSource() != null) {
-            //
-            // starting playing back the tone in the separated thread
-            scheduler.schedule(() -> nativePlayingBackTone(handle, tone), 0, TimeUnit.MILLISECONDS);
-            return true;
-        } else {
-            // didn't start playing
-            return false;
-        }
-    }
-
-    // playing back the tone using handle's source line
-    private void nativePlayingBackTone(H handle, TelephonyTone tone) {
-        final byte[] toneBytesBuffer = toneBuffer(tone);
-        if (toneBytesBuffer.length == 0) {
-            // tone's data buffer ain't generated
-            // putting the event about the end of file reached
-            putEvent(stopIt(handle, TONE_PLAYING, Result.IO.EOF));
-            return;
-        }
-        try (ToneAudioInputStream toneIn = new ToneAudioInputStream(toneBytesBuffer, tone.getId())) {
-            // preparing audio data playing stuff
-            final SourceDataLine channel = beforeAudioPlaying(handle, TONE_AUDIO_FORMAT);
-            // playing back the audio
-            playingBackTone(handle, toneIn, channel);
-        } catch (LineUnavailableException | IOException e) {
-            // detaching the line from device's handle
-            handle.setSourceLine(null);
-            Tools.error("Failed to playback the tone :" + tone);
-            e.printStackTrace(Tools.err);
-        } finally {
-            handle.inProgress(false);
-        }
-    }
-
-    // playing back the tone's audio
-    private void playingBackTone(H handle, ToneAudioInputStream toneIn, SourceDataLine channel) throws IOException {
-        // playing back from audio data stream
-        playingBackAudioStream(handle, toneIn, channel);
-        final String message = "--- Finished playing tone: " + toneIn.toneId;
-        // Tools.print(message);
-        // putting the event about the end of audio data reached
-        putEvent(stopIt(handle, TONE_PLAYING, Result.IO.EOF));
-        //
-        // finalizing the audio playing if source data line is active
-        if (channel.isActive()) {
-            // Wait for buffer to empty before closing
-            channel.drain();
-            //
-            // finishing up the channel's playback
-            channel.stop();
-            channel.close();
-        }
-    }
-
-    // playing raw audio data through source data line
-    private void playingBackAudioStream(
-            final H handle, final InputStream rawAudioInputStream, final SourceDataLine channel
-    ) throws IOException {
-        //
-        // playing back audio stuff preparation
-        final byte[] buffer = new byte[BUFFER_SIZE];
-        int bytesToPlay;
-        // playing back audio operation is started
-        handle.inProgress(true);
-        // getting audio chunks from the file and playing them back
-        while (Boolean.TRUE.equals(handle.isSourceActive())) {
-            // getting audio chunk from the file
-            if ((bytesToPlay = rawAudioInputStream.read(buffer, 0, buffer.length)) > 0) {
-                // playing back the audio chunk through the started channel
-                channel.write(buffer, 0, bytesToPlay);
-            } else {
-                break;
-            }
-        }
-    }
-
-    // the stream of generated tone's audio data
-    private static class ToneAudioInputStream extends InputStream {
-        private final byte[] buffer;
-        private final ToneId toneId;
-        private int index;
-
-        private ToneAudioInputStream(byte[] buffer, ToneId toneId) {
-            this.buffer = buffer;
-            this.toneId = toneId;
-            index = 0;
-        }
-
-        @Override
-        public int read() {
-            return nextByte();
-        }
-
-        // getting next read byte value or -1
-        private int nextByte() {
-            return buffer == null || buffer.length == 0 ? -1 : fromRing();
-        }
-
-        // getting byte from buffer's ring
-        private int fromRing() {
-            try {
-                return buffer[index];
-            } finally {
-                final int followingIndex = index + 1;
-                index = followingIndex >= buffer.length ? 0 : followingIndex;
-            }
-        }
-    }
-
-    // to make raw audio data for the telephony tone playing
-    private static byte[] toneBuffer(TelephonyTone tone) {
-        if (tone == null || tone.getPrimary().getFrequencyHz() <= 0) {
-            // empty tone or not declared primary tone frequency
-            return new byte[0];
-        }
-        // generating final version of the tone's buffer
-        try (ByteArrayOutputStream result = new ByteArrayOutputStream()) {
-            final int primaryFreq = tone.getPrimary().getFrequencyHz();
-            final int secondFreq = tone.getSecondary().getFrequencyHz();
-            final int playing = tone.getDuration().getOnTime();
-            final int silence = tone.getDuration().getOffTime();
-            // write the sound part of the tone
-            result.write(secondFreq <= 0
-                    // only the primary tone's frequency is declared (single)
-                    ? singleTonesBuffer(primaryFreq, playing)
-                    // the botch frequencies are declared (dual)
-                    : dualTonesBuffer(primaryFreq, secondFreq, playing)
-            );
-            if (silence > 0) {
-                // write the silence part of the tone
-                result.write(silenceBuffer(silence));
-            }
-            // prepare stream for the result's getting
-            result.flush();
-            // tone result buffer getting
-            return result.toByteArray();
-        } catch (IOException e) {
-            Tools.error("Cannot generate buffer for :" + tone.getId());
-            e.printStackTrace(Tools.err);
-            // nothing to generate (error detected)
-            return new byte[0];
-        }
+        return super.nativeStartToneSending(handle, tone) && nativeStartTonePlaying(handle, tone);
     }
 
     @Override
@@ -674,17 +444,18 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
 
     @Override
     protected void nativeBeginToneRegistering(H handle) {
-        super.nativeBeginToneRegistering(handle);
+        Tools.print("=== Beginning tones registration for :" + handle);
     }
 
     @Override
     protected void nativeRegisterTone(H handle, TelephonyTone tone) {
-        super.nativeRegisterTone(handle, tone);
+        Tools.print("=== Registering tone :" + tone);
+        Tools.print("=== For :" + handle);
     }
 
     @Override
     protected void nativeCommitToneRegistering(H handle) {
-        super.nativeCommitToneRegistering(handle);
+        Tools.print("=== Commiting tones registration for :" + handle);
     }
 
     /**
@@ -700,6 +471,15 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
     }
 
     /// private methods
+    // making telephony tone instance for DTMF frequencies
+    private static TelephonyTone makeDtmfTone(int lowFreqHz, int highFreqHz) {
+        final TelephonyTone tone = new TelephonyTone(ToneId.DTMF);
+        tone.getPrimary().setFrequencyHz(lowFreqHz);
+        tone.getSecondary().setFrequencyHz(highFreqHz);
+        tone.getDuration().setOnTime(200);
+        return tone;
+    }
+
     // registering the available codecs for the opened resource by the resource's handle
     private H registerResourceCodecs(H handle) {
         nativeSetResourceParameter(handle, ALLOWED_CODECS,
@@ -929,6 +709,195 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
         }
     }
 
+    // to make raw audio data for the tone's playing
+    private static byte[] simpleToneBuffer(TelephonyTone tone) {
+        final int duration = tone.getDuration().getOnTime() < 0 ? 200 : tone.getDuration().getOnTime();
+        if (tone.getSecondary().getFrequencyHz() == 0) {
+            return singleTonesBuffer(tone.getPrimary().getFrequencyHz(), duration);
+        } else {
+            return dualTonesBuffer(tone.getPrimary().getFrequencyHz(), tone.getSecondary().getFrequencyHz(), duration);
+        }
+    }
+
+    // to make raw audio data for dual tones playing
+    private static byte[] dualTonesBuffer(int lowFreqHz, int highFreqHz, int durationMs) {
+        if (durationMs <= 0) {
+            // wrong duration value
+            return new byte[0];
+        }
+        final int numSamples = (int) ((SAMPLE_RATE * durationMs) / 1000.0);
+        final byte[] buffer = new byte[numSamples * 2]; // 16-bit PCM (2 bytes per sample)
+
+        for (int i = 0; i < numSamples; i++) {
+            double angle1 = 2.0 * Math.PI * lowFreqHz * i / SAMPLE_RATE;
+            double angle2 = 2.0 * Math.PI * highFreqHz * i / SAMPLE_RATE;
+
+            // Combine both sine waves and scale amplitude to avoid clipping
+            double sample = 0.5 * (Math.sin(angle1) + Math.sin(angle2));
+            short val = (short) (sample * Short.MAX_VALUE);
+
+            // Write little-endian 16-bit PCM sample into byte buffer
+            buffer[2 * i] = (byte) (val & 0x00ff);
+            buffer[2 * i + 1] = (byte) ((val & 0xff00) >>> 8);
+        }
+        return buffer;
+    }
+
+    // to make raw audio data for single tone playing
+    private static byte[] singleTonesBuffer(int hz, int durationMs) {
+        int numSamples = (int) (SAMPLE_RATE * ((durationMs <= 0 ? 200 : durationMs) / 1000.0));
+        byte[] buffer = new byte[numSamples * 2]; // 16-bit PCM, 2 bytes per sample
+
+        for (int i = 0; i < numSamples; i++) {
+            double angle = 2.0 * Math.PI * i * hz / SAMPLE_RATE;
+            short sample = (short) (Math.sin(angle) * 10000); // Scale amplitude
+
+            // Low byte
+            buffer[2 * i] = (byte) (sample & 0xFF);
+            // High byte
+            buffer[2 * i + 1] = (byte) ((sample >> 8) & 0xFF);
+        }
+        return buffer;
+    }
+
+    // to make raw audio data for silence playing
+    private static byte[] silenceBuffer(int durationMs) {
+        int numSamples = (int) (SAMPLE_RATE * (durationMs / 1000.0));
+        byte[] buffer = new byte[numSamples * 2]; // 16-bit PCM, 2 bytes per sample
+        Arrays.fill(buffer, (byte) 0);
+        return buffer;
+    }
+
+    // to make raw audio data for the telephony tone playing
+    private static byte[] toneBuffer(TelephonyTone tone) {
+        if (tone == null || tone.getPrimary().getFrequencyHz() <= 0) {
+            // empty tone or not declared primary tone frequency
+            return new byte[0];
+        }
+        // generating final version of the tone's buffer
+        try (ByteArrayOutputStream result = new ByteArrayOutputStream()) {
+            final int primaryFreq = tone.getPrimary().getFrequencyHz();
+            final int secondFreq = tone.getSecondary().getFrequencyHz();
+            final int playing = tone.getDuration().getOnTime();
+            final int silence = tone.getDuration().getOffTime();
+            // write the sound part of the tone
+            result.write(secondFreq <= 0
+                    // only the primary tone's frequency is declared (single)
+                    ? singleTonesBuffer(primaryFreq, playing)
+                    // the botch frequencies are declared (dual)
+                    : dualTonesBuffer(primaryFreq, secondFreq, playing)
+            );
+            if (silence > 0) {
+                // write the silence part of the tone
+                result.write(silenceBuffer(silence));
+            }
+            // prepare stream for the result's getting
+            result.flush();
+            // tone result buffer getting
+            return result.toByteArray();
+        } catch (IOException e) {
+            Tools.error("Cannot generate buffer for :" + tone.getId());
+            e.printStackTrace(Tools.err);
+            // nothing to generate (error detected)
+            return new byte[0];
+        }
+    }
+
+    // to play tone from the buffer
+    private void playToneFrom(byte[] buffer) {
+        if (buffer != null && buffer.length > 0) {
+            try {
+                final SourceDataLine line = AudioSystem.getSourceDataLine(TONE_AUDIO_FORMAT);
+                line.open(TONE_AUDIO_FORMAT);
+                line.start();
+                line.write(buffer, 0, buffer.length);
+                line.drain();
+                line.close();
+            } catch (LineUnavailableException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    // to start tone's sending as audio playback
+    private boolean nativeStartTonePlaying(H handle, TelephonyTone tone) {
+        if (handle.getSource() != null) {
+            //
+            // starting playing back the tone in the separated thread
+            scheduler.schedule(() -> nativePlayingBackTone(handle, tone), 0, TimeUnit.MILLISECONDS);
+            return true;
+        } else {
+            // didn't start playing
+            return false;
+        }
+    }
+
+    // playing back the tone using handle's source line
+    private void nativePlayingBackTone(H handle, TelephonyTone tone) {
+        final byte[] toneBytesBuffer = toneBuffer(tone);
+        if (toneBytesBuffer.length == 0) {
+            // tone's data buffer ain't generated
+            // putting the event about the end of file reached
+            putEvent(stopIt(handle, TONE_PLAYING, Result.IO.EOF));
+            return;
+        }
+        try (ToneAudioInputStream toneIn = new ToneAudioInputStream(toneBytesBuffer, tone.getId())) {
+            // preparing audio data playing stuff
+            final SourceDataLine channel = beforeAudioPlaying(handle, TONE_AUDIO_FORMAT);
+            // playing back the audio
+            playingBackTone(handle, toneIn, channel);
+        } catch (LineUnavailableException | IOException e) {
+            // detaching the line from device's handle
+            handle.setSourceLine(null);
+            Tools.error("Failed to playback the tone :" + tone);
+            e.printStackTrace(Tools.err);
+        } finally {
+            handle.inProgress(false);
+        }
+    }
+
+    // playing back the tone's audio
+    private void playingBackTone(H handle, ToneAudioInputStream toneIn, SourceDataLine channel) throws IOException {
+        // playing back from audio data stream
+        playingBackAudioStream(handle, toneIn, channel);
+        final String message = "--- Finished playing tone: " + toneIn.toneId;
+        // Tools.print(message);
+        // putting the event about the end of audio data reached
+        putEvent(stopIt(handle, TONE_PLAYING, Result.IO.EOF));
+        //
+        // finalizing the audio playing if source data line is active
+        if (channel.isActive()) {
+            // Wait for buffer to empty before closing
+            channel.drain();
+            //
+            // finishing up the channel's playback
+            channel.stop();
+            channel.close();
+        }
+    }
+
+    // playing raw audio data through source data line
+    private void playingBackAudioStream(
+            final H handle, final InputStream rawAudioInputStream, final SourceDataLine channel
+    ) throws IOException {
+        //
+        // playing back audio stuff preparation
+        final byte[] buffer = new byte[BUFFER_SIZE];
+        int bytesToPlay;
+        // playing back audio operation is started
+        handle.inProgress(true);
+        // getting audio chunks from the file and playing them back
+        while (Boolean.TRUE.equals(handle.isSourceActive())) {
+            // getting audio chunk from the file
+            if ((bytesToPlay = rawAudioInputStream.read(buffer, 0, buffer.length)) > 0) {
+                // playing back the audio chunk through the started channel
+                channel.write(buffer, 0, bytesToPlay);
+            } else {
+                break;
+            }
+        }
+    }
+
     // to schedule postponed activity and register it for the given handle
     private void schedulePostponedActivity(final H handle, final Runnable activity, final RunActivityIn runIn) {
         final ScheduledFuture<?> previousActivity = deviceActivity.put(handle,
@@ -949,6 +918,41 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
         return RunActivityIn.of(delay);
     }
 
+    /// inner classes
+    // the stream of generated tone's audio data
+    private static class ToneAudioInputStream extends InputStream {
+        private final byte[] buffer;
+        private final ToneId toneId;
+        private int index;
+
+        private ToneAudioInputStream(byte[] buffer, ToneId toneId) {
+            this.buffer = buffer;
+            this.toneId = toneId;
+            index = 0;
+        }
+
+        @Override
+        public int read() {
+            return nextByte();
+        }
+
+        // getting next read byte value or -1
+        private int nextByte() {
+            return buffer == null || buffer.length == 0 ? -1 : fromRing();
+        }
+
+        // getting byte from buffer's ring
+        private int fromRing() {
+            try {
+                return buffer[index];
+            } finally {
+                final int followingIndex = index + 1;
+                index = followingIndex >= buffer.length ? 0 : followingIndex;
+            }
+        }
+    }
+
+    // scheduler postpone values parameters wrapper
     private static class RunActivityIn {
         final long delay;
         final TimeUnit unit;

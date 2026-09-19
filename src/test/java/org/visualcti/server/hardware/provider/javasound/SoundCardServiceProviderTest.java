@@ -1329,4 +1329,47 @@ public class SoundCardServiceProviderTest {
         assertThat(provider.hasShadowActivity(handle)).isFalse();
         assertThat(handle.isSourceActive()).isFalse();
     }
+
+    @Test
+    public void shouldBeginToneRegistering() throws IOException {
+        // preparing test data
+        SoundCardHandle handle = provider.openResource(SOUND_DEVICE);
+
+        // acting
+        provider.beginToneRegistering(handle);
+
+        // check the behavior
+        verify(provider).isOpened(handle);
+        verify(provider).nativeBeginToneRegistering(handle);
+        // check results
+    }
+
+    @Test
+    public void shouldRegisterTone() throws IOException {
+        // preparing test data
+        SoundCardHandle handle = provider.openResource(SOUND_DEVICE);
+        TelephonyTone tone = mock(TelephonyTone.class);
+
+        // acting
+        provider.registerTone(handle, tone);
+
+        // check the behavior
+        verify(provider).isOpened(handle);
+        verify(provider).nativeRegisterTone(handle, tone);
+        // check results
+    }
+
+    @Test
+    public void shouldCommitToneRegistering() throws IOException {
+        // preparing test data
+        SoundCardHandle handle = provider.openResource(SOUND_DEVICE);
+
+        // acting
+        provider.commitToneRegistering(handle);
+
+        // check the behavior
+        verify(provider).isOpened(handle);
+        verify(provider).nativeCommitToneRegistering(handle);
+        // check results
+    }
 }
