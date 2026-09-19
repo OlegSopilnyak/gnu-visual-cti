@@ -52,12 +52,15 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import java.io.IOException;
+import java.util.EnumMap;
+import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceMalfunction;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
@@ -66,6 +69,8 @@ import org.visualcti.core.channel.telephony.TelephonyServiceProvider;
 import org.visualcti.core.channel.telephony.operation.Result;
 import org.visualcti.core.channel.telephony.operation.ToneId;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
+import org.visualcti.core.channel.telephony.operation.adapter.TelephonyTone;
+import org.visualcti.core.channel.telephony.part.TonesEngine;
 
 @SuppressWarnings({"unchecked", "rawtypes"})
 public class AbstractTonesEngineTest<H> {
@@ -189,11 +194,13 @@ public class AbstractTonesEngineTest<H> {
     @Test
     public void shouldPlayTone() throws InterruptedException {
         // preparing test data
-        ToneId id = ToneId.BEEP;
         float time = 0.5F;
+        ToneId id = ToneId.BEEP;
+        TelephonyTone tone = mock(TelephonyTone.class);
+        deviceTonesParameterFor(id, tone);
         engine.uses(device);
         session.alive(true);
-        doReturn(true).when(provider).startToneSending(deviceHandle, id);
+        doReturn(true).when(provider).startToneSending(deviceHandle, tone);
 
         // acting
         engine.playTone(session, id, time);
@@ -203,7 +210,7 @@ public class AbstractTonesEngineTest<H> {
         verify(device).dispatchEvent("Sending [" + id + "] tone for '" + time + "' seconds.");
         verify(session).setState(TelephonyDevice.State.TONE);
         verify(device).getProvider();
-        verify(provider).startToneSending(deviceHandle, id);
+        verify(provider).startToneSending(deviceHandle, tone);
         verify(session).waitingForOperationComplete(500L);
         verify(session).operationResult();
         verify(session).isTerminated();
@@ -264,8 +271,10 @@ public class AbstractTonesEngineTest<H> {
     public void shouldNotPlayTone_DoesNotStartToneSending() throws InterruptedException {
         // preparing test data
         String deviceErrorReason = "Start tone sending is failed.";
-        ToneId id = ToneId.BEEP;
         float time = -0.5F;
+        ToneId id = ToneId.BEEP;
+        TelephonyTone tone = mock(TelephonyTone.class);
+        deviceTonesParameterFor(id, tone);
         engine.uses(device);
         session.alive(true);
 
@@ -277,7 +286,7 @@ public class AbstractTonesEngineTest<H> {
         verify(device).dispatchEvent("Sending [" + id + "] tone for '" + time + "' seconds.");
         verify(session).setState(TelephonyDevice.State.TONE);
         verify(device).getProvider();
-        verify(provider).startToneSending(deviceHandle, id);
+        verify(provider).startToneSending(deviceHandle, tone);
         verify(engine).onDeviceError(session, deviceErrorReason, false);
         verify(session).setState(Device.State.ERROR);
         verify(device).dispatchError(deviceErrorReason);
@@ -292,11 +301,13 @@ public class AbstractTonesEngineTest<H> {
     public void shouldNotPlayTone_WrongTimeoutValue() throws InterruptedException {
         // preparing test data
         String deviceErrorReason = "Tone sending time is too short.";
-        ToneId id = ToneId.BEEP;
         float time = -0.5F;
+        ToneId id = ToneId.BEEP;
+        TelephonyTone tone = mock(TelephonyTone.class);
+        deviceTonesParameterFor(id, tone);
         engine.uses(device);
         session.alive(true);
-        doReturn(true).when(provider).startToneSending(deviceHandle, id);
+        doReturn(true).when(provider).startToneSending(deviceHandle, tone);
 
         // acting
         engine.playTone(session, id, time);
@@ -306,7 +317,7 @@ public class AbstractTonesEngineTest<H> {
         verify(device).dispatchEvent("Sending [" + id + "] tone for '" + time + "' seconds.");
         verify(session).setState(TelephonyDevice.State.TONE);
         verify(device).getProvider();
-        verify(provider).startToneSending(deviceHandle, id);
+        verify(provider).startToneSending(deviceHandle, tone);
         verify(provider).stopToneSending(deviceHandle);
         verify(engine).onDeviceError(session, deviceErrorReason, false);
         verify(session).setState(Device.State.ERROR);
@@ -323,11 +334,13 @@ public class AbstractTonesEngineTest<H> {
     public void shouldNotPlayTone_HardwareError() throws InterruptedException {
         // preparing test data
         String deviceErrorReason = "Tone sending is failed.";
-        ToneId id = ToneId.BEEP;
         float time = 0.5F;
+        ToneId id = ToneId.BEEP;
+        TelephonyTone tone = mock(TelephonyTone.class);
+        deviceTonesParameterFor(id, tone);
         engine.uses(device);
         session.alive(true);
-        doReturn(true).when(provider).startToneSending(deviceHandle, id);
+        doReturn(true).when(provider).startToneSending(deviceHandle, tone);
         executor.schedule(() -> session.operationComplete(Result.ERROR), 100, TimeUnit.MILLISECONDS);
 
         // acting
@@ -338,7 +351,7 @@ public class AbstractTonesEngineTest<H> {
         verify(device).dispatchEvent("Sending [" + id + "] tone for '" + time + "' seconds.");
         verify(session).setState(TelephonyDevice.State.TONE);
         verify(device).getProvider();
-        verify(provider).startToneSending(deviceHandle, id);
+        verify(provider).startToneSending(deviceHandle, tone);
         verify(session).waitingForOperationComplete(500L);
         verify(session).operationResult();
         verify(provider).stopToneSending(deviceHandle);
@@ -357,11 +370,13 @@ public class AbstractTonesEngineTest<H> {
     public void shouldNotPlayTone_DisconnectedInAction() throws InterruptedException {
         // preparing test data
         String deviceErrorReason = "Tone sending is failed. The connection is lost.";
-        ToneId id = ToneId.BEEP;
         float time = 0.5F;
+        ToneId id = ToneId.BEEP;
+        TelephonyTone tone = mock(TelephonyTone.class);
+        deviceTonesParameterFor(id, tone);
         engine.uses(device);
         session.alive(true);
-        doReturn(true).when(provider).startToneSending(deviceHandle, id);
+        doReturn(true).when(provider).startToneSending(deviceHandle, tone);
         executor.schedule(() -> {
             session.alive(false);
             session.operationComplete(Result.CALL.DISCONNECT);
@@ -375,7 +390,7 @@ public class AbstractTonesEngineTest<H> {
         verify(device).dispatchEvent("Sending [" + id + "] tone for '" + time + "' seconds.");
         verify(session).setState(TelephonyDevice.State.TONE);
         verify(device).getProvider();
-        verify(provider).startToneSending(deviceHandle, id);
+        verify(provider).startToneSending(deviceHandle, tone);
         verify(session).waitingForOperationComplete(500L);
         verify(session).operationResult();
         verify(session).isTerminated();
@@ -696,12 +711,14 @@ public class AbstractTonesEngineTest<H> {
     @Test
     public void shouldTerminatePlayTone() throws IOException {
         // preparing test data
-        ToneId id = ToneId.BEEP;
         float time = 2.5F;
+        ToneId id = ToneId.BEEP;
+        TelephonyTone tone = mock(TelephonyTone.class);
+        deviceTonesParameterFor(id, tone);
         engine.uses(device);
         doReturn(true).when(session).isOpened();
         doReturn(true).when(session).isAlive();
-        doReturn(true).when(provider).startToneSending(deviceHandle, id);
+        doReturn(true).when(provider).startToneSending(deviceHandle, tone);
         executor.execute(() -> engine.playTone(session, id, time));
         await().until(() -> session.operationIsActive());
 
@@ -726,7 +743,7 @@ public class AbstractTonesEngineTest<H> {
         engine.uses(device);
         doReturn(true).when(session).isOpened();
         doReturn(true).when(session).isAlive();
-        executor.execute(() -> engine.inputDigits(session, digitsCount,oneSymbolTimeout, terminationSymbolsMask));
+        executor.execute(() -> engine.inputDigits(session, digitsCount, oneSymbolTimeout, terminationSymbolsMask));
         await().until(() -> session.operationIsActive());
 
         // acting
@@ -746,5 +763,13 @@ public class AbstractTonesEngineTest<H> {
         verify(session, atLeastOnce()).isAlive();
         verify(engine).isOpened(session);
         verify(session, atLeastOnce()).parameter(Device.Parameter.DEVICE_HANDLE);
+    }
+
+    // prepare tones table as device's parameter
+    private void deviceTonesParameterFor(ToneId id, TelephonyTone tone) {
+        EnumMap<ToneId, TelephonyTone> tonesTable = new EnumMap<>(ToneId.class);
+        Device.ParameterName tones = TonesEngine.Parameter.TONES_TABLE;
+        tonesTable.put(id, tone);
+        doReturn(Optional.of(ConfigurationParameter.of(tones.value(), tonesTable))).when(device).getParameter(tones);
     }
 }

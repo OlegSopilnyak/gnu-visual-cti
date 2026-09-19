@@ -405,11 +405,11 @@ public interface TelephonyServiceProvider<H> extends Device.ServiceProvider<H> {
      * To start sending the tone to the connected phone line
      *
      * @param handle the telephony device handle
-     * @param toneId the id of tone to send
+     * @param tone the tone to send
      * @return true if the operation started successfully
      * @see TonesEngine#playTone(PhoneCallSession, ToneId, float)
      */
-    default boolean startToneSending(H handle, ToneId toneId) {
+    default boolean startToneSending(H handle, TelephonyTone tone) {
         return false;
     }
 
@@ -418,7 +418,7 @@ public interface TelephonyServiceProvider<H> extends Device.ServiceProvider<H> {
      * To stop (interrupt) sending the tone
      *
      * @param handle the telephony device handle
-     * @see #startToneSending(H, ToneId)
+     * @see #startToneSending(H, TelephonyTone)
      */
     default void stopToneSending(H handle) {
         // doing nothing here

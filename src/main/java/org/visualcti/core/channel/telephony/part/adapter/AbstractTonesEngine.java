@@ -38,6 +38,7 @@ Fax number: 217-356-3356
 package org.visualcti.core.channel.telephony.part.adapter;
 
 import java.io.IOException;
+import java.util.EnumMap;
 import java.util.function.Predicate;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceStateValue;
@@ -47,6 +48,7 @@ import org.visualcti.core.channel.telephony.TelephonyServiceProvider;
 import org.visualcti.core.channel.telephony.operation.Result;
 import org.visualcti.core.channel.telephony.operation.ToneId;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
+import org.visualcti.core.channel.telephony.operation.adapter.TelephonyTone;
 import org.visualcti.core.channel.telephony.part.TonesEngine;
 
 /**
@@ -95,6 +97,13 @@ public abstract class AbstractTonesEngine<H> extends AbstractDevicePart<H> imple
         }
     }
 
+    // to find tone's body by tone-id
+    private TelephonyTone findById(final ToneId id) {
+        return deviceCore.getParameter(TonesEngine.Parameter.TONES_TABLE).map(
+                param -> param.<EnumMap<ToneId, TelephonyTone>>getValue().get(id)
+        ).orElse(null);
+    }
+
     /**
      * <action>
      * To play out a sound signal to the phone line.<BR/>
@@ -115,7 +124,7 @@ public abstract class AbstractTonesEngine<H> extends AbstractDevicePart<H> imple
             // getting device service provider
             final TelephonyServiceProvider<H> serviceProvider = deviceCore.getProvider();
             final H deviceHandle = session.parameter(Device.Parameter.DEVICE_HANDLE);
-            if (serviceProvider.startToneSending(deviceHandle, toneId)) {
+            if (serviceProvider.startToneSending(deviceHandle, findById(toneId))) {
                 // calculating the timeout time
                 final long timeout = (long) (time * 1000L);
                 if (timeout <= 0) {
@@ -315,6 +324,7 @@ public abstract class AbstractTonesEngine<H> extends AbstractDevicePart<H> imple
     private boolean canProceed(final PhoneCallSession<H> session) {
         return isOpened(session) && session.isAlive();
     }
+
     // to check is user's input contains the symbol from the termination mask
     private boolean isTerminationMaskSymbol(PhoneCallSession<H> session, String userInput, String terminationSymbolsMask) {
         if (!isEmpty(userInput)) {

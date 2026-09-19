@@ -78,12 +78,14 @@ import org.visualcti.core.channel.device.adapter.AbstractDeviceEvent;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
 import org.visualcti.core.channel.telephony.operation.Result;
+import org.visualcti.core.channel.telephony.operation.ToneId;
+import org.visualcti.core.channel.telephony.operation.adapter.TelephonyTone;
 import org.visualcti.core.channel.telephony.part.MultimediaEngine;
 import org.visualcti.media.Audio;
 
 @SuppressWarnings("unchecked")
 public class SoundCardServiceProviderTest {
-    Device.ParameterName ALLOWED_CODECS = MultimediaEngine.Parameter.ALLOWED_CODECS;
+    static final Device.ParameterName ALLOWED_CODECS = MultimediaEngine.Parameter.ALLOWED_CODECS;
 
     SoundCardServiceProvider<SoundCardHandle> provider;
     ScheduledExecutorService scheduler = mock(ScheduledExecutorService.class);
@@ -1091,7 +1093,6 @@ public class SoundCardServiceProviderTest {
 
         // check the behavior
         verify(provider).isOpened(handle);
-//        verify(provider, times(2)).isOpened(handle);
         verify(provider).nativeStartAudioRecording(eq(handle), anyString(), eq(format), eq(silence), eq(timeout));
         ArgumentCaptor<DeviceEvent<SoundCardHandle>> eventCaptor = ArgumentCaptor.forClass(DeviceEvent.class);
         verify(provider, atLeastOnce()).putEvent(eventCaptor.capture());
@@ -1191,5 +1192,141 @@ public class SoundCardServiceProviderTest {
         verify(provider).isOpened(handle);
         verify(provider).nativeDialingDtmf(handle, dtmf);
         // check results
+    }
+
+    @Test
+    public void shouldStartPlayingTone_Beep() throws IOException {
+        // preparing test data
+        SoundCardHandle handle = provider.openResource(SOUND_DEVICE);
+        TelephonyTone tone = new TelephonyTone(ToneId.BEEP, "-1,1000,0,0,0,0,0,0,0,0");
+        doAnswer(invocation -> shadowScheduler.schedule(
+                invocation.getArgument(0, Runnable.class),
+                invocation.getArgument(1, Long.class),
+                invocation.getArgument(2, TimeUnit.class)
+        )).when(scheduler).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+        shadowScheduler.schedule(() -> provider.stopToneSending(handle), 500, TimeUnit.MILLISECONDS);
+
+        // acting
+        boolean started = provider.startToneSending(handle, tone);
+        await().until(handle::isOperationInProgress);
+        await().until(() -> !handle.isOperationInProgress());
+
+        // check the behavior
+        verify(provider, atLeastOnce()).isOpened(handle);
+        verify(provider).nativeStartToneSending(handle, tone);
+        verify(provider).putEvent(any(DeviceEvent.class));
+        // check results
+        assertThat(started).isTrue();
+        assertThat(handle.isSourceActive()).isFalse();
+    }
+
+    @Test
+    public void shouldStartPlayingTone_Busy() throws IOException {
+        // preparing test data
+        SoundCardHandle handle = provider.openResource(SOUND_DEVICE);
+        TelephonyTone tone = new TelephonyTone(ToneId.BUSY, "2,500,200,0,0,55,40,55,40,4");
+        doAnswer(invocation -> shadowScheduler.schedule(
+                invocation.getArgument(0, Runnable.class),
+                invocation.getArgument(1, Long.class),
+                invocation.getArgument(2, TimeUnit.class)
+        )).when(scheduler).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+        shadowScheduler.schedule(() -> provider.stopToneSending(handle), 800, TimeUnit.MILLISECONDS);
+
+        // acting
+        boolean started = provider.startToneSending(handle, tone);
+        await().until(handle::isOperationInProgress);
+        await().until(() -> !handle.isOperationInProgress());
+
+        // check the behavior
+        verify(provider, atLeastOnce()).isOpened(handle);
+        verify(provider).nativeStartToneSending(handle, tone);
+        verify(provider).putEvent(any(DeviceEvent.class));
+        // check results
+        assertThat(started).isTrue();
+        assertThat(handle.isSourceActive()).isFalse();
+    }
+
+    @Test
+    public void shouldStartPlayingTone_Ringback() throws IOException {
+        // preparing test data
+        SoundCardHandle handle = provider.openResource(SOUND_DEVICE);
+        TelephonyTone tone = new TelephonyTone(ToneId.RINGBACK, "3,450,150,0,0,150,100,550,400,0");
+        doAnswer(invocation -> shadowScheduler.schedule(
+                invocation.getArgument(0, Runnable.class),
+                invocation.getArgument(1, Long.class),
+                invocation.getArgument(2, TimeUnit.class)
+        )).when(scheduler).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+        shadowScheduler.schedule(() -> provider.stopToneSending(handle), 1200, TimeUnit.MILLISECONDS);
+
+        // acting
+        boolean started = provider.startToneSending(handle, tone);
+        await().until(handle::isOperationInProgress);
+        await().until(() -> !handle.isOperationInProgress());
+
+        // check the behavior
+        verify(provider, atLeastOnce()).isOpened(handle);
+        verify(provider).nativeStartToneSending(handle, tone);
+        verify(provider).putEvent(any(DeviceEvent.class));
+        // check results
+        assertThat(started).isTrue();
+        assertThat(handle.isSourceActive()).isFalse();
+    }
+
+    @Test
+    public void shouldStartPlayingTone_Disconnect() throws IOException {
+        // preparing test data
+        SoundCardHandle handle = provider.openResource(SOUND_DEVICE);
+        TelephonyTone tone = new TelephonyTone(ToneId.DISCONNECT, "4,900,700,0,0,90,70,90,70,2");
+        doAnswer(invocation -> shadowScheduler.schedule(
+                invocation.getArgument(0, Runnable.class),
+                invocation.getArgument(1, Long.class),
+                invocation.getArgument(2, TimeUnit.class)
+        )).when(scheduler).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+        shadowScheduler.schedule(() -> provider.stopToneSending(handle), 500, TimeUnit.MILLISECONDS);
+
+        // acting
+        boolean started = provider.startToneSending(handle, tone);
+        await().until(handle::isOperationInProgress);
+        await().until(() -> !handle.isOperationInProgress());
+
+        // check the behavior
+        verify(provider, atLeastOnce()).isOpened(handle);
+        verify(provider).nativeStartToneSending(handle, tone);
+        verify(provider).putEvent(any(DeviceEvent.class));
+        // check results
+        assertThat(started).isTrue();
+        assertThat(handle.isSourceActive()).isFalse();
+    }
+
+    @Test
+    public void shouldStopPlayingTone() throws IOException {
+        // preparing test data
+        SoundCardHandle handle = provider.openResource(SOUND_DEVICE);
+        TelephonyTone tone = new TelephonyTone(ToneId.BEEP, "-1,1000,0,0,0,0,0,0,0,0");
+        doAnswer(invocation -> shadowScheduler.schedule(
+                invocation.getArgument(0, Runnable.class),
+                invocation.getArgument(1, Long.class),
+                invocation.getArgument(2, TimeUnit.class)
+        )).when(scheduler).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+        assertThat(provider.startToneSending(handle, tone)).isTrue();
+        await().until(handle::isOperationInProgress);
+        reset(provider);
+
+        // acting
+        shadowScheduler.schedule(() -> provider.stopToneSending(handle), 300, TimeUnit.MILLISECONDS);
+        await().until(() -> !handle.isOperationInProgress());
+
+        // check the behavior
+        verify(provider).isOpened(handle);
+        verify(provider, never()).nativeStartToneSending(any(), any(TelephonyTone.class));
+        ArgumentCaptor<DeviceEvent<SoundCardHandle>> eventCaptor = ArgumentCaptor.forClass(DeviceEvent.class);
+        verify(provider).putEvent(eventCaptor.capture());
+        // check results
+        DeviceEvent<SoundCardHandle> event = eventCaptor.getValue();
+        assertThat(event.getEventType()).isSameAs(DeviceEvent.Type.DEVICE_SPECIFIC);
+        assertThat(event.getDeviceHandle()).isSameAs(handle);
+        assertThat(event.getOption(DeviceEvent.Option.REASON)).isPresent().contains(Result.IO.EOF);
+        assertThat(provider.hasShadowActivity(handle)).isFalse();
+        assertThat(handle.isSourceActive()).isFalse();
     }
 }

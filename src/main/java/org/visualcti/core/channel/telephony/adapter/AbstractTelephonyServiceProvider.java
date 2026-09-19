@@ -931,13 +931,13 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * To start sending the tone to the connected phone line
      *
      * @param handle the telephony device handle
-     * @param toneId the id of tone to send
+     * @param tone the tone to send
      * @return true if the operation started successfully
      * @see TelephonyDevice#playTone(PhoneCallSession, ToneId, float)
      */
     @Override
-    public boolean startToneSending(final H handle, final ToneId toneId) {
-        return isOpened(handle) && nativeStartToneSending(handle, toneId);
+    public boolean startToneSending(final H handle, final TelephonyTone tone) {
+        return isOpened(handle) && nativeStartToneSending(handle, tone);
     }
 
     /**
@@ -945,12 +945,12 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * To start sending the tone to the connected phone line
      *
      * @param handle the telephony device handle
-     * @param toneId the id of tone to send
+     * @param tone the tone to send
      * @return true if the operation started successfully
-     * @see #startToneSending(H, ToneId)
+     * @see #startToneSending(H, TelephonyTone)
      */
-    protected boolean nativeStartToneSending(H handle, ToneId toneId) {
-        return handle != null && toneId != null;
+    protected boolean nativeStartToneSending(H handle, TelephonyTone tone) {
+        return handle != null && tone != null;
     }
 
     /**
@@ -958,7 +958,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * To stop (interrupt) sending the tone
      *
      * @param handle the telephony device handle
-     * @see #startToneSending(H, ToneId)
+     * @see #startToneSending(H, TelephonyTone)
      */
     @Override
     public void stopToneSending(final H handle) {

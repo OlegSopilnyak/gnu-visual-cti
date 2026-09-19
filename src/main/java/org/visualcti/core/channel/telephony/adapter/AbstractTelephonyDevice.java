@@ -94,19 +94,19 @@ public abstract class AbstractTelephonyDevice<H, T extends TelephonyFactory<H, ?
         extends AbstractDevice<H, T> implements TelephonyDevice<H, T> {
     //
     // predicate to test whether device handle value is valid or not
-    private final Predicate<H> validResourceHandle =
+    private final transient Predicate<H> validResourceHandle =
             handle -> !Objects.equals(handle, wrongHandle()) || !Objects.equals(handle, errorHandle());
     //
     // the name of the device in the device factory
     private final String name;
     // device part of the telephony calls management
-    protected final CallsPortEngine<H> calls;
+    protected final transient CallsPortEngine<H> calls;
     // device part of the telephony signals and tones management
-    protected final TonesEngine<H> tones;
+    protected final transient TonesEngine<H> tones;
     // device part of the telephony multi-medea (playback/record) management
-    protected final MultimediaEngine<H> media;
+    protected final transient MultimediaEngine<H> media;
     // device part of the telephony fax-document exchange management
-    protected final FaxMachineEngine<H> faxes;
+    protected final transient FaxMachineEngine<H> faxes;
 
     /**
      * <builder>
@@ -939,8 +939,8 @@ public abstract class AbstractTelephonyDevice<H, T extends TelephonyFactory<H, ?
             final List<Element> codecs = deviceMediaConfiguration.getChildren(DEVICE_MEDIA_CODEC_ROOT);
             codecs.forEach(this::applyDeviceMediaCodecParameters);
             // processing the parameters of the device's media tones XML elements
-            final List<Element> tones = deviceMediaConfiguration.getChildren(DEVICE_MEDIA_TONE_ROOT);
-            tones.forEach(this::applyDeviceMediaToneParameters);
+            final List<Element> tonesXmls = deviceMediaConfiguration.getChildren(DEVICE_MEDIA_TONE_ROOT);
+            tonesXmls.forEach(this::applyDeviceMediaToneParameters);
             // registering configured tones in the service provider for the current device
             registerDeviceTones();
         }
@@ -1015,19 +1015,21 @@ public abstract class AbstractTelephonyDevice<H, T extends TelephonyFactory<H, ?
 
     // initializing default device's media tones parameters table
     private void setupDefaultMediaTones() {
-        final EnumMap<ToneId, TelephonyTone> tones = new EnumMap<>(ToneId.class);
-        storeTone(tones, ToneId.BEEP, "-1,900,0,0,0,0,0,0,0,0");
-        storeTone(tones, ToneId.DIAL, "1,400,125,400,125,0,0,0,0,0");
-        storeTone(tones, ToneId.BUSY, "2,500,200,0,0,55,40,55,40,4");
-        storeTone(tones, ToneId.RINGBACK, "3,450,150,0,0,150,100,550,400,0");
-        storeTone(tones, ToneId.DISCONNECT, "4,900,700,0,0,90,70,90,70,2");
+        final EnumMap<ToneId, TelephonyTone> tonesTable = new EnumMap<>(ToneId.class);
+        storeTone(tonesTable, ToneId.BEEP, "-1,1000,0,0,0,0,0,0,0,0");
+        storeTone(tonesTable, ToneId.DIAL, "1,400,125,400,125,0,0,0,0,0");
+        storeTone(tonesTable, ToneId.BUSY, "2,500,200,0,0,55,40,55,40,4");
+        storeTone(tonesTable, ToneId.RINGBACK, "3,450,150,0,0,150,100,550,400,0");
+        storeTone(tonesTable, ToneId.DISCONNECT, "4,900,700,0,0,90,70,90,70,2");
         final Device.ParameterName tonesTableParameterName = TonesEngine.Parameter.TONES_TABLE;
-        setParameter(tonesTableParameterName, ConfigurationParameter.of(tonesTableParameterName.value(), tones));
+        setParameter(tonesTableParameterName, ConfigurationParameter.of(tonesTableParameterName.value(), tonesTable));
     }
 
     // setting up media tone into device's the tone table
-    private static void storeTone(final EnumMap<ToneId, TelephonyTone> tones, final ToneId toneId, final String toneAsString) {
-        tones.put(toneId, new TelephonyTone(toneId, toneAsString));
+    private static void storeTone(
+            final EnumMap<ToneId, TelephonyTone> tonesTable, final ToneId toneId, final String toneAsString
+    ) {
+        tonesTable.put(toneId, new TelephonyTone(toneId, toneAsString));
     }
 
     // applying device's media codecs parameters from xml-element of the configuration

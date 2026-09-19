@@ -54,9 +54,11 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -96,11 +98,17 @@ import org.visualcti.util.Tools;
  */
 @SuppressWarnings("unchecked")
 public class SoundCardServiceProvider<H extends SoundCardHandle> extends AbstractTelephonyServiceProvider<H> {
+    // the format for tone's playing back
+    public static final AudioFormat TONE_AUDIO_FORMAT = new AudioFormat(SAMPLE_RATE, 16, 1, true, false);
     // the name of sound card device as a telephony device
     public static final String SOUND_DEVICE = "SoundCard";
     public static final String DEVICE_FACTORY_VENDOR = "JavaSound";
+    // the container of DTMF tones
+    protected static final Map<Character, TelephonyTone> DTMF = new ConcurrentHashMap<>();
     // reference to the sound-card handle as singleton
     private static final AtomicReference<SoundCardHandle> handle = new AtomicReference<>(null);
+    public static final String AUDIO_PLAYING = "Audio playing back...";
+    public static final String TONE_PLAYING = "Tone playing back...";
     public static final String AUDIO_RECORDING = "Audio recording...";
     // the state of handset true = handset is off false = handset is on
     private final AtomicBoolean handsetOff = new AtomicBoolean(true);
@@ -112,6 +120,22 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
     private final Map<H, ScheduledFuture<?>> deviceActivity = new ConcurrentHashMap<>();
     // the size of buffer that is using for media-transmitting operations
     private static final int BUFFER_SIZE = 2048;
+
+    // initializing dtmf tones table
+    static {
+        DTMF.put('1', makeDtmfTone(697, 1209));
+        DTMF.put('2', makeDtmfTone(697, 1336));
+        DTMF.put('3', makeDtmfTone(697, 1477));
+        DTMF.put('4', makeDtmfTone(770, 1209));
+        DTMF.put('5', makeDtmfTone(770, 1336));
+        DTMF.put('6', makeDtmfTone(770, 1477));
+        DTMF.put('7', makeDtmfTone(852, 1209));
+        DTMF.put('8', makeDtmfTone(852, 1336));
+        DTMF.put('9', makeDtmfTone(852, 1477));
+        DTMF.put('*', makeDtmfTone(941, 1209));
+        DTMF.put('0', makeDtmfTone(941, 1336));
+        DTMF.put('#', makeDtmfTone(941, 1477));
+    }
 
     public SoundCardServiceProvider(ScheduledExecutorService scheduler) {
         this.scheduler = scheduler;
@@ -307,15 +331,17 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
     protected boolean nativeStartAudioPlaying(H handle, String filePath, Audio format, int timeout) {
         final File audioFile = Paths.get(filePath).toFile();
         if (isOpened(handle) && audioFile.exists() && handle.getSource() != null) {
+            //
             // starting playing back the file in the separate thread
             scheduler.schedule(() -> nativePlayingBackAudioFile(handle, audioFile), 0, TimeUnit.MILLISECONDS);
-            // stopping playing when the playing timeout is reached
-            postponedActivity(handle, scheduler.schedule(() -> {
-                // removing the source line from the handle (to stop playing the audio loop)
+            //
+            // to schedule stopping playing when the playing timeout will be reached
+            schedulePostponedActivity(handle, () -> {
+                // removing the source line from the handle (will stop the loop of the audio playing)
                 handle.setSourceLine(null);
                 // removing postponed activity for the handle
                 deviceActivity.remove(handle);
-            }, timeout, TimeUnit.SECONDS));
+            }, runActionIn(timeout, TimeUnit.SECONDS));
             return true;
         } else {
             // didn't start playing
@@ -343,15 +369,17 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
     protected boolean nativeStartAudioRecording(H handle, String filePath, Audio format, int silence, int timeout) {
         final File audioFile = Paths.get(filePath).toFile();
         if (isOpened(handle) && audioFile.exists() && handle.getTarget() != null) {
+            //
             // starting recording input audio to the file in the separate thread
             scheduler.schedule(() -> nativeRecordingAudioToFile(handle, audioFile, format), 0, TimeUnit.MILLISECONDS);
-            // stopping record when the recording timeout is reached
-            postponedActivity(handle, scheduler.schedule(() -> {
+            //
+            // to schedule stopping recording when the recording timeout will be reached
+            schedulePostponedActivity(handle, () -> {
                 // removing the target line from the handle (to stop capturing the audio loop)
                 handle.setTargetLine(null);
                 // removing postponed activity for the handle
                 deviceActivity.remove(handle);
-            }, timeout, TimeUnit.SECONDS));
+            }, runActionIn(timeout, TimeUnit.SECONDS));
             return true;
         } else {
             // didn't start recording
@@ -379,7 +407,8 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
     protected void nativeDialingDtmf(H handle, String toDial) {
         if (handle.getSource() != null && toDial != null && !toDial.trim().isEmpty()) {
             final ByteArrayOutputStream finalBuffer = new ByteArrayOutputStream();
-            final Consumer<byte[]> concatBuffers = buffer -> {
+            // consumer to concatenate DTMF bytes buffers
+            final Consumer<byte[]> concatToneBuffers = buffer -> {
                 try {
                     finalBuffer.write(buffer);
                 } catch (IOException e) {
@@ -389,7 +418,7 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
             try {
                 // composing buffer from DTMF string
                 toDial.chars().mapToObj(c -> DTMF.get((char) c)).filter(Objects::nonNull)
-                        .map(SoundCardServiceProvider::simpleToneBuffer).forEach(concatBuffers);
+                        .map(SoundCardServiceProvider::simpleToneBuffer).forEach(concatToneBuffers);
                 finalBuffer.flush();
                 finalBuffer.close();
             } catch (IOException e) {
@@ -400,24 +429,6 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
             // playing composed buffer
             playToneFrom(finalBuffer.toByteArray());
         }
-    }
-
-    // the container of DTMF tones
-    private static final Map<Character, TelephonyTone> DTMF = new ConcurrentHashMap<>();
-
-    static {
-        DTMF.put('1', makeDtmfTone(697, 1209));
-        DTMF.put('2', makeDtmfTone(697, 1336));
-        DTMF.put('3', makeDtmfTone(697, 1477));
-        DTMF.put('4', makeDtmfTone(770, 1209));
-        DTMF.put('5', makeDtmfTone(770, 1336));
-        DTMF.put('6', makeDtmfTone(770, 1477));
-        DTMF.put('7', makeDtmfTone(852, 1209));
-        DTMF.put('8', makeDtmfTone(852, 1336));
-        DTMF.put('9', makeDtmfTone(852, 1477));
-        DTMF.put('*', makeDtmfTone(941, 1209));
-        DTMF.put('0', makeDtmfTone(941, 1336));
-        DTMF.put('#', makeDtmfTone(941, 1477));
     }
 
     private static TelephonyTone makeDtmfTone(int lowFreqHz, int highFreqHz) {
@@ -440,6 +451,10 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
 
     // to make raw audio data for dual tones playing
     private static byte[] dualTonesBuffer(int lowFreqHz, int highFreqHz, int durationMs) {
+        if (durationMs <= 0) {
+            // wrong duration value
+            return new byte[0];
+        }
         final int numSamples = (int) ((SAMPLE_RATE * durationMs) / 1000.0);
         final byte[] buffer = new byte[numSamples * 2]; // 16-bit PCM (2 bytes per sample)
 
@@ -460,7 +475,7 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
 
     // to make raw audio data for single tone playing
     private static byte[] singleTonesBuffer(int hz, int durationMs) {
-        int numSamples = (int) (SAMPLE_RATE * (durationMs / 1000.0));
+        int numSamples = (int) (SAMPLE_RATE * ((durationMs <= 0 ? 200 : durationMs) / 1000.0));
         byte[] buffer = new byte[numSamples * 2]; // 16-bit PCM, 2 bytes per sample
 
         for (int i = 0; i < numSamples; i++) {
@@ -475,13 +490,20 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
         return buffer;
     }
 
+    // to make raw audio data for silence playing
+    private static byte[] silenceBuffer(int durationMs) {
+        int numSamples = (int) (SAMPLE_RATE * (durationMs / 1000.0));
+        byte[] buffer = new byte[numSamples * 2]; // 16-bit PCM, 2 bytes per sample
+        Arrays.fill(buffer, (byte) 0);
+        return buffer;
+    }
+
     // to play tone from the buffer
     private void playToneFrom(byte[] buffer) {
         if (buffer != null && buffer.length > 0) {
             try {
-                final AudioFormat format = new AudioFormat(SAMPLE_RATE, 16, 1, true, false);
-                final SourceDataLine line = AudioSystem.getSourceDataLine(format);
-                line.open(format);
+                final SourceDataLine line = AudioSystem.getSourceDataLine(TONE_AUDIO_FORMAT);
+                line.open(TONE_AUDIO_FORMAT);
                 line.start();
                 line.write(buffer, 0, buffer.length);
                 line.drain();
@@ -493,13 +515,161 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
     }
 
     @Override
-    protected boolean nativeStartToneSending(H handle, ToneId toneId) {
-        return super.nativeStartToneSending(handle, toneId);
+    protected boolean nativeStartToneSending(H handle, TelephonyTone tone) {
+        return super.nativeStartToneSending(handle, tone) && startTelephonyTonePlaying(handle, tone);
+    }
+
+    // to start tone's sending as audio playback
+    private boolean startTelephonyTonePlaying(H handle, TelephonyTone tone) {
+        if (handle.getSource() != null) {
+            //
+            // starting playing back the tone in the separated thread
+            scheduler.schedule(() -> nativePlayingBackTone(handle, tone), 0, TimeUnit.MILLISECONDS);
+            return true;
+        } else {
+            // didn't start playing
+            return false;
+        }
+    }
+
+    // playing back the tone using handle's source line
+    private void nativePlayingBackTone(H handle, TelephonyTone tone) {
+        final byte[] toneBytesBuffer = toneBuffer(tone);
+        if (toneBytesBuffer.length == 0) {
+            // tone's data buffer ain't generated
+            // putting the event about the end of file reached
+            putEvent(stopIt(handle, TONE_PLAYING, Result.IO.EOF));
+            return;
+        }
+        try (ToneAudioInputStream toneIn = new ToneAudioInputStream(toneBytesBuffer, tone.getId())) {
+            // preparing audio data playing stuff
+            final SourceDataLine channel = beforeAudioPlaying(handle, TONE_AUDIO_FORMAT);
+            // playing back the audio
+            playingBackTone(handle, toneIn, channel);
+        } catch (LineUnavailableException | IOException e) {
+            // detaching the line from device's handle
+            handle.setSourceLine(null);
+            Tools.error("Failed to playback the tone :" + tone);
+            e.printStackTrace(Tools.err);
+        } finally {
+            handle.inProgress(false);
+        }
+    }
+
+    // playing back the tone's audio
+    private void playingBackTone(H handle, ToneAudioInputStream toneIn, SourceDataLine channel) throws IOException {
+        // playing back from audio data stream
+        playingBackAudioStream(handle, toneIn, channel);
+        final String message = "--- Finished playing tone: " + toneIn.toneId;
+        // Tools.print(message);
+        // putting the event about the end of audio data reached
+        putEvent(stopIt(handle, TONE_PLAYING, Result.IO.EOF));
+        //
+        // finalizing the audio playing if source data line is active
+        if (channel.isActive()) {
+            // Wait for buffer to empty before closing
+            channel.drain();
+            //
+            // finishing up the channel's playback
+            channel.stop();
+            channel.close();
+        }
+    }
+
+    // playing raw audio data through source data line
+    private void playingBackAudioStream(
+            final H handle, final InputStream rawAudioInputStream, final SourceDataLine channel
+    ) throws IOException {
+        //
+        // playing back audio stuff preparation
+        final byte[] buffer = new byte[BUFFER_SIZE];
+        int bytesToPlay;
+        // playing back audio operation is started
+        handle.inProgress(true);
+        // getting audio chunks from the file and playing them back
+        while (Boolean.TRUE.equals(handle.isSourceActive())) {
+            // getting audio chunk from the file
+            if ((bytesToPlay = rawAudioInputStream.read(buffer, 0, buffer.length)) > 0) {
+                // playing back the audio chunk through the started channel
+                channel.write(buffer, 0, bytesToPlay);
+            } else {
+                break;
+            }
+        }
+    }
+
+    // the stream of generated tone's audio data
+    private static class ToneAudioInputStream extends InputStream {
+        private final byte[] buffer;
+        private final ToneId toneId;
+        private int index;
+
+        private ToneAudioInputStream(byte[] buffer, ToneId toneId) {
+            this.buffer = buffer;
+            this.toneId = toneId;
+            index = 0;
+        }
+
+        @Override
+        public int read() {
+            return nextByte();
+        }
+
+        // getting next read byte value or -1
+        private int nextByte() {
+            return buffer == null || buffer.length == 0 ? -1 : fromRing();
+        }
+
+        // getting byte from buffer's ring
+        private int fromRing() {
+            try {
+                return buffer[index];
+            } finally {
+                final int followingIndex = index + 1;
+                index = followingIndex >= buffer.length ? 0 : followingIndex;
+            }
+        }
+    }
+
+    // to make raw audio data for the telephony tone playing
+    private static byte[] toneBuffer(TelephonyTone tone) {
+        if (tone == null || tone.getPrimary().getFrequencyHz() <= 0) {
+            // empty tone or not declared primary tone frequency
+            return new byte[0];
+        }
+        // generating final version of the tone's buffer
+        try (ByteArrayOutputStream result = new ByteArrayOutputStream()) {
+            final int primaryFreq = tone.getPrimary().getFrequencyHz();
+            final int secondFreq = tone.getSecondary().getFrequencyHz();
+            final int playing = tone.getDuration().getOnTime();
+            final int silence = tone.getDuration().getOffTime();
+            // write the sound part of the tone
+            result.write(secondFreq <= 0
+                    // only the primary tone's frequency is declared (single)
+                    ? singleTonesBuffer(primaryFreq, playing)
+                    // the botch frequencies are declared (dual)
+                    : dualTonesBuffer(primaryFreq, secondFreq, playing)
+            );
+            if (silence > 0) {
+                // write the silence part of the tone
+                result.write(silenceBuffer(silence));
+            }
+            // prepare stream for the result's getting
+            result.flush();
+            // tone result buffer getting
+            return result.toByteArray();
+        } catch (IOException e) {
+            Tools.error("Cannot generate buffer for :" + tone.getId());
+            e.printStackTrace(Tools.err);
+            // nothing to generate (error detected)
+            return new byte[0];
+        }
     }
 
     @Override
     protected void nativeStopToneSending(H handle) {
-        super.nativeStopToneSending(handle);
+        // calling native stop audio paying back method
+        nativeStopAudioPlaying(handle);
     }
 
     @Override
@@ -541,13 +711,11 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
     // starting fax activity
     private boolean nativeStartFax(H handle, String filePath, String errorReason) {
         if (isOpened(handle) && Paths.get(filePath).toFile().exists()) {
-            // preparing the hardware error event putting
-            final Runnable activity = () -> {
+            // to postpone hardware-error event trowing in 50 millis
+            schedulePostponedActivity(handle, () -> {
                 putEvent(faxDeviceError(handle, errorReason));
                 deviceActivity.remove(handle);
-            };
-            // postpone hardware error trowing in 50 millis
-            postponedActivity(handle, scheduler.schedule(activity, 50, TimeUnit.MILLISECONDS));
+            }, runActionIn(50));
             return true;
         } else {
             // wasn't start operation
@@ -555,23 +723,32 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
         }
     }
 
+    // preparing audio data playing stuff
+    private SourceDataLine beforeAudioPlaying(
+            final H handle, final AudioFormat audioFormat
+    ) throws LineUnavailableException {
+        // preparing source data line for the audio playing
+        final SourceDataLine channel = AudioSystem.getSourceDataLine(audioFormat);
+        //
+        // adjusting source line listener
+        channel.addLineListener(event -> {
+            if (event.getType() == LineEvent.Type.STOP) {
+                // removing the source line from the handle (to stop capturing the audio loop)
+                handle.setSourceLine(null);
+            }
+        });
+        // adjusting and starting the source data line channel
+        channel.open(audioFormat);
+        handle.setSourceLine(channel);
+        channel.start();
+        return channel;
+    }
+
     // playing back the audio file using handle's source line
     private void nativePlayingBackAudioFile(final H handle, final File audioFile) {
         try (final AudioInputStream audioStream = AudioSystem.getAudioInputStream(audioFile)) {
-            final AudioFormat audioFormat = audioStream.getFormat();
-            final SourceDataLine channel = AudioSystem.getSourceDataLine(audioFormat);
-            //
-            // adjusting source line listener
-            channel.addLineListener(event -> {
-                if (event.getType() == LineEvent.Type.STOP) {
-                    // removing the source line from the handle (to stop capturing the audio loop)
-                    handle.setSourceLine(null);
-                }
-            });
-            // adjusting and starting the source data line channel
-            channel.open(audioFormat);
-            handle.setSourceLine(channel);
-            channel.start();
+            // preparing audio data playing stuff
+            final SourceDataLine channel = beforeAudioPlaying(handle, audioStream.getFormat());
             // playing back the audio
             playbackAudio(handle, audioStream, channel, audioFile);
         } catch (LineUnavailableException | UnsupportedAudioFileException | IOException e) {
@@ -586,39 +763,25 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
 
     // playing back the audio
     private void playbackAudio(H handle, AudioInputStream audioStream, SourceDataLine channel, File audioFile) throws IOException {
-        //
-        // playing back audio stuff preparation
-        final byte[] buffer = new byte[BUFFER_SIZE];
-        int bytesToPlay;
-        // playing back audio operation is started
-        handle.inProgress(true);
-        // getting audio chunks from the file and playing them back
-        while (Boolean.TRUE.equals(handle.isSourceActive())) {
-            // getting audio chunk from the file
-            if ((bytesToPlay = audioStream.read(buffer, 0, buffer.length)) > 0) {
-                // playing back the audio chunk through the started channel
-                channel.write(buffer, 0, bytesToPlay);
-            } else {
-                break;
-            }
-        }
+        // playing back from audio data stream
+        playingBackAudioStream(handle, audioStream, channel);
         final String message = "--- Finished playing file: " + audioFile.getName();
         // Tools.print(message);
         // audio playing operation is completed
         if (Boolean.TRUE.equals(handle.isSourceActive())) {
             // the end of audio stream is reached, sending EOF event
             // putting the event about the end of file reached
-            putEvent(stopIt(handle, AUDIO_RECORDING, Result.IO.EOF));
+            putEvent(stopIt(handle, AUDIO_PLAYING, Result.IO.EOF));
         } else
             // audio playing back is terminated outside
             if (channel.isActive()) {
                 // timeout state applied outside
                 // putting the operation timeout event
-                putEvent(stopIt(handle, AUDIO_RECORDING, Result.TIMEOUT));
+                putEvent(stopIt(handle, AUDIO_PLAYING, Result.TIMEOUT));
             } else {
                 // audio playing back is stopped outside
                 // putting the event about the end of file reached
-                putEvent(stopIt(handle, AUDIO_RECORDING, Result.IO.EOF));
+                putEvent(stopIt(handle, AUDIO_PLAYING, Result.IO.EOF));
             }
         //
         // finalizing the audio playing if source data line is active
@@ -758,7 +921,7 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
                 .option(DeviceEvent.Option.REASON, (OperationResultValue) Result.FAX.COMPATIBILITY);
     }
 
-    // to cancel any shadow activity running for the given handle
+    // to cancel any shadow (postponed) activity running for the given handle
     private void cancelPostponedActivity(H handle) {
         final ScheduledFuture<?> currentActivity = deviceActivity.remove(handle);
         if (currentActivity != null && !currentActivity.isDone()) {
@@ -766,11 +929,41 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
         }
     }
 
-    // to make started the shadow activity for the given handle
-    private void postponedActivity(H handle, ScheduledFuture<?> activity) {
-        final ScheduledFuture<?> previousActivity = deviceActivity.put(handle, activity);
+    // to schedule postponed activity and register it for the given handle
+    private void schedulePostponedActivity(final H handle, final Runnable activity, final RunActivityIn runIn) {
+        final ScheduledFuture<?> previousActivity = deviceActivity.put(handle,
+                scheduler.schedule(activity, runIn.delay, runIn.unit)
+        );
         if (previousActivity != null && !previousActivity.isDone()) {
             previousActivity.cancel(true);
+        }
+    }
+
+    // to build run-activity-in-delay instance delay & time-unit
+    private static RunActivityIn runActionIn(long delay, TimeUnit unit) {
+        return RunActivityIn.of(delay, unit);
+    }
+
+    // to build run-activity-in-delay instance delay in milliseconds
+    private static RunActivityIn runActionIn(long delay) {
+        return RunActivityIn.of(delay);
+    }
+
+    private static class RunActivityIn {
+        final long delay;
+        final TimeUnit unit;
+
+        private RunActivityIn(long delay, TimeUnit unit) {
+            this.delay = delay;
+            this.unit = unit;
+        }
+
+        static RunActivityIn of(long delay, TimeUnit unit) {
+            return new RunActivityIn(delay, unit);
+        }
+
+        static RunActivityIn of(long delay) {
+            return new RunActivityIn(delay, TimeUnit.MILLISECONDS);
         }
     }
 }

@@ -60,7 +60,6 @@ import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.TelephonyServiceProvider;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
-import org.visualcti.core.channel.telephony.operation.ToneId;
 import org.visualcti.core.channel.telephony.operation.adapter.TelephonyTone;
 import org.visualcti.media.Audio;
 
@@ -1060,7 +1059,7 @@ public class AbstractTelephonyServiceProviderTest<H> {
         // preparing test data
         String resourceName = "resourceName";
         H handle = (H) "handle";
-        ToneId tone = ToneId.BEEP;
+        TelephonyTone tone = mock(TelephonyTone.class);
         doReturn(handle).when(provider).nativeResourceOpen(resourceName);
         H resourceHandle = provider.openResource(resourceName);
         assertThat(provider.isOpened(resourceHandle)).isTrue();
@@ -1081,7 +1080,7 @@ public class AbstractTelephonyServiceProviderTest<H> {
         // preparing test data
         String resourceName = "resourceName";
         H handle = (H) "handle";
-        ToneId tone = ToneId.BEEP;
+        TelephonyTone tone = mock(TelephonyTone.class);
         doReturn(handle).when(provider).nativeResourceOpen(resourceName);
         H resourceHandle = provider.openResource(resourceName);
         assertThat(provider.isOpened(resourceHandle)).isTrue();
@@ -1093,7 +1092,7 @@ public class AbstractTelephonyServiceProviderTest<H> {
 
         // check the behavior
         verify(provider).isOpened(handle);
-        verify(provider, never()).nativeStartToneSending(any(), any(ToneId.class));
+        verify(provider, never()).nativeStartToneSending(any(), any(TelephonyTone.class));
         // check results
         assertThat(started).isFalse();
     }
