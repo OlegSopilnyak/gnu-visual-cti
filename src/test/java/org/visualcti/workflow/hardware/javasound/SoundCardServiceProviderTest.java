@@ -35,7 +35,7 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.server.hardware.provider.javasound;
+package org.visualcti.workflow.hardware.javasound;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
@@ -52,7 +52,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
-import static org.visualcti.server.hardware.provider.javasound.SoundCardServiceProvider.SOUND_DEVICE;
+import static org.visualcti.workflow.hardware.javasound.SoundCardServiceProvider.SOUND_DEVICE;
 
 import java.io.File;
 import java.io.IOException;

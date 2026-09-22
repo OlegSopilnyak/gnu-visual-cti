@@ -35,7 +35,7 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.server.hardware.provider.javasound;
+package org.visualcti.workflow.hardware.javasound;
 
 import org.visualcti.core.channel.device.adapter.AbstractDeviceEvent;
 
@@ -46,7 +46,7 @@ import org.visualcti.core.channel.device.adapter.AbstractDeviceEvent;
  * @see AbstractDeviceEvent
  */
 public final class SoundCardEvent<H extends SoundCardHandle> extends AbstractDeviceEvent<H> {
-    private SoundCardEvent(Type eventType) {
+    SoundCardEvent(Type eventType) {
         super(eventType);
     }
 }

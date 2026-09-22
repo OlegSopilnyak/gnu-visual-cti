@@ -177,6 +177,7 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit, XmlAware
      * @return built device session
      * @throws IOException if device cannot create the session for device handle
      * @see DeviceActivitySession
+     * @see #startSession()
      */
     default DeviceActivitySession<H> createSessionFor(H openedDeviceHandle) throws IOException {
         throw new IOException("Not supported yet.");

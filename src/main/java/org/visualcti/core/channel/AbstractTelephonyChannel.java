@@ -50,6 +50,7 @@ import org.visualcti.server.channel.ChannelTaskRunnerAdapter;
  * @see AbstractChannel
  * @see TelephonyDevice
  */
+@SuppressWarnings({"unchecked"})
 public abstract class AbstractTelephonyChannel<D extends TelephonyDevice<?, ?>>
         extends AbstractChannel<D> implements TelephonyChannel<D> {
     protected AbstractTelephonyChannel(D device) {
@@ -82,10 +83,11 @@ public abstract class AbstractTelephonyChannel<D extends TelephonyDevice<?, ?>>
 
     @Override
     public boolean equals(Object o) {
-        if (!(o instanceof AbstractTelephonyChannel)) return false;
-        if (!super.equals(o)) return false;
-        AbstractTelephonyChannel<?> that = (AbstractTelephonyChannel<?>) o;
-        return Objects.equals(getName(), that.getName());
+        return o instanceof AbstractTelephonyChannel && equals((AbstractTelephonyChannel<D>)o);
+    }
+
+    public boolean equals(AbstractTelephonyChannel<D> that) {
+        return super.equals(that) && Objects.equals(getName(), that.getName());
     }
 
     @Override

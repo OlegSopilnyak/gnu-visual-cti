@@ -35,16 +35,20 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.server.hardware.provider.javasound;
+package org.visualcti.workflow.hardware.javasound;
 
-import javax.sound.sampled.AudioSystem;
-import javax.sound.sampled.Line;
-import javax.sound.sampled.Port;
-
+import org.visualcti.core.channel.device.DeviceActivitySession;
 import org.visualcti.core.channel.telephony.TelephonyServiceProvider;
 import org.visualcti.core.channel.telephony.adapter.AbstractTelephonyDevice;
 import org.visualcti.core.channel.telephony.adapter.AbstractTelephonyFactory;
-import org.visualcti.core.channel.telephony.adapter.AbstractTelephonyServiceProvider;
+import org.visualcti.core.channel.telephony.part.CallsPortEngine;
+import org.visualcti.core.channel.telephony.part.FaxMachineEngine;
+import org.visualcti.core.channel.telephony.part.MultimediaEngine;
+import org.visualcti.core.channel.telephony.part.TonesEngine;
+import org.visualcti.core.channel.telephony.part.adapter.AbstractCallsPortEngine;
+import org.visualcti.core.channel.telephony.part.adapter.AbstractFaxMachineEngine;
+import org.visualcti.core.channel.telephony.part.adapter.AbstractMultimediaEngine;
+import org.visualcti.core.channel.telephony.part.adapter.AbstractTonesEngine;
 
 
 /**
@@ -55,13 +59,28 @@ import org.visualcti.core.channel.telephony.adapter.AbstractTelephonyServiceProv
  * @param <H> sound-card device handle type
  * @author Sopilnyak Oleg
  * @version 3.2
- * @see AbstractTelephonyServiceProvider
+ * @see AbstractTelephonyDevice
  */
 public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTelephonyFactory<H, ?>>
         extends AbstractTelephonyDevice<H, F> {
 
     protected SoundCardDevice(String name, TelephonyServiceProvider<H> provider) {
         super(name, provider);
+    }
+
+    protected SoundCardDevice(String name, TelephonyServiceProvider<H> provider,
+                              CallsPortEngine<H> calls, TonesEngine<H> tones, MultimediaEngine<H> media, FaxMachineEngine<H> faxes) {
+        super(name, provider, calls, tones, media, faxes);
+    }
+
+    @Override
+    public DeviceActivitySession<H> createSessionFor(H handle) {
+        return new DefaultTelephonyCall<>(this, handle);
+    }
+
+    @Override
+    public boolean canBeConnected() {
+        return false;
     }
 
     /**
@@ -73,7 +92,7 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
      */
     @Override
     protected H wrongHandle() {
-        return super.wrongHandle();
+        return SoundCardHandle.wrong();
     }
 
     /**
@@ -85,23 +104,43 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
      */
     @Override
     protected H errorHandle() {
-        return super.errorHandle();
+        return SoundCardHandle.wrong();
     }
 
-    public static void main(String[] args) {
-        System.out.println("----------- Source Lines");
-        Line.Info[] source = AudioSystem.getSourceLineInfo(Port.Info.MICROPHONE);
-        for (int i = 0; i < source.length; i++) {
-            System.out.println("Source Line Info:" + i + ": " + source[i].toString());
-            System.out.println("Source Line Info:" + i + ": " + source[i].getLineClass().toString());
-            System.out.println("Source Line Info:" + i + ": " + source[i].getLineClass().getName());
-        }
-        System.out.println("----------- Target Lines");
-        Line.Info[] target = AudioSystem.getTargetLineInfo(Port.Info.SPEAKER);
-        for (int i = 0; i < target.length; i++) {
-            System.out.println("Target Line Info:" + i + ": " + target[i].toString());
-            System.out.println("Target Line Info:" + i + ": " + target[i].getLineClass().toString());
-            System.out.println("Target Line Info:" + i + ": " + target[i].getLineClass().getName());
-        }
+    @Override
+    protected CallsPortEngine<H> callsPart() {
+        return new CallControl();
+    }
+
+    @Override
+    protected TonesEngine<H> tonesPart() {
+        return new Tones();
+    }
+
+    @Override
+    protected MultimediaEngine<H> mediaPart() {
+        return new Media();
+    }
+
+    @Override
+    protected FaxMachineEngine<H> faxPart() {
+        return new Fax();
+    }
+
+    // inner classes
+    private class CallControl extends AbstractCallsPortEngine<H> {
+
+    }
+
+    private class Tones extends AbstractTonesEngine<H> {
+
+    }
+
+    private class Media extends AbstractMultimediaEngine<H> {
+
+    }
+
+    private class Fax extends AbstractFaxMachineEngine<H> {
+
     }
 }

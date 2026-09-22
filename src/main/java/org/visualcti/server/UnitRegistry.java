@@ -90,8 +90,15 @@ public final class UnitRegistry {
         if (path == null) {
             throw new IOException("Unit has an invalid path");
         }
-        // looking for target unit by unit-path
+        //
+        // checking is unit really wants to be registered
+        if (!unit.isNeedRegistration()) {
+            // not needed to be registered
+            return;
+        }
+        // trying to register the unit
         try {
+            // looking for target unit by unit-path
             safeAction(() -> {
                 if (units.get(path) != null) {
                     throw new IOException("Unit with path [" + path + "] is registered already.");

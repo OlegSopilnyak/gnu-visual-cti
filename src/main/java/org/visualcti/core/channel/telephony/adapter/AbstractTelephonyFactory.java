@@ -78,14 +78,14 @@ import org.visualcti.server.unit.ServerUnitAdapter;
  * <p>
  *
  * @param <H>  the type of the device's low-level operations handle
- * @param <TD> the type of factory's telephony device
+ * @param <T> the type of factory's telephony device
  * @see TelephonyDevice
  * @see TelephonyFactory
  * @see AbstractGeneralFactory
  */
 @SuppressWarnings("unchecked")
-public abstract class AbstractTelephonyFactory<H, TD extends TelephonyDevice<H, ?>>
-        extends AbstractGeneralFactory<H, TD> implements TelephonyFactory<H, TD> {
+public abstract class AbstractTelephonyFactory<H, T extends TelephonyDevice<H, ?>>
+        extends AbstractGeneralFactory<H, T> implements TelephonyFactory<H, T> {
     // to safeguard the access to the shared device sessions set
     private final Lock sessionsLock = new ReentrantLock();
 
@@ -120,21 +120,19 @@ public abstract class AbstractTelephonyFactory<H, TD extends TelephonyDevice<H, 
             case VENDOR_PARAMETER_NAME:
                 // the configuration parameter of the vendor's name
                 setVendor(parameter.getValue());
-                // cleaning cached unit xml-configuration
-                this.unitConfiguration = null;
                 break;
             case CONFIGURATION_URL_PARAMETER_NAME:
                 // the configuration parameter of the devices-configurations-file URL from the vendor
                 loadVendorConfigurationFrom(parameter.getValue());
-                // cleaning cached unit xml-configuration
-                this.unitConfiguration = null;
                 break;
             case VENDOR_FACTORY_VERSION_PARAMETER_NAME:
                 vendorVersion = parameter.getValue();
-                // cleaning cached unit xml-configuration
-                this.unitConfiguration = null;
                 break;
+            default:
+                return;
         }
+        // cleaning cached unit xml-configuration for enumerated parameter names
+        this.unitConfiguration = null;
     }
 
     /**
@@ -172,6 +170,7 @@ public abstract class AbstractTelephonyFactory<H, TD extends TelephonyDevice<H, 
      * @see Element
      * @see ServerUnitAdapter#prepareUnitParametersXML(Element)
      */
+    @Override
     protected void prepareUnitParametersXML(Element rootElement) {
         // saving default unit parameters
         super.prepareUnitParametersXML(rootElement);
@@ -340,7 +339,7 @@ public abstract class AbstractTelephonyFactory<H, TD extends TelephonyDevice<H, 
      * @return built channel
      */
     @Override
-    protected abstract TelephonyChannel<TD> makeChannelFor(Device<?, ?> device);
+    protected abstract TelephonyChannel<T> makeChannelFor(Device<?, ?> device);
 
     ///
     /// private methods

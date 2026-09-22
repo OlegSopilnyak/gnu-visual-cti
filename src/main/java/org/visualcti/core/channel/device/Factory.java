@@ -64,8 +64,8 @@ import org.visualcti.server.core.unit.ServerUnit;
  */
 @SuppressWarnings("unchecked")
 public interface Factory<H, D extends Device<?, ?>> extends RunnableServerUnit, DeviceEventsProcessor<H> {
-    // The name of root XML's Element
-    String ELEMENT = "factory";
+    // The name of root configuration xml-element
+    String XML_ROOT_NAME = "factory";
     // the value of type the server unit
     String UNIT_TYPE = "[channel-devices-board]";
     // the suffix of factory vendor's configuration file
@@ -74,6 +74,18 @@ public interface Factory<H, D extends Device<?, ?>> extends RunnableServerUnit, 
     String VENDOR_FACTORY_VERSION_PARAMETER_NAME = "version";
     String VENDOR_FACTORY_DEFAULT_VERSION = "0.0.0";
     String CONFIGURATION_URL_PARAMETER_NAME = "url";
+
+    /**
+     * <accessor>
+     * To get the name of the root element name in XML result
+     *
+     * @return the name of root element
+     * @see #getXML()
+     */
+    @Override
+    default String getRootElementName() {
+        return XML_ROOT_NAME;
+    }
 
     /**
      * <accessor>

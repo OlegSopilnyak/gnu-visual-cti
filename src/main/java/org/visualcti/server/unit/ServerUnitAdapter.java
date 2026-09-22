@@ -406,7 +406,7 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
         }
         // check data from incoming unit builder xml
         final String builderClassName = className.apply(
-                builder.getAttributeValue(UNIT_TYPE_PACKAGE),builder.getAttributeValue(UNIT_TYPE_CLASS)
+                builder.getAttributeValue(UNIT_TYPE_PACKAGE), builder.getAttributeValue(UNIT_TYPE_CLASS)
         );
         // check builder class name
         if (!unitBuilderClass.getName().equals(builderClassName)) {

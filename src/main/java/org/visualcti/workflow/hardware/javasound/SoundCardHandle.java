@@ -35,7 +35,7 @@ Fax number: 217-356-3356
 ##############################################################################
 
 */
-package org.visualcti.server.hardware.provider.javasound;
+package org.visualcti.workflow.hardware.javasound;
 
 import javax.sound.sampled.DataLine;
 import javax.sound.sampled.SourceDataLine;
@@ -56,6 +56,8 @@ import java.util.function.Predicate;
  */
 @SuppressWarnings("unchecked")
 public class SoundCardHandle {
+    // wrong value of sound card device handle
+    public static final SoundCardHandle WRONG_HANDLE = of(null, null);
     // predicate to test is it impossible to use this handle
     private static final Predicate<SoundCardHandle> isWrong = handle ->
             handle.source == null && handle.target == null;
@@ -89,7 +91,7 @@ public class SoundCardHandle {
      * @return built instance of SoundCardHandle
      */
     public static <H extends SoundCardHandle> H wrong() {
-        return (H) of(null, null);
+        return (H) WRONG_HANDLE;
     }
 
     public DataLine.Info getSource() {
@@ -98,6 +100,16 @@ public class SoundCardHandle {
 
     public DataLine.Info getTarget() {
         return target;
+    }
+
+    @Override
+    public String toString() {
+        return "SoundCard Device Handle {" +
+                "valid="+ canUse()+
+                ", can-play=" + (getSource() != null) +
+                ", can-record=" + (getTarget() != null) +
+                ", in-progress=" + inProgress.get() +
+                '}';
     }
 
     /**

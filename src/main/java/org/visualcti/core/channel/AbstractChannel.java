@@ -51,9 +51,9 @@ import org.visualcti.server.unit.ServerUnitAdapter;
 /**
  * The Channel Adapter: The channel through device of which task is communicating with external world
  *
+ * @param <D> the type of channel device
  * @see ServerUnit
  * @see Channel
- * @param <D> the type of channel device
  */
 public abstract class AbstractChannel<D extends Device<?, ?>> extends ServerUnitAdapter implements Channel<D> {
     // the device associated with the channel
@@ -69,9 +69,10 @@ public abstract class AbstractChannel<D extends Device<?, ?>> extends ServerUnit
 
     @Override
     public boolean equals(Object o) {
-        if (!(o instanceof AbstractChannel)) return false;
-        if (!super.equals(o)) return false;
-        AbstractChannel<?> that = (AbstractChannel<?>) o;
+        return o instanceof AbstractChannel && equals((AbstractChannel<?>) o);
+    }
+
+    public boolean equals(AbstractChannel<?> that) {
         return Objects.equals(getName(), that.getName());
     }
 

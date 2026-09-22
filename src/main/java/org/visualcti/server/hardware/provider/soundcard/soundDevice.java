@@ -58,8 +58,9 @@ import org.visualcti.server.hardware.proxy.*;
  * <p>Company: Prominic Ukraine Co</p>
  * @author Sopilnyak Oleg
  * @version 1.0
+ * @deprecated
  */
-
+@Deprecated
 public class soundDevice extends stubDevice
 {
 /**
