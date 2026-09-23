@@ -92,13 +92,13 @@ public class SoundCardServiceProviderTest {
     ScheduledExecutorService shadowScheduler;
 
     @Before
-    public void setUp() throws Exception {
+    public void setUp() {
         provider = spy(new SoundCardServiceProvider<>(scheduler));
-        shadowScheduler = Executors.newScheduledThreadPool(2);
+        shadowScheduler = Executors.newScheduledThreadPool(10);
     }
 
     @After
-    public void tearDown() throws Exception {
+    public void tearDown() {
         shadowScheduler.shutdown();
         shadowScheduler = null;
     }

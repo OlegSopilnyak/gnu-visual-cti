@@ -335,13 +335,16 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
             // starting playing back the file in the separate thread
             scheduler.schedule(() -> nativePlayingBackAudioFile(handle, audioFile), 0, TimeUnit.MILLISECONDS);
             //
-            // to schedule stopping playing when the playing timeout will be reached
-            schedulePostponedActivity(handle, () -> {
-                // removing the source line from the handle (will stop the loop of the audio playing)
-                handle.setSourceLine(null);
-                // removing postponed activity for the handle
-                deviceActivity.remove(handle);
-            }, runActionIn(timeout, TimeUnit.SECONDS));
+            // setting up interruption by timed out
+            if (timeout > 0) {
+                // to schedule stopping playing when the playing timeout will be reached
+                schedulePostponedActivity(handle, () -> {
+                    // removing the source line from the handle (will stop the loop of the audio playing)
+                    handle.setSourceLine(null);
+                    // removing postponed activity for the handle
+                    deviceActivity.remove(handle);
+                }, runActionIn(timeout, TimeUnit.SECONDS));
+            }
             return true;
         } else {
             // didn't start playing
@@ -547,10 +550,21 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
         playingBackAudioStream(handle, audioStream, channel);
         final String message = "--- Finished playing file: " + audioFile.getName();
         // Tools.print(message);
+        //
+        // finalizing the audio playing if source data line is active
+        if (channel.isActive()) {
+            // Wait for buffer to empty before closing
+            channel.drain();
+            //
+            // finishing up the channel's playback
+            channel.stop();
+            channel.close();
+        }
         // audio playing operation is completed
         if (Boolean.TRUE.equals(handle.isSourceActive())) {
+            // closing input stream
+            audioStream.close();
             // the end of audio stream is reached, sending EOF event
-            // putting the event about the end of file reached
             putEvent(stopIt(handle, AUDIO_PLAYING, Result.IO.EOF));
         } else
             // audio playing back is terminated outside
@@ -563,16 +577,6 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
                 // putting the event about the end of file reached
                 putEvent(stopIt(handle, AUDIO_PLAYING, Result.IO.EOF));
             }
-        //
-        // finalizing the audio playing if source data line is active
-        if (channel.isActive()) {
-            // Wait for buffer to empty before closing
-            channel.drain();
-            //
-            // finishing up the channel's playback
-            channel.stop();
-            channel.close();
-        }
     }
 
     // recording the audio to file using handle's target line
@@ -890,9 +894,12 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
         while (Boolean.TRUE.equals(handle.isSourceActive())) {
             // getting audio chunk from the file
             if ((bytesToPlay = rawAudioInputStream.read(buffer, 0, buffer.length)) > 0) {
+//                Tools.print("read for play bytes: " + bytesToPlay);
                 // playing back the audio chunk through the started channel
                 channel.write(buffer, 0, bytesToPlay);
+//                Tools.print("played bytes: " + bytesToPlay);
             } else {
+//                Tools.print("read for play last bytes: " + bytesToPlay);
                 break;
             }
         }

@@ -179,12 +179,14 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
                             // finishing processing of the operation
                             break;
                         } else {
+                            System.err.println("---- Cannot delete temp file");
                             // for some reason didn't delete the temporary file
                             session.setState(Device.State.ERROR);
                             return Result.ERROR;
                         }
                         // checking device's hardware error
                     } else if (operationResult == Result.ERROR) {
+                        System.err.println("---- Error as result");
                         // device hardware error is detected
                         final String errorReason = "Playback audio is failed.";
                         return playbackAudioError(deviceHandle, tempFile, session, errorReason);
@@ -236,6 +238,7 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
                         stopAudioPlaying(serviceProvider, deviceHandle);
                         // deleting temporary file
                         if (!tempFile.delete()) {
+                            System.err.println("---- Cannot delete temp file after disconnect");
                             session.setState(Device.State.ERROR);
                             return Result.ERROR;
                         }
@@ -260,8 +263,10 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
                 // stopping audio data transmitting by service provider
                 stopAudioPlaying(serviceProvider, deviceHandle);
                 session.setState(Device.State.ERROR);
+                System.err.println("---- Interrupted waiting");
                 return Result.ERROR;
             } catch (IOException e) {
+                System.err.println("---- IO exception waiting");
                 session.getDevice().dispatchError(e, "Temporary file creation failed.");
                 session.setState(Device.State.ERROR);
                 return Result.ERROR;
@@ -274,6 +279,7 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
             session.setState(Device.State.IDLE);
             return session.operationResult();
         }
+        System.err.println("---- playback operation didn't finish well");
         // playback operation didn't finish well
         session.setState(Device.State.ERROR);
         return Result.ERROR;

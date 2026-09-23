@@ -38,6 +38,7 @@ Fax number: 217-356-3356
 package org.visualcti.workflow.hardware.javasound;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.atLeastOnce;
@@ -49,16 +50,25 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
+import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceActivitySession;
 import org.visualcti.core.channel.device.DeviceEvent;
+import org.visualcti.core.channel.device.operation.OperationResultValue;
+import org.visualcti.core.channel.telephony.operation.PhoneCall;
 import org.visualcti.core.channel.telephony.operation.Result;
+import org.visualcti.core.channel.telephony.operation.ToneId;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
+import org.visualcti.core.channel.telephony.operation.adapter.PhoneNumber;
 import org.visualcti.core.channel.telephony.part.CallsPortEngine;
 import org.visualcti.core.channel.telephony.part.FaxMachineEngine;
 import org.visualcti.core.channel.telephony.part.MultimediaEngine;
@@ -68,6 +78,7 @@ import org.visualcti.core.channel.telephony.part.adapter.AbstractCallsPortEngine
 import org.visualcti.core.channel.telephony.part.adapter.AbstractFaxMachineEngine;
 import org.visualcti.core.channel.telephony.part.adapter.AbstractMultimediaEngine;
 import org.visualcti.core.channel.telephony.part.adapter.AbstractTonesEngine;
+import org.visualcti.media.Audio;
 
 @SuppressWarnings({"unchecked", "rawtypes"})
 public class SoundCardDeviceTest<H extends SoundCardHandle> {
@@ -87,7 +98,7 @@ public class SoundCardDeviceTest<H extends SoundCardHandle> {
     @Before
     public void setUp() throws Exception {
         deviceEventExecutor = mock(Executor.class);
-        shadowExecutor = Executors.newScheduledThreadPool(2);
+        shadowExecutor = Executors.newScheduledThreadPool(10);
         doAnswer(invocation -> {
             shadowExecutor.execute(invocation.getArgument(0, Runnable.class));
             return null;
@@ -104,9 +115,15 @@ public class SoundCardDeviceTest<H extends SoundCardHandle> {
         });
         device = spy(new SoundCardDevice<>(SoundCardServiceProvider.SOUND_DEVICE, provider, calls, tones, media, faxes));
         factory.addDevice(device);
+        factory.Start();
         session = (PhoneCallSession<H>) spy(device.startSession());
         deviceHandle = session.getDeviceHandle();
         reset(device, session, factory, provider);
+    }
+
+    @After
+    public void tearDown() throws Exception {
+        factory.Stop();
     }
 
     @Test
@@ -276,5 +293,135 @@ public class SoundCardDeviceTest<H extends SoundCardHandle> {
         verify(faxes).terminate(session);
         // check results
         assertThat(session.isTerminated()).isTrue();
+    }
+
+    @Test
+    public void shouldWaitForCall() {
+        // preparing test data
+        calls.uses(device);
+        int rings = 1;
+        int timeout = 1;
+        boolean answer = true;
+
+        // acting
+        boolean success = device.waitForCall(session, rings, timeout, answer);
+
+        // check the behavior
+        verify(device).isOpened();
+        verify(calls).waitForCall(session, rings, timeout, answer);
+        verify(calls).canAcceptCall();
+        verify(provider).canAcceptCall(device.getName());
+        verify(device).getParameter(CallsPortEngine.Parameter.ACCEPT_CALL_ALLOWED);
+        // check results
+        assertThat(success).isTrue();
+        assertThat(session.isAlive()).isFalse();
+        assertThat(session.getState()).isSameAs(Device.State.IDLE);
+        assertThat(session.operationResult()).isSameAs(Result.TIMEOUT);
+    }
+
+    @Test
+    public void shouldMakeCall() {
+        // preparing test data
+        calls.uses(device);
+        PhoneCall.Number target = PhoneNumber.of(1, 2, 3, 4);
+        int timeout = 1;
+
+        // acting
+        boolean success = device.makeCall(session, target, timeout);
+
+        // check the behavior
+        verify(device).isOpened();
+        verify(calls).makeCall(session, target, timeout);
+        verify(calls).canMakeCall();
+        verify(provider).canMakeCall(device.getName());
+        verify(device).getParameter(CallsPortEngine.Parameter.MAKE_CALL_ALLOWED);
+        verify(device).getParameter(CallsPortEngine.Parameter.ORIGIN);
+        // check results
+        assertThat(success).isTrue();
+        assertThat(session.isAlive()).isFalse();
+        assertThat(session.operationResult()).isSameAs(Result.CALL.Analysis.NO_ANSWER);
+        assertThat(session.getState()).isSameAs(Device.State.IDLE);
+    }
+
+    @Test
+    public void shouldDialNumber() {
+        // preparing test data
+        tones.uses(device);
+        String number = "123";
+        session.alive(true);
+
+        // acting
+        device.dial(session, number);
+
+        // check the behavior
+        verify(tones).dial(session, number);
+        // check results
+        assertThat(session.getState()).isSameAs(Device.State.IDLE);
+        assertThat(session.operationResult()).isSameAs(Result.OK);
+    }
+
+    @Test
+    public void shouldPlayTone() {
+        // preparing test data
+        tones.uses(device);
+        ToneId tone = ToneId.BEEP;
+        session.alive(true);
+
+        // acting
+        device.playTone(session, tone);
+
+        // check the behavior
+        verify(device).playTone(session, tone, 0.5F);
+        verify(device).isOpened();
+        verify(tones).playTone(session, tone, 0.5F);
+        // check results
+        assertThat(session.getState()).isSameAs(Device.State.IDLE);
+        assertThat(session.operationResult()).isSameAs(Result.OK);
+    }
+
+    @Test
+    public void shouldDoInputDigits() {
+        // preparing test data
+        tones.uses(device);
+        String terminationSymbolsMask = "*";
+        int digitsCount = 3;
+        int timeout = 1;
+        session.alive(true);
+
+        // acting
+        OperationResultValue result = device.inputDigits(session, digitsCount, timeout, terminationSymbolsMask);
+
+        // check the behavior
+        verify(device).isOpened();
+        verify(tones).inputDigits(session, digitsCount, timeout * 1000, terminationSymbolsMask);
+        // check results
+        assertThat(session.getState()).isSameAs(Device.State.IDLE);
+        assertThat(result).isSameAs(Result.TIMEOUT);
+    }
+
+    @Test
+    public void shouldPlaybackAudio() throws ExecutionException, InterruptedException {
+        // preparing test data
+        Audio format = Audio.LINEAR;
+        String terminationSymbolsMask = "*";
+        int timeout = -1;
+        InputStream source = provider.getClass().getResourceAsStream("/VM/prompts/MAIN_MENU1.WAV");
+        assertThat(source).isNotNull();
+        session.alive(true);
+
+        // acting
+        Future<OperationResultValue> action = shadowExecutor.submit(
+                () -> device.playbackAudio(session, source, format, terminationSymbolsMask, timeout)
+        );
+        await().until(() -> session.operationIsActive());
+        OperationResultValue result = action.get();
+
+        // check the behavior
+        verify(device).isOpened();
+        verify(media).playbackAudio(session, source, format, terminationSymbolsMask, timeout);
+        verify(media).canPlay(format);
+        // check results
+        assertThat(result).isEqualTo(Result.IO.EOF);
+        assertThat(session.getState()).isEqualTo(Device.State.IDLE);
     }
 }
