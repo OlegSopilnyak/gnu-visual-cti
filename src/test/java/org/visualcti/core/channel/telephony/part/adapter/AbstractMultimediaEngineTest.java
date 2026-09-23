@@ -55,12 +55,11 @@ import static org.mockito.Mockito.verify;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -97,12 +96,12 @@ public class AbstractMultimediaEngineTest<H> {
     TelephonyServiceProvider<H> provider;
     String deviceName = "device-name";
     H deviceHandle = (H) "handle";
-    final static Device.ParameterName ALLOWED_CODECS = MultimediaEngine.Parameter.ALLOWED_CODECS;
-    final static Device.ParameterName PLAYBACK_CODEC = MultimediaEngine.Parameter.PLAYBACK_CODEC;
-    final static Device.ParameterName RECORD_CODEC = MultimediaEngine.Parameter.RECORD_CODEC;
+    static final Device.ParameterName ALLOWED_CODECS = MultimediaEngine.Parameter.ALLOWED_CODECS;
+    static final Device.ParameterName PLAYBACK_CODEC = MultimediaEngine.Parameter.PLAYBACK_CODEC;
+    static final Device.ParameterName RECORD_CODEC = MultimediaEngine.Parameter.RECORD_CODEC;
 
     @Before
-    public void setUp() throws Exception {
+    public void setUp() {
         provider = mock(TelephonyServiceProvider.class);
         device = mock(TelephonyDevice.class);
         doReturn(deviceName).when(device).getName();
@@ -322,7 +321,7 @@ public class AbstractMultimediaEngineTest<H> {
         assertThat(session.operationResult()).isEqualTo(Result.NONE);
         File tempFile = session.parameter(MultimediaEngine.Parameter.AUDIO_TEMPORARY);
         assertThat(tempFile).exists();
-        try (BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(tempFile)))) {
+        try (BufferedReader in = new BufferedReader(new InputStreamReader(Files.newInputStream(tempFile.toPath())))) {
             assertThat(in.readLine()).isEqualTo(audio);
         }
     }
@@ -382,7 +381,7 @@ public class AbstractMultimediaEngineTest<H> {
         assertThat(session.operationResult()).isEqualTo(Result.NONE);
         File tempFile = session.parameter(MultimediaEngine.Parameter.AUDIO_TEMPORARY);
         assertThat(tempFile).exists();
-        try (BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(tempFile)))) {
+        try (BufferedReader in = new BufferedReader(new InputStreamReader(Files.newInputStream(tempFile.toPath())))) {
             assertThat(in.readLine()).isEqualTo(audio);
         }
     }
@@ -748,8 +747,9 @@ public class AbstractMultimediaEngineTest<H> {
         verify(session).isTerminated();
         verify(session).isDisconnected();
         verify(provider, atLeastOnce()).stopAudioPlaying(deviceHandle);
-        verify(session).setState(Device.State.ERROR);
+        verify(session, atLeastOnce()).setState(Device.State.ERROR);
         verify(device).dispatchError(malfunctionReason);
+        verify(engine).disconnect(session);
         // check results
         assertThat(result).isSameAs(Result.CALL.DISCONNECT);
         assertThat(session.getState()).isEqualTo(Device.State.ERROR);
@@ -775,7 +775,7 @@ public class AbstractMultimediaEngineTest<H> {
 
         // acting
         Future<OperationResultValue> recording = executor.submit(() -> {
-                    try (OutputStream audioStream = new FileOutputStream(tempFile)) {
+                    try (OutputStream audioStream = Files.newOutputStream(tempFile.toPath())) {
                         return engine.recordAudio(session, audioStream, recordFormat, terminationSymbolsMask, silence, timeout);
                     }
                 }
@@ -784,7 +784,7 @@ public class AbstractMultimediaEngineTest<H> {
         executor.schedule(() -> {
             final File audioTempFile = session.parameter(MultimediaEngine.Parameter.AUDIO_TEMPORARY);
             // saving audio content to the temporary media file of the record operation
-            try (OutputStream out = new FileOutputStream(audioTempFile)) {
+            try (OutputStream out = Files.newOutputStream(audioTempFile.toPath())) {
                 out.write(audio.getBytes());
             } catch (IOException e) {
                 // doing nothing here
@@ -817,8 +817,8 @@ public class AbstractMultimediaEngineTest<H> {
         assertThat(result).isSameAs(recordingResult);
         assertThat(session.getState()).isEqualTo(Device.State.IDLE);
         assertThat(session.operationResult()).isEqualTo(recordingResult);
-        assertThat(tempFile.exists()).isTrue();
-        try (BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(tempFile)))) {
+        assertThat(tempFile).exists();
+        try (BufferedReader in = new BufferedReader(new InputStreamReader(Files.newInputStream(tempFile.toPath())))) {
             assertThat(in.readLine()).isEqualTo(audio);
         }
         assertThat(tempFile.delete()).isTrue();
@@ -843,7 +843,7 @@ public class AbstractMultimediaEngineTest<H> {
 
         // acting
         Future<OperationResultValue> recording = executor.submit(() -> {
-                    try (OutputStream audioStream = new FileOutputStream(tempFile)) {
+                    try (OutputStream audioStream = Files.newOutputStream(tempFile.toPath())) {
                         return engine.recordAudio(session, audioStream, recordFormat, terminationSymbolsMask, silence, timeout);
                     }
                 }
@@ -852,7 +852,7 @@ public class AbstractMultimediaEngineTest<H> {
         executor.schedule(() -> {
             final File audioTempFile = session.parameter(MultimediaEngine.Parameter.AUDIO_TEMPORARY);
             // saving audio content to the temporary media file of the record operation
-            try (OutputStream out = new FileOutputStream(audioTempFile)) {
+            try (OutputStream out = Files.newOutputStream(audioTempFile.toPath())) {
                 out.write(audio.getBytes());
             } catch (IOException e) {
                 // doing nothing here
@@ -885,8 +885,8 @@ public class AbstractMultimediaEngineTest<H> {
         assertThat(result).isSameAs(recordingResult);
         assertThat(session.getState()).isEqualTo(Device.State.IDLE);
         assertThat(session.operationResult()).isEqualTo(recordingResult);
-        assertThat(tempFile.exists()).isTrue();
-        try (BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(tempFile)))) {
+        assertThat(tempFile).exists();
+        try (BufferedReader in = new BufferedReader(new InputStreamReader(Files.newInputStream(tempFile.toPath())))) {
             assertThat(in.readLine()).isEqualTo(audio);
         }
         assertThat(tempFile.delete()).isTrue();
@@ -912,7 +912,7 @@ public class AbstractMultimediaEngineTest<H> {
 
         // acting
         Future<OperationResultValue> recording = executor.submit(() -> {
-                    try (OutputStream audioStream = new FileOutputStream(tempFile)) {
+                    try (OutputStream audioStream = Files.newOutputStream(tempFile.toPath())) {
                         return engine.recordAudio(session, audioStream, recordFormat, terminationSymbolsMask, silence, timeout);
                     }
                 }
@@ -921,7 +921,7 @@ public class AbstractMultimediaEngineTest<H> {
         executor.schedule(() -> {
             final File audioTempFile = session.parameter(MultimediaEngine.Parameter.AUDIO_TEMPORARY);
             // saving audio content to the temporary media file of the record operation
-            try (OutputStream out = new FileOutputStream(audioTempFile)) {
+            try (OutputStream out = Files.newOutputStream(audioTempFile.toPath())) {
                 out.write(audio.getBytes());
             } catch (IOException e) {
                 // doing nothing here
@@ -955,8 +955,8 @@ public class AbstractMultimediaEngineTest<H> {
         assertThat(result).isSameAs(recordingResult);
         assertThat(session.getState()).isEqualTo(Device.State.IDLE);
         assertThat(session.operationResult()).isEqualTo(recordingResult);
-        assertThat(tempFile.exists()).isTrue();
-        try (BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(tempFile)))) {
+        assertThat(tempFile).exists();
+        try (BufferedReader in = new BufferedReader(new InputStreamReader(Files.newInputStream(tempFile.toPath())))) {
             assertThat(in.readLine()).isEqualTo(audio);
         }
         assertThat(tempFile.delete()).isTrue();
@@ -982,7 +982,7 @@ public class AbstractMultimediaEngineTest<H> {
 
         // acting
         Future<OperationResultValue> recording = executor.submit(() -> {
-                    try (OutputStream audioStream = new FileOutputStream(tempFile)) {
+                    try (OutputStream audioStream = Files.newOutputStream(tempFile.toPath())) {
                         return engine.recordAudio(session, audioStream, recordFormat, terminationSymbolsMask, silence, timeout);
                     }
                 }
@@ -991,7 +991,7 @@ public class AbstractMultimediaEngineTest<H> {
         executor.schedule(() -> {
             final File audioTempFile = session.parameter(MultimediaEngine.Parameter.AUDIO_TEMPORARY);
             // saving audio content to the temporary media file of the record operation
-            try (OutputStream out = new FileOutputStream(audioTempFile)) {
+            try (OutputStream out = Files.newOutputStream(audioTempFile.toPath())) {
                 out.write(audio.getBytes());
             } catch (IOException e) {
                 // doing nothing here
@@ -1047,7 +1047,7 @@ public class AbstractMultimediaEngineTest<H> {
 
         // acting
         Future<OperationResultValue> recording = executor.submit(() -> {
-                    try (OutputStream audioStream = new FileOutputStream(tempFile)) {
+                    try (OutputStream audioStream = Files.newOutputStream(tempFile.toPath())) {
                         return engine.recordAudio(session, audioStream, recordFormat, terminationSymbolsMask, silence, timeout);
                     }
                 }
@@ -1056,7 +1056,7 @@ public class AbstractMultimediaEngineTest<H> {
         executor.schedule(() -> {
             final File audioTempFile = session.parameter(MultimediaEngine.Parameter.AUDIO_TEMPORARY);
             // saving audio content to the temporary media file of the record operation
-            try (OutputStream out = new FileOutputStream(audioTempFile)) {
+            try (OutputStream out = Files.newOutputStream(audioTempFile.toPath())) {
                 out.write(audio.getBytes());
             } catch (IOException e) {
                 // doing nothing here
@@ -1111,7 +1111,7 @@ public class AbstractMultimediaEngineTest<H> {
 
         // acting
         Future<OperationResultValue> recording = executor.submit(() -> {
-                    try (OutputStream audioStream = new FileOutputStream(tempFile)) {
+                    try (OutputStream audioStream = Files.newOutputStream(tempFile.toPath())) {
                         return engine.recordAudio(session, audioStream, recordFormat, terminationSymbolsMask, silence, timeout);
                     }
                 }
@@ -1120,7 +1120,7 @@ public class AbstractMultimediaEngineTest<H> {
         executor.schedule(() -> {
             final File audioTempFile = session.parameter(MultimediaEngine.Parameter.AUDIO_TEMPORARY);
             // saving audio content to the temporary media file of the record operation
-            try (OutputStream out = new FileOutputStream(audioTempFile)) {
+            try (OutputStream out = Files.newOutputStream(audioTempFile.toPath())) {
                 out.write(audio.getBytes());
             } catch (IOException e) {
                 // doing nothing here
@@ -1177,7 +1177,7 @@ public class AbstractMultimediaEngineTest<H> {
         // acting
         Future<Throwable> recording = executor.submit(() ->
                 assertThrows(Throwable.class, () -> {
-                            try (OutputStream audioStream = new FileOutputStream(tempFile)) {
+                            try (OutputStream audioStream = Files.newOutputStream(tempFile.toPath())) {
                                 engine.recordAudio(session, audioStream, recordFormat, terminationSymbolsMask, silence, timeout);
                             }
                         }
@@ -1227,12 +1227,11 @@ public class AbstractMultimediaEngineTest<H> {
         int silence = 1;
         prepareRecordCodecs(recordFormat);
         File tempFile = prepareTemporaryAudioFile();
-        OperationResultValue recordingResult = Result.ERROR;
         String malfunctionReason = "Cannot start recording the audio file.";
 
         // acting
         Throwable result = assertThrows(Throwable.class, () -> {
-            try (OutputStream audioStream = new FileOutputStream(tempFile)) {
+            try (OutputStream audioStream = Files.newOutputStream(tempFile.toPath())) {
                 engine.recordAudio(session, audioStream, recordFormat, terminationSymbolsMask, silence, timeout);
             }
         });
@@ -1282,7 +1281,7 @@ public class AbstractMultimediaEngineTest<H> {
 
         // acting
         Future<OperationResultValue> recording = executor.submit(() -> {
-            try (OutputStream audioStream = new FileOutputStream(tempFile)) {
+            try (OutputStream audioStream = Files.newOutputStream(tempFile.toPath())) {
                 return engine.recordAudio(session, audioStream, recordFormat, terminationSymbolsMask, silence, timeout);
             }
         });
@@ -1306,8 +1305,9 @@ public class AbstractMultimediaEngineTest<H> {
         verify(provider).startAudioRecording(eq(deviceHandle), anyString(), eq(recordFormat), eq(silence), eq(timeout));
         verify(session).waitingForOperationComplete(1000L);
         verify(provider, atLeastOnce()).stopAudioRecording(deviceHandle);
-        verify(session).setState(Device.State.ERROR);
+        verify(session, atLeastOnce()).setState(Device.State.ERROR);
         verify(device).dispatchError(malfunctionReason);
+        verify(engine).disconnect(session);
         // check results
         assertThat(session.isTerminated()).isFalse();
         assertThat(result).isSameAs(Result.CALL.DISCONNECT);
@@ -1375,7 +1375,7 @@ public class AbstractMultimediaEngineTest<H> {
 
         // acting
         Future<OperationResultValue> recording = executor.submit(() -> {
-            try (OutputStream audioStream = new FileOutputStream(tempFile)) {
+            try (OutputStream audioStream = Files.newOutputStream(tempFile.toPath())) {
                 return engine.recordAudio(session, audioStream, recordFormat, terminationSymbolsMask, silence, timeout);
             }
         });
@@ -1409,7 +1409,7 @@ public class AbstractMultimediaEngineTest<H> {
     // verifying playback input parameters
     private void verifyPlaybackInputVerification(Audio audioFormat) {
         verify(session, atLeastOnce()).isAlive();
-        verify(engine).isOpened(session);
+        verify(engine, atLeastOnce()).isOpened(session);
         verify(engine).canPlay(audioFormat);
         verify(session, atLeastOnce()).parameter(Device.Parameter.DEVICE_HANDLE);
         verify(engine).canPlay();
@@ -1418,7 +1418,7 @@ public class AbstractMultimediaEngineTest<H> {
     // verifying record input parameters
     private void verifyRecordInputVerification(Audio audioFormat) {
         verify(session, atLeastOnce()).isAlive();
-        verify(engine).isOpened(session);
+        verify(engine, atLeastOnce()).isOpened(session);
         verify(engine).canRecord(audioFormat);
         verify(session, atLeastOnce()).parameter(Device.Parameter.DEVICE_HANDLE);
         verify(engine).canRecord();

@@ -56,6 +56,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.visualcti.core.channel.device.DeviceActivitySession;
+import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.telephony.operation.Result;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.core.channel.telephony.part.CallsPortEngine;
@@ -81,7 +82,7 @@ public class SoundCardDeviceTest<H extends SoundCardHandle> {
     SoundCardServiceProvider<H> provider;
     SoundCardDevicesFactory<H, ?> factory;
     SoundCardDevice<H, ?> device;
-   PhoneCallSession<H> session;
+    PhoneCallSession<H> session;
 
     @Before
     public void setUp() throws Exception {
@@ -233,6 +234,29 @@ public class SoundCardDeviceTest<H extends SoundCardHandle> {
         // check the behavior
         // check results
         assertThat(part).isSameAs(faxes);
+    }
+
+    @Test
+    public void shouldDisconnectCall() {
+        // preparing test data
+        session.alive(true);
+        assertThat(device.isOpened()).isTrue();
+        assertThat(session.isDisconnected()).isFalse();
+        reset(device, session);
+
+        // acting
+        device.disconnect(session);
+
+        // check the behavior
+        verify(calls).disconnect(session);
+        verify(provider).handsetOff(deviceHandle);
+        verify(session).detachAll();
+        verify(session).accept(any(DeviceEvent.class));
+        verify(tones, never()).disconnect(any(PhoneCallSession.class));
+        verify(media, never()).disconnect(any(PhoneCallSession.class));
+        verify(faxes, never()).disconnect(any(PhoneCallSession.class));
+        // check results
+        assertThat(session.isDisconnected()).isTrue();
     }
 
     @Test

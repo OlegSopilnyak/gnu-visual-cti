@@ -56,12 +56,11 @@ import static org.mockito.Mockito.verify;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.nio.file.Files;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -93,7 +92,7 @@ public class AbstractFaxMachineEngineTest<H> {
     H deviceHandle = (H) "handle";
 
     @Before
-    public void setUp() throws Exception {
+    public void setUp() {
         provider = mock(TelephonyServiceProvider.class);
         device = mock(TelephonyDevice.class);
         doReturn(deviceName).when(device).getName();
@@ -209,7 +208,7 @@ public class AbstractFaxMachineEngineTest<H> {
         output.deleteOnExit();
         Runnable completeRunnable = () -> {
             File tempFaxFile = session.parameter(FaxMachineEngine.Parameter.FAX_TEMPORARY);
-            try (OutputStream out = new FileOutputStream(tempFaxFile)) {
+            try (OutputStream out = Files.newOutputStream(tempFaxFile.toPath())) {
                 out.write(faxContent.getBytes());
             } catch (IOException e) {
                 // doing nothing here
@@ -229,7 +228,7 @@ public class AbstractFaxMachineEngineTest<H> {
 
         // acting
         executor.schedule(completeRunnable, 100, TimeUnit.MILLISECONDS);
-        try (OutputStream out = new FileOutputStream(output)) {
+        try (OutputStream out = Files.newOutputStream(output.toPath())) {
             result = engine.receive(session, out, poolingMode, issueVoiceRequest);
         }
 
@@ -248,8 +247,8 @@ public class AbstractFaxMachineEngineTest<H> {
         // check results
         assertThat(session.isTerminated()).isFalse();
         assertThat(result).isSameAs(Result.IO.EOF);
-        assertThat(output.exists()).isTrue();
-        try (BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(output)))) {
+        assertThat(output).exists();
+        try (BufferedReader in = new BufferedReader(new InputStreamReader(Files.newInputStream(output.toPath())))) {
             assertThat(in.readLine()).isEqualTo(faxContent);
         }
         assertThat(output.delete()).isTrue();
@@ -359,9 +358,10 @@ public class AbstractFaxMachineEngineTest<H> {
         verify(session).alive(false);
         verify(session).operationComplete(Result.CALL.DISCONNECT);
         verify(session, times(2)).operationResult(Result.CALL.DISCONNECT);
-        verify(session).setState(Device.State.ERROR);
+        verify(session, atLeastOnce()).setState(Device.State.ERROR);
         verify(device).dispatchError("Receive fax document is failed. The connection is lost.");
         verify(provider).stopFaxReceiving(deviceHandle);
+        verify(engine).disconnect(session);
         // check results
         assertThat(result).isSameAs(reason);
         assertThat(session.operationResult()).isSameAs(reason);
@@ -611,7 +611,7 @@ public class AbstractFaxMachineEngineTest<H> {
         output.deleteOnExit();
         Runnable completeRunnable = () -> {
             File tempFaxFile = session.parameter(FaxMachineEngine.Parameter.FAX_TEMPORARY);
-            try (OutputStream out = new FileOutputStream(tempFaxFile)) {
+            try (OutputStream out = Files.newOutputStream(tempFaxFile.toPath())) {
                 out.write(faxContent.getBytes());
                 // terminating fax document transmitting operation
                 engine.terminate(session);
@@ -631,7 +631,7 @@ public class AbstractFaxMachineEngineTest<H> {
 
         // acting
         executor.schedule(completeRunnable, 100, TimeUnit.MILLISECONDS);
-        try (OutputStream out = new FileOutputStream(output)) {
+        try (OutputStream out = Files.newOutputStream(output.toPath())) {
             result = engine.receive(session, out, poolingMode, issueVoiceRequest);
         }
 
@@ -651,8 +651,8 @@ public class AbstractFaxMachineEngineTest<H> {
         // check results
         assertThat(session.isTerminated()).isTrue();
         assertThat(result).isSameAs(Result.TERMINATED);
-        assertThat(output.exists()).isTrue();
-        try (BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(output)))) {
+        assertThat(output).exists();
+        try (BufferedReader in = new BufferedReader(new InputStreamReader(Files.newInputStream(output.toPath())))) {
             assertThat(in.readLine()).isNull();
         }
         assertThat(output.delete()).isTrue();
@@ -667,7 +667,7 @@ public class AbstractFaxMachineEngineTest<H> {
         boolean issueVoiceRequest = true;
         OperationResultValue result;
         File tempFile = File.createTempFile("fax-document", ".tiff");
-        try (OutputStream out = new FileOutputStream(tempFile)) {
+        try (OutputStream out = Files.newOutputStream(tempFile.toPath())) {
             out.write(faxContent.getBytes());
         }
         tempFile.deleteOnExit();
@@ -688,7 +688,7 @@ public class AbstractFaxMachineEngineTest<H> {
 
         // acting
         executor.schedule(completeRunnable, 100, TimeUnit.MILLISECONDS);
-        try (InputStream in = new FileInputStream(tempFile)) {
+        try (InputStream in = Files.newInputStream(tempFile.toPath())) {
             result = engine.transmit(session, in, format, issueVoiceRequest);
         }
 
@@ -709,7 +709,7 @@ public class AbstractFaxMachineEngineTest<H> {
         assertThat(session.isTerminated()).isFalse();
         assertThat(result).isSameAs(Result.IO.EOF);
         assertThat(tempFile).exists();
-        try (BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(tempFile)))) {
+        try (BufferedReader in = new BufferedReader(new InputStreamReader(Files.newInputStream(tempFile.toPath())))) {
             assertThat(in.readLine()).isEqualTo(faxContent);
         }
         assertThat(tempFile.delete()).isTrue();
@@ -742,7 +742,7 @@ public class AbstractFaxMachineEngineTest<H> {
         boolean issueVoiceRequest = true;
         OperationResultValue result;
         File tempFile = File.createTempFile("fax-document", ".tiff");
-        try (OutputStream out = new FileOutputStream(tempFile)) {
+        try (OutputStream out = Files.newOutputStream(tempFile.toPath())) {
             out.write(faxContent.getBytes());
         }
         tempFile.deleteOnExit();
@@ -756,7 +756,7 @@ public class AbstractFaxMachineEngineTest<H> {
         doReturn(true).when(engine).canFax();
 
         // acting
-        try (InputStream in = new FileInputStream(tempFile)) {
+        try (InputStream in = Files.newInputStream(tempFile.toPath())) {
             result = engine.transmit(session, in, format, issueVoiceRequest);
         }
 
@@ -789,7 +789,7 @@ public class AbstractFaxMachineEngineTest<H> {
         OperationResultValue reason = Result.CALL.DISCONNECT;
         OperationResultValue result;
         File tempFile = File.createTempFile("fax-document", ".tiff");
-        try (OutputStream out = new FileOutputStream(tempFile)) {
+        try (OutputStream out = Files.newOutputStream(tempFile.toPath())) {
             out.write(faxContent.getBytes());
         }
         tempFile.deleteOnExit();
@@ -806,7 +806,7 @@ public class AbstractFaxMachineEngineTest<H> {
 
         // acting
         Future<OperationResultValue> acting = executor.submit(() -> {
-            try (InputStream in = new FileInputStream(tempFile)) {
+            try (InputStream in = Files.newInputStream(tempFile.toPath())) {
                 return engine.transmit(session, in, format, issueVoiceRequest);
             } catch (IOException e) {
                 return Result.ERROR;
@@ -829,9 +829,10 @@ public class AbstractFaxMachineEngineTest<H> {
                 eq(format.isTIFF()), eq(format.isHighResolution()), anyInt(), anyInt());
         verify(session).alive(false);
         verify(session).operationComplete(reason);
-        verify(session).setState(Device.State.ERROR);
+        verify(session, atLeastOnce()).setState(Device.State.ERROR);
         verify(device).dispatchError("Send fax document is failed. The connection is lost.");
         verify(provider).stopFaxTransmitting(deviceHandle);
+        verify(engine).disconnect(session);
         // check results
         assertThat(result).isSameAs(session.operationResult()).isSameAs(reason);
         assertThat(session.getState()).isEqualTo(Device.State.ERROR);
@@ -846,7 +847,7 @@ public class AbstractFaxMachineEngineTest<H> {
         OperationResultValue reason = Result.TIMEOUT;
         OperationResultValue result;
         File tempFile = File.createTempFile("fax-document", ".tiff");
-        try (OutputStream out = new FileOutputStream(tempFile)) {
+        try (OutputStream out = Files.newOutputStream(tempFile.toPath())) {
             out.write(faxContent.getBytes());
         }
         tempFile.deleteOnExit();
@@ -863,7 +864,7 @@ public class AbstractFaxMachineEngineTest<H> {
 
         // acting
         Future<OperationResultValue> acting = executor.submit(() -> {
-            try (InputStream in = new FileInputStream(tempFile)) {
+            try (InputStream in = Files.newInputStream(tempFile.toPath())) {
                 return engine.transmit(session, in, format, issueVoiceRequest);
             } catch (IOException e) {
                 return Result.ERROR;
@@ -897,9 +898,8 @@ public class AbstractFaxMachineEngineTest<H> {
         Fax format = Fax.TEXT;
         boolean issueVoiceRequest = true;
         OperationResultValue reason = Result.ERROR;
-        OperationResultValue result;
         File tempFile = File.createTempFile("fax-document", ".tiff");
-        try (OutputStream out = new FileOutputStream(tempFile)) {
+        try (OutputStream out = Files.newOutputStream(tempFile.toPath())) {
             out.write(faxContent.getBytes());
         }
         tempFile.deleteOnExit();
@@ -917,7 +917,7 @@ public class AbstractFaxMachineEngineTest<H> {
 
         // acting
         final Throwable error;
-        try (InputStream in = new FileInputStream(tempFile)) {
+        try (InputStream in = Files.newInputStream(tempFile.toPath())) {
             error = assertThrows(Throwable.class, () -> engine.transmit(session, in, format, issueVoiceRequest));
         }
 
@@ -947,7 +947,7 @@ public class AbstractFaxMachineEngineTest<H> {
         OperationResultValue reason = Result.FAX.COMMUNICATION_ERROR;
         OperationResultValue result;
         File tempFile = File.createTempFile("fax-document", ".tiff");
-        try (OutputStream out = new FileOutputStream(tempFile)) {
+        try (OutputStream out = Files.newOutputStream(tempFile.toPath())) {
             out.write(faxContent.getBytes());
         }
         tempFile.deleteOnExit();
@@ -964,7 +964,7 @@ public class AbstractFaxMachineEngineTest<H> {
 
         // acting
         Future<OperationResultValue> acting = executor.submit(() -> {
-            try (InputStream in = new FileInputStream(tempFile)) {
+            try (InputStream in = Files.newInputStream(tempFile.toPath())) {
                 return engine.transmit(session, in, format, issueVoiceRequest);
             } catch (IOException e) {
                 return Result.ERROR;
@@ -1000,7 +1000,7 @@ public class AbstractFaxMachineEngineTest<H> {
         OperationResultValue reason = Result.FAX.COMPATIBILITY;
         OperationResultValue result;
         File tempFile = File.createTempFile("fax-document", ".tiff");
-        try (OutputStream out = new FileOutputStream(tempFile)) {
+        try (OutputStream out = Files.newOutputStream(tempFile.toPath())) {
             out.write(faxContent.getBytes());
         }
         tempFile.deleteOnExit();
@@ -1017,7 +1017,7 @@ public class AbstractFaxMachineEngineTest<H> {
 
         // acting
         Future<OperationResultValue> acting = executor.submit(() -> {
-            try (InputStream in = new FileInputStream(tempFile)) {
+            try (InputStream in = Files.newInputStream(tempFile.toPath())) {
                 return engine.transmit(session, in, format, issueVoiceRequest);
             } catch (IOException e) {
                 return Result.ERROR;
@@ -1053,7 +1053,7 @@ public class AbstractFaxMachineEngineTest<H> {
         OperationResultValue reason = Result.FAX.NO_POLL;
         OperationResultValue result;
         File tempFile = File.createTempFile("fax-document", ".tiff");
-        try (OutputStream out = new FileOutputStream(tempFile)) {
+        try (OutputStream out = Files.newOutputStream(tempFile.toPath())) {
             out.write(faxContent.getBytes());
         }
         tempFile.deleteOnExit();
@@ -1070,7 +1070,7 @@ public class AbstractFaxMachineEngineTest<H> {
 
         // acting
         Future<OperationResultValue> acting = executor.submit(() -> {
-            try (InputStream in = new FileInputStream(tempFile)) {
+            try (InputStream in = Files.newInputStream(tempFile.toPath())) {
                 return engine.transmit(session, in, format, issueVoiceRequest);
             } catch (IOException e) {
                 return Result.ERROR;
@@ -1106,7 +1106,7 @@ public class AbstractFaxMachineEngineTest<H> {
         OperationResultValue reason = Result.FAX.USER_STOP;
         OperationResultValue result;
         File tempFile = File.createTempFile("fax-document", ".tiff");
-        try (OutputStream out = new FileOutputStream(tempFile)) {
+        try (OutputStream out = Files.newOutputStream(tempFile.toPath())) {
             out.write(faxContent.getBytes());
         }
         tempFile.deleteOnExit();
@@ -1123,7 +1123,7 @@ public class AbstractFaxMachineEngineTest<H> {
 
         // acting
         Future<OperationResultValue> acting = executor.submit(() -> {
-            try (InputStream in = new FileInputStream(tempFile)) {
+            try (InputStream in = Files.newInputStream(tempFile.toPath())) {
                 return engine.transmit(session, in, format, issueVoiceRequest);
             } catch (IOException e) {
                 return Result.ERROR;
@@ -1158,7 +1158,7 @@ public class AbstractFaxMachineEngineTest<H> {
         boolean issueVoiceRequest = true;
         OperationResultValue result;
         File tempFile = File.createTempFile("fax-document", ".tiff");
-        try (OutputStream out = new FileOutputStream(tempFile)) {
+        try (OutputStream out = Files.newOutputStream(tempFile.toPath())) {
             out.write(faxContent.getBytes());
         }
         tempFile.deleteOnExit();
@@ -1183,7 +1183,7 @@ public class AbstractFaxMachineEngineTest<H> {
 
         // acting
         executor.schedule(completeRunnable, 100, TimeUnit.MILLISECONDS);
-        try (InputStream in = new FileInputStream(tempFile)) {
+        try (InputStream in = Files.newInputStream(tempFile.toPath())) {
             result = engine.transmit(session, in, format, issueVoiceRequest);
         }
 
@@ -1205,8 +1205,8 @@ public class AbstractFaxMachineEngineTest<H> {
         // check results
         assertThat(session.isTerminated()).isTrue();
         assertThat(result).isSameAs(Result.TERMINATED);
-        assertThat(tempFile.exists()).isTrue();
-        try (BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(tempFile)))) {
+        assertThat(tempFile).exists();
+        try (BufferedReader in = new BufferedReader(new InputStreamReader(Files.newInputStream(tempFile.toPath())))) {
             assertThat(in.readLine()).isEqualTo(faxContent);
         }
         assertThat(tempFile.delete()).isTrue();

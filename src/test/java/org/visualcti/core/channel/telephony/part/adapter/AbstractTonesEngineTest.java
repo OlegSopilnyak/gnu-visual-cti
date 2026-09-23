@@ -84,7 +84,7 @@ public class AbstractTonesEngineTest<H> {
     H deviceHandle = (H) "handle";
 
     @Before
-    public void setUp() throws Exception {
+    public void setUp() {
         provider = mock(TelephonyServiceProvider.class);
         device = mock(TelephonyDevice.class);
         doReturn(deviceName).when(device).getName();
@@ -389,7 +389,7 @@ public class AbstractTonesEngineTest<H> {
         verifyInputVerification();
         verify(device).dispatchEvent("Sending [" + id + "] tone for '" + time + "' seconds.");
         verify(session).setState(TelephonyDevice.State.TONE);
-        verify(device).getProvider();
+        verify(device, atLeastOnce()).getProvider();
         verify(provider).startToneSending(deviceHandle, tone);
         verify(session).waitingForOperationComplete(500L);
         verify(session).operationResult();
@@ -397,7 +397,8 @@ public class AbstractTonesEngineTest<H> {
         verify(session).isDisconnected();
         verify(device).dispatchError(deviceErrorReason);
         verify(provider).stopToneSending(deviceHandle);
-        verify(session).setState(Device.State.ERROR);
+        verify(session, atLeastOnce()).setState(Device.State.ERROR);
+        verify(engine).disconnect(session);
         verify(session, atLeastOnce()).operationResult(Result.CALL.DISCONNECT);
         // check results
         assertThat(session.getState()).isSameAs(Device.State.ERROR);
@@ -597,6 +598,33 @@ public class AbstractTonesEngineTest<H> {
     }
 
     @Test
+    public void shouldDoNotInputDigits_DisconnectedInAction() {
+        // preparing test data
+        int digitsCount = 2;
+        int oneSymbolTimeout = 1000;
+        String terminationSymbolsMask = "";
+        engine.uses(device);
+        session.alive(true);
+        executor.schedule(() -> {
+            session.alive(false);
+            session.operationComplete(Result.CALL.DISCONNECT);
+        }, 100, TimeUnit.MILLISECONDS);
+
+        // acting
+        OperationResultValue result = engine.inputDigits(session, digitsCount, oneSymbolTimeout, terminationSymbolsMask);
+
+        // check the behavior
+        verifyInputVerification();
+        verify(session).operationResult(Result.ERROR);
+        verify(session, atLeastOnce()).setState(Device.State.ERROR);
+        // check results
+        assertThat(session.parameterOrDefault(Device.Parameter.USER_INPUT, "")).isEmpty();
+        assertThat(result).isSameAs(Result.CALL.DISCONNECT);
+        assertThat(session.getState()).isSameAs(Device.State.ERROR);
+        assertThat(session.operationResult()).isSameAs(Result.CALL.DISCONNECT);
+    }
+
+    @Test
     public void shouldDoesNotInputDigits_HardwareError() throws InterruptedException {
         // preparing test data
         int digitsCount = 2;
@@ -761,7 +789,7 @@ public class AbstractTonesEngineTest<H> {
     // verifying record input parameters
     private void verifyInputVerification() {
         verify(session, atLeastOnce()).isAlive();
-        verify(engine).isOpened(session);
+        verify(engine, atLeastOnce()).isOpened(session);
         verify(session, atLeastOnce()).parameter(Device.Parameter.DEVICE_HANDLE);
     }
 

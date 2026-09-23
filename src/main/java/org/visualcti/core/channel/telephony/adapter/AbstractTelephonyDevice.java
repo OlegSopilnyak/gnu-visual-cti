@@ -67,6 +67,7 @@ import org.visualcti.core.channel.telephony.part.FaxMachineEngine;
 import org.visualcti.core.channel.telephony.part.MultimediaEngine;
 import org.visualcti.core.channel.telephony.part.TonesEngine;
 import org.visualcti.core.channel.telephony.part.adapter.AbstractCallsPortEngine;
+import org.visualcti.core.channel.telephony.part.adapter.AbstractDevicePart;
 import org.visualcti.core.channel.telephony.part.adapter.AbstractFaxMachineEngine;
 import org.visualcti.core.channel.telephony.part.adapter.AbstractMultimediaEngine;
 import org.visualcti.core.channel.telephony.part.adapter.AbstractTonesEngine;
@@ -377,6 +378,27 @@ public abstract class AbstractTelephonyDevice<H, T extends TelephonyFactory<H, ?
     @Override
     public boolean isOpened(PhoneCallSession<H> session) {
         return false;
+    }
+
+    /**
+     * <action>
+     * The unconditional phone call disconnection:
+     * 1. Break telephony connection with all joint sessions
+     * 2. Detaching from all joint phone call sessions
+     * 3. End up the current phone call (hang off)
+     *
+     * @param session the phone call's session, device is working with
+     * @see PhoneCallSession#joint()
+     * @see TelephonyServiceProvider#breakConnection(H, H)
+     * @see PhoneCallSession#detachAll()
+     * @see TelephonyServiceProvider#handsetOff(H)
+     * @see AbstractDevicePart#disconnect(PhoneCallSession)
+     */
+    @Override
+    public void disconnect(PhoneCallSession<H> session) {
+        if (isOpened()) {
+            calls.disconnect(session);
+        }
     }
 
     /**

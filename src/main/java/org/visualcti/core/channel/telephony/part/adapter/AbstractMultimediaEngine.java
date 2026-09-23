@@ -40,15 +40,14 @@ package org.visualcti.core.channel.telephony.part.adapter;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.BooleanSupplier;
 import java.util.function.Predicate;
-import java.util.function.Supplier;
 import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceStateValue;
@@ -242,6 +241,9 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
                         }
                         session.setState(Device.State.ERROR);
                         breakingTheSession(session, "Playback audio is failed. The connection is lost.");
+                        //
+                        // disconnecting form the current phone call
+                        disconnect(session);
                         session.operationResult(Result.CALL.DISCONNECT);
                         return Result.CALL.DISCONNECT;
                     } else {
@@ -466,6 +468,9 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
                         }
                         session.setState(Device.State.ERROR);
                         breakingTheSession(session, "Recording audio is failed. The connection is lost.");
+                        //
+                        // disconnecting form the current phone call
+                        disconnect(session);
                         session.operationResult(Result.CALL.DISCONNECT);
                         return Result.CALL.DISCONNECT;
                     }
@@ -526,8 +531,8 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
 
     /// private methods
     // to check input session's state
-    private boolean canProceed(final PhoneCallSession<H> session, Supplier<Boolean> formatSupports) {
-        return session.isAlive() && isOpened(session) && formatSupports.get();
+    private boolean canProceed(final PhoneCallSession<H> session, BooleanSupplier isSupportFormat) {
+        return session.isAlive() && isOpened(session) && isSupportFormat.getAsBoolean();
     }
 
     //  Returns the array of supported audio formats(codecs) for playing back
@@ -549,7 +554,7 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
     private void copyMediaData(final File tempFile, final InputStream source) throws IOException {
         final int DEFAULT_BUFFER_SIZE = 8192;
         try (final InputStream in = new BufferedInputStream(source);
-             final OutputStream target = new BufferedOutputStream(new FileOutputStream(tempFile))) {
+             final OutputStream target = new BufferedOutputStream(Files.newOutputStream(tempFile.toPath()))) {
             final byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
             int read;
             while ((read = in.read(buffer, 0, DEFAULT_BUFFER_SIZE)) >= 0) {

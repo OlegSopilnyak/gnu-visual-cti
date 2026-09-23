@@ -161,6 +161,9 @@ public abstract class AbstractTonesEngine<H> extends AbstractDevicePart<H> imple
                         serviceProvider.stopToneSending(deviceHandle);
                         session.setState(Device.State.ERROR);
                         breakingTheSession(session, "Tone sending is failed. The connection is lost.");
+                        //
+                        // disconnecting from the current phone call
+                        disconnect(session);
                         session.operationResult(Result.CALL.DISCONNECT);
                         return;
                     }
@@ -248,6 +251,19 @@ public abstract class AbstractTonesEngine<H> extends AbstractDevicePart<H> imple
                         // tone send operation is terminated
                         session.setState(Device.State.IDLE);
                         return Result.TERMINATED;
+                        // checking disconnection during the operation
+                    } else if (session.isDisconnected()) {
+                        // phone line disconnection is detected
+                        // stopping DTMF events producing for the opened handle
+                        serviceProvider.disableEvents(deviceHandle, Result.IO.DTMF);
+                        // tone send operation is interrupted
+                        session.setState(Device.State.ERROR);
+                        //
+                        // disconnecting from the current phone call
+                        disconnect(session);
+                        // returning the operation result
+                        session.operationResult(Result.CALL.DISCONNECT);
+                        return Result.CALL.DISCONNECT;
                     } else if (operationResult == Result.IO.DTMF) {
                         // user input detected
                         final String userInput = session.parameter(Device.Parameter.USER_INPUT);

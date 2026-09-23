@@ -40,11 +40,10 @@ package org.visualcti.core.channel.telephony.part.adapter;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Files;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import org.visualcti.core.ConfigurationParameter;
@@ -235,9 +234,19 @@ public abstract class AbstractFaxMachineEngine<H> extends AbstractDevicePart<H> 
                         if (tempFile.delete()) {
                             session.setState(Device.State.ERROR);
                             breakingTheSession(session, "Receive fax document is failed. The connection is lost.");
+                            //
+                            // disconnecting form the current phone call
+                            disconnect(session);
+                            // updating session's operation result
                             session.operationResult(Result.CALL.DISCONNECT);
+                            // returning the operation result
+                            return Result.CALL.DISCONNECT;
+                        } else {
+                            dispatchError(
+                                    new IOException("Cannot remove temp file " + tempFile.getName()),
+                                    "Receiving fax failed.");
+                            return Result.ERROR;
                         }
-                        return Result.CALL.DISCONNECT;
                         // checking not end-of-file operation results
                     } else if (faxOperationFailed.test(operationResult)) {
                         // the not end-of-file operation result is detected
@@ -258,6 +267,8 @@ public abstract class AbstractFaxMachineEngine<H> extends AbstractDevicePart<H> 
                 session.getDevice().dispatchError(e, "Cannot  receive fax file");
             } catch (InterruptedException e) {
                 session.getDevice().dispatchError(e, "Cannot  wait receive fax completion.");
+                /* Clean up whatever needs to be handled before interrupting  */
+                Thread.currentThread().interrupt();
             }
             // disabling any events producing for opened fax resource
             serviceProvider.disableEvents(faxDeviceHandle);
@@ -363,9 +374,18 @@ public abstract class AbstractFaxMachineEngine<H> extends AbstractDevicePart<H> 
                         if (tempFile.delete()) {
                             session.setState(Device.State.ERROR);
                             breakingTheSession(session, "Send fax document is failed. The connection is lost.");
+                            //
+                            // disconnecting form the current phone call
+                            disconnect(session);
                             session.operationResult(Result.CALL.DISCONNECT);
+                            // returning the operation result
+                            return Result.CALL.DISCONNECT;
+                        } else {
+                            dispatchError(
+                                    new IOException("Cannot remove temp file " + tempFile.getName()),
+                                    "Sending fax failed.");
+                            return Result.ERROR;
                         }
-                        return Result.CALL.DISCONNECT;
                         // checking not end-of-file operation results
                     } else if (faxOperationFailed.test(operationResult)) {
                         // the not end-of-file operation result is detected
@@ -385,6 +405,8 @@ public abstract class AbstractFaxMachineEngine<H> extends AbstractDevicePart<H> 
                 session.getDevice().dispatchError(e, "Cannot send fax file");
             } catch (InterruptedException e) {
                 session.getDevice().dispatchError(e, "Cannot wait fax transmitting completion.");
+                /* Clean up whatever needs to be handled before interrupting  */
+                Thread.currentThread().interrupt();
             }
             // disabling any events producing for opened fax resource
             serviceProvider.disableEvents(faxDeviceHandle);
@@ -445,7 +467,7 @@ public abstract class AbstractFaxMachineEngine<H> extends AbstractDevicePart<H> 
     // copying received fax document from temporary file to the target output stream
     private void copyReceivedData(final File targetFile, final OutputStream target) throws IOException {
         final int DEFAULT_BUFFER_SIZE = 8192;
-        try (final InputStream in = new BufferedInputStream(new FileInputStream(targetFile))) {
+        try (final InputStream in = new BufferedInputStream(Files.newInputStream(targetFile.toPath()))) {
             final byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
             int read;
             while ((read = in.read(buffer, 0, DEFAULT_BUFFER_SIZE)) >= 0) {
@@ -458,7 +480,7 @@ public abstract class AbstractFaxMachineEngine<H> extends AbstractDevicePart<H> 
     private void copyTransmittingData(final File targetFile, final InputStream source) throws IOException {
         final int DEFAULT_BUFFER_SIZE = 8192;
         try (final InputStream in = new BufferedInputStream(source);
-             final OutputStream target = new BufferedOutputStream(new FileOutputStream(targetFile))) {
+             final OutputStream target = new BufferedOutputStream(Files.newOutputStream(targetFile.toPath()))) {
             final byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
             int read;
             while ((read = in.read(buffer, 0, DEFAULT_BUFFER_SIZE)) >= 0) {
