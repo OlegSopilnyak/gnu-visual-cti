@@ -63,6 +63,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Callable;
+import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -75,6 +76,8 @@ import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.adapter.AbstractDeviceEvent;
+import org.visualcti.core.channel.device.adapter.AbstractEventListenersHub;
+import org.visualcti.core.channel.device.adapter.AbstractEventProcessor;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
 import org.visualcti.core.channel.telephony.operation.Result;
@@ -87,18 +90,23 @@ import org.visualcti.media.Audio;
 public class SoundCardServiceProviderTest {
     static final Device.ParameterName ALLOWED_CODECS = MultimediaEngine.Parameter.ALLOWED_CODECS;
 
+    AbstractEventProcessor<SoundCardHandle> eventProcessor;
     SoundCardServiceProvider<SoundCardHandle> provider;
     ScheduledExecutorService scheduler = mock(ScheduledExecutorService.class);
     ScheduledExecutorService shadowScheduler;
 
     @Before
-    public void setUp() {
+    public void setUp() throws IOException {
         provider = spy(new SoundCardServiceProvider<>(scheduler));
         shadowScheduler = Executors.newScheduledThreadPool(10);
+        eventProcessor = new EventsProcessor(shadowScheduler, provider);
+        eventProcessor.Start();
     }
 
     @After
-    public void tearDown() {
+    public void tearDown() throws IOException {
+        eventProcessor.Stop();
+        await().until(() -> eventProcessor.isStopped());
         shadowScheduler.shutdown();
         shadowScheduler = null;
     }
@@ -117,7 +125,7 @@ public class SoundCardServiceProviderTest {
         // check results
         assertThat(handle).isNotNull();
         assertThat(handle.canUse()).isTrue();
-        Optional<ConfigurationParameter> codecs = provider.resourceParameter(handle, ALLOWED_CODECS);
+        Optional<ConfigurationParameter> codecs = provider.findResourceParameter(handle, ALLOWED_CODECS);
         assertThat(codecs).isPresent();
         assertThat(codecs.get().<List<?>>getValue()).isNotEmpty();
     }
@@ -136,7 +144,7 @@ public class SoundCardServiceProviderTest {
         // check results
         assertThat(handle).isNotNull();
         assertThat(handle.canUse()).isFalse();
-        assertThat(provider.resourceParameter(handle, ALLOWED_CODECS)).isEmpty();
+        assertThat(provider.findResourceParameter(handle, ALLOWED_CODECS)).isEmpty();
     }
 
     @Test
@@ -196,7 +204,7 @@ public class SoundCardServiceProviderTest {
         assertThat(provider.isOpened(handle)).isTrue();
 
         // acting
-        Optional<SoundCardHandle> byName = provider.handleByName(deviceName);
+        Optional<SoundCardHandle> byName = provider.openedHandleByName(deviceName);
 
         // check the behavior
         // check results
@@ -208,7 +216,7 @@ public class SoundCardServiceProviderTest {
         // preparing test data
 
         // acting
-        Optional<SoundCardHandle> byName = provider.handleByName(SOUND_DEVICE);
+        Optional<SoundCardHandle> byName = provider.openedHandleByName(SOUND_DEVICE);
 
         // check the behavior
         // check results
@@ -538,8 +546,11 @@ public class SoundCardServiceProviderTest {
     }
 
     @Test
-    public void shouldGetEvent_FromNative() {
+    public void shouldGetEvent_FromNative() throws IOException {
         // preparing test data
+        eventProcessor.Stop();
+        await().until(() -> eventProcessor.isStopped());
+        provider.enableEventsGetting();
         DeviceEvent<SoundCardHandle> mocked = mock(DeviceEvent.class);
         doReturn(mocked).when(provider).allowedEvent(any(DeviceEvent.class));
         doReturn(mocked).when(provider).nativeGetEvent(anyLong());
@@ -555,10 +566,13 @@ public class SoundCardServiceProviderTest {
     }
 
     @Test
-    public void shouldGetEvent_FromEventsQueue() {
+    public void shouldGetEvent_FromEventsQueue() throws IOException {
         // preparing test data
         DeviceEvent<SoundCardHandle> mocked = mock(DeviceEvent.class);
         doReturn(mocked).when(provider).allowedEvent(any(DeviceEvent.class));
+        eventProcessor.Stop();
+        await().until(() -> eventProcessor.isStopped());
+        provider.enableEventsGetting();
         assertThat(provider.putEvent(mocked)).isTrue();
         int timeout = 50;
 
@@ -588,10 +602,13 @@ public class SoundCardServiceProviderTest {
     }
 
     @Test
-    public void shouldPutEvent() {
+    public void shouldPutEvent() throws IOException {
         // preparing test data
         DeviceEvent<SoundCardHandle> mocked = mock(DeviceEvent.class);
         doReturn(mocked).when(provider).allowedEvent(any(DeviceEvent.class));
+        eventProcessor.Stop();
+        await().until(() -> eventProcessor.isStopped());
+        provider.enableEventsGetting();
         int timeout = 50;
         assertThat(provider.getEvent(timeout)).isNotNull().isEmpty();
 
@@ -611,6 +628,9 @@ public class SoundCardServiceProviderTest {
         SoundCardHandle handle = provider.openResource(SOUND_DEVICE);
         AbstractDeviceEvent<SoundCardHandle> event = spy(SoundCardEvent.of(DeviceEvent.Type.DEVICE_SPECIFIC));
         event.deviceHandle(handle).option(DeviceEvent.Option.REASON, eventReason);
+        eventProcessor.Stop();
+        await().until(() -> eventProcessor.isStopped());
+        provider.enableEventsGetting();
         provider.putEvent(event);
         assertThat(provider.getEvent(50)).isNotNull().isEmpty();
         reset(event);
@@ -635,6 +655,9 @@ public class SoundCardServiceProviderTest {
         SoundCardHandle handle = provider.openResource(SOUND_DEVICE);
         AbstractDeviceEvent<SoundCardHandle> event = spy(SoundCardEvent.of(DeviceEvent.Type.DEVICE_SPECIFIC));
         event.deviceHandle(handle).option(DeviceEvent.Option.REASON, eventReason);
+        eventProcessor.Stop();
+        await().until(() -> eventProcessor.isStopped());
+        provider.enableEventsGetting();
         provider.enableEvents(handle, eventReason);
         provider.putEvent(event);
         assertThat(provider.getEvent(50)).isNotNull().contains(event);
@@ -719,7 +742,7 @@ public class SoundCardServiceProviderTest {
 
         // check the behavior
         verify(provider).nativeStartFaxReceiving(handle, file, false);
-        verify(provider).isOpened(handle);
+        verify(provider, atLeastOnce()).isOpened(handle);
         verify(scheduler).schedule(any(Runnable.class), eq(50L), eq(TimeUnit.MILLISECONDS));
         ArgumentCaptor<DeviceEvent<SoundCardHandle>> eventCaptor = ArgumentCaptor.forClass(DeviceEvent.class);
         verify(provider).putEvent(eventCaptor.capture());
@@ -791,7 +814,7 @@ public class SoundCardServiceProviderTest {
 
         // check the behavior
         verify(provider).nativeStopFaxReceiving(handle);
-        verify(provider).isOpened(handle);
+        verify(provider, atLeastOnce()).isOpened(handle);
         verify(provider).hasShadowActivity(handle);
         ArgumentCaptor<DeviceEvent<SoundCardHandle>> eventCaptor = ArgumentCaptor.forClass(DeviceEvent.class);
         verify(provider).putEvent(eventCaptor.capture());
@@ -851,10 +874,10 @@ public class SoundCardServiceProviderTest {
     public void shouldStartFaxTransmitting() throws IOException {
         // preparing test data
         SoundCardHandle handle = provider.openFaxResource(SOUND_DEVICE);
-        String file = "fax-file";
-        File faxFile = new File(file);
-        assertThat(faxFile.createNewFile()).isTrue();
+        File faxFile = Files.createTempFile("fax-document", ".fax").toFile();
+        assertThat(faxFile).isNotNull();
         faxFile.deleteOnExit();
+        String file = faxFile.getCanonicalPath();
         doAnswer(invocation -> shadowScheduler.schedule(
                 invocation.getArgument(0, Runnable.class),
                 invocation.getArgument(1, Long.class),
@@ -868,7 +891,7 @@ public class SoundCardServiceProviderTest {
 
         // check the behavior
         verify(provider).nativeStartFaxTransmitting(handle, file, false, true, true, 1, 10);
-        verify(provider).isOpened(handle);
+        verify(provider, atLeastOnce()).isOpened(handle);
         verify(scheduler).schedule(any(Runnable.class), eq(50L), eq(TimeUnit.MILLISECONDS));
         ArgumentCaptor<DeviceEvent<SoundCardHandle>> eventCaptor = ArgumentCaptor.forClass(DeviceEvent.class);
         verify(provider).putEvent(eventCaptor.capture());
@@ -940,7 +963,7 @@ public class SoundCardServiceProviderTest {
 
         // check the behavior
         verify(provider).nativeStopFaxTransmitting(handle);
-        verify(provider).isOpened(handle);
+        verify(provider, atLeastOnce()).isOpened(handle);
         verify(provider).hasShadowActivity(handle);
         ArgumentCaptor<DeviceEvent<SoundCardHandle>> eventCaptor = ArgumentCaptor.forClass(DeviceEvent.class);
         verify(provider).putEvent(eventCaptor.capture());
@@ -1019,7 +1042,7 @@ public class SoundCardServiceProviderTest {
         await().until(() -> !handle.isOperationInProgress());
 
         // check the behavior
-        verify(provider).isOpened(handle);
+        verify(provider, atLeastOnce()).isOpened(handle);
         ArgumentCaptor<DeviceEvent<SoundCardHandle>> eventCaptor = ArgumentCaptor.forClass(DeviceEvent.class);
         verify(provider).putEvent(eventCaptor.capture());
         // check results
@@ -1058,7 +1081,7 @@ public class SoundCardServiceProviderTest {
         await().until(() -> !handle.isOperationInProgress());
 
         // check the behavior
-        verify(provider).isOpened(handle);
+        verify(provider, atLeastOnce()).isOpened(handle);
         ArgumentCaptor<DeviceEvent<SoundCardHandle>> eventCaptor = ArgumentCaptor.forClass(DeviceEvent.class);
         verify(provider).putEvent(eventCaptor.capture());
         // check results
@@ -1092,7 +1115,7 @@ public class SoundCardServiceProviderTest {
         await().until(() -> !handle.isOperationInProgress());
 
         // check the behavior
-        verify(provider).isOpened(handle);
+        verify(provider, atLeastOnce()).isOpened(handle);
         verify(provider).nativeStartAudioRecording(eq(handle), anyString(), eq(format), eq(silence), eq(timeout));
         ArgumentCaptor<DeviceEvent<SoundCardHandle>> eventCaptor = ArgumentCaptor.forClass(DeviceEvent.class);
         verify(provider, atLeastOnce()).putEvent(eventCaptor.capture());
@@ -1154,7 +1177,7 @@ public class SoundCardServiceProviderTest {
         provider.nativeSetResourceParameter(handle, parameterName, parameterValue);
 
         // acting
-        Optional<ConfigurationParameter> parameter = provider.resourceParameter(handle, parameterName);
+        Optional<ConfigurationParameter> parameter = provider.findResourceParameter(handle, parameterName);
 
         // check the behavior
         verify(provider).isOpened(handle);
@@ -1317,7 +1340,7 @@ public class SoundCardServiceProviderTest {
         await().until(() -> !handle.isOperationInProgress());
 
         // check the behavior
-        verify(provider).isOpened(handle);
+        verify(provider, atLeastOnce()).isOpened(handle);
         verify(provider, never()).nativeStartToneSending(any(), any(TelephonyTone.class));
         ArgumentCaptor<DeviceEvent<SoundCardHandle>> eventCaptor = ArgumentCaptor.forClass(DeviceEvent.class);
         verify(provider).putEvent(eventCaptor.capture());
@@ -1371,5 +1394,23 @@ public class SoundCardServiceProviderTest {
         verify(provider).isOpened(handle);
         verify(provider).nativeCommitToneRegistering(handle);
         // check results
+    }
+
+    /// inner classes
+    private static class EventsProcessor extends AbstractEventProcessor<SoundCardHandle> {
+        protected EventsProcessor(Executor deviceEventExecutor, DeviceEvent.Provider<SoundCardHandle> eventsProvider) {
+            super(deviceEventExecutor, eventsProvider, new AbstractEventListenersHub() {
+            });
+        }
+
+        @Override
+        public String getType() {
+            return "device-events-processor";
+        }
+
+        @Override
+        public String getName() {
+            return "TestEeventsProcessor";
+        }
     }
 }

@@ -140,6 +140,38 @@ public class AbstractTelephonyServiceProviderTest<H> {
     }
 
     @Test
+    public void shouldGetHandleByName() throws IOException {
+        // preparing test data
+        String resourceName = "resource-name";
+        doReturn("resource-handle").when(provider).nativeResourceOpen(resourceName);
+        H resourceHandle = provider.openResource(resourceName);
+        doReturn(resourceHandle).when(provider).nativeResourceOpen(resourceName);
+
+        // acting
+        Optional<H> handle = provider.openedHandleByName(resourceName);
+
+        // check the behavior
+        // check results
+        assertThat(handle).isPresent().contains(resourceHandle);
+    }
+
+    @Test
+    public void shouldDoNotGetHandleByName_WrongResourceName() throws IOException {
+        // preparing test data
+        String resourceName = "resource-name";
+        doReturn("resource-handle").when(provider).nativeResourceOpen(resourceName);
+        H resourceHandle = provider.openResource(resourceName);
+        doReturn(resourceHandle).when(provider).nativeResourceOpen(resourceName);
+
+        // acting
+        Optional<H> handle = provider.openedHandleByName("resourceName");
+
+        // check the behavior
+        // check results
+        assertThat(handle).isEmpty();
+    }
+
+    @Test
     public void shouldDropCall() throws IOException {
         // preparing test data
         String resourceName = "resourceName";
@@ -917,13 +949,37 @@ public class AbstractTelephonyServiceProviderTest<H> {
         reset(provider);
 
         // acting
-        Optional<ConfigurationParameter> parameter = provider.resourceParameter(resourceHandle, parameterName);
+        Optional<ConfigurationParameter> parameter = provider.findResourceParameter(resourceHandle, parameterName);
 
         // check the behavior
         verify(provider).isOpened(resourceHandle);
         verify(provider).nativeFindResourceParameter(resourceHandle, parameterName);
         // check results
         assertThat(parameter).isNotNull().isPresent().contains(configurationParameter);
+    }
+
+    @Test
+    public void shouldNotGetResourceParameter_NotFound() throws IOException {
+        // preparing test data
+        String resourceName = "resourceName";
+        H handle = (H) "handle";
+        Device.ParameterName parameterName = mock(Device.ParameterName.class);
+        Device.ParameterName parameterNameNoThere = mock(Device.ParameterName.class);
+        ConfigurationParameter configurationParameter = mock(ConfigurationParameter.class);
+        doReturn(handle).when(provider).nativeResourceOpen(resourceName);
+        H resourceHandle = provider.openResource(resourceName);
+        assertThat(provider.isOpened(resourceHandle)).isTrue();
+        provider.nativeSetResourceParameter(resourceHandle, parameterName, configurationParameter);
+        reset(provider);
+
+        // acting
+        Optional<ConfigurationParameter> parameter = provider.findResourceParameter(resourceHandle, parameterNameNoThere);
+
+        // check the behavior
+        verify(provider).isOpened(handle);
+        verify(provider).nativeFindResourceParameter(handle, parameterNameNoThere);
+        // check results
+        assertThat(parameter).isNotNull().isEmpty();
     }
 
     @Test
@@ -937,12 +993,12 @@ public class AbstractTelephonyServiceProviderTest<H> {
         H resourceHandle = provider.openResource(resourceName);
         assertThat(provider.isOpened(resourceHandle)).isTrue();
         provider.nativeSetResourceParameter(resourceHandle, parameterName, configurationParameter);
-        assertThat(provider.resourceParameter(resourceHandle, parameterName)).contains(configurationParameter);
+        assertThat(provider.findResourceParameter(resourceHandle, parameterName)).contains(configurationParameter);
         provider.closeResource(resourceHandle);
         reset(provider);
 
         // acting
-        Optional<ConfigurationParameter> parameter = provider.resourceParameter(resourceHandle, parameterName);
+        Optional<ConfigurationParameter> parameter = provider.findResourceParameter(resourceHandle, parameterName);
 
         // check the behavior
         verify(provider).isOpened(handle);
@@ -961,7 +1017,7 @@ public class AbstractTelephonyServiceProviderTest<H> {
         doReturn(handle).when(provider).nativeResourceOpen(resourceName);
         H resourceHandle = provider.openResource(resourceName);
         assertThat(provider.isOpened(resourceHandle)).isTrue();
-        assertThat(provider.resourceParameter(resourceHandle, parameterName)).isEmpty();
+        assertThat(provider.findResourceParameter(resourceHandle, parameterName)).isEmpty();
         reset(provider);
 
         // acting
@@ -971,7 +1027,7 @@ public class AbstractTelephonyServiceProviderTest<H> {
         verify(provider).isValid(handle);
         // check results
         assertThat(setUp).isTrue();
-        assertThat(provider.resourceParameter(resourceHandle, parameterName)).contains(configurationParameter);
+        assertThat(provider.findResourceParameter(resourceHandle, parameterName)).contains(configurationParameter);
     }
 
     @Test
@@ -984,7 +1040,7 @@ public class AbstractTelephonyServiceProviderTest<H> {
         doReturn(handle).when(provider).nativeResourceOpen(resourceName);
         H resourceHandle = provider.openResource(resourceName);
         assertThat(provider.isOpened(resourceHandle)).isTrue();
-        assertThat(provider.resourceParameter(resourceHandle, parameterName)).isEmpty();
+        assertThat(provider.findResourceParameter(resourceHandle, parameterName)).isEmpty();
         provider.closeResource(resourceHandle);
         reset(provider);
 
@@ -995,7 +1051,7 @@ public class AbstractTelephonyServiceProviderTest<H> {
         verify(provider).isValid(handle);
         // check results
         assertThat(setUp).isTrue();
-        assertThat(provider.resourceParameter(resourceHandle, parameterName)).isEmpty();
+        assertThat(provider.findResourceParameter(resourceHandle, parameterName)).isEmpty();
     }
 
     @Test

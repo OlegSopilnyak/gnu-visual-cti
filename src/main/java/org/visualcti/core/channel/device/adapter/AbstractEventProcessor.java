@@ -91,10 +91,10 @@ public abstract class AbstractEventProcessor<H> extends RunnableUnitAdapter impl
 
     /**
      * <accessor>
-     * To get the option's value by the option's name
+     * To get the events processor's option value by the name of one
      *
      * @param name the name of the option
-     * @return the value or empty
+     * @return the option's value or empty
      * @see Optional
      */
     @Override
@@ -108,11 +108,10 @@ public abstract class AbstractEventProcessor<H> extends RunnableUnitAdapter impl
      *
      * @param name  the name of the option
      * @param value new value of the option
-     * @return previous option's value or null if wasn't
      */
     @Override
-    public <T> T setOption(final OptionName name, final T value) {
-        return (T) properties.put(name.value(), value);
+    public <T> void setOption(final OptionName name, final T value) {
+        properties.put(name.value(), value);
     }
 
     /**
@@ -172,7 +171,7 @@ public abstract class AbstractEventProcessor<H> extends RunnableUnitAdapter impl
      *
      * @param event device-event for the processing
      * @see #grabProviderEvents()
-     * @see #takeDeviceEvent()
+     * @see #extractDeviceEvent()
      */
     @Override
     public void onDeviceEvent(DeviceEvent<H> event) {
@@ -183,15 +182,15 @@ public abstract class AbstractEventProcessor<H> extends RunnableUnitAdapter impl
     }
 
     /**
-     * <taker>
-     * To take the device event for further even's processing
+     * <extracter>
+     * To extract the device event from events' source for further even's processing
      *
-     * @return taken device event
+     * @return extracted device event
      * @throws InterruptedException if thread is interrupted
-     * @see #processingDeviceEvents()
+     * @see DeviceEventsProcessor#processingDeviceEvents()
      */
     @Override
-    public DeviceEvent<H> takeDeviceEvent() throws InterruptedException {
+    public DeviceEvent<H> extractDeviceEvent() throws InterruptedException {
         return deviceEvents.poll(howLongWaitForDeviceEvent, TimeUnit.MILLISECONDS);
     }
 
@@ -244,12 +243,12 @@ public abstract class AbstractEventProcessor<H> extends RunnableUnitAdapter impl
         // dealing with event dispatching factory's thread
         switch (unitState) {
             case ACTIVE:
-                super.dispatchEvent("Starting device event processing.");
+                dispatchEvent("Starting device event processing.");
                 // starting the device events processing
                 startingDeviceEventProcessing();
                 break;
             case PASSIVE:
-                super.dispatchEvent("Stopping device event processing.");
+                dispatchEvent("Stopping device event processing.");
                 // stopping the device events processing
                 stoppingDeviceEventProcessing();
                 break;
@@ -261,21 +260,27 @@ public abstract class AbstractEventProcessor<H> extends RunnableUnitAdapter impl
     /// private methods
     // starting the events processing
     private void startingDeviceEventProcessing() {
-        // adjusting how long wait for device event parameter
-        prepareWaitForEventStuff();
+        // to enable device's events getting
+        eventsProvider.enableEventsGetting();
+        // adjusting how long wait for device event occurrence parameter
+        this.howLongWaitForDeviceEvent = this.<Long>getOption(OptionName.WAIT_EVENT_TIMEOUT).orElseGet(() -> {
+            setOption(OptionName.WAIT_EVENT_TIMEOUT, DEFAULT_WAIT_EVENT_TIMEOUT);
+            return DEFAULT_WAIT_EVENT_TIMEOUT;
+        });
         //
-        final CountDownLatch eventQueueLatch = new CountDownLatch(1);
+        final CountDownLatch eventsQueueLatch = new CountDownLatch(1);
         // launching grabbed device events processing thread
         deviceEventExecutor.execute(() -> {
             // clearing the queue
             deviceEvents.clear();
-            eventQueueLatch.countDown();
+            eventsQueueLatch.countDown();
             processingDeviceEvents();
         });
+        // waiting for device events producing thread started
         try {
-            if (eventQueueLatch.await(howLongWaitForDeviceEvent, TimeUnit.MILLISECONDS)) {
+            if (eventsQueueLatch.await(howLongWaitForDeviceEvent, TimeUnit.MILLISECONDS)) {
                 // the grabbed device events processing thread is started
-                // launching device provider's events grabbing thread
+                // launching device provider's events grabbing and processing thread
                 deviceEventExecutor.execute(this::grabProviderEvents);
             } else {
                 dispatchError("Cannot launch provider's events grabbing");
@@ -289,21 +294,12 @@ public abstract class AbstractEventProcessor<H> extends RunnableUnitAdapter impl
         }
     }
 
-    // preparing how long wait for device event parameter
-    private void prepareWaitForEventStuff() {
-        final Optional<Long> timeout = getOption(OptionName.WAIT_EVENT_TIMEOUT);
-        if (timeout.isPresent()) {
-            howLongWaitForDeviceEvent = timeout.get();
-        } else {
-            howLongWaitForDeviceEvent = DEFAULT_WAIT_EVENT_TIMEOUT;
-            setOption(OptionName.WAIT_EVENT_TIMEOUT, DEFAULT_WAIT_EVENT_TIMEOUT);
-        }
-    }
-
     // stopping the events processing
     @SuppressWarnings("unchecked")
     private void stoppingDeviceEventProcessing() {
-        // putting end os queue marker
+        // to disable device's events getting
+        eventsProvider.disableEventsGetting();
+        // putting end of queue marker
         onDeviceEvent((DeviceEvent<H>) DeviceEvent.EMPTY);
         // stopping provider events thread
         eventsGrabberThread(null);

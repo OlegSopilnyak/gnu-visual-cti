@@ -112,7 +112,7 @@ public abstract class AbstractTelephonyFactory<H, T extends TelephonyDevice<H, ?
      * @param parameter the unit parameter to apply
      * @see ConfigurationParameter
      * @see ServerUnitAdapter#processParameter(ConfigurationParameter)
-     * @see ServerUnit.Builder#build(Element)
+     * @see ServerUnitAdapter#settingUpMainPart(Element)
      */
     @Override
     protected void applyUnitParameter(final ConfigurationParameter parameter) {
@@ -158,7 +158,8 @@ public abstract class AbstractTelephonyFactory<H, T extends TelephonyDevice<H, ?
      */
     @Override
     public Element getXML() {
-        return this.unitConfiguration = super.getXML();
+        this.unitConfiguration = super.getXML();
+        return this.unitConfiguration;
     }
 
     /**

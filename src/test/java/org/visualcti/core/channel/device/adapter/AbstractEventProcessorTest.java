@@ -174,11 +174,10 @@ public class AbstractEventProcessorTest {
     @Test
     public void shouldTakeSentEvent_ByTimeout() throws InterruptedException {
         // preparing test data
-        long howLong = 200L;
-        processor.howLongWaitForDeviceEvent = howLong;
+        processor.howLongWaitForDeviceEvent = 200L;
 
         // acting
-        DeviceEvent deviceEvent = processor.takeDeviceEvent();
+        DeviceEvent deviceEvent = processor.extractDeviceEvent();
 
         // check the behavior
         // check results
@@ -192,7 +191,7 @@ public class AbstractEventProcessorTest {
         processor.onDeviceEvent(deviceEvent);
 
         // acting
-        DeviceEvent takenEvent = processor.takeDeviceEvent();
+        DeviceEvent takenEvent = processor.extractDeviceEvent();
 
         // check the behavior
         // check results
@@ -202,8 +201,7 @@ public class AbstractEventProcessorTest {
     @Test
     public void shouldBeNotTakenTheBreak() throws InterruptedException, ExecutionException {
         // preparing test data
-        long howLong = 5000L;
-        processor.howLongWaitForDeviceEvent = howLong;
+        processor.howLongWaitForDeviceEvent = 5000L;
         AtomicReference<Thread> takenThread = new AtomicReference<>();
         CountDownLatch latch = new CountDownLatch(1);
         Future<Boolean> takenBreak = shadowExecutor.submit(() -> {
@@ -226,8 +224,7 @@ public class AbstractEventProcessorTest {
     @Test
     public void shouldBeTakenTheBreak() {
         // preparing test data
-        long howLong = 50L;
-        processor.howLongWaitForDeviceEvent = howLong;
+        processor.howLongWaitForDeviceEvent = 50L;
 
         // acting
         boolean done = processor.isNotTakenTheBreak();
@@ -340,7 +337,7 @@ public class AbstractEventProcessorTest {
 
         // check the behavior
         verify(processor, atLeastOnce()).isStarted();
-        verify(processor, atLeastOnce()).takeDeviceEvent();
+        verify(processor, atLeastOnce()).extractDeviceEvent();
         verify(deviceEvent, atLeastOnce()).getDeviceName();
         verify(processor, atLeastOnce()).notifyListeners(deviceEvent);
         verify(processor, never()).isNotTakenTheBreak();
@@ -358,7 +355,7 @@ public class AbstractEventProcessorTest {
         // check the behavior
         verify(processor).isStarted();
         // grabbed events processing
-        verify(processor, never()).takeDeviceEvent();
+        verify(processor, never()).extractDeviceEvent();
         // grabbing device events provider events and put for processing
         verify(processor, never()).eventsGrabberThread(any(Thread.class));
         // check results
@@ -400,7 +397,7 @@ public class AbstractEventProcessorTest {
         // working threads activities check
         verify(testProcessor, atLeastOnce()).isStarted();
         // grabbed events processing
-        verify(testProcessor, atLeastOnce()).takeDeviceEvent();
+        verify(testProcessor, atLeastOnce()).extractDeviceEvent();
         verify(deviceEvent, atLeastOnce()).getDeviceName();
         verify(testProcessor, atLeastOnce()).notifyListeners(deviceEvent);
         verify(testProcessor, never()).isNotTakenTheBreak();

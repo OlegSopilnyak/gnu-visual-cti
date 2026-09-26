@@ -529,7 +529,7 @@ public class AbstractDeviceTest<H> {
         doReturn("mocked-name").when(name).value();
         doReturn(Collections.singleton(name)).when(device).hardwareParameterNames();
         ConfigurationParameter parameter = mock(ConfigurationParameter.class);
-        doReturn(Optional.of(parameter)).when(serviceProvider).resourceParameter(handle, name);
+        doReturn(Optional.of(parameter)).when(serviceProvider).findResourceParameter(handle, name);
         assertThat(device.getParameter(name)).isEmpty();
 
         // acting
@@ -539,7 +539,7 @@ public class AbstractDeviceTest<H> {
         verify(device).hasHardwareParameters();
         verify(device).serviceProvider();
         verify(device, atLeastOnce()).hardwareParameterNames();
-        verify(serviceProvider).resourceParameter(handle, name);
+        verify(serviceProvider).findResourceParameter(handle, name);
         verify(device).setParameter(name, parameter);
         // check results
         assertThat(device.getParameter(name)).isPresent();
@@ -561,7 +561,7 @@ public class AbstractDeviceTest<H> {
         verify(device).hasHardwareParameters();
         verify(device).serviceProvider();
         verify(device, atLeastOnce()).hardwareParameterNames();
-        verify(serviceProvider).resourceParameter(handle, name);
+        verify(serviceProvider).findResourceParameter(handle, name);
         verify(device, never()).setParameter(any(Device.ParameterName.class), any(ConfigurationParameter.class));
         // check results
         assertThat(device.getParameter(name)).isEmpty();
@@ -582,7 +582,7 @@ public class AbstractDeviceTest<H> {
         verify(device).hasHardwareParameters();
         verify(device).serviceProvider();
         verify(device, atLeastOnce()).hardwareParameterNames();
-        verify(serviceProvider, never()).resourceParameter(any(), any(Device.ParameterName.class));
+        verify(serviceProvider, never()).findResourceParameter(any(), any(Device.ParameterName.class));
         // check results
         assertThat(device.getParameter(name)).isEmpty();
     }

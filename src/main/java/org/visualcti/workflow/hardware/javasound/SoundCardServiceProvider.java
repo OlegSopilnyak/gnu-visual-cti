@@ -51,7 +51,6 @@ import javax.sound.sampled.UnsupportedAudioFileException;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -370,6 +369,11 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
 
     @Override
     protected boolean nativeStartAudioRecording(H handle, String filePath, Audio format, int silence, int timeout) {
+        if (timeout <= 0) {
+            // wrong value of the recording timeout
+            Tools.error("Timeout for audio recording is wrong : " + timeout);
+            return false;
+        }
         final File audioFile = Paths.get(filePath).toFile();
         if (isOpened(handle) && audioFile.exists() && handle.getTarget() != null) {
             //
@@ -377,12 +381,12 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
             scheduler.schedule(() -> nativeRecordingAudioToFile(handle, audioFile, format), 0, TimeUnit.MILLISECONDS);
             //
             // to schedule stopping recording when the recording timeout will be reached
-            schedulePostponedActivity(handle, () -> {
-                // removing the target line from the handle (to stop capturing the audio loop)
-                handle.setTargetLine(null);
-                // removing postponed activity for the handle
-                deviceActivity.remove(handle);
-            }, runActionIn(timeout, TimeUnit.SECONDS));
+//            schedulePostponedActivity(handle, () -> {
+//                // removing the target line from the handle (to stop capturing the audio loop)
+//                handle.setTargetLine(null);
+//                // removing postponed activity for the handle
+//                deviceActivity.remove(handle);
+//            }, runActionIn(timeout, TimeUnit.SECONDS));
             return true;
         } else {
             // didn't start recording
@@ -485,8 +489,8 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
 
     // registering the available codecs for the opened resource by the resource's handle
     private H registerResourceCodecs(H handle) {
-        nativeSetResourceParameter(handle, ALLOWED_CODECS,
-                ConfigurationParameter.of(ALLOWED_CODECS.value(), availableFormatsFor(handle))
+        nativeSetResourceParameter(handle, ALLOWED_CODECS_NAME,
+                ConfigurationParameter.of(ALLOWED_CODECS_NAME.value(), availableFormatsFor(handle))
         );
         return handle;
     }
@@ -533,7 +537,7 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
             // preparing audio data playing stuff
             final SourceDataLine channel = beforeAudioPlaying(handle, audioStream.getFormat());
             // playing back the audio
-            playbackAudio(handle, audioStream, channel, audioFile);
+            playingBackAudio(handle, audioStream, channel, audioFile);
         } catch (LineUnavailableException | UnsupportedAudioFileException | IOException e) {
             // detaching the line from device's handle
             handle.setSourceLine(null);
@@ -545,7 +549,7 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
     }
 
     // playing back the audio
-    private void playbackAudio(H handle, AudioInputStream audioStream, SourceDataLine channel, File audioFile) throws IOException {
+    private void playingBackAudio(H handle, AudioInputStream audioStream, SourceDataLine channel, File audioFile) throws IOException {
         // playing back from audio data stream
         playingBackAudioStream(handle, audioStream, channel);
         final String message = "--- Finished playing file: " + audioFile.getName();
@@ -555,10 +559,6 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
         if (channel.isActive()) {
             // Wait for buffer to empty before closing
             channel.drain();
-            //
-            // finishing up the channel's playback
-            channel.stop();
-            channel.close();
         }
         // audio playing operation is completed
         if (Boolean.TRUE.equals(handle.isSourceActive())) {
@@ -577,6 +577,10 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
                 // putting the event about the end of file reached
                 putEvent(stopIt(handle, AUDIO_PLAYING, Result.IO.EOF));
             }
+        //
+        // finishing up the channel's playback regardless it's status
+        channel.stop();
+        channel.close();
     }
 
     // recording the audio to file using handle's target line
@@ -599,19 +603,27 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
             handle.setTargetLine(target);
             target.start();
             // capturing the audio and save it to the file
-            captureAudio(handle, outputFile, target, audioFormat);
+            handle.inProgress(true);
+            capturingAudio(handle, outputFile, target, audioFormat);
         } catch (LineUnavailableException | IOException e) {
             // detaching the line from device's handle
             handle.setTargetLine(null);
-            Tools.error("Failed to record the audio");
+            Tools.error("Failed to record the audio.");
+            e.printStackTrace(Tools.err);
+        } catch (IllegalArgumentException e) {
+            handle.setTargetLine(null);
+            Tools.error("Failed to record the audio by format reason.");
             e.printStackTrace(Tools.err);
         } finally {
             handle.inProgress(false);
         }
     }
 
-    // capturing the audio
-    private void captureAudio(H handle, File outputFile, TargetDataLine target, AudioFormat audioFormat) throws IOException {
+    // capturing the audio (full cycle)
+    private void capturingAudio(
+            final H handle, final File outputFile,
+            final TargetDataLine target, final AudioFormat audioFormat)
+            throws IOException {
         //
         // audio capturing operation stuff preparation
         final File tempRawAudioFile = Files.createTempFile("audio", ".rawdata").toFile();
@@ -619,8 +631,8 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
         final byte[] buffer = new byte[BUFFER_SIZE];
         int bytesCaptured;
         try (final FileOutputStream out = new FileOutputStream(tempRawAudioFile)) {
-            // audio capturing operation is started
-            handle.inProgress(true);
+            //
+            // audio capturing to the temporary file operation is started
             while (Boolean.TRUE.equals(handle.isTargetActive())) {
                 // getting audio chunk from the audio input
                 if ((bytesCaptured = target.read(buffer, 0, buffer.length)) > 0) {
@@ -630,28 +642,29 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
                     break;
                 }
             }
-            //
-            // audio capturing operation is completed
-            if (target.isActive()) {
-                // there is audio data to capture
-                // sending operation timeout event
-                putEvent(stopIt(handle, AUDIO_RECORDING, Result.TIMEOUT));
-                //
-                // finalizing the audio capturing
-                target.stop();
-                target.close();
-            } else {
-                // audio capturing is stopped outside
-                // putting the event about end of file reached state
-                putEvent(stopIt(handle, AUDIO_RECORDING, Result.IO.EOF));
-            }
         }
+        //
+        // audio capturing operation is completed
+        final OperationResultValue finishingReason = target.isActive()
+                // the reason is recording operation timeout
+                ? Result.TIMEOUT
+                // the reason is the operation stopping outside
+                : Result.IO.EOF;
+        // sending the operation is finished event
+        putEvent(stopIt(handle, AUDIO_RECORDING, finishingReason));
+       //
+        // finalizing the audio capturing
+        target.stop();
+        target.close();
         // saving the audio recording result
-        try (
-                final FileInputStream fileIn = new FileInputStream(tempRawAudioFile);
-                final AudioInputStream audioIn = new AudioInputStream(fileIn, audioFormat, tempRawAudioFile.length())
-        ) {
+        try {
+                final AudioInputStream audioIn = new AudioInputStream(
+                        Files.newInputStream(tempRawAudioFile.toPath()), audioFormat,
+                        tempRawAudioFile.length());
             AudioSystem.write(audioIn, AudioFileFormat.Type.WAVE, outputFile);
+            audioIn.close();
+        } catch (Exception e) {
+            e.printStackTrace(Tools.err);
         }
         //
         // cleaning the operation's stuff

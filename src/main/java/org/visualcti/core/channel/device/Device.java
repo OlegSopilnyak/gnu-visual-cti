@@ -218,7 +218,7 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit, XmlAware
      *
      * @param handle valid opened device handle value
      * @see #startSession()
-     * @see ServiceProvider#resourceParameter(H, ParameterName)
+     * @see ServiceProvider#findResourceParameter(H, ParameterName)
      * @see #hasHardwareParameters()
      * @see #hardwareParameterNames()
      * @see #setParameter(ParameterName, ConfigurationParameter)
@@ -232,7 +232,7 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit, XmlAware
             // iterating hardware parameters names
             hardwareParameterNames().forEach(name ->
                     // getting the hardware parameter by name from the device's service provider
-                    provider.resourceParameter(handle, name).ifPresent(
+                    provider.findResourceParameter(handle, name).ifPresent(
                             // storing resource's hardware parameter to the basic device parameters map
                             parameter -> Device.this.setParameter(name, parameter)
                     )
@@ -598,22 +598,22 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit, XmlAware
 
         /**
          * <acessor>
-         * To get the resource-specific device parameter by parameter name
+         * To find the resource-specific device parameter by parameter name
          *
          * @param handle the handle of the opened resource
          * @param name   the name of parameter to get
-         * @return there exists parameter value or empty if not exists
+         * @return there exists configuration parameter value or empty if not exists
          * @see ParameterName
          * @see ConfigurationParameter
          * @see Optional
          */
-        default Optional<ConfigurationParameter> resourceParameter(H handle, ParameterName name) {
+        default Optional<ConfigurationParameter> findResourceParameter(H handle, ParameterName name) {
             return Optional.empty();
         }
 
         /**
          * <acessor>
-         * To find any handler for the resource by name
+         * To find any opened handle for the resource by name
          *
          * @param name the name of the opened resource
          * @return handle to opened resource or empty
@@ -621,7 +621,7 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit, XmlAware
          * @see #openResource(String)
          * @see #open()
          */
-        default Optional<H> handleByName(String name) {
+        default Optional<H> openedHandleByName(String name) {
             return Optional.empty();
         }
 

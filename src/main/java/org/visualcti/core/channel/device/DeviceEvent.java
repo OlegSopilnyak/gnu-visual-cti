@@ -232,6 +232,22 @@ public interface DeviceEvent<H> {
     interface Provider<H> {
         /**
          * <action>
+         * Enabling device-related events getting
+         *
+         * @see #getEvent(long)
+         */
+        void enableEventsGetting();
+
+        /**
+         * <action>
+         * Disabling device-related events getting
+         *
+         * @see #getEvent(long)
+         */
+        void disableEventsGetting();
+
+        /**
+         * <action>
          * To get the device event from the events provider during a particular timeframe
          *
          * @param during time-frame for event's getting

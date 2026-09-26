@@ -70,10 +70,10 @@ public interface DeviceEventsProcessor<H> extends RunnableServerUnit {
 
     /**
      * <accessor>
-     * To get the option's value by the option's name
+     * To get the events processor's option value by the name of one
      *
      * @param name the name of the option
-     * @return the value or empty
+     * @return the option's value or empty
      * @param <T> the type of the option value
      * @see Optional
      */
@@ -83,12 +83,11 @@ public interface DeviceEventsProcessor<H> extends RunnableServerUnit {
      * <mutator>
      * To setting up the new value of the option
      *
-     * @param name the name of the option
+     * @param name  the name of the option
      * @param value new value of the option
-     * @return previous option's value
-     * @param <T> the type of the option value
+     * @param <T>   the type of the option value
      */
-    <T> T setOption(OptionName name, T value);
+    <T> void setOption(OptionName name, T value);
 
     /**
      * <accessor>
@@ -147,7 +146,7 @@ public interface DeviceEventsProcessor<H> extends RunnableServerUnit {
      *
      * @param event device-event for the processing
      * @see #grabProviderEvents()
-     * @see #takeDeviceEvent()
+     * @see #extractDeviceEvent()
      */
     void onDeviceEvent(DeviceEvent<H> event);
 
@@ -174,14 +173,14 @@ public interface DeviceEventsProcessor<H> extends RunnableServerUnit {
     }
 
     /**
-     * <taker>
-     * To take the device event for further even's processing
+     * <extracter>
+     * To extract the device event from events' source for further even's processing
      *
-     * @return taken device event
+     * @return extracted device event
      * @throws InterruptedException if thread is interrupted
      * @see #processingDeviceEvents()
      */
-    DeviceEvent<H> takeDeviceEvent() throws InterruptedException;
+    DeviceEvent<H> extractDeviceEvent() throws InterruptedException;
 
     /**
      * <checker>
@@ -206,7 +205,7 @@ public interface DeviceEventsProcessor<H> extends RunnableServerUnit {
      *
      * @see #isStarted()
      * @see DeviceEvent
-     * @see #takeDeviceEvent()
+     * @see #extractDeviceEvent()
      * @see #isNotTakenTheBreak()
      * @see #notifyListeners(DeviceEvent)
      * @see #dispatchError(Throwable, String)
@@ -214,7 +213,7 @@ public interface DeviceEventsProcessor<H> extends RunnableServerUnit {
     default void processingDeviceEvents() {
         while (isStarted()) {
             try {
-                final DeviceEvent<H> deviceEvent = takeDeviceEvent();
+                final DeviceEvent<H> deviceEvent = extractDeviceEvent();
                 if (!isStarted() || DeviceEvent.EMPTY.equals(deviceEvent)) {
                     // factory stopped or end of events queue is reached, stop the events processing
                     return;

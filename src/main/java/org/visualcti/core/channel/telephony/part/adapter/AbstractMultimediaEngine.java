@@ -140,7 +140,7 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
             // creating the temporary data media file
             final File tempFile;
             try {
-                tempFile = File.createTempFile(session.getDevice().getName(), ".audio");
+                tempFile = File.createTempFile(session.getDeviceName(), ".audio");
                 copyMediaData(tempFile, source);
                 tempFile.deleteOnExit();
                 // saving the file for tests purposes
@@ -279,7 +279,7 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
             session.setState(Device.State.IDLE);
             return session.operationResult();
         }
-        System.err.println("---- playback operation didn't finish well");
+System.err.println("---- playback operation didn't finish well");
         // playback operation didn't finish well
         session.setState(Device.State.ERROR);
         return Result.ERROR;
@@ -382,7 +382,7 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
             // creating the temporary data media file
             final File tempFile;
             try {
-                tempFile = File.createTempFile(session.getDevice().getName(), ".audio");
+                tempFile = File.createTempFile(session.getDeviceName(), ".audio");
                 tempFile.deleteOnExit();
                 // saving the file for tests purposes
                 session.parameter(Parameter.AUDIO_TEMPORARY, tempFile);

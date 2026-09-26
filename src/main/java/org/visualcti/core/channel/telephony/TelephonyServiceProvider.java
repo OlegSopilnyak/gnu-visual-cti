@@ -171,7 +171,7 @@ public interface TelephonyServiceProvider<H> extends Device.ServiceProvider<H> {
      * @see TelephonyDevice#canAcceptCall()
      */
     default boolean canAcceptCall(String name) {
-        return handleByName(name).map(this::canAcceptCall).orElse(false);
+        return openedHandleByName(name).map(this::canAcceptCall).orElse(false);
     }
 
     /**
@@ -197,7 +197,7 @@ public interface TelephonyServiceProvider<H> extends Device.ServiceProvider<H> {
      * @see TelephonyDevice#canMakeCall()
      */
     default boolean canMakeCall(String name) {
-        return handleByName(name).map(this::canMakeCall).orElse(false);
+        return openedHandleByName(name).map(this::canMakeCall).orElse(false);
     }
 
     /**
@@ -223,7 +223,7 @@ public interface TelephonyServiceProvider<H> extends Device.ServiceProvider<H> {
      * @see TelephonyDevice#canBeConnected()
      */
     default boolean canBeConnected(String name) {
-        return handleByName(name).map(this::canBeConnected).orElse(false);
+        return openedHandleByName(name).map(this::canBeConnected).orElse(false);
     }
 
     /**
@@ -249,7 +249,7 @@ public interface TelephonyServiceProvider<H> extends Device.ServiceProvider<H> {
      * @see TelephonyDevice#canFax()
      */
     default boolean canFax(String name) {
-        return handleByName(name).map(this::canFax).orElse(false);
+        return openedHandleByName(name).map(this::canFax).orElse(false);
     }
 
     /**

@@ -37,9 +37,13 @@ Fax number: 217-356-3356
 */
 package org.visualcti.core.channel.telephony.adapter;
 
+import static org.visualcti.core.channel.telephony.operation.Result.CALL.DISCONNECT;
+import static org.visualcti.core.channel.telephony.operation.Result.TIMEOUT;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -53,6 +57,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
@@ -82,9 +87,10 @@ import org.visualcti.util.Tools;
  * @param <H> the type of the device's low-level operations handle
  * @see TelephonyServiceProvider
  */
+@SuppressWarnings("unchecked")
 public abstract class AbstractTelephonyServiceProvider<H> implements TelephonyServiceProvider<H> {
-    public static final float SAMPLE_RATE = 8000.0f; // Standard telephony sample rate
-    public static final Device.ParameterName ALLOWED_CODECS = MultimediaEngine.Parameter.ALLOWED_CODECS;
+    public static final float SAMPLE_RATE = 8000.0F; // Standard telephony sample rate
+    public static final Device.ParameterName ALLOWED_CODECS_NAME = MultimediaEngine.Parameter.ALLOWED_CODECS;
     // holder of the opened resource handlers by resource name
     private final Map<String, List<H>> openedResources = new ConcurrentHashMap<>();
     // holder of the opened resource parameters by resource handle
@@ -171,16 +177,32 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * @see #closeResource(H)
      */
     protected boolean isOpened(String name) {
-        final List<H> handles = openedResources.get(name);
-        return handles != null && !handles.isEmpty();
+        return Optional.ofNullable(openedResources.get(name))
+                .map(handles -> !handles.isEmpty())
+                .orElse(false);
+    }
+
+    /**
+     * <acessor>
+     * To find any opened handle for the resource by name
+     *
+     * @param name the name of the opened resource
+     * @return handle to opened resource or empty
+     * @see TelephonyServiceProvider#openedHandleByName(String)
+     * @see Optional
+     */
+    @Override
+    public Optional<H> openedHandleByName(final String name) {
+        return Optional.ofNullable(openedResources.get(name))
+                .map(handles -> handles.isEmpty() ? null : handles.get(0));
     }
 
     /**
      * <acessor>
      * To get the resource-specific device parameter by parameter name
      *
-     * @param handle the handle of the opened resource
-     * @param name   the name of parameter to get
+     * @param handle        the handle of the opened resource
+     * @param parameterName the name of parameter to get
      * @return there exists parameter value or empty if not exists
      * @see Device.ParameterName
      * @see ConfigurationParameter
@@ -188,8 +210,10 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * @see #isOpened(H)
      */
     @Override
-    public Optional<ConfigurationParameter> resourceParameter(final H handle, final Device.ParameterName name) {
-        return isOpened(handle) ? nativeFindResourceParameter(handle, name) : Optional.empty();
+    public Optional<ConfigurationParameter> findResourceParameter(
+            final H handle, final Device.ParameterName parameterName
+    ) {
+        return isOpened(handle) ? nativeFindResourceParameter(handle, parameterName) : Optional.empty();
     }
 
     /**
@@ -200,11 +224,10 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * @param handle the handle of the opened resource
      * @param name   the name of parameter to get
      * @return there exists parameter value or empty if not exists
-     * @see #resourceParameter(H, Device.ParameterName)
+     * @see #findResourceParameter(H, Device.ParameterName)
      */
     protected Optional<ConfigurationParameter> nativeFindResourceParameter(H handle, Device.ParameterName name) {
-        final Map<Device.ParameterName, ConfigurationParameter> parameters = resourceParameters.get(handle);
-        return parameters == null ? Optional.empty() : Optional.ofNullable(parameters.get(name));
+        return Optional.ofNullable(resourceParameters.get(handle)).map(parameterMap -> parameterMap.get(name));
     }
 
     /**
@@ -252,21 +275,6 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
     }
 
     /**
-     * <acessor>
-     * To find any handler for the resource by name
-     *
-     * @param name the name of the opened resource
-     * @return handle to opened resource or empty
-     * @see TelephonyServiceProvider#handleByName(String)
-     * @see Optional
-     */
-    @Override
-    public Optional<H> handleByName(final String name) {
-        final List<H> handles = openedResources.get(name);
-        return handles != null && !handles.isEmpty() ? Optional.ofNullable(handles.get(0)) : Optional.empty();
-    }
-
-    /**
      * <action>
      * To close the device-related resource
      *
@@ -296,27 +304,15 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      *
      * @param handle the telephony device handle
      * @return true if the operation completed successfully or the device with the handle is already disconnected
-     * @see TelephonyDevice#dropCall(PhoneCallSession)
      * @see TelephonyServiceProvider#handsetOff(H)
+     * @see #isHandsetOff(H)
+     * @see #nativeHandsetOff(H)
      */
     @Override
     public boolean handsetOff(final H handle) {
         return resourcesByHandle(handle)
                 .map(entry -> isHandsetOff(handle) || nativeHandsetOff(handle))
                 .orElse(false);
-    }
-
-    /**
-     * <native-call>
-     * To end up (handset off) the phone call.
-     *
-     * @param handle the handle of the opened resource (device's implementation)
-     * @return true if the operation completed successfully
-     * @see #handsetOff(H)
-     */
-    protected boolean nativeHandsetOff(H handle) {
-        // doing nothing here
-        return false;
     }
 
     /**
@@ -333,13 +329,26 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
     }
 
     /**
+     * <native-call>
+     * To end up (handset off) the phone call.
+     *
+     * @param handle the handle of the opened resource (device's implementation)
+     * @return true if the operation completed successfully
+     * @see #handsetOff(H)
+     */
+    protected boolean nativeHandsetOff(H handle) {
+        // doing nothing here
+        return false;
+    }
+
+    /**
      * <action>
      * To answer to an incoming phone call.
      *
      * @param handle the telephony device handle
      * @return true if the operation completed successfully
-     * @see TelephonyDevice#waitForCall(PhoneCallSession, int, int, boolean)
      * @see TelephonyServiceProvider#answerCall(H)
+     * @see #nativeAnswerCall(H)
      */
     @Override
     public boolean answerCall(final H handle) {
@@ -368,6 +377,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * @param handle the connected telephony device handle
      * @return caller's phone number value
      * @see TelephonyServiceProvider#getCallerID(H)
+     * @see #nativeCallerID(H)
      */
     @Override
     public PhoneCall.Number getCallerID(final H handle) {
@@ -396,8 +406,8 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * @param number  the called phone number
      * @param timeout the maximum waiting time for the answer (sec) to the outgoing call
      * @return true if the operation started successfully
-     * @see TelephonyDevice#makeCall(PhoneCallSession, PhoneCall.Number, int)
      * @see TelephonyServiceProvider#startCalling(H, PhoneCall.Number, int)
+     * @see #nativeStartCalling(H, PhoneCall.Number, int)
      */
     @Override
     public boolean startCalling(final H handle, final PhoneCall.Number number, final int timeout) {
@@ -421,6 +431,32 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
         return false;
     }
 
+    private final AtomicBoolean gettingEnabled = new AtomicBoolean(false);
+
+    /**
+     * <action>
+     * Enabling device-related events getting
+     *
+     * @see #getEvent(long)
+     */
+    @Override
+    public void enableEventsGetting() {
+        nativeEvents.clear();
+        gettingEnabled.getAndSet(true);
+    }
+
+    /**
+     * <action>
+     * Disabling device-related events getting
+     *
+     * @see #getEvent(long)
+     */
+    @Override
+    public void disableEventsGetting() {
+        gettingEnabled.getAndSet(false);
+        nativeEvents.add((DeviceEvent<H>) DeviceEvent.EMPTY);
+    }
+
     /**
      * <action>
      * To get the device event from events native during a particular timeframe
@@ -439,21 +475,28 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
                 // wrong timeout value
                 return null;
             }
+            if (!gettingEnabled.get()) {
+                // the provider's device events getting ain't allow
+                return null;
+            }
             // calculating timeout for native event polling and native event getting
             final long timeout = during / 2;
             final DeviceEvent<H> nativeDeviceEvent;
             try {
                 nativeDeviceEvent = nativeEvents.poll(timeout, TimeUnit.MILLISECONDS);
             } catch (InterruptedException e) {
-                Tools.error("Interrupted while waiting for native event");
+                Tools.error("Interrupted while waiting for native event polling.");
                 e.printStackTrace(Tools.err);
                 /* Clean up whatever needs to be handled before interrupting  */
                 Thread.currentThread().interrupt();
                 return null;
             }
-            // according to polled event, whether it is null or not, we return allowed device-event
-            // or allowed device-event getting from the native
-            return allowedEvent(nativeDeviceEvent == null ? nativeGetEvent(timeout) : nativeDeviceEvent);
+            return nativeDeviceEvent == DeviceEvent.EMPTY
+                    // end of polled events flow (the last event detected)
+                    ? null
+                    // according to polled event, whether it is null or not, we return allowed device-event
+                    // or allowed device-event getting from the native
+                    : allowedEvent(nativeDeviceEvent == null ? nativeGetEvent(timeout) : nativeDeviceEvent);
         }));
     }
 
@@ -931,7 +974,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * To start sending the tone to the connected phone line
      *
      * @param handle the telephony device handle
-     * @param tone the tone to send
+     * @param tone   the tone to send
      * @return true if the operation started successfully
      * @see TelephonyDevice#playTone(PhoneCallSession, ToneId, float)
      */
@@ -945,7 +988,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * To start sending the tone to the connected phone line
      *
      * @param handle the telephony device handle
-     * @param tone the tone to send
+     * @param tone   the tone to send
      * @return true if the operation started successfully
      * @see #startToneSending(H, TelephonyTone)
      */
@@ -1115,15 +1158,20 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
                 .findFirst();
     }
 
+    // default values of allowed event-types  by any way
+    private Set<OperationResultValue> anywayEnabledTypes() {
+        return new HashSet<>(Arrays.asList(DISCONNECT, TIMEOUT));
+    }
+
     // to get the set of allowed event types for the opened resource by handle
     private Set<OperationResultValue> allowedEventTypesFor(final H handle) {
-        return resourceEventTypes.getOrDefault(handle, Collections.emptySet());
+        return resourceEventTypes.getOrDefault(handle, anywayEnabledTypes());
     }
 
     // enabling events type for the opened resource by handle
     private void internalEnableEventsFor(final H handle, final OperationResultValue type) {
         final Set<OperationResultValue> enabledEventTypes = new HashSet<>(
-                resourceEventTypes.compute(handle, (k, v) -> v == null ? new HashSet<>() : v)
+                resourceEventTypes.compute(handle, (k, v) -> v == null ? anywayEnabledTypes() : v)
         );
         if (!enabledEventTypes.contains(type) && enabledEventTypes.add(type)) {
             // put the updated set of enabled event types back into the map
