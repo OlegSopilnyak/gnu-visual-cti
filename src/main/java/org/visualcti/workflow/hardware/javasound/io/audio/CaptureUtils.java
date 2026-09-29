@@ -37,8 +37,6 @@ Fax number: 217-356-3356
 */
 package org.visualcti.workflow.hardware.javasound.io.audio;
 
-import static org.visualcti.workflow.hardware.javasound.SoundCardServiceProvider.BUFFER_SIZE;
-
 import javax.sound.sampled.AudioFileFormat;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
@@ -60,6 +58,7 @@ import java.util.concurrent.TimeUnit;
 import org.visualcti.media.Audio;
 import org.visualcti.util.Tools;
 import org.visualcti.workflow.hardware.javasound.SoundCardHandle;
+import org.visualcti.workflow.hardware.javasound.io.Constants;
 
 /**
  * Provider Facade Part:Class-Utility: The telephony service provider facade 'audio capturing implementation'
@@ -67,8 +66,9 @@ import org.visualcti.workflow.hardware.javasound.SoundCardHandle;
  *
  * @see org.visualcti.workflow.hardware.javasound.SoundCardServiceProvider
  */
-public class CaptureUtils {
+public final class CaptureUtils implements Constants {
     private static final Map<SoundCardHandle, BlockingQueue<Runnable>> afterParty = new ConcurrentHashMap<>();
+    public static final String QUEUE_IS_FULL = "CaptureUtils: AfterParty queue is full!!!";
 
     /**
      * <action>
@@ -122,12 +122,9 @@ public class CaptureUtils {
      */
     public static <H extends SoundCardHandle> void completeCapturing(final H handle, final Runnable afterRecording) {
         final BlockingQueue<Runnable> completedAction = afterParty.get(handle);
-        if (completedAction != null) {
-            // freeing previous queue
-            if (!completedAction.offer(afterRecording)) {
-                Tools.error("CaptureUtils: AfterParty queue is full!!!");
-                return;
-            }
+        if (completedAction != null && !completedAction.offer(afterRecording)) {
+            Tools.error(QUEUE_IS_FULL);
+            return;
         }
         // waiting for operation isn't complete
         waitForOperationComplete(handle);
@@ -137,11 +134,11 @@ public class CaptureUtils {
      * <action>
      * To wait for operation isn't complete
      *
-     * @param <H>            sound-card device handle type
-     * @param handle         the handle of the opened resource (sound card device's handle)
+     * @param <H>    sound-card device handle type
+     * @param handle the handle of the opened resource (sound card device's handle)
      * @see #waitForOperationComplete(H)
      */
-    public static  <H extends SoundCardHandle> void waitForOperationComplete(final H handle) {
+    public static <H extends SoundCardHandle> void waitForOperationComplete(final H handle) {
         while (handle.isOperationInProgress()) {
             try {
                 TimeUnit.MILLISECONDS.sleep(50);
@@ -159,9 +156,10 @@ public class CaptureUtils {
         handle.inProgress(true);
         final BlockingQueue<Runnable> previous = afterParty.put(handle, new ArrayBlockingQueue<>(1, true));
         if (previous != null) {
+            final Runnable afterComplete = () -> Tools.error("CaptureUtils: Start Operation, Lost Runnable");
             // freeing previous queue
-            if (!previous.offer(() -> Tools.error("CaptureUtils: Start Operation, Lost Runnable"))) {
-                Tools.error("CaptureUtils: AfterParty queue is full!!!");
+            if (!previous.offer(afterComplete)) {
+                Tools.error(QUEUE_IS_FULL);
             }
         }
     }
@@ -173,9 +171,10 @@ public class CaptureUtils {
         // removing capturing operation's count down latch
         final BlockingQueue<Runnable> previous = afterParty.remove(handle);
         if (previous != null) {
+            final Runnable afterComplete = () -> Tools.error("CaptureUtils: Complete Operation, Lost Runnable");
             // freeing previous queue
-            if (!previous.offer(() -> Tools.error("CaptureUtils: Complete Operation, Lost Runnable"))) {
-                Tools.error("CaptureUtils: AfterParty queue is full!!!");
+            if (!previous.offer(afterComplete)) {
+                Tools.error(QUEUE_IS_FULL);
             }
         }
     }
@@ -197,7 +196,7 @@ public class CaptureUtils {
             final H handle, final Path outputFilePath, final TargetDataLine target
     ) throws IOException {
         // preparing after party actions queue for capture completing
-        final  BlockingQueue<Runnable> completedAction = afterParty.get(handle);
+        final BlockingQueue<Runnable> completedAction = afterParty.get(handle);
         if (completedAction == null) {
             // something went wrong
             throw new IOException("Sound capturing is started in a wrong way.");
@@ -212,7 +211,6 @@ public class CaptureUtils {
         // waiting for the audio capturing count down latch's freeing
         try {
             if (!completedAction.isEmpty()) {
-Tools.print("=== Running after complete action ===");
                 completedAction.take().run();
             }
         } catch (InterruptedException e) {
@@ -224,7 +222,7 @@ Tools.print("=== Running after complete action ===");
 
     // capturing audio to the temporary file
     private static <H extends SoundCardHandle> Path capturingRawAudio(
-            final H handle, final  BlockingQueue<Runnable> completedAction, final TargetDataLine target
+            final H handle, final BlockingQueue<Runnable> completedAction, final TargetDataLine target
     ) throws IOException {
         // preparing temporary file for the captured RAW audio data
         final Path tempRawAudioPath = Files.createTempFile("audio", ".rawdata");
@@ -263,5 +261,9 @@ Tools.print("=== Running after complete action ===");
         //
         // cleaning the operation's stuff
         Files.delete(tempRawAudioPath);
+    }
+
+    // private constructor
+    private CaptureUtils() {
     }
 }
