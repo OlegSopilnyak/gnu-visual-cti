@@ -62,6 +62,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.core.channel.device.Device;
@@ -491,12 +492,17 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
                 Thread.currentThread().interrupt();
                 return null;
             }
+            //
+            // returning the device event
+            final UnaryOperator<DeviceEvent<H>> deviceEventOf =
+                    // according to polled event, whether it is null or not, we return allowed device-event
+                    // or allowed device-event getting from the native
+                    pooledEvent -> pooledEvent == null ? nativeGetEvent(timeout) : pooledEvent;
             return nativeDeviceEvent == DeviceEvent.EMPTY
                     // end of polled events flow (the last event detected)
                     ? null
-                    // according to polled event, whether it is null or not, we return allowed device-event
-                    // or allowed device-event getting from the native
-                    : allowedEvent(nativeDeviceEvent == null ? nativeGetEvent(timeout) : nativeDeviceEvent);
+                    // the allowed device-event instance
+                    : allowedEvent(deviceEventOf.apply(nativeDeviceEvent));
         }));
     }
 
@@ -906,7 +912,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * To start recording media to the temporary file with the particular media format
      *
      * @param handle   the telephony device handle
-     * @param filePath the path to the file which contents the media data
+     * @param filePath the path to the file which will contain recorded media data
      * @param format   parameter determining the type of the decoder for transformation the sound data
      * @param silence  time (seconds) how long silence in a line is allowed, after which the record operation will be finished.
      * @param timeout  maximum time of playing back in seconds (-1 for unlimited, waiting for end of stream)

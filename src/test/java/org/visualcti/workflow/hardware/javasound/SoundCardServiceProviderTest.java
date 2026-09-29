@@ -85,6 +85,7 @@ import org.visualcti.core.channel.telephony.operation.ToneId;
 import org.visualcti.core.channel.telephony.operation.adapter.TelephonyTone;
 import org.visualcti.core.channel.telephony.part.MultimediaEngine;
 import org.visualcti.media.Audio;
+import org.visualcti.workflow.hardware.javasound.io.audio.CaptureUtils;
 
 @SuppressWarnings("unchecked")
 public class SoundCardServiceProviderTest {
@@ -1112,6 +1113,10 @@ public class SoundCardServiceProviderTest {
         // acting
         boolean started = provider.startAudioRecording(handle, tempFile.getCanonicalPath(), format, silence, timeout);
         await().until(handle::isOperationInProgress);
+        shadowScheduler.schedule(() -> CaptureUtils.completeCapturing(handle,
+                // sending the operation is completed by timeout event
+                () -> provider.putEvent(stopIt(handle, "Recording...", Result.TIMEOUT))
+        ), 200, TimeUnit.MILLISECONDS);
         await().until(() -> !handle.isOperationInProgress());
 
         // check the behavior
@@ -1127,6 +1132,7 @@ public class SoundCardServiceProviderTest {
         assertThat(started).isTrue();
         assertThat(provider.hasShadowActivity(handle)).isFalse();
         assertThat(handle.isTargetActive()).isFalse();
+        assertThat(Files.size(tempFile.toPath())).isGreaterThan(1000);
         assertThat(tempFile.delete()).isTrue();
     }
 
@@ -1150,21 +1156,16 @@ public class SoundCardServiceProviderTest {
         reset(provider);
 
         // acting
-        provider.stopAudioRecording(handle);
+        shadowScheduler.schedule(() -> provider.stopAudioRecording(handle), 300, TimeUnit.MILLISECONDS);
         await().until(() -> !handle.isOperationInProgress());
 
         // check the behavior
         verify(provider, atLeastOnce()).isOpened(handle);
         verify(provider).nativeStopAudioRecording(handle);
-        ArgumentCaptor<DeviceEvent<SoundCardHandle>> eventCaptor = ArgumentCaptor.forClass(DeviceEvent.class);
-        verify(provider).putEvent(eventCaptor.capture());
         // check results
-        DeviceEvent<SoundCardHandle> event = eventCaptor.getValue();
-        assertThat(event.getEventType()).isSameAs(DeviceEvent.Type.DEVICE_SPECIFIC);
-        assertThat(event.getDeviceHandle()).isSameAs(handle);
-        assertThat(event.getOption(DeviceEvent.Option.REASON)).isPresent().contains(Result.IO.EOF);
         assertThat(provider.hasShadowActivity(handle)).isFalse();
         assertThat(handle.isTargetActive()).isFalse();
+        assertThat(Files.size(tempFile.toPath())).isGreaterThan(1000);
         assertThat(tempFile.delete()).isTrue();
     }
 
@@ -1394,6 +1395,15 @@ public class SoundCardServiceProviderTest {
         verify(provider).isOpened(handle);
         verify(provider).nativeCommitToneRegistering(handle);
         // check results
+    }
+
+    /// private methods
+
+    // to build device event instance
+    private static <H> DeviceEvent<H> stopIt(H handle, String description, OperationResultValue reason) {
+        return AbstractDeviceEvent.<H>of(DeviceEvent.Type.DEVICE_SPECIFIC).description(description)
+                .deviceHandle(handle).deviceName(SOUND_DEVICE).vendor("test-vendor")
+                .option(DeviceEvent.Option.REASON, reason);
     }
 
     /// inner classes
