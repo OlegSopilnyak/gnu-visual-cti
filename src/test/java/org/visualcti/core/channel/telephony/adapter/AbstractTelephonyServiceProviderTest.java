@@ -399,6 +399,7 @@ public class AbstractTelephonyServiceProviderTest<H> {
         int timeout = 10;
         doReturn(event).when(provider).nativeGetEvent(timeout / 2);
         doReturn(event).when(provider).allowedEvent(event);
+        provider.enableEventsGetting();
 
         // acting
         Optional<DeviceEvent<H>> result = provider.getEvent(timeout);
@@ -413,6 +414,7 @@ public class AbstractTelephonyServiceProviderTest<H> {
     public void shouldNotGetEvent_NativeDoesNotReturn() {
         // preparing test data
         int timeout = 10;
+        provider.enableEventsGetting();
 
         // acting
         Optional<DeviceEvent<H>> result = provider.getEvent(timeout);
@@ -456,7 +458,7 @@ public class AbstractTelephonyServiceProviderTest<H> {
         OperationResultValue eventType = mock(OperationResultValue.class);
         doReturn(eventTypeName).when(eventType).getValue();
         provider.enableEvents(resourceHandle, eventType);
-        assertThat(provider.enabledEventTypes(resourceHandle)).hasSize(1).contains(eventType);
+        assertThat(provider.enabledEventTypes(resourceHandle)).hasSize(3).contains(eventType);
         reset(provider);
 
         // acting
@@ -465,7 +467,7 @@ public class AbstractTelephonyServiceProviderTest<H> {
         // check the behavior
         verify(provider, never()).nativeEnableEvents(any(), anyString());
         // check results
-        assertThat(provider.enabledEventTypes(resourceHandle)).hasSize(1).contains(eventType);
+        assertThat(provider.enabledEventTypes(resourceHandle)).hasSize(3).contains(eventType);
     }
 
     @Test
@@ -499,7 +501,7 @@ public class AbstractTelephonyServiceProviderTest<H> {
         OperationResultValue eventType = mock(OperationResultValue.class);
         doReturn(eventTypeName).when(eventType).getValue();
         provider.enableEvents(resourceHandle, eventType);
-        assertThat(provider.enabledEventTypes(resourceHandle)).hasSize(1).contains(eventType);
+        assertThat(provider.enabledEventTypes(resourceHandle)).hasSize(3).contains(eventType);
         reset(provider);
 
         // acting
@@ -508,7 +510,7 @@ public class AbstractTelephonyServiceProviderTest<H> {
         // check the behavior
         verify(provider).nativeDisableEvents(resourceHandle, eventType.getValue());
         // check results
-        assertThat(provider.enabledEventTypes(resourceHandle)).isEmpty();
+        assertThat(provider.enabledEventTypes(resourceHandle)).hasSize(2).doesNotContain(eventType);
     }
 
     @Test
@@ -564,7 +566,7 @@ public class AbstractTelephonyServiceProviderTest<H> {
         OperationResultValue eventType = mock(OperationResultValue.class);
         doReturn(eventTypeName).when(eventType).getValue();
         provider.enableEvents(resourceHandle, eventType);
-        assertThat(provider.enabledEventTypes(resourceHandle)).hasSize(1).contains(eventType);
+        assertThat(provider.enabledEventTypes(resourceHandle)).hasSize(3).contains(eventType);
         reset(provider);
 
         // acting

@@ -71,21 +71,11 @@ public class ToneUtils {
     // the container of DTMF tones
     private static final Map<Character, TelephonyTone> DTMF = new ConcurrentHashMap<>();
 
-    // initializing dtmf tones table
     static {
-        DTMF.put('1', makeDtmfTone(697, 1209));
-        DTMF.put('2', makeDtmfTone(697, 1336));
-        DTMF.put('3', makeDtmfTone(697, 1477));
-        DTMF.put('4', makeDtmfTone(770, 1209));
-        DTMF.put('5', makeDtmfTone(770, 1336));
-        DTMF.put('6', makeDtmfTone(770, 1477));
-        DTMF.put('7', makeDtmfTone(852, 1209));
-        DTMF.put('8', makeDtmfTone(852, 1336));
-        DTMF.put('9', makeDtmfTone(852, 1477));
-        DTMF.put('*', makeDtmfTone(941, 1209));
-        DTMF.put('0', makeDtmfTone(941, 1336));
-        DTMF.put('#', makeDtmfTone(941, 1477));
+        // initializing dtmf tones table
+        initializeDtmfTones();
     }
+
 
     /**
      * <action>
@@ -141,6 +131,7 @@ public class ToneUtils {
         );
     }
 
+    /// private methods
     // making audio buffer for string to dial
     private static byte[] composeAudioBufferFor(String toDial) {
         final ByteArrayOutputStream finalBuffer = new ByteArrayOutputStream();
@@ -295,6 +286,22 @@ public class ToneUtils {
         }
     }
 
+    // to init the DTMF tones table
+    private static void initializeDtmfTones() {
+        DTMF.put('1', makeDtmfTone(697, 1209));
+        DTMF.put('2', makeDtmfTone(697, 1336));
+        DTMF.put('3', makeDtmfTone(697, 1477));
+        DTMF.put('4', makeDtmfTone(770, 1209));
+        DTMF.put('5', makeDtmfTone(770, 1336));
+        DTMF.put('6', makeDtmfTone(770, 1477));
+        DTMF.put('7', makeDtmfTone(852, 1209));
+        DTMF.put('8', makeDtmfTone(852, 1336));
+        DTMF.put('9', makeDtmfTone(852, 1477));
+        DTMF.put('*', makeDtmfTone(941, 1209));
+        DTMF.put('0', makeDtmfTone(941, 1336));
+        DTMF.put('#', makeDtmfTone(941, 1477));
+    }
+
     // making telephony tone instance for DTMF frequencies
     private static TelephonyTone makeDtmfTone(int lowFreqHz, int highFreqHz) {
         final TelephonyTone tone = new TelephonyTone(ToneId.DTMF);
@@ -302,6 +309,10 @@ public class ToneUtils {
         tone.getSecondary().setFrequencyHz(highFreqHz);
         tone.getDuration().setOnTime(200);
         return tone;
+    }
+
+    // private constructor
+    private ToneUtils() {
     }
 
     /// inner classes
@@ -316,8 +327,34 @@ public class ToneUtils {
         }
 
         @Override
-        public int read() {
-            return nextByte();
+        public int read(byte[] b, int off, int len) {
+            if (b == null) {
+                throw new NullPointerException();
+            } else if (off < 0 || len < 0 || len > b.length - off) {
+                throw new IndexOutOfBoundsException();
+            } else if (len == 0) {
+                return 0;
+            } else {
+                int data = nextByte();
+                if (data == -1) {
+                    return -1;
+                }
+                b[off] = (byte) data;
+                int stored = 1;
+                for (; stored < len; stored++) {
+                    data = nextByte();
+                    if (data == -1) {
+                        break;
+                    }
+                    b[off + stored] = (byte) data;
+                }
+                return stored;
+            }
+        }
+
+        @Override
+        public int read() throws IOException{
+            throw new IOException("Not implemented here.");
         }
 
         // getting next read byte value or -1
@@ -334,8 +371,5 @@ public class ToneUtils {
                 index = followingIndex >= buffer.length ? 0 : followingIndex;
             }
         }
-    }
-
-    private ToneUtils() {
     }
 }
