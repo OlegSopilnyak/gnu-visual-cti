@@ -47,6 +47,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import java.io.IOException;
@@ -158,7 +159,7 @@ public class SoundCardDeviceTest<H extends SoundCardHandle> {
         verify(started).getDeviceHandle();
         verify(device).findSessionByHandle(handle);
         verify(faxes).open(changedSession);
-        verify(faxes).isOpened(changedSession);
+        verify(faxes, times(2)).isOpened(changedSession);
         verify(provider).enableEvents(handle, Result.CALL.RINGS);
         verify(device).canBeConnected();
         verify(factory, never()).shareDevice(handle);

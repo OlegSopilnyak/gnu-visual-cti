@@ -40,9 +40,13 @@ package org.visualcti.core.channel.telephony.adapter;
 import static org.visualcti.core.channel.telephony.operation.Result.CALL.DISCONNECT;
 import static org.visualcti.core.channel.telephony.operation.Result.TIMEOUT;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -73,6 +77,7 @@ import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.TelephonyDevice;
 import org.visualcti.core.channel.telephony.TelephonyServiceProvider;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
+import org.visualcti.core.channel.telephony.operation.Result;
 import org.visualcti.core.channel.telephony.operation.ToneId;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.core.channel.telephony.operation.adapter.TelephonyTone;
@@ -846,7 +851,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      */
     @Override
     public boolean startAudioPlaying(H handle, String filePath, Audio format, int timeout) {
-        return nativeStartAudioPlaying(handle, filePath, format, timeout);
+        return nativeStartAudioFilePlaying(handle, filePath, format, timeout);
     }
 
     /**
@@ -860,8 +865,62 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * @return true if the operation started successfully
      * @see #startAudioPlaying(H, String, Audio, int)
      */
-    protected boolean nativeStartAudioPlaying(H handle, String filePath, Audio format, int timeout) {
-        return isOpened(handle) && filePath != null && !filePath.trim().isEmpty();
+    private boolean nativeStartAudioFilePlaying(H handle, String filePath, Audio format, int timeout) {
+        // try to start playing back the audio data from the file
+        final File audioFile = Paths.get(filePath).toFile();
+        if (isOpened(handle) && isReadyToPlay(handle) && audioFile.exists()) {
+            //
+            // starting playing back the file in the separate thread
+            asyncAudioFilePlaying(audioFile, format, handle);
+            //
+            // setting up interruption by timed out
+            if (timeout > 0) {
+                // to schedule stopping playing when the playing timeout will be reached
+                schedulePostponedAction(handle, () -> stopAudioFilePlaying(handle), timeout);
+            }
+            // audio file playing back is started well
+            return true;
+        } else {
+            // didn't start playing
+            return false;
+        }
+    }
+
+    /**
+     * <checker>
+     * <native-call>
+     * To check is device with opened handle ready for playing back the audio
+     *
+     * @param handle the telephony device opened handle
+     * @return true if device is ready to play
+     */
+    protected boolean isReadyToPlay(H handle) {
+        throw new UnsupportedOperationException("Please implement it further.");
+    }
+
+    /**
+     * <action>
+     * <native-call>
+     * To play back the audio file in separate thread (asynchronously)
+     *
+     * @param audioFile the file which contents the media data
+     * @param format    parameter determining the type of the decoder for transformation the sound data
+     * @param handle    the telephony device opened handle
+     */
+    protected void asyncAudioFilePlaying(File audioFile, Audio format, H handle) {
+        throw new UnsupportedOperationException("Please implement it further.");
+    }
+
+    /**
+     * <action>
+     * <native-call>
+     * To stop playing back the audio file
+     *
+     * @param handle the telephony device opened handle
+     * @see #asyncAudioFilePlaying(File, Audio, Object)
+     */
+    protected void stopAudioFilePlaying(H handle) {
+        throw new UnsupportedOperationException("Please implement it further.");
     }
 
     /**
@@ -874,7 +933,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
     @Override
     public void stopAudioPlaying(H handle) {
         if (isOpened(handle)) {
-            nativeStopAudioPlaying(handle);
+            nativeStopAudioFilePlaying(handle);
         }
     }
 
@@ -885,7 +944,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * @param handle the telephony device handle
      * @see #stopAudioPlaying(H)
      */
-    protected void nativeStopAudioPlaying(H handle) {
+    protected void nativeStopAudioFilePlaying(H handle) {
         // doing nothing here
     }
 
@@ -904,7 +963,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      */
     @Override
     public boolean startAudioRecording(H handle, String filePath, Audio format, int silence, int timeout) {
-        return nativeStartAudioRecording(handle, filePath, format, silence, timeout);
+        return nativeStartAudioFileRecording(handle, filePath, format, silence, timeout);
     }
 
     /**
@@ -919,8 +978,66 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * @return true if the operation started successfully
      * @see #startAudioRecording(H, String, Audio, int, int)
      */
-    protected boolean nativeStartAudioRecording(H handle, String filePath, Audio format, int silence, int timeout) {
-        return isOpened(handle) && filePath != null && !filePath.trim().isEmpty();
+    private boolean nativeStartAudioFileRecording(H handle, String filePath, Audio format, int silence, int timeout) {
+        if (timeout <= 0) {
+            // wrong value of the recording timeout
+            Tools.error("Timeout for audio recording is wrong : " + timeout);
+            return false;
+        }
+        // try to start recording the audio data to the file
+        final Path targetFilePath = Paths.get(filePath);
+        if (isOpened(handle) && isReadyToRecord(handle) && Files.exists(targetFilePath)) {
+            //
+            // starting recording audio data to the file in the separate thread
+            asyncAudioFileRecording(targetFilePath, format, handle, silence);
+            //
+            // to schedule the stop recording when the recording timeout will be reached
+            schedulePostponedAction(handle, () -> stopAudioFileRecording(handle, Result.TIMEOUT), timeout);
+            // audio data recording is started well
+            return true;
+        } else {
+            // didn't start recording
+            return false;
+        }
+    }
+
+    /**
+     * <checker>
+     * <native-call>
+     * To check is device with opened handle ready for recording the audio
+     *
+     * @param handle the telephony device opened handle
+     * @return true if device is ready to record
+     */
+    protected boolean isReadyToRecord(H handle) {
+        throw new UnsupportedOperationException("Please implement it further.");
+    }
+
+    /**
+     * <action>
+     * <native-call>
+     * To record the audio to the file in separate thread (asynchronously)
+     *
+     * @param targetFilePath the path to the file which will contain the recorded media data
+     * @param format         parameter determining the type of the decoder for transformation the sound data
+     * @param handle         the telephony device opened handle
+     * @param silence        how many seconds it has to wait the silence in order to complete recording
+     */
+    protected void asyncAudioFileRecording(Path targetFilePath, Audio format, H handle, int silence) {
+        throw new UnsupportedOperationException("Please implement it further.");
+    }
+
+    /**
+     * <action>
+     * <native-call>
+     * To stop recording to the audio file
+     *
+     * @param handle the telephony device opened handle
+     * @param reason th reason of record stopping
+     * @see #asyncAudioFileRecording(Path, Audio, Object, int)
+     */
+    protected void stopAudioFileRecording(H handle, OperationResultValue reason) {
+        throw new UnsupportedOperationException("Please implement it further.");
     }
 
     /**
@@ -933,7 +1050,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
     @Override
     public void stopAudioRecording(H handle) {
         if (isOpened(handle)) {
-            nativeStopAudioRecording(handle);
+            nativeStopAudioFileRecording(handle);
         }
     }
 
@@ -944,8 +1061,20 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * @param handle the telephony device handle
      * @see #stopAudioRecording(H)
      */
-    protected void nativeStopAudioRecording(H handle) {
+    protected void nativeStopAudioFileRecording(H handle) {
         // doing nothing here
+    }
+
+    /**
+     * <action>
+     * To schedule postponed action which will be executed in some seconds
+     *
+     * @param handle       the telephony device opened handle
+     * @param action       the action to be executed after delay
+     * @param runInSeconds which delay (in seconds) should be before the action be executed
+     */
+    protected void schedulePostponedAction(H handle, Runnable action, int runInSeconds) {
+        throw new UnsupportedOperationException("Please implement it further.");
     }
 
     /**

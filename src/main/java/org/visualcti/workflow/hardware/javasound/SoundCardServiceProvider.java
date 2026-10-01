@@ -46,7 +46,6 @@ import javax.sound.sampled.TargetDataLine;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -298,32 +297,25 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
     }
 
     @Override
-    protected boolean nativeStartAudioPlaying(H handle, String filePath, Audio format, int timeout) {
-        final File audioFile = Paths.get(filePath).toFile();
-        if (isOpened(handle) && audioFile.exists() && handle.getSource() != null) {
-            //
-            // starting playing back the file in the separate thread
-            scheduler.schedule(() -> nativePlayingBackAudioFile(handle, audioFile), 0, TimeUnit.MILLISECONDS);
-            //
-            // setting up interruption by timed out
-            if (timeout > 0) {
-                // to schedule stopping playing when the playing timeout will be reached
-                schedulePostponedActivity(handle, () -> {
-                    // removing the source line from the handle (will stop the loop of the audio playing)
-                    handle.setSourceLine(null);
-                    // removing postponed activity for the handle
-                    deviceActivity.remove(handle);
-                }, runActionIn(timeout, TimeUnit.SECONDS));
-            }
-            return true;
-        } else {
-            // didn't start playing
-            return false;
-        }
+    protected boolean isReadyToPlay(H handle) {
+        return handle.getSource() != null;
     }
 
     @Override
-    protected void nativeStopAudioPlaying(H handle) {
+    protected void asyncAudioFilePlaying(File audioFile, Audio format, H handle) {
+        scheduler.schedule(() -> nativePlayingBackAudioFile(handle, audioFile), 0, TimeUnit.MILLISECONDS);
+    }
+
+    @Override
+    protected void stopAudioFilePlaying(H handle) {
+        // removing the source line from the handle (will stop the loop of the audio playing)
+        handle.setSourceLine(null);
+        // removing postponed activity for the handle
+        cancelPostponedActivity(handle);
+    }
+
+    @Override
+    protected void nativeStopAudioFilePlaying(H handle) {
         // getting the playback channel line from the handle instance
         final SourceDataLine playbackChannel = handle.getSourceLine();
         // checking is there alive playback channel line
@@ -332,44 +324,32 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
             playbackChannel.stop();
             playbackChannel.close();
         }
-        // removing the playback channel line from the handle
-        handle.setSourceLine(null);
-        // cancelling current shadow activity associated with the given handle
-        cancelPostponedActivity(handle);
+        // to stop playing back the audio file
+        stopAudioFilePlaying(handle);
     }
 
     @Override
-    protected boolean nativeStartAudioRecording(H handle, String filePath, Audio format, int silence, int timeout) {
-        if (timeout <= 0) {
-            // wrong value of the recording timeout
-            Tools.error("Timeout for audio recording is wrong : " + timeout);
-            return false;
-        }
-        // start starting recording the input audio
-        final Path audioFilePath = Paths.get(filePath);
-        if (isOpened(handle) && Files.exists(audioFilePath) && handle.getTarget() != null) {
-            //
-            // starting recording input audio to the file in the separate thread
-            scheduler.schedule(
-                    () -> capturingAudioToFile(handle, audioFilePath, format), 0, TimeUnit.MILLISECONDS
-            );
-            //
-            // to schedule the stop recording when the recording timeout will be reached
-            schedulePostponedActivity(handle, () -> {
-                // completing audio data capturing
-                CaptureUtils.completeCapturing(handle, () -> putEvent(stopIt(handle, AUDIO_RECORDING, Result.TIMEOUT)));
-                // removing postponed activity for the handle
-                deviceActivity.remove(handle);
-            }, runActionIn(timeout, TimeUnit.SECONDS));
-            return true;
-        } else {
-            // didn't start recording
-            return false;
-        }
+    protected boolean isReadyToRecord(H handle) {
+        return handle.getTarget() != null;
     }
 
     @Override
-    protected void nativeStopAudioRecording(H handle) {
+    protected void asyncAudioFileRecording(Path targetFilePath, Audio format, H handle, int silence) {
+        scheduler.schedule(
+                () -> capturingAudioToFile(targetFilePath, format, handle),0, TimeUnit.MILLISECONDS
+        );
+    }
+
+    @Override
+    protected void stopAudioFileRecording(H handle, OperationResultValue reason) {
+        // completing audio data capturing
+        CaptureUtils.completeCapturing(handle, () -> putEvent(stopIt(handle, AUDIO_RECORDING, reason)));
+        // removing postponed activity for the handle
+        deviceActivity.remove(handle);
+    }
+
+    @Override
+    protected void nativeStopAudioFileRecording(H handle) {
         // getting the record channel line from the handle instance
         final TargetDataLine recordChannel = handle.getTargetLine();
         // checking is there alive record channel line
@@ -387,6 +367,11 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
     }
 
     @Override
+    protected void schedulePostponedAction(H handle, Runnable action, int runInSeconds) {
+        schedulePostponedActivity(handle, action, runActionIn(runInSeconds, TimeUnit.SECONDS));
+    }
+
+    @Override
     protected void nativeDialingDtmf(H handle, String toDial) {
         if (handle.getSource() != null && toDial != null && !toDial.trim().isEmpty()) {
             ToneUtils.dialingDtmf(toDial);
@@ -401,7 +386,7 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
     @Override
     protected void nativeStopToneSending(H handle) {
         // calling native stop audio paying back method
-        nativeStopAudioPlaying(handle);
+        nativeStopAudioFilePlaying(handle);
     }
 
     @Override
@@ -539,7 +524,7 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
     }
 
     // capturing audio data and save recorded data to the output file in the WAVE format
-    private void capturingAudioToFile(H handle, Path outputFilePath, Audio format) {
+    private void capturingAudioToFile(Path outputFilePath, Audio format, H handle) {
         CaptureUtils.capturingAudioToFile(handle, outputFilePath, format);
         // cancelling postponed activity associated with the given handle
         cancelPostponedActivity(handle);

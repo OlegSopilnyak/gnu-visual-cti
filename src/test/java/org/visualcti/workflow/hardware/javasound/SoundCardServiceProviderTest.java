@@ -41,8 +41,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
@@ -1121,7 +1121,9 @@ public class SoundCardServiceProviderTest {
 
         // check the behavior
         verify(provider, atLeastOnce()).isOpened(handle);
-        verify(provider).nativeStartAudioRecording(eq(handle), anyString(), eq(format), eq(silence), eq(timeout));
+        verify(provider).asyncAudioFileRecording(tempFile.toPath(), format, handle, silence);
+        verify(provider).schedulePostponedAction(eq(handle), any(Runnable.class), anyInt());
+        verify(provider, never()).stopAudioFileRecording(any(), any(OperationResultValue.class));
         ArgumentCaptor<DeviceEvent<SoundCardHandle>> eventCaptor = ArgumentCaptor.forClass(DeviceEvent.class);
         verify(provider, atLeastOnce()).putEvent(eventCaptor.capture());
         // check results
@@ -1161,7 +1163,7 @@ public class SoundCardServiceProviderTest {
 
         // check the behavior
         verify(provider, atLeastOnce()).isOpened(handle);
-        verify(provider).nativeStopAudioRecording(handle);
+        verify(provider).nativeStopAudioFileRecording(handle);
         // check results
         assertThat(provider.hasShadowActivity(handle)).isFalse();
         assertThat(handle.isTargetActive()).isFalse();
