@@ -97,6 +97,9 @@ import org.visualcti.util.Tools;
 public abstract class AbstractTelephonyServiceProvider<H> implements TelephonyServiceProvider<H> {
     public static final float SAMPLE_RATE = 8000.0F; // Standard telephony sample rate
     public static final Device.ParameterName ALLOWED_CODECS_NAME = MultimediaEngine.Parameter.ALLOWED_CODECS;
+    public static final String AUDIO_PLAYING = "Audio playing back...";
+    public static final String TONE_PLAYING = "Tone playing back...";
+    public static final String AUDIO_RECORDING = "Audio recording...";
     // holder of the opened resource handlers by resource name
     private final Map<String, List<H>> openedResources = new ConcurrentHashMap<>();
     // holder of the opened resource parameters by resource handle
@@ -855,38 +858,6 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
     }
 
     /**
-     * <native-call>
-     * To start playing media from the temporary file with the particular media format
-     *
-     * @param handle   the telephony device handle
-     * @param filePath the path to the file which contents the media data
-     * @param format   parameter determining the type of the decoder for transformation the sound data
-     * @param timeout  maximum time of playing back in seconds (-1 for unlimited, waiting for end of stream)
-     * @return true if the operation started successfully
-     * @see #startAudioPlaying(H, String, Audio, int)
-     */
-    private boolean nativeStartAudioFilePlaying(H handle, String filePath, Audio format, int timeout) {
-        // try to start playing back the audio data from the file
-        final File audioFile = Paths.get(filePath).toFile();
-        if (isOpened(handle) && isReadyToPlay(handle) && audioFile.exists()) {
-            //
-            // starting playing back the file in the separate thread
-            asyncAudioFilePlaying(audioFile, format, handle);
-            //
-            // setting up interruption by timed out
-            if (timeout > 0) {
-                // to schedule stopping playing when the playing timeout will be reached
-                schedulePostponedAction(handle, () -> stopAudioFilePlaying(handle), timeout);
-            }
-            // audio file playing back is started well
-            return true;
-        } else {
-            // didn't start playing
-            return false;
-        }
-    }
-
-    /**
      * <checker>
      * <native-call>
      * To check is device with opened handle ready for playing back the audio
@@ -967,41 +938,6 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
     }
 
     /**
-     * <native-call>
-     * To start recording media to the temporary file with the particular media format
-     *
-     * @param handle   the telephony device handle
-     * @param filePath the path to the file which will contain recorded media data
-     * @param format   parameter determining the type of the decoder for transformation the sound data
-     * @param silence  time (seconds) how long silence in a line is allowed, after which the record operation will be finished.
-     * @param timeout  maximum time of playing back in seconds (-1 for unlimited, waiting for end of stream)
-     * @return true if the operation started successfully
-     * @see #startAudioRecording(H, String, Audio, int, int)
-     */
-    private boolean nativeStartAudioFileRecording(H handle, String filePath, Audio format, int silence, int timeout) {
-        if (timeout <= 0) {
-            // wrong value of the recording timeout
-            Tools.error("Timeout for audio recording is wrong : " + timeout);
-            return false;
-        }
-        // try to start recording the audio data to the file
-        final Path targetFilePath = Paths.get(filePath);
-        if (isOpened(handle) && isReadyToRecord(handle) && Files.exists(targetFilePath)) {
-            //
-            // starting recording audio data to the file in the separate thread
-            asyncAudioFileRecording(targetFilePath, format, handle, silence);
-            //
-            // to schedule the stop recording when the recording timeout will be reached
-            schedulePostponedAction(handle, () -> stopAudioFileRecording(handle, Result.TIMEOUT), timeout);
-            // audio data recording is started well
-            return true;
-        } else {
-            // didn't start recording
-            return false;
-        }
-    }
-
-    /**
      * <checker>
      * <native-call>
      * To check is device with opened handle ready for recording the audio
@@ -1067,6 +1003,36 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
 
     /**
      * <action>
+     * To send timeout device event after the duration for getting further
+     *
+     * @param handle     the telephony device opened handle
+     * @param actionName the name of the action timeout will send for
+     * @param after      the duration value
+     * @param unit       the duration type
+     * @see DeviceActivitySession#getDeviceHandle()
+     * @see TimeUnit
+     * @see #getEvent(long)
+     */
+    @Override
+    public void timeoutEventIn(H handle, String actionName, long after, TimeUnit unit) {
+        schedulePostponedAction(handle, sendTimeoutEventFor(handle, actionName), after, unit);
+    }
+
+
+    /**
+     * <action>
+     * To prepare timeout device event runnable
+     *
+     * @param handle     the telephony device opened handle
+     * @param actionName the name of the action timeout will send for
+     * @see #timeoutEventIn(H, String, long, TimeUnit)
+     */
+    protected Runnable sendTimeoutEventFor(H handle, String actionName) {
+        throw new UnsupportedOperationException("Please implement it further.");
+    }
+
+    /**
+     * <action>
      * To schedule postponed action which will be executed in some seconds
      *
      * @param handle       the telephony device opened handle
@@ -1074,6 +1040,19 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * @param runInSeconds which delay (in seconds) should be before the action be executed
      */
     protected void schedulePostponedAction(H handle, Runnable action, int runInSeconds) {
+        schedulePostponedAction(handle, action, runInSeconds, TimeUnit.SECONDS);
+    }
+
+    /**
+     * <action>
+     * To schedule postponed action which will be executed in some seconds
+     *
+     * @param handle the telephony device opened handle
+     * @param action the action to be executed after delay
+     * @param after  the duration value
+     * @param unit   the duration type
+     */
+    protected void schedulePostponedAction(H handle, Runnable action, long after, TimeUnit unit) {
         throw new UnsupportedOperationException("Please implement it further.");
     }
 
@@ -1338,6 +1317,73 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
             return operation.get();
         } finally {
             nativeEventsAccessLock.unlock();
+        }
+    }
+
+    /**
+     * <native-call>
+     * To start playing media from the temporary file with the particular media format
+     *
+     * @param handle   the telephony device handle
+     * @param filePath the path to the file which contents the media data
+     * @param format   parameter determining the type of the decoder for transformation the sound data
+     * @param timeout  maximum time of playing back in seconds (-1 for unlimited, waiting for end of stream)
+     * @return true if the operation started successfully
+     * @see #startAudioPlaying(H, String, Audio, int)
+     */
+    private boolean nativeStartAudioFilePlaying(H handle, String filePath, Audio format, int timeout) {
+        // try to start playing back the audio data from the file
+        final File audioFile = Paths.get(filePath).toFile();
+        if (isOpened(handle) && isReadyToPlay(handle) && audioFile.exists()) {
+            //
+            // starting playing back the file in the separate thread
+            asyncAudioFilePlaying(audioFile, format, handle);
+            //
+            // setting up interruption by timed out
+            if (timeout > 0) {
+                // to schedule stopping playing when the playing timeout will be reached
+                schedulePostponedAction(handle, () -> stopAudioFilePlaying(handle), timeout);
+            }
+            // audio file playing back is started well
+            return true;
+        } else {
+            // didn't start playing
+            return false;
+        }
+    }
+
+    /**
+     * <native-call>
+     * To start recording media to the temporary file with the particular media format
+     *
+     * @param handle   the telephony device handle
+     * @param filePath the path to the file which will contain recorded media data
+     * @param format   parameter determining the type of the decoder for transformation the sound data
+     * @param silence  time (seconds) how long silence in a line is allowed, after which the record operation will be finished.
+     * @param timeout  maximum time of playing back in seconds (-1 for unlimited, waiting for end of stream)
+     * @return true if the operation started successfully
+     * @see #startAudioRecording(H, String, Audio, int, int)
+     */
+    private boolean nativeStartAudioFileRecording(H handle, String filePath, Audio format, int silence, int timeout) {
+        if (timeout <= 0) {
+            // wrong value of the recording timeout
+            Tools.error("Timeout for audio recording is wrong : " + timeout);
+            return false;
+        }
+        // try to start recording the audio data to the file
+        final Path targetFilePath = Paths.get(filePath);
+        if (isOpened(handle) && isReadyToRecord(handle) && Files.exists(targetFilePath)) {
+            //
+            // starting recording audio data to the file in the separate thread
+            asyncAudioFileRecording(targetFilePath, format, handle, silence);
+            //
+            // to schedule the stop recording when the recording timeout will be reached
+            schedulePostponedAction(handle, () -> stopAudioFileRecording(handle, Result.TIMEOUT), timeout);
+            // audio data recording is started well
+            return true;
+        } else {
+            // didn't start recording
+            return false;
         }
     }
 }

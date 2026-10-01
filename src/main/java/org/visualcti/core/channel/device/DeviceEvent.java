@@ -38,6 +38,7 @@ Fax number: 217-356-3356
 package org.visualcti.core.channel.device;
 
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
 
@@ -257,6 +258,20 @@ public interface DeviceEvent<H> {
          * @see DeviceEventsProcessor#grabProviderEvents()
          */
         Optional<DeviceEvent<H>> getEvent(long during);
+
+        /**
+         * <action>
+         * To send timeout device event after the duration for getting further
+         *
+         * @param deviceHandle device handle of the device for which events producing is enabled
+         * @param actionName   the name of the action timeout will send for
+         * @param after        the duration value
+         * @param unit         the duration type
+         * @see DeviceActivitySession#getDeviceHandle()
+         * @see TimeUnit
+         * @see #getEvent(long)
+         */
+        void timeoutEventIn(H deviceHandle, String actionName, long after, TimeUnit unit);
 
         /**
          * <action>

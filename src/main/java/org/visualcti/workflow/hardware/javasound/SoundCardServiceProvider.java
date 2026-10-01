@@ -94,9 +94,6 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
     public static final String DEVICE_FACTORY_VENDOR = "JavaSound";
     // reference to the sound-card handle as singleton
     private static final AtomicReference<SoundCardHandle> handle = new AtomicReference<>(null);
-    public static final String AUDIO_PLAYING = "Audio playing back...";
-    public static final String TONE_PLAYING = "Tone playing back...";
-    public static final String AUDIO_RECORDING = "Audio recording...";
     // the state of handset true = handset is off false = handset is on
     private final AtomicBoolean handsetOff = new AtomicBoolean(true);
     // reference to the sound-card phone number as singleton
@@ -336,7 +333,7 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
     @Override
     protected void asyncAudioFileRecording(Path targetFilePath, Audio format, H handle, int silence) {
         scheduler.schedule(
-                () -> capturingAudioToFile(targetFilePath, format, handle),0, TimeUnit.MILLISECONDS
+                () -> capturingAudioToFile(targetFilePath, format, handle), 0, TimeUnit.MILLISECONDS
         );
     }
 
@@ -366,9 +363,28 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
         cancelPostponedActivity(handle);
     }
 
+    @Deprecated
     @Override
     protected void schedulePostponedAction(H handle, Runnable action, int runInSeconds) {
-        schedulePostponedActivity(handle, action, runActionIn(runInSeconds, TimeUnit.SECONDS));
+        super.schedulePostponedAction(handle, action, runInSeconds);
+    }
+
+    @Override
+    protected void schedulePostponedAction(H handle, Runnable action, long after, TimeUnit unit) {
+        schedulePostponedActivity(handle, action, runActionIn(after, unit));
+    }
+
+    /**
+     * <action>
+     * To prepare timeout device event runnable
+     *
+     * @param handle     the telephony device opened handle
+     * @param actionName   the name of the action timeout will send for
+     * @see #timeoutEventIn(H, String, long, TimeUnit)
+     */
+    @Override
+    protected Runnable sendTimeoutEventFor(H handle, String actionName) {
+        return () -> putEvent(stopIt(handle, actionName, Result.TIMEOUT));
     }
 
     @Override

@@ -61,7 +61,6 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
@@ -72,7 +71,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.ArgumentCaptor;
 import org.mockito.stubbing.Answer;
 import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.core.channel.device.Device;
@@ -418,7 +416,7 @@ public class AbstractMultimediaEngineTest<H> {
         verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
         verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
         verify(session).operationResult(Result.NONE);
-        verify(session).waitingForOperationComplete(timeout * 1000L);
+        verify(session).waitingForOperationComplete(1000L);
         verify(session, atLeastOnce()).operationResult();
         verify(device).dispatchEvent("Playback audio is completed.");
         verify(provider, atLeastOnce()).stopAudioPlaying(deviceHandle);
@@ -427,6 +425,49 @@ public class AbstractMultimediaEngineTest<H> {
         assertThat(result).isSameAs(Result.IO.EOF);
         assertThat(session.getState()).isEqualTo(Device.State.IDLE);
         assertThat(session.operationResult()).isEqualTo(Result.IO.EOF);
+    }
+
+    @Test
+    public void shouldPlaybackAudio_Timeout() throws ExecutionException, InterruptedException, IOException {
+        // preparing test data
+        engine.uses(device);
+        session.alive(true);
+        Audio playbackFormat = Audio.ADPCM_8;
+        String terminationSymbolsMask = "*";
+        int timeout = 1;
+        String audio = "Testing audio content";
+        InputStream source = prepareMultiMediaSource(audio);
+        preparePlaybackCodecs(playbackFormat);
+        doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
+
+        // acting
+        Future<OperationResultValue> playback = executor.submit(() ->
+                engine.playbackAudio(session, source, playbackFormat, terminationSymbolsMask, timeout)
+        );
+        await().until(() -> session.operationIsActive());
+        executor.schedule(() -> session.operationComplete(Result.TIMEOUT), 50, TimeUnit.MILLISECONDS);
+        OperationResultValue result = playback.get();
+
+        // check the behavior
+        verifyPlaybackInputVerification(playbackFormat);
+        verify(device).dispatchEvent("Playback audio is starting...");
+        verify(session).setState(TelephonyDevice.State.PLAY);
+        verify(session).operationResult(Result.NONE);
+        verify(session, atLeastOnce()).getDeviceHandle();
+        verify(device).getProvider();
+        verifyPlaybackEventsAdjusting();
+        verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
+        verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
+        verify(session).operationResult(Result.NONE);
+        verify(session).waitingForOperationComplete(1000L);
+        verify(session, atLeastOnce()).operationResult();
+        verify(device).dispatchEvent("Playback audio is completed.");
+        verify(provider, atLeastOnce()).stopAudioPlaying(deviceHandle);
+        verify(session).setState(Device.State.IDLE);
+        // check results
+        assertThat(result).isSameAs(Result.TIMEOUT);
+        assertThat(session.getState()).isEqualTo(Device.State.IDLE);
+        assertThat(session.operationResult()).isEqualTo(Result.TIMEOUT);
     }
 
     @Test
@@ -461,7 +502,7 @@ public class AbstractMultimediaEngineTest<H> {
         verifyPlaybackEventsAdjusting();
         verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
         verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
-        verify(session).waitingForOperationComplete(timeout * 1000L);
+        verify(session).waitingForOperationComplete(1000L);
         verify(session, atLeastOnce()).operationResult();
         verify(session).parameter(Device.Parameter.USER_INPUT);
         verify(device).dispatchEvent("Playback audio is completed.");
@@ -513,15 +554,11 @@ public class AbstractMultimediaEngineTest<H> {
         verify(provider, atLeastOnce()).stopAudioPlaying(deviceHandle);
         verify(session).setState(Device.State.IDLE);
         verify(session).operationResult(Result.TIMEOUT);
-        ArgumentCaptor<Long> captor = ArgumentCaptor.forClass(Long.class);
-        verify(session, atLeastOnce()).waitingForOperationComplete(captor.capture());
-        List<Long> captured = captor.getAllValues();
+        verify(session, atLeastOnce()).waitingForOperationComplete(1000L);
         // check results
         assertThat(result).isSameAs(Result.TIMEOUT);
         assertThat(session.getState()).isEqualTo(Device.State.IDLE);
         assertThat(session.operationResult()).isEqualTo(Result.TIMEOUT);
-        assertThat(captured.get(0)).isEqualTo(waitForMills);
-        assertThat(captured.get(1)).isLessThan(waitForMills);
     }
 
     @Test
@@ -563,15 +600,11 @@ public class AbstractMultimediaEngineTest<H> {
         verify(provider, atLeastOnce()).stopAudioPlaying(deviceHandle);
         verify(session).setState(Device.State.IDLE);
         verify(session).operationResult(Result.TIMEOUT);
-        ArgumentCaptor<Long> captor = ArgumentCaptor.forClass(Long.class);
-        verify(session, atLeastOnce()).waitingForOperationComplete(captor.capture());
-        List<Long> captured = captor.getAllValues();
+        verify(session, atLeastOnce()).waitingForOperationComplete(1000L);
         // check results
         assertThat(result).isSameAs(Result.TIMEOUT);
         assertThat(session.getState()).isEqualTo(Device.State.IDLE);
         assertThat(session.operationResult()).isEqualTo(Result.TIMEOUT);
-        assertThat(captured.get(0)).isEqualTo(waitForMills);
-        assertThat(captured.get(1)).isLessThan(waitForMills);
     }
 
     @Test
@@ -654,7 +687,7 @@ public class AbstractMultimediaEngineTest<H> {
         verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
         verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
         verify(session).operationResult(Result.NONE);
-        verify(session).waitingForOperationComplete(timeout * 1000L);
+        verify(session).waitingForOperationComplete(1000L);
         verify(session, atLeastOnce()).operationResult();
         verify(provider, atLeastOnce()).stopAudioPlaying(deviceHandle);
         verify(engine).onDeviceError(session, malfunctionReason);
@@ -676,7 +709,7 @@ public class AbstractMultimediaEngineTest<H> {
         session.alive(true);
         Audio playbackFormat = Audio.ADPCM_8;
         String terminationSymbolsMask = "";
-        String malfunctionReason = "Cannot start playing the audio file.";
+        String malfunctionReason = "Cannot start playing the audio data stream.";
         int timeout = 2;
         String audio = "Testing audio content";
         InputStream source = prepareMultiMediaSource(audio);
@@ -743,7 +776,7 @@ public class AbstractMultimediaEngineTest<H> {
         verifyPlaybackEventsAdjusting();
         verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
         verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
-        verify(session).waitingForOperationComplete(timeout * 1000L);
+        verify(session).waitingForOperationComplete(1000L);
         verify(session).isTerminated();
         verify(session).isDisconnected();
         verify(provider, atLeastOnce()).stopAudioPlaying(deviceHandle);
@@ -1346,7 +1379,7 @@ public class AbstractMultimediaEngineTest<H> {
         verifyPlaybackEventsAdjusting();
         verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
         verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
-        verify(session).waitingForOperationComplete(timeout * 1000L);
+        verify(session).waitingForOperationComplete(1000L);
         verify(session).isTerminated();
         verify(session, never()).isDisconnected();
         verify(provider, atLeastOnce()).stopAudioPlaying(deviceHandle);

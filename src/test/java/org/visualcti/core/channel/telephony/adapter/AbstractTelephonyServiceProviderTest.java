@@ -40,6 +40,7 @@ package org.visualcti.core.channel.telephony.adapter;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
@@ -56,6 +57,7 @@ import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import org.assertj.core.util.Files;
 import org.junit.Before;
 import org.junit.Test;
@@ -1258,6 +1260,31 @@ public class AbstractTelephonyServiceProviderTest<H> {
         // check the behavior
         verify(provider).isOpened(handle);
         verify(provider).nativeCommitToneRegistering(handle);
+        // check results
+    }
+
+    @Test
+    public void shouldSendTimeoutEventIn() {
+        // preparing test data
+        String actionName = "action-name";
+        H handle = (H) "handle";
+        long duration = 100L;
+        TimeUnit unit = TimeUnit.SECONDS;
+        Runnable sendTimeout = mock(Runnable.class);
+        doReturn(sendTimeout).when(provider).sendTimeoutEventFor(handle, actionName);
+        doAnswer(invocation -> {
+            invocation.getArgument(1, Runnable.class).run();
+            return null;
+        }).when(provider).schedulePostponedAction(eq(handle), any(Runnable.class), anyLong(), any(TimeUnit.class));
+
+        // acting
+        provider.timeoutEventIn(handle, actionName, duration, unit);
+
+        // check the behavior
+        verify(provider, never()).isOpened(handle);
+        verify(provider).sendTimeoutEventFor(handle, actionName);
+        verify(provider).schedulePostponedAction(handle, sendTimeout, duration, unit);
+        verify(sendTimeout).run();
         // check results
     }
 }

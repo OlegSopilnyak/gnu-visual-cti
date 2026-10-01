@@ -37,6 +37,8 @@ Fax number: 217-356-3356
 */
 package org.visualcti.core.channel.telephony.part.adapter;
 
+import static org.visualcti.core.channel.telephony.adapter.AbstractTelephonyServiceProvider.AUDIO_PLAYING;
+
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.File;
@@ -44,8 +46,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
 import java.util.function.Predicate;
 import org.visualcti.core.ConfigurationParameter;
@@ -126,102 +130,76 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
                                               final InputStream source, final Audio format,
                                               final String terminationSymbolsMask, final int timeout) {
         if (canProceed(session, () -> canPlay(format))) {
-            // staring audio data transmitting
+            // preparing device session for audio data playing back
             session.getDevice().dispatchEvent("Playback audio is starting...");
             session.setState(TelephonyDevice.State.PLAY);
+            //
             // getting device service provider
             final TelephonyServiceProvider<H> serviceProvider = deviceCore.getProvider();
+            // getting session's device handle
             final H deviceHandle = session.getDeviceHandle();
+            //
             // adjusting events producing rules
             serviceProvider.disableEvents(deviceHandle);
             serviceProvider.enableEvents(deviceHandle, Result.CALL.DISCONNECT);
-            final boolean isTerminationMaskExists = !isEmpty(terminationSymbolsMask);
             //
-            // creating the temporary data media file
-            final File tempFile;
+            // creating audio play back context for the audio playing
+            final PlayBackContext context = new PlayBackContext();
+            context.deviceHandle = deviceHandle;
+            context.source = source;
+            context.format = format;
+            context.timeout = timeout;
+            context.termMask = terminationSymbolsMask;
+            //
+            // playing back the input audio data stream
             try {
-                tempFile = File.createTempFile(session.getDeviceName(), ".audio");
-                copyMediaData(tempFile, source);
-                tempFile.deleteOnExit();
-                // saving the file for tests purposes
-                session.parameter(Parameter.AUDIO_TEMPORARY, tempFile);
-                //
-                // enabling DTMF termination if it needs
-                if (isTerminationMaskExists) {
-                    serviceProvider.enableEvents(deviceHandle, Result.IO.DTMF);
-                }
-                // staring audio data transmitting by service provider
-                final String tempFileName = tempFile.getAbsolutePath();
-                final boolean starting = serviceProvider.startAudioPlaying(deviceHandle, tempFileName, format, timeout);
-                if (!starting) {
+                // starting the audio data playing back
+                if (!startAudioPlaying(session, serviceProvider, context)) {
                     // to start playing is failed
-                    final String errorReason = "Cannot start playing the audio file.";
-                    return playbackAudioError(deviceHandle, tempFile, session, errorReason);
+                    final String errorReason = "Cannot start playing the audio data stream.";
+                    return playbackAudioError(deviceHandle, context.tempFile, session, errorReason);
                 }
+                // saving the temporary data media file
+                final File tempFile = context.tempFile;
                 // enabling end-of-file operation results
                 serviceProvider.enableEvents(deviceHandle, Result.IO.EOF);
-                // prepare the time mark of the end of waiting
-                final long endMark = System.currentTimeMillis() + timeout * 1000L;
-                // start waiting for the final operation result
-                waitingForTheNextEvent(session, timeout * 1000L);
+                // according to timeout value waiting for timeout as well
+                if (timeout > 0) {
+                    // enabling timeout operation results
+                    serviceProvider.enableEvents(deviceHandle, Result.TIMEOUT);
+                    serviceProvider.timeoutEventIn(deviceHandle, AUDIO_PLAYING, timeout, TimeUnit.SECONDS);
+                }
                 //
                 // processing the operation result after started waiting (several iterations maybe)
                 while (true) {
+                    // waiting for the event during 1 second
+                    waitingForTheNextEvent(session);
                     // getting the operation result after waiting for operation complete
                     final OperationResultValue operationResult = session.operationResult();
                     // checking the operation result value after waiting operation complete
                     //
-                    // checking end-of-file operation results
-                    if (operationResult == Result.IO.EOF) {
+                    // checking end-of-file or timeout operation results
+                    if (operationResult == Result.IO.EOF || operationResult == Result.TIMEOUT) {
                         // deleting temporary file
-                        if (tempFile.delete()) {
-                            // deleted successfully
-                            // finishing processing of the operation
-                            break;
-                        } else {
+                        if (!tempFile.delete()) {
                             // for some reason didn't delete the temporary file
                             session.setState(Device.State.ERROR);
                             return Result.ERROR;
                         }
+                        // operation complete (leaving the loop)
+                        break;
+                        // checking for the user input during the operation
+                    } else if (operationResult == Result.IO.DTMF
+                            && context.isTerminatedBy(session.parameter(Device.Parameter.USER_INPUT))) {
+                        // operation is terminated by DTMF input (leaving the loop)
+                        break;
                         // checking device's hardware error
                     } else if (operationResult == Result.ERROR) {
                         // device hardware error is detected
                         final String errorReason = "Playback audio is failed.";
                         return playbackAudioError(deviceHandle, tempFile, session, errorReason);
-                        // checking for the user input during the operation
-                    } else if (operationResult == Result.IO.DTMF) {
-                        // calculating duration for the next waiting operation complete
-                        final long waitForNextOperationComplete = endMark - System.currentTimeMillis();
-                        // is termination mask empty?
-                        if (!isTerminationMaskExists) {
-                            // continue waiting for the next event
-                            waitingForTheNextEvent(session, waitForNextOperationComplete);
-                            // go to the operation result processing after waiting
-                            continue;
-                        }
-                        // user input detected
-                        final String userInput = session.parameter(Device.Parameter.USER_INPUT);
-                        if (!isEmpty(userInput)) {
-                            // getting the last symbol of the user input in the context
-                            final String lastSymbol = userInput.substring(userInput.length() - 1);
-                            // analyzing the last user input symbol
-                            //
-                            // is the symbol not from the termination mask?
-                            if (terminationSymbolsMask.contains(lastSymbol)) {
-                                break;
-                                // can it continue waiting?
-                            } else if (waitForNextOperationComplete > 0L) {
-                                // continue waiting for the next event
-                                waitingForTheNextEvent(session, waitForNextOperationComplete);
-                            }
-                        } else if (endMark < System.currentTimeMillis() && tempFile.delete()) {
-                            // timeout is expired, finishing up the operation by timeout reason
-                            session.operationResult(Result.TIMEOUT);
-                            break;
-                        }
                         // checking for the operation's interruption
                     } else if (session.isTerminated()) {
-                        // operation termination is detected
                         // stopping audio data transmitting by service provider
                         stopAudioPlaying(serviceProvider, deviceHandle);
                         // removing unnecessary temp file
@@ -244,13 +222,9 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
                         //
                         // disconnecting form the current phone call
                         disconnect(session);
+                        // preparing method's response
                         session.operationResult(Result.CALL.DISCONNECT);
                         return Result.CALL.DISCONNECT;
-                    } else {
-                        // the timeout for the operation was expired
-                        session.operationResult(Result.TIMEOUT);
-                        // finishing processing of the operation
-                        break;
                     }
                 }
             } catch (InterruptedException e) {
@@ -274,9 +248,28 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
             session.setState(Device.State.IDLE);
             return session.operationResult();
         }
-        // playback operation didn't finish well
+        // playback operation didn't start well
         session.setState(Device.State.ERROR);
         return Result.ERROR;
+    }
+
+    private boolean startAudioPlaying(
+            PhoneCallSession<H> session, TelephonyServiceProvider<H> serviceProvider, PlayBackContext context
+    ) throws IOException {
+        // creating the temporary audio data file
+        final Path tempFilePath = Files.createTempFile(session.getDeviceName(), ".audio");
+        copyMediaData(tempFilePath, context.source);
+        tempFilePath.toFile().deleteOnExit();
+        context.tempFile = tempFilePath.toFile();
+        if (context.hasTerminationMask()) {
+            serviceProvider.enableEvents(context.deviceHandle, Result.IO.DTMF);
+        }
+        // saving the file for tests purposes
+        session.parameter(Parameter.AUDIO_TEMPORARY, context.tempFile);
+        // trying to start audio playing back
+        return serviceProvider.startAudioPlaying(
+                context.deviceHandle, tempFilePath.toString(), context.format, context.timeout
+        );
     }
 
     /**
@@ -564,6 +557,18 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
         }
     }
 
+    private void copyMediaData(final Path tempFilePath, final InputStream source) throws IOException {
+        final int DEFAULT_BUFFER_SIZE = 8192;
+        try (final InputStream in = new BufferedInputStream(source);
+             final OutputStream target = new BufferedOutputStream(Files.newOutputStream(tempFilePath))) {
+            final byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
+            int read;
+            while ((read = in.read(buffer, 0, DEFAULT_BUFFER_SIZE)) >= 0) {
+                target.write(buffer, 0, read);
+            }
+        }
+    }
+
     // copying recorded audio data from temporary file to the target output stream
     private boolean copyRecordedData(final File targetFile, final OutputStream target) throws IOException {
         Files.copy(targetFile.toPath(), target);
@@ -613,10 +618,39 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
     }
 
     // waiting for the next event for the device's session
-    private static <H> void waitingForTheNextEvent(PhoneCallSession<H> session, long waitForNextOperationComplete) throws InterruptedException {
+    private static <H> void waitingForTheNextEvent(PhoneCallSession<H> session) throws InterruptedException {
         // continue waiting for the next event
         session.operationResult(Result.NONE);
         // continue waiting for a bit lesser duration
-        session.waitingForOperationComplete(waitForNextOperationComplete);
+        session.waitingForOperationComplete(1000L);
+    }
+
+    /// inner classes
+    // the context for audio playing back operation
+    private class PlayBackContext {
+        final Predicate<String> empty = str -> str == null || str.trim().isEmpty();
+        H deviceHandle;
+        File tempFile;
+        InputStream source;
+        Audio format;
+        int timeout;
+        String termMask;
+
+        boolean hasTerminationMask() {
+            return termMask != null && !termMask.trim().isEmpty();
+        }
+
+        boolean isTerminatedBy(final String userInput) {
+            return hasTerminationMask() && !empty.test(userInput) && isFromMask(userInput);
+        }
+
+        private boolean isFromMask(String userInput) {
+            // getting the last symbol of the user input in the context
+            final String lastSymbol = userInput.substring(userInput.length() - 1);
+            // analyzing the last user input symbol
+            //
+            // is the symbol from the termination mask?
+            return termMask.contains(lastSymbol);
+        }
     }
 }
