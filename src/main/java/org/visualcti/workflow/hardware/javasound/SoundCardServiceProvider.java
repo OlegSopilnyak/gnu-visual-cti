@@ -374,14 +374,6 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
         schedulePostponedActivity(handle, action, runActionIn(after, unit));
     }
 
-    /**
-     * <action>
-     * To prepare timeout device event runnable
-     *
-     * @param handle     the telephony device opened handle
-     * @param actionName   the name of the action timeout will send for
-     * @see #timeoutEventIn(H, String, long, TimeUnit)
-     */
     @Override
     protected Runnable sendTimeoutEventFor(H handle, String actionName) {
         return () -> putEvent(stopIt(handle, actionName, Result.TIMEOUT));

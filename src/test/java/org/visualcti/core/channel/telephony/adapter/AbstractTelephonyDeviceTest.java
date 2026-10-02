@@ -64,6 +64,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.concurrent.ExecutionException;
@@ -71,6 +72,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
@@ -128,7 +130,6 @@ public class AbstractTelephonyDeviceTest<H> {
     H deviceHandle = (H) "mock()";
     Executor deviceEventExecutor;
     ScheduledExecutorService shadowExecutor;
-    TelephonyServiceProvider<H> serviceProvider;
     AbstractTelephonyFactory<H, ?> factory;
     AbstractTelephonyDevice<H, ?> device;
     PhoneCallSession<H> session;
@@ -136,8 +137,7 @@ public class AbstractTelephonyDeviceTest<H> {
 
     @Before
     public void setUp() throws Exception {
-        provider = mock(TelephonyServiceProvider.class);
-        doReturn(deviceHandle).when(provider).openResource(telephonyDeviceName);
+        provider = spy(new TestTelephonyProvider());
         calls = spy(new AbstractCallsPortEngine() {
         });
         tones = spy(new AbstractTonesEngine() {
@@ -167,13 +167,12 @@ public class AbstractTelephonyDeviceTest<H> {
             }
         });
         deviceEventExecutor = mock(Executor.class);
-        shadowExecutor = Executors.newScheduledThreadPool(2);
+        shadowExecutor = Executors.newScheduledThreadPool(10);
         doAnswer(invocation -> {
             shadowExecutor.execute(invocation.getArgument(0, Runnable.class));
             return null;
         }).when(deviceEventExecutor).execute(any(Runnable.class));
-        serviceProvider = mock(TelephonyServiceProvider.class);
-        factory = spy(new TestFactory<>(deviceEventExecutor, serviceProvider));
+        factory = spy(new TestFactory<>(deviceEventExecutor, provider));
         factory.addDevice(device);
         device.setXML(new Element(deviceVendor));
         factory.addDevice(mockedDevice);
@@ -312,9 +311,10 @@ public class AbstractTelephonyDeviceTest<H> {
     }
 
     @Test
-    public void shouldNotDropCall_Regular_Provider() throws IOException {
+    public void shouldNotDropCall_Regular_ProviderDidNotHandsetOff() throws IOException {
         // preparing test data
         session.alive(true);
+        doReturn(false).when((TestTelephonyProvider) provider).isHandsetOff(deviceHandle);
 
         // acting
         device.dropCall(session);
@@ -2499,7 +2499,6 @@ public class AbstractTelephonyDeviceTest<H> {
         preparePlaybackCodecs(device);
         session.alive(true);
         reset(session);
-        doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(format), eq(timeout));
 
         // acting
         Future<OperationResultValue> action = shadowExecutor.submit(
@@ -2972,6 +2971,83 @@ public class AbstractTelephonyDeviceTest<H> {
             TelephonyChannel<T> deviceChannel = mock(TelephonyChannel.class);
             doReturn(device).when(deviceChannel).getDevice();
             return deviceChannel;
+        }
+    }
+
+    private class TestTelephonyProvider extends AbstractTelephonyServiceProvider<H> {
+        private volatile ScheduledFuture<?> playAudioActivity = null;
+        private volatile ScheduledFuture<?> recordAudioActivity = null;
+        private volatile ScheduledFuture<?> postponedActivity = null;
+
+        @Override
+        protected H nativeResourceOpen(String name) {
+            return deviceHandle;
+        }
+
+        @Override
+        protected boolean isReadyToPlay(H handle) {
+            return true;
+        }
+
+        @Override
+        protected boolean isReadyToRecord(H handle) {
+            return true;
+        }
+
+        @Override
+        protected void schedulePostponedAction(H handle, Runnable action, long after, TimeUnit unit) {
+            postponedActivity = shadowExecutor.schedule(action, after, unit);
+        }
+
+        @Override
+        protected Runnable sendTimeoutEventFor(H handle, String actionName) {
+            return () -> session.operationComplete(Result.TIMEOUT);
+        }
+
+        @Override
+        protected void asyncAudioFilePlaying(File audioFile, Audio format, H handle) {
+            playAudioActivity = shadowExecutor.schedule(() -> {
+                try {
+                    TimeUnit.SECONDS.sleep(3);
+                } catch (InterruptedException e) {
+                    // doing nothing here
+                }
+            }, 0, TimeUnit.MILLISECONDS);
+        }
+
+        @Override
+        protected void stopAudioFilePlaying(H handle) {
+            if (playAudioActivity != null && !playAudioActivity.isDone()) {
+                playAudioActivity.cancel(true);
+                playAudioActivity = null;
+            }
+            if (postponedActivity != null && !postponedActivity.isDone()) {
+                postponedActivity.cancel(true);
+                postponedActivity = null;
+            }
+        }
+
+        @Override
+        protected void asyncAudioFileRecording(Path targetFilePath, Audio format, H handle, int silence) {
+            recordAudioActivity = shadowExecutor.schedule(() -> {
+                try {
+                    TimeUnit.SECONDS.sleep(3);
+                } catch (InterruptedException e) {
+                    // doing nothing here
+                }
+            }, 0, TimeUnit.MILLISECONDS);
+        }
+
+        @Override
+        protected void stopAudioFileRecording(H handle, OperationResultValue reason) {
+            if (recordAudioActivity != null && !recordAudioActivity.isDone()) {
+                recordAudioActivity.cancel(true);
+                recordAudioActivity = null;
+            }
+            if (postponedActivity != null && !postponedActivity.isDone()) {
+                postponedActivity.cancel(true);
+                postponedActivity = null;
+            }
         }
     }
 }
