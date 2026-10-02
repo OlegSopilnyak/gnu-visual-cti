@@ -307,7 +307,6 @@ public class AbstractMultimediaEngineTest<H> {
         verifyPlaybackInputVerification(playbackFormat);
         verify(device).dispatchEvent("Playback audio is starting...");
         verify(session).setState(TelephonyDevice.State.PLAY);
-        verify(session).operationResult(Result.NONE);
         verify(session, atLeastOnce()).getDeviceHandle();
         verify(device).getProvider();
         verify(provider).disableEvents(deviceHandle, Result.IO.DTMF);
@@ -363,11 +362,10 @@ public class AbstractMultimediaEngineTest<H> {
         boolean can = engine.asyncPlaybackAudio(session, sound);
 
         // check the behavior
-        verify(sound).getFormat();
+        verify(sound, atLeastOnce()).getFormat();
         verifyPlaybackInputVerification(playbackFormat);
         verify(device).dispatchEvent("Playback audio is starting...");
         verify(session).setState(TelephonyDevice.State.PLAY);
-        verify(session).operationResult(Result.NONE);
         verify(session, atLeastOnce()).getDeviceHandle();
         verify(device).getProvider();
         verify(provider).disableEvents(deviceHandle, Result.IO.DTMF);
@@ -523,12 +521,12 @@ public class AbstractMultimediaEngineTest<H> {
         Audio playbackFormat = Audio.ADPCM_8;
         String terminationSymbolsMask = "";
         int timeout = 1;
-        long waitForMills = timeout * 1000L;
         String audio = "Testing audio content";
         InputStream source = prepareMultiMediaSource(audio);
         preparePlaybackCodecs(playbackFormat);
         doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
         session.parameter(Device.Parameter.USER_INPUT, terminationSymbolsMask);
+        executor.schedule(() -> session.operationComplete(Result.TIMEOUT), 500, TimeUnit.MILLISECONDS);
 
         // acting
         Future<OperationResultValue> playback = executor.submit(() ->
@@ -548,7 +546,7 @@ public class AbstractMultimediaEngineTest<H> {
         verifyPlaybackEventsAdjusting(false);
         verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
         verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
-        verify(session).waitingForOperationComplete(waitForMills);
+        verify(session, atLeastOnce()).waitingForOperationComplete(1000L);
         verify(session, atLeastOnce()).operationResult();
         verify(device).dispatchEvent("Playback audio is completed.");
         verify(provider, atLeastOnce()).stopAudioPlaying(deviceHandle);
@@ -569,12 +567,12 @@ public class AbstractMultimediaEngineTest<H> {
         Audio playbackFormat = Audio.ADPCM_8;
         String terminationSymbolsMask = "#";
         int timeout = 1;
-        long waitForMills = timeout * 1000L;
         String audio = "Testing audio content";
         InputStream source = prepareMultiMediaSource(audio);
         preparePlaybackCodecs(playbackFormat);
         doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
         session.parameter(Device.Parameter.USER_INPUT, "*");
+        executor.schedule(() -> session.operationComplete(Result.TIMEOUT), 500, TimeUnit.MILLISECONDS);
 
         // acting
         Future<OperationResultValue> playback = executor.submit(() ->
@@ -594,7 +592,7 @@ public class AbstractMultimediaEngineTest<H> {
         verifyPlaybackEventsAdjusting();
         verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
         verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
-        verify(session).waitingForOperationComplete(waitForMills);
+        verify(session, atLeastOnce()).waitingForOperationComplete(1000L);
         verify(session, atLeastOnce()).operationResult();
         verify(device).dispatchEvent("Playback audio is completed.");
         verify(provider, atLeastOnce()).stopAudioPlaying(deviceHandle);
@@ -615,12 +613,12 @@ public class AbstractMultimediaEngineTest<H> {
         Audio playbackFormat = Audio.ADPCM_8;
         String terminationSymbolsMask = "#";
         int timeout = 1;
-        long waitForMills = timeout * 1000L;
         String audio = "Testing audio content";
         InputStream source = prepareMultiMediaSource(audio);
         preparePlaybackCodecs(playbackFormat);
         doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
         session.parameter(Device.Parameter.USER_INPUT, "");
+        executor.schedule(() -> session.operationComplete(Result.TIMEOUT), 500, TimeUnit.MILLISECONDS);
 
         // acting
         Future<OperationResultValue> playback = executor.submit(() ->
@@ -640,7 +638,7 @@ public class AbstractMultimediaEngineTest<H> {
         verifyPlaybackEventsAdjusting();
         verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
         verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
-        verify(session).waitingForOperationComplete(waitForMills);
+        verify(session, atLeastOnce()).waitingForOperationComplete(1000L);
         verify(session, atLeastOnce()).operationResult();
         verify(device).dispatchEvent("Playback audio is completed.");
         verify(provider, atLeastOnce()).stopAudioPlaying(deviceHandle);
@@ -1012,6 +1010,7 @@ public class AbstractMultimediaEngineTest<H> {
         );
         OperationResultValue recordingResult = Result.TIMEOUT;
         session.parameter(Device.Parameter.USER_INPUT, "*");
+        executor.schedule(() -> session.operationComplete(recordingResult), 500, TimeUnit.MILLISECONDS);
 
         // acting
         Future<OperationResultValue> recording = executor.submit(() -> {
@@ -1045,7 +1044,7 @@ public class AbstractMultimediaEngineTest<H> {
         verifyRecordEventsAdjusting(false);
         verify(provider).startAudioRecording(eq(deviceHandle), anyString(), eq(recordFormat), eq(silence), eq(timeout));
         verify(session, atLeastOnce()).operationResult(Result.NONE);
-        verify(session, never()).parameter(Device.Parameter.USER_INPUT);
+        verify(session).parameter(Device.Parameter.USER_INPUT);
         verify(session, atLeastOnce()).waitingForOperationComplete(1000L);
         verify(session, atLeastOnce()).operationResult();
         verify(device).dispatchEvent("Record audio is completed.");
@@ -1072,11 +1071,11 @@ public class AbstractMultimediaEngineTest<H> {
         int silence = 1;
         prepareRecordCodecs(recordFormat);
         File tempFile = prepareTemporaryAudioFile();
-        doReturn(true).when(provider).startAudioRecording(
-                eq(deviceHandle), anyString(), eq(recordFormat), eq(silence), eq(timeout)
-        );
+        doReturn(true).when(provider)
+                .startAudioRecording(eq(deviceHandle), anyString(), eq(recordFormat), eq(silence), eq(timeout));
         OperationResultValue recordingResult = Result.TIMEOUT;
         session.parameter(Device.Parameter.USER_INPUT, "*");
+        executor.schedule(() -> session.operationComplete(Result.TIMEOUT), 500, TimeUnit.MILLISECONDS);
 
         // acting
         Future<OperationResultValue> recording = executor.submit(() -> {
@@ -1141,6 +1140,7 @@ public class AbstractMultimediaEngineTest<H> {
                 eq(deviceHandle), anyString(), eq(recordFormat), eq(silence), eq(timeout)
         );
         OperationResultValue recordingResult = Result.TIMEOUT;
+        executor.schedule(() -> session.operationComplete(recordingResult), 500, TimeUnit.MILLISECONDS);
 
         // acting
         Future<OperationResultValue> recording = executor.submit(() -> {
@@ -1488,7 +1488,7 @@ public class AbstractMultimediaEngineTest<H> {
             verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
         }
         verify(provider).enableEvents(deviceHandle, Result.CALL.DISCONNECT);
-        verify(provider).disableEvents(deviceHandle, Result.IO.DTMF);
+        verify(provider, atLeastOnce()).disableEvents(deviceHandle, Result.IO.DTMF);
     }
 
     private void verifyRecordEventsAdjusting() {
@@ -1502,7 +1502,7 @@ public class AbstractMultimediaEngineTest<H> {
         }
         verify(provider).enableEvents(deviceHandle, Result.CALL.DISCONNECT);
         verify(provider).enableEvents(deviceHandle, Result.IO.SILENCE);
-        verify(provider).disableEvents(deviceHandle, Result.IO.DTMF);
+        verify(provider, atLeastOnce()).disableEvents(deviceHandle, Result.IO.DTMF);
     }
 
     // to prepare the input stream for te fax transmit operation
