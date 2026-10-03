@@ -58,6 +58,7 @@ import java.util.concurrent.TimeUnit;
 import org.visualcti.media.Audio;
 import org.visualcti.util.Tools;
 import org.visualcti.workflow.hardware.javasound.SoundCardHandle;
+import org.visualcti.workflow.hardware.javasound.SoundCardServiceProvider;
 import org.visualcti.workflow.hardware.javasound.io.Constants;
 
 /**
@@ -78,6 +79,7 @@ public final class CaptureUtils implements Constants {
      * @param outputFilePath the path to the file which will content captured(recorded) media data
      * @param format         parameter determining the type of the decoder for transformation the sound data
      * @param <H>            sound-card device handle type
+     * @see SoundCardServiceProvider#startAudioRecording(H, Path, Audio, int, int)
      */
     public static <H extends SoundCardHandle> void capturingAudioToFile(
             final H handle, final Path outputFilePath, final Audio format
@@ -89,8 +91,8 @@ public final class CaptureUtils implements Constants {
         }
         // capturing audio to the file
         try {
-            // preparing TargetDataLine for audio capturing
-            final TargetDataLine target = prepareCaptureTarget(handle, audioFormat);
+            // preparing audio data capturing stuff
+            final TargetDataLine target = beforeAudioCapturing(handle, audioFormat);
             // mark the operation as in progress
             startedOperation(handle);
             // capturing the audio and save it to the file
@@ -180,7 +182,7 @@ public final class CaptureUtils implements Constants {
     }
 
     // preparing TargetDataLine for audio capturing
-    private static <H extends SoundCardHandle> TargetDataLine prepareCaptureTarget(
+    private static <H extends SoundCardHandle> TargetDataLine beforeAudioCapturing(
             final H handle, final AudioFormat audioFormat
     ) throws LineUnavailableException {
         final TargetDataLine target = AudioSystem.getTargetDataLine(audioFormat);

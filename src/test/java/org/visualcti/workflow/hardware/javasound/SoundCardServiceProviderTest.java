@@ -41,7 +41,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
@@ -58,6 +57,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Collection;
 import java.util.List;
@@ -1027,10 +1027,12 @@ public class SoundCardServiceProviderTest {
         Audio format = Audio.LINEAR;
         InputStream in = provider.getClass().getResourceAsStream("/VM/prompts/MAIN_MENU1.WAV");
         assertThat(in).isNotNull();
-        File tempFile = File.createTempFile("audio", ".WAV");
-        Files.copy(in, tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-        tempFile.deleteOnExit();
+        Path tempFilePath = Files.createTempFile("audio", ".WAV");
+        Files.copy(in, tempFilePath, StandardCopyOption.REPLACE_EXISTING);
+        tempFilePath.toFile().deleteOnExit();
         int timeout = 1;
+        shadowScheduler.schedule(() -> provider.putEvent(stopIt(handle, "Testing playing", Result.TIMEOUT)),
+                timeout, TimeUnit.SECONDS);
         doAnswer(invocation -> shadowScheduler.schedule(
                 invocation.getArgument(0, Runnable.class),
                 invocation.getArgument(1, Long.class),
@@ -1038,7 +1040,7 @@ public class SoundCardServiceProviderTest {
         )).when(scheduler).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
 
         // acting
-        boolean started = provider.startAudioPlaying(handle, tempFile.getCanonicalPath(), format, timeout);
+        boolean started = provider.startAudioPlaying(handle, tempFilePath, format, timeout);
         await().until(handle::isOperationInProgress);
         await().until(() -> !handle.isOperationInProgress());
 
@@ -1054,7 +1056,7 @@ public class SoundCardServiceProviderTest {
         assertThat(started).isTrue();
         assertThat(provider.hasShadowActivity(handle)).isFalse();
         assertThat(handle.isSourceActive()).isFalse();
-        assertThat(tempFile.delete()).isTrue();
+        assertThat(Files.deleteIfExists(tempFilePath)).isTrue();
     }
 
     @Test
@@ -1073,7 +1075,7 @@ public class SoundCardServiceProviderTest {
                 invocation.getArgument(1, Long.class),
                 invocation.getArgument(2, TimeUnit.class)
         )).when(scheduler).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
-        assertThat(provider.startAudioPlaying(handle, tempFile.getCanonicalPath(), format, timeout)).isTrue();
+        assertThat(provider.startAudioPlaying(handle, tempFile.toPath(), format, timeout)).isTrue();
         await().until(handle::isOperationInProgress);
         reset(provider);
 
@@ -1111,7 +1113,7 @@ public class SoundCardServiceProviderTest {
         )).when(scheduler).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
 
         // acting
-        boolean started = provider.startAudioRecording(handle, tempFile.getCanonicalPath(), format, silence, timeout);
+        boolean started = provider.startAudioRecording(handle, tempFile.toPath(), format, silence, timeout);
         await().until(handle::isOperationInProgress);
         shadowScheduler.schedule(() -> CaptureUtils.completeCapturing(handle,
                 // sending the operation is completed by timeout event
@@ -1122,7 +1124,6 @@ public class SoundCardServiceProviderTest {
         // check the behavior
         verify(provider, atLeastOnce()).isOpened(handle);
         verify(provider).asyncAudioFileRecording(tempFile.toPath(), format, handle, silence);
-        verify(provider).schedulePostponedAction(eq(handle), any(Runnable.class), anyInt());
         verify(provider, never()).stopAudioFileRecording(any(), any(OperationResultValue.class));
         ArgumentCaptor<DeviceEvent<SoundCardHandle>> eventCaptor = ArgumentCaptor.forClass(DeviceEvent.class);
         verify(provider, atLeastOnce()).putEvent(eventCaptor.capture());
@@ -1152,7 +1153,7 @@ public class SoundCardServiceProviderTest {
                 invocation.getArgument(1, Long.class),
                 invocation.getArgument(2, TimeUnit.class)
         )).when(scheduler).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
-        boolean started = provider.startAudioRecording(handle, tempFile.getCanonicalPath(), format, silence, timeout);
+        boolean started = provider.startAudioRecording(handle, tempFile.toPath(), format, silence, timeout);
         await().until(handle::isOperationInProgress);
         assertThat(started).isTrue();
         reset(provider);

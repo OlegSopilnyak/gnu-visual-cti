@@ -80,6 +80,12 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
             state -> state == TelephonyDevice.State.PLAY || state == TelephonyDevice.State.RECORD;
     // predicate to check is string is empty
     private static final Predicate<String> isStringEmpty = str -> str == null || str.trim().isEmpty();
+    // predicate for audio playing correct operation result completion
+    private static final Predicate<OperationResultValue> isPlayingCompleted = result ->
+            result == Result.TIMEOUT || result == Result.IO.EOF;
+    // predicate for audio recording correct operation result completion
+    private static final Predicate<OperationResultValue> isRecordCompleted = result ->
+            result == Result.TIMEOUT || result == Result.IO.EOF || result == Result.IO.SILENCE;
     // the IO buffer capacity
     private static final int DEFAULT_BUFFER_SIZE = 8192;
 
@@ -166,8 +172,6 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
                     serviceProvider.enableEvents(deviceHandle, Result.TIMEOUT);
                     serviceProvider.timeoutEventIn(deviceHandle, AUDIO_PLAYING, timeout, TimeUnit.SECONDS);
                 }
-                final Predicate<OperationResultValue> isCompleted = result ->
-                        result == Result.TIMEOUT || result == Result.IO.EOF;
                 //
                 // processing the operation result after started waiting (several iterations maybe)
                 while (true) {
@@ -177,7 +181,7 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
                     final OperationResultValue operationResult = session.operationResult();
                     //
                     // checking end-of-file or timeout operation results
-                    if (isCompleted.test(operationResult)) {
+                    if (isPlayingCompleted.test(operationResult)) {
                         // deleting temporary file
                         if (!tempFile.delete()) {
                             // for some reason didn't delete the temporary file
@@ -356,8 +360,6 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
                 // to schedule the timeout device-event after reached the value of timeout parameter in seconds
                 serviceProvider.timeoutEventIn(deviceHandle, AUDIO_RECORDING, timeout, TimeUnit.SECONDS);
                 //
-                final Predicate<OperationResultValue> isCompleted = result ->
-                        result == Result.TIMEOUT || result == Result.IO.EOF || result == Result.IO.SILENCE;
                 while (true) {
                     // waiting for the event during 1 second
                     oneSecondWaitingForOperationCompleteEvent(session);
@@ -365,10 +367,10 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
                     final OperationResultValue operationResult = session.operationResult();
                     //
                     // checking timeout, end-of-file or silence operation results
-                    if (isCompleted.test(operationResult)) {
+                    if (isRecordCompleted.test(operationResult)) {
                         // stopping audio data transmitting by service provider
                         // and copying recorded data to the target, removing unnecessary temp file
-                        if (!copyRecordedData(tempFile, target)) {
+                        if (!copyRecordedData(context, tempFile, target)) {
                             session.setState(Device.State.ERROR);
                             return Result.ERROR;
                         }
@@ -379,7 +381,7 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
                             && context.isTerminatedBy(session.parameter(Device.Parameter.USER_INPUT))) {
                         // stopping audio data transmitting by service provider
                         // and copying recorded data to the target, removing unnecessary temp file
-                        if (!copyRecordedData(tempFile, target)) {
+                        if (!copyRecordedData(context, tempFile, target)) {
                             session.setState(Device.State.ERROR);
                             return Result.ERROR;
                         }
@@ -395,7 +397,7 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
                         // stopping audio data transmitting by service provider
                         stopAudioRecording(serviceProvider, deviceHandle);
                         // copying recorded data to the target, removing unnecessary temp file
-                        if (copyRecordedData(tempFile, target)) {
+                        if (copyRecordedData(context, tempFile, target)) {
                             session.operationResult(Result.TERMINATED);
                             session.setState(Device.State.IDLE);
                         }
@@ -411,7 +413,7 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
                         disconnect(session);
                         session.operationResult(Result.CALL.DISCONNECT);
                         // copying recorded data to the target, removing unnecessary temp file
-                        return copyRecordedData(tempFile, target) ? Result.CALL.DISCONNECT : Result.ERROR;
+                        return copyRecordedData(context, tempFile, target) ? Result.CALL.DISCONNECT : Result.ERROR;
                     }
                 }
             } catch (IOException e) {
@@ -522,18 +524,17 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
         context.tempFile = tempFilePath.toFile();
         // saving to session the reference to the temporary file for tests purposes
         session.parameter(Parameter.AUDIO_TEMPORARY, context.tempFile);
-        //
-        final TelephonyServiceProvider<H> serviceProvider = context.serviceProvider;
-        final H deviceHandle = context.deviceHandle;
+        // adjusting the device events management
         // adjust DTMF device events masking
         if (context.hasTerminationMask()) {
-            serviceProvider.enableEvents(deviceHandle, Result.IO.DTMF);
+            context.serviceProvider.enableEvents(context.deviceHandle, Result.IO.DTMF);
         } else {
-            serviceProvider.disableEvents(deviceHandle, Result.IO.DTMF);
+            context.serviceProvider.disableEvents(context.deviceHandle, Result.IO.DTMF);
         }
         // trying to start audio playing back
-        return serviceProvider
-                .startAudioPlaying(deviceHandle, tempFilePath.toString(), context.format, context.timeout);
+        return context.serviceProvider.startAudioPlaying(
+                context.deviceHandle, tempFilePath, context.format, context.timeout
+        );
     }
 
     // preparing the recording audio context for the session
@@ -572,31 +573,32 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
             Tools.error("Wrong value of record timeout :" + context.timeout);
             return false;
         }
-        // adjusting device events management
-        final TelephonyServiceProvider<H> serviceProvider = context.serviceProvider;
-        final H deviceHandle = context.deviceHandle;
+        // adjusting the device events management
         // adjust device events masking for DTMF
         if (context.hasTerminationMask()) {
-            serviceProvider.enableEvents(deviceHandle, Result.IO.DTMF);
+            context.serviceProvider.enableEvents(context.deviceHandle, Result.IO.DTMF);
         } else {
-            serviceProvider.disableEvents(deviceHandle, Result.IO.DTMF);
+            context.serviceProvider.disableEvents(context.deviceHandle, Result.IO.DTMF);
         }
         // adjust device events masking for the silence during the recording
         if (context.silence > 0) {
             // enabling termination by silence
-            serviceProvider.enableEvents(deviceHandle, Result.IO.SILENCE);
+            context.serviceProvider.enableEvents(context.deviceHandle, Result.IO.SILENCE);
         } else {
             // disabling termination by silence
-            serviceProvider.disableEvents(deviceHandle, Result.IO.SILENCE);
+            context.serviceProvider.disableEvents(context.deviceHandle, Result.IO.SILENCE);
         }
         // trying to start audio recording
-        return serviceProvider.startAudioRecording(
-                deviceHandle, tempFilePath.toString(), context.format, context.silence, context.timeout
+        return context.serviceProvider.startAudioRecording(
+                context.deviceHandle, context.tempFile.toPath(), context.format, context.silence, context.timeout
         );
     }
 
     // copying recorded audio data from temporary file to the target output stream
-    private boolean copyRecordedData(final File targetFile, final OutputStream target) throws IOException {
+    private boolean copyRecordedData(
+            final GeneralContext context, final File targetFile, final OutputStream target
+    ) throws IOException {
+        context.serviceProvider.stopAudioRecording(context.deviceHandle);
         Files.copy(targetFile.toPath(), target);
         return targetFile.delete();
     }

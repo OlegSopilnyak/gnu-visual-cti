@@ -43,7 +43,6 @@ import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
@@ -60,6 +59,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
@@ -298,7 +298,7 @@ public class AbstractMultimediaEngineTest<H> {
         doReturn(playbackFormat).when(sound).getFormat();
         doReturn(prepareMultiMediaSource(audio)).when(sound).getInputStream();
         preparePlaybackCodecs(playbackFormat);
-        doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(-1));
+        doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), any(Path.class), eq(playbackFormat), eq(-1));
 
         // acting
         boolean can = engine.asyncPlaybackAudio(session, sound);
@@ -311,7 +311,7 @@ public class AbstractMultimediaEngineTest<H> {
         verify(device).getProvider();
         verify(provider).disableEvents(deviceHandle, Result.IO.DTMF);
         verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
-        verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(-1));
+        verify(provider).startAudioPlaying(eq(deviceHandle), any(Path.class), eq(playbackFormat), eq(-1));
         // check results
         assertThat(can).isTrue();
         assertThat(session.getState()).isEqualTo(TelephonyDevice.State.PLAY);
@@ -370,7 +370,7 @@ public class AbstractMultimediaEngineTest<H> {
         verify(device).getProvider();
         verify(provider).disableEvents(deviceHandle, Result.IO.DTMF);
         verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
-        verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(-1));
+        verify(provider).startAudioPlaying(eq(deviceHandle), any(Path.class), eq(playbackFormat), eq(-1));
         // check results
         assertThat(can).isFalse();
         assertThat(session.getState()).isEqualTo(TelephonyDevice.State.PLAY);
@@ -393,7 +393,7 @@ public class AbstractMultimediaEngineTest<H> {
         String audio = "Testing audio content";
         InputStream source = prepareMultiMediaSource(audio);
         preparePlaybackCodecs(playbackFormat);
-        doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
+        doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), any(Path.class), eq(playbackFormat), eq(timeout));
 
         // acting
         Future<OperationResultValue> playback = executor.submit(() ->
@@ -412,7 +412,7 @@ public class AbstractMultimediaEngineTest<H> {
         verify(device).getProvider();
         verifyPlaybackEventsAdjusting();
         verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
-        verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
+        verify(provider).startAudioPlaying(eq(deviceHandle), any(Path.class), eq(playbackFormat), eq(timeout));
         verify(session).operationResult(Result.NONE);
         verify(session).waitingForOperationComplete(1000L);
         verify(session, atLeastOnce()).operationResult();
@@ -436,7 +436,7 @@ public class AbstractMultimediaEngineTest<H> {
         String audio = "Testing audio content";
         InputStream source = prepareMultiMediaSource(audio);
         preparePlaybackCodecs(playbackFormat);
-        doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
+        doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), any(Path.class), eq(playbackFormat), eq(timeout));
 
         // acting
         Future<OperationResultValue> playback = executor.submit(() ->
@@ -455,7 +455,7 @@ public class AbstractMultimediaEngineTest<H> {
         verify(device).getProvider();
         verifyPlaybackEventsAdjusting();
         verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
-        verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
+        verify(provider).startAudioPlaying(eq(deviceHandle), any(Path.class), eq(playbackFormat), eq(timeout));
         verify(session).operationResult(Result.NONE);
         verify(session).waitingForOperationComplete(1000L);
         verify(session, atLeastOnce()).operationResult();
@@ -479,7 +479,7 @@ public class AbstractMultimediaEngineTest<H> {
         String audio = "Testing audio content";
         InputStream source = prepareMultiMediaSource(audio);
         preparePlaybackCodecs(playbackFormat);
-        doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
+        doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), any(Path.class), eq(playbackFormat), eq(timeout));
         session.parameter(Device.Parameter.USER_INPUT, terminationSymbolsMask);
 
         // acting
@@ -499,7 +499,7 @@ public class AbstractMultimediaEngineTest<H> {
         verify(device).getProvider();
         verifyPlaybackEventsAdjusting();
         verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
-        verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
+        verify(provider).startAudioPlaying(eq(deviceHandle), any(Path.class), eq(playbackFormat), eq(timeout));
         verify(session).waitingForOperationComplete(1000L);
         verify(session, atLeastOnce()).operationResult();
         verify(session).parameter(Device.Parameter.USER_INPUT);
@@ -524,7 +524,7 @@ public class AbstractMultimediaEngineTest<H> {
         String audio = "Testing audio content";
         InputStream source = prepareMultiMediaSource(audio);
         preparePlaybackCodecs(playbackFormat);
-        doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
+        doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), any(Path.class), eq(playbackFormat), eq(timeout));
         session.parameter(Device.Parameter.USER_INPUT, terminationSymbolsMask);
         executor.schedule(() -> session.operationComplete(Result.TIMEOUT), 500, TimeUnit.MILLISECONDS);
 
@@ -545,7 +545,7 @@ public class AbstractMultimediaEngineTest<H> {
         verify(device).getProvider();
         verifyPlaybackEventsAdjusting(false);
         verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
-        verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
+        verify(provider).startAudioPlaying(eq(deviceHandle), any(Path.class), eq(playbackFormat), eq(timeout));
         verify(session, atLeastOnce()).waitingForOperationComplete(1000L);
         verify(session, atLeastOnce()).operationResult();
         verify(device).dispatchEvent("Playback audio is completed.");
@@ -570,7 +570,7 @@ public class AbstractMultimediaEngineTest<H> {
         String audio = "Testing audio content";
         InputStream source = prepareMultiMediaSource(audio);
         preparePlaybackCodecs(playbackFormat);
-        doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
+        doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), any(Path.class), eq(playbackFormat), eq(timeout));
         session.parameter(Device.Parameter.USER_INPUT, "*");
         executor.schedule(() -> session.operationComplete(Result.TIMEOUT), 500, TimeUnit.MILLISECONDS);
 
@@ -591,7 +591,7 @@ public class AbstractMultimediaEngineTest<H> {
         verify(device).getProvider();
         verifyPlaybackEventsAdjusting();
         verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
-        verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
+        verify(provider).startAudioPlaying(eq(deviceHandle), any(Path.class), eq(playbackFormat), eq(timeout));
         verify(session, atLeastOnce()).waitingForOperationComplete(1000L);
         verify(session, atLeastOnce()).operationResult();
         verify(device).dispatchEvent("Playback audio is completed.");
@@ -616,7 +616,7 @@ public class AbstractMultimediaEngineTest<H> {
         String audio = "Testing audio content";
         InputStream source = prepareMultiMediaSource(audio);
         preparePlaybackCodecs(playbackFormat);
-        doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
+        doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), any(Path.class), eq(playbackFormat), eq(timeout));
         session.parameter(Device.Parameter.USER_INPUT, "");
         executor.schedule(() -> session.operationComplete(Result.TIMEOUT), 500, TimeUnit.MILLISECONDS);
 
@@ -637,7 +637,7 @@ public class AbstractMultimediaEngineTest<H> {
         verify(device).getProvider();
         verifyPlaybackEventsAdjusting();
         verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
-        verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
+        verify(provider).startAudioPlaying(eq(deviceHandle), any(Path.class), eq(playbackFormat), eq(timeout));
         verify(session, atLeastOnce()).waitingForOperationComplete(1000L);
         verify(session, atLeastOnce()).operationResult();
         verify(device).dispatchEvent("Playback audio is completed.");
@@ -662,7 +662,7 @@ public class AbstractMultimediaEngineTest<H> {
         String audio = "Testing audio content";
         InputStream source = prepareMultiMediaSource(audio);
         preparePlaybackCodecs(playbackFormat);
-        doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
+        doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), any(Path.class), eq(playbackFormat), eq(timeout));
 
         // acting
         Future<Throwable> playback = executor.submit(() ->
@@ -683,7 +683,7 @@ public class AbstractMultimediaEngineTest<H> {
         verify(device, atLeastOnce()).getProvider();
         verifyPlaybackEventsAdjusting(false);
         verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
-        verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
+        verify(provider).startAudioPlaying(eq(deviceHandle), any(Path.class), eq(playbackFormat), eq(timeout));
         verify(session).operationResult(Result.NONE);
         verify(session).waitingForOperationComplete(1000L);
         verify(session, atLeastOnce()).operationResult();
@@ -726,7 +726,7 @@ public class AbstractMultimediaEngineTest<H> {
         verify(device, atLeastOnce()).getProvider();
         verifyPlaybackEventsAdjusting(false);
         verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
-        verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
+        verify(provider).startAudioPlaying(eq(deviceHandle), any(Path.class), eq(playbackFormat), eq(timeout));
         verify(session, never()).waitingForOperationComplete(anyLong());
         verifyPlaybackEventsAdjusting(false);
         verify(provider, atLeastOnce()).stopAudioPlaying(deviceHandle);
@@ -752,7 +752,7 @@ public class AbstractMultimediaEngineTest<H> {
         String audio = "Testing audio content";
         InputStream source = prepareMultiMediaSource(audio);
         preparePlaybackCodecs(playbackFormat);
-        doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
+        doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), any(Path.class), eq(playbackFormat), eq(timeout));
 
         // acting
         Future<OperationResultValue> playback = executor.submit(() ->
@@ -773,7 +773,7 @@ public class AbstractMultimediaEngineTest<H> {
         verify(device, atLeastOnce()).getProvider();
         verifyPlaybackEventsAdjusting();
         verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
-        verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
+        verify(provider).startAudioPlaying(eq(deviceHandle), any(Path.class), eq(playbackFormat), eq(timeout));
         verify(session).waitingForOperationComplete(1000L);
         verify(session).isTerminated();
         verify(session).isDisconnected();
@@ -800,7 +800,7 @@ public class AbstractMultimediaEngineTest<H> {
         prepareRecordCodecs(recordFormat);
         File tempFile = prepareTemporaryAudioFile();
         doReturn(true).when(provider).startAudioRecording(
-                eq(deviceHandle), anyString(), eq(recordFormat), eq(silence), eq(timeout)
+                eq(deviceHandle), any(Path.class), eq(recordFormat), eq(silence), eq(timeout)
         );
         OperationResultValue recordingResult = Result.IO.EOF;
 
@@ -835,7 +835,7 @@ public class AbstractMultimediaEngineTest<H> {
         verify(session, atLeastOnce()).parameter(Device.Parameter.DEVICE_HANDLE);
         verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
         verifyRecordEventsAdjusting();
-        verify(provider).startAudioRecording(eq(deviceHandle), anyString(), eq(recordFormat), eq(silence), eq(timeout));
+        verify(provider).startAudioRecording(eq(deviceHandle), any(Path.class), eq(recordFormat), eq(silence), eq(timeout));
         verify(session, atLeastOnce()).operationResult(Result.NONE);
         verify(session).waitingForOperationComplete(1000L);
         verify(session, atLeastOnce()).operationResult();
@@ -868,7 +868,7 @@ public class AbstractMultimediaEngineTest<H> {
         prepareRecordCodecs(recordFormat);
         File tempFile = prepareTemporaryAudioFile();
         doReturn(true).when(provider).startAudioRecording(
-                eq(deviceHandle), anyString(), eq(recordFormat), eq(silence), eq(timeout)
+                eq(deviceHandle), any(Path.class), eq(recordFormat), eq(silence), eq(timeout)
         );
         OperationResultValue recordingResult = Result.IO.SILENCE;
 
@@ -903,7 +903,7 @@ public class AbstractMultimediaEngineTest<H> {
         verify(session, atLeastOnce()).parameter(Device.Parameter.DEVICE_HANDLE);
         verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
         verifyRecordEventsAdjusting();
-        verify(provider).startAudioRecording(eq(deviceHandle), anyString(), eq(recordFormat), eq(silence), eq(timeout));
+        verify(provider).startAudioRecording(eq(deviceHandle), any(Path.class), eq(recordFormat), eq(silence), eq(timeout));
         verify(session, atLeastOnce()).operationResult(Result.NONE);
         verify(session).waitingForOperationComplete(1000L);
         verify(session, atLeastOnce()).operationResult();
@@ -936,7 +936,7 @@ public class AbstractMultimediaEngineTest<H> {
         prepareRecordCodecs(recordFormat);
         File tempFile = prepareTemporaryAudioFile();
         doReturn(true).when(provider).startAudioRecording(
-                eq(deviceHandle), anyString(), eq(recordFormat), eq(silence), eq(timeout)
+                eq(deviceHandle), any(Path.class), eq(recordFormat), eq(silence), eq(timeout)
         );
         OperationResultValue recordingResult = Result.IO.DTMF;
         session.parameter(Device.Parameter.USER_INPUT, terminationSymbolsMask);
@@ -972,7 +972,7 @@ public class AbstractMultimediaEngineTest<H> {
         verify(session, atLeastOnce()).parameter(Device.Parameter.DEVICE_HANDLE);
         verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
         verifyRecordEventsAdjusting();
-        verify(provider).startAudioRecording(eq(deviceHandle), anyString(), eq(recordFormat), eq(silence), eq(timeout));
+        verify(provider).startAudioRecording(eq(deviceHandle), any(Path.class), eq(recordFormat), eq(silence), eq(timeout));
         verify(session, atLeastOnce()).operationResult(Result.NONE);
         verify(session).parameter(Device.Parameter.USER_INPUT);
         verify(session).waitingForOperationComplete(1000L);
@@ -1006,7 +1006,7 @@ public class AbstractMultimediaEngineTest<H> {
         prepareRecordCodecs(recordFormat);
         File tempFile = prepareTemporaryAudioFile();
         doReturn(true).when(provider).startAudioRecording(
-                eq(deviceHandle), anyString(), eq(recordFormat), eq(silence), eq(timeout)
+                eq(deviceHandle), any(Path.class), eq(recordFormat), eq(silence), eq(timeout)
         );
         OperationResultValue recordingResult = Result.TIMEOUT;
         session.parameter(Device.Parameter.USER_INPUT, "*");
@@ -1042,7 +1042,7 @@ public class AbstractMultimediaEngineTest<H> {
         verify(session, atLeastOnce()).parameter(Device.Parameter.DEVICE_HANDLE);
         verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
         verifyRecordEventsAdjusting(false);
-        verify(provider).startAudioRecording(eq(deviceHandle), anyString(), eq(recordFormat), eq(silence), eq(timeout));
+        verify(provider).startAudioRecording(eq(deviceHandle), any(Path.class), eq(recordFormat), eq(silence), eq(timeout));
         verify(session, atLeastOnce()).operationResult(Result.NONE);
         verify(session).parameter(Device.Parameter.USER_INPUT);
         verify(session, atLeastOnce()).waitingForOperationComplete(1000L);
@@ -1072,7 +1072,7 @@ public class AbstractMultimediaEngineTest<H> {
         prepareRecordCodecs(recordFormat);
         File tempFile = prepareTemporaryAudioFile();
         doReturn(true).when(provider)
-                .startAudioRecording(eq(deviceHandle), anyString(), eq(recordFormat), eq(silence), eq(timeout));
+                .startAudioRecording(eq(deviceHandle), any(Path.class), eq(recordFormat), eq(silence), eq(timeout));
         OperationResultValue recordingResult = Result.TIMEOUT;
         session.parameter(Device.Parameter.USER_INPUT, "*");
         executor.schedule(() -> session.operationComplete(Result.TIMEOUT), 500, TimeUnit.MILLISECONDS);
@@ -1107,7 +1107,7 @@ public class AbstractMultimediaEngineTest<H> {
         verify(session, atLeastOnce()).parameter(Device.Parameter.DEVICE_HANDLE);
         verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
         verifyRecordEventsAdjusting();
-        verify(provider).startAudioRecording(eq(deviceHandle), anyString(), eq(recordFormat), eq(silence), eq(timeout));
+        verify(provider).startAudioRecording(eq(deviceHandle), any(Path.class), eq(recordFormat), eq(silence), eq(timeout));
         verify(session, atLeastOnce()).operationResult(Result.NONE);
         verify(session).parameter(Device.Parameter.USER_INPUT);
         verify(session, atLeastOnce()).waitingForOperationComplete(1000L);
@@ -1137,7 +1137,7 @@ public class AbstractMultimediaEngineTest<H> {
         prepareRecordCodecs(recordFormat);
         File tempFile = prepareTemporaryAudioFile();
         doReturn(true).when(provider).startAudioRecording(
-                eq(deviceHandle), anyString(), eq(recordFormat), eq(silence), eq(timeout)
+                eq(deviceHandle), any(Path.class), eq(recordFormat), eq(silence), eq(timeout)
         );
         OperationResultValue recordingResult = Result.TIMEOUT;
         executor.schedule(() -> session.operationComplete(recordingResult), 500, TimeUnit.MILLISECONDS);
@@ -1172,7 +1172,7 @@ public class AbstractMultimediaEngineTest<H> {
         verify(session, atLeastOnce()).parameter(Device.Parameter.DEVICE_HANDLE);
         verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
         verifyRecordEventsAdjusting();
-        verify(provider).startAudioRecording(eq(deviceHandle), anyString(), eq(recordFormat), eq(silence), eq(timeout));
+        verify(provider).startAudioRecording(eq(deviceHandle), any(Path.class), eq(recordFormat), eq(silence), eq(timeout));
         verify(session, atLeastOnce()).operationResult(Result.NONE);
         verify(session).parameter(Device.Parameter.USER_INPUT);
         verify(session, atLeastOnce()).waitingForOperationComplete(1000L);
@@ -1203,7 +1203,7 @@ public class AbstractMultimediaEngineTest<H> {
         File tempFile = prepareTemporaryAudioFile();
         String malfunctionReason = "Record audio is failed.";
         doReturn(true).when(provider).startAudioRecording(
-                eq(deviceHandle), anyString(), eq(recordFormat), eq(silence), eq(timeout)
+                eq(deviceHandle), any(Path.class), eq(recordFormat), eq(silence), eq(timeout)
         );
         OperationResultValue recordingResult = Result.ERROR;
 
@@ -1230,7 +1230,7 @@ public class AbstractMultimediaEngineTest<H> {
         verify(session, atLeastOnce()).parameter(Device.Parameter.DEVICE_HANDLE);
         verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
         verifyRecordEventsAdjusting();
-        verify(provider).startAudioRecording(eq(deviceHandle), anyString(), eq(recordFormat), eq(silence), eq(timeout));
+        verify(provider).startAudioRecording(eq(deviceHandle), any(Path.class), eq(recordFormat), eq(silence), eq(timeout));
         verify(session, atLeastOnce()).operationResult(Result.NONE);
         verify(session).waitingForOperationComplete(1000L);
         verify(session, atLeastOnce()).operationResult();
@@ -1279,7 +1279,7 @@ public class AbstractMultimediaEngineTest<H> {
         verify(session, atLeastOnce()).parameter(Device.Parameter.DEVICE_HANDLE);
         verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
         verifyRecordEventsAdjusting();
-        verify(provider).startAudioRecording(eq(deviceHandle), anyString(), eq(recordFormat), eq(silence), eq(timeout));
+        verify(provider).startAudioRecording(eq(deviceHandle), any(Path.class), eq(recordFormat), eq(silence), eq(timeout));
         verify(session, never()).waitingForOperationComplete(anyLong());
         verify(provider, atLeastOnce()).stopAudioRecording(deviceHandle);
         verify(engine).onDeviceError(session, malfunctionReason);
@@ -1309,7 +1309,7 @@ public class AbstractMultimediaEngineTest<H> {
         File tempFile = prepareTemporaryAudioFile();
         String malfunctionReason = "Recording audio is failed. The connection is lost.";
         doReturn(true).when(provider).startAudioRecording(
-                eq(deviceHandle), anyString(), eq(recordFormat), eq(silence), eq(timeout)
+                eq(deviceHandle), any(Path.class), eq(recordFormat), eq(silence), eq(timeout)
         );
 
         // acting
@@ -1335,7 +1335,7 @@ public class AbstractMultimediaEngineTest<H> {
         verify(session, atLeastOnce()).parameter(Device.Parameter.DEVICE_HANDLE);
         verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
         verifyRecordEventsAdjusting();
-        verify(provider).startAudioRecording(eq(deviceHandle), anyString(), eq(recordFormat), eq(silence), eq(timeout));
+        verify(provider).startAudioRecording(eq(deviceHandle), any(Path.class), eq(recordFormat), eq(silence), eq(timeout));
         verify(session).waitingForOperationComplete(1000L);
         verify(provider, atLeastOnce()).stopAudioRecording(deviceHandle);
         verify(session, atLeastOnce()).setState(Device.State.ERROR);
@@ -1360,7 +1360,7 @@ public class AbstractMultimediaEngineTest<H> {
         String audio = "Testing audio content";
         InputStream source = prepareMultiMediaSource(audio);
         preparePlaybackCodecs(playbackFormat);
-        doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
+        doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), any(Path.class), eq(playbackFormat), eq(timeout));
 
         // acting
         Future<OperationResultValue> playback = executor.submit(() ->
@@ -1378,7 +1378,7 @@ public class AbstractMultimediaEngineTest<H> {
         verify(device, atLeastOnce()).getProvider();
         verifyPlaybackEventsAdjusting();
         verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
-        verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(playbackFormat), eq(timeout));
+        verify(provider).startAudioPlaying(eq(deviceHandle), any(Path.class), eq(playbackFormat), eq(timeout));
         verify(session).waitingForOperationComplete(1000L);
         verify(session).isTerminated();
         verify(session, never()).isDisconnected();
@@ -1402,7 +1402,7 @@ public class AbstractMultimediaEngineTest<H> {
         prepareRecordCodecs(recordFormat);
         File tempFile = prepareTemporaryAudioFile();
         doReturn(true).when(provider).startAudioRecording(
-                eq(deviceHandle), anyString(), eq(recordFormat), eq(silence), eq(timeout)
+                eq(deviceHandle), any(Path.class), eq(recordFormat), eq(silence), eq(timeout)
         );
         OperationResultValue recordingResult = Result.TERMINATED;
 
@@ -1426,7 +1426,7 @@ public class AbstractMultimediaEngineTest<H> {
         verify(session, atLeastOnce()).parameter(Device.Parameter.DEVICE_HANDLE);
         verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
         verifyRecordEventsAdjusting();
-        verify(provider).startAudioRecording(eq(deviceHandle), anyString(), eq(recordFormat), eq(silence), eq(timeout));
+        verify(provider).startAudioRecording(eq(deviceHandle), any(Path.class), eq(recordFormat), eq(silence), eq(timeout));
         verify(session).waitingForOperationComplete(1000L);
         verify(provider, atLeastOnce()).stopAudioRecording(deviceHandle);
         verify(session).setState(Device.State.IDLE);

@@ -123,7 +123,6 @@ public class SoundCardDeviceTest<H extends SoundCardHandle> {
                 return device;
             }
         });
-//        factory.addDevice(device);
         factory.open();
         factory.Start();
         session = (PhoneCallSession<H>) spy(device.startSession());
@@ -410,13 +409,14 @@ public class SoundCardDeviceTest<H extends SoundCardHandle> {
     }
 
     @Test
-    public void shouldPlaybackAudio() throws ExecutionException, InterruptedException {
+    public void shouldPlaybackAudio() throws ExecutionException, InterruptedException, IOException {
         // preparing test data
         Audio format = Audio.LINEAR;
         String terminationSymbolsMask = "*";
         int negativeTimeout = -1;
         InputStream resource = provider.getClass().getResourceAsStream("/VM/prompts/PLAY_GREETING_PHONESOFT.WAV");
         assertThat(resource).isNotNull();
+        assertThat(resource.available()).isGreaterThan(0);
         session.alive(true);
 
         // acting for negative timeout
@@ -442,53 +442,19 @@ public class SoundCardDeviceTest<H extends SoundCardHandle> {
         OutputStream target = Files.newOutputStream(targetPath);
         Audio format = Audio.LINEAR;
         String terminationSymbolsMask = "*";
-        int timeout = 2;
+        int timeout = 1;
         int silence = 1;
-//        prepareRecordCodec(format);
         session.alive(true);
-        OperationResultValue recordingResult = Result.IO.EOF;
-//        doReturn(true).when(provider).startAudioRecording(
-//                eq(deviceHandle), anyString(), eq(format), eq(silence), eq(timeout)
-//        );
 
         // acting
-//        Future<OperationResultValue> action = shadowExecutor.submit(
-//                () -> device.recordAudio(session, target, format, terminationSymbolsMask, silence, timeout)
-//        );
-//        await().until(() -> session.operationIsActive());
-//        shadowExecutor.schedule(() -> {
-//            final File audioTempFile = session.parameter(MultimediaEngine.Parameter.AUDIO_TEMPORARY);
-//            // saving audio content to the temporary media file of the record operation
-//            // (emulation of the record audio operation)
-//            try {
-//                Files.write(audioTempFile.toPath(), mediaContent.getBytes());
-//            } catch (IOException e) {
-//                // doing nothing here
-//            }
-//            // completing media-data transmitting operation (end of media data)
-//            session.operationComplete(recordingResult);
-//        }, 50, TimeUnit.MILLISECONDS);
-//        OperationResultValue result = action.get();
         OperationResultValue result = device.recordAudio(session, target, format, terminationSymbolsMask, silence, timeout);
 
         // check the behavior
         verify(device).isOpened();
         verify(media).recordAudio(session, target, format, terminationSymbolsMask, silence, timeout);
-//        verifyEngineSessionProceedingAbility(media, session);
-//        verify(media).canRecord(format);
-//        verify(provider).enableEvents(deviceHandle, Result.IO.SILENCE);
-//        verifyMediaEventsManagement(provider, deviceHandle);
-//        verify(provider).startAudioRecording(eq(deviceHandle), anyString(), eq(format), eq(silence), eq(timeout));
-//        verify(provider).stopAudioRecording(deviceHandle);
-//        // check results
-        assertThat(result).isEqualTo(recordingResult);
-//        assertThat(session.getState()).isEqualTo(Device.State.IDLE);
-//        assertThat(session.operationResult()).isEqualTo(recordingResult);
-        // check temporary file exchange results
-//        ArgumentCaptor<byte[]> captor = ArgumentCaptor.forClass(byte[].class);
-//        ArgumentCaptor<Integer> dataSizeCaptor = ArgumentCaptor.forClass(Integer.class);
-//        verify(target).write(captor.capture(), anyInt(), dataSizeCaptor.capture());
-//        byte[] recordedData = Arrays.copyOf(captor.getValue(), dataSizeCaptor.getValue());
-//        assertThat(recordedData).isEqualTo(mediaContent.getBytes());
+        // check results
+        assertThat(result).isEqualTo(Result.TIMEOUT);
+        assertThat(Files.size(targetPath)).isGreaterThan(0);
+        Files.delete(targetPath);
     }
 }

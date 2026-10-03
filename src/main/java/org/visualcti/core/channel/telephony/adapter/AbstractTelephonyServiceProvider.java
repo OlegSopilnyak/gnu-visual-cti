@@ -46,7 +46,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -77,7 +76,6 @@ import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.TelephonyDevice;
 import org.visualcti.core.channel.telephony.TelephonyServiceProvider;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
-import org.visualcti.core.channel.telephony.operation.Result;
 import org.visualcti.core.channel.telephony.operation.ToneId;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.core.channel.telephony.operation.adapter.TelephonyTone;
@@ -850,11 +848,19 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * @param timeout  maximum time of playing back in seconds (-1 for unlimited, waiting for end of stream)
      * @return true if the operation started successfully
      * @see TelephonyDevice#playbackAudio(PhoneCallSession, InputStream, Audio, String, int)
-     * @see TelephonyServiceProvider#startAudioPlaying(H, String, Audio, int)
+     * @see TelephonyServiceProvider#startAudioPlaying(H, Path, Audio, int)
+     * @see #isOpened(H)
+     * @see #isReadyToPlay(H)
+     * @see #asyncAudioFilePlaying(File, Audio, H)
      */
     @Override
-    public boolean startAudioPlaying(H handle, String filePath, Audio format, int timeout) {
-        return nativeStartAudioFilePlaying(handle, filePath, format, timeout);
+    public boolean startAudioPlaying(final H handle, final Path filePath, final Audio format, final int timeout) {
+        // try to start playing back the audio data from the file
+        return isOpened(handle) && isReadyToPlay(handle) &&
+                // access to file by path is correct
+                Files.exists(filePath) && Files.isReadable(filePath) &&
+                // starting playing back the file in the separate thread
+                asyncAudioFilePlaying(filePath.toFile(), format, handle);
     }
 
     /**
@@ -872,13 +878,14 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
     /**
      * <action>
      * <native-call>
-     * To play back the audio file in separate thread (asynchronously)
+     * To start playing back the audio file in separate thread (asynchronously)
      *
      * @param audioFile the file which contents the media data
      * @param format    parameter determining the type of the decoder for transformation the sound data
      * @param handle    the telephony device opened handle
+     * @return true if it started well
      */
-    protected void asyncAudioFilePlaying(File audioFile, Audio format, H handle) {
+    protected boolean asyncAudioFilePlaying(File audioFile, Audio format, H handle) {
         throw new UnsupportedOperationException("Please implement it further.");
     }
 
@@ -930,11 +937,25 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * @param timeout  maximum time of playing back in seconds (-1 for unlimited, waiting for end of stream)
      * @return true if the operation started successfully
      * @see TelephonyDevice#recordAudio(PhoneCallSession, OutputStream, Audio, String, int, int)
-     * @see TelephonyServiceProvider#startAudioRecording(H, String, Audio, int, int)
+     * @see TelephonyServiceProvider#startAudioRecording(H, Path, Audio, int, int)
+     * @see #isOpened(H)
+     * @see #isReadyToRecord(H)
+     * @see #asyncAudioFileRecording(Path, Audio, H, int)
      */
     @Override
-    public boolean startAudioRecording(H handle, String filePath, Audio format, int silence, int timeout) {
-        return nativeStartAudioFileRecording(handle, filePath, format, silence, timeout);
+    public boolean startAudioRecording(H handle, Path filePath, Audio format, int silence, int timeout) {
+        if (timeout <= 0) {
+            // wrong value of the recording timeout
+            Tools.error("Timeout for audio recording is wrong : " + timeout);
+            return false;
+        } else {
+            // try to start recording the audio data to the file
+            return isOpened(handle) && isReadyToRecord(handle) &&
+                    // access to file by path is correct
+                    Files.exists(filePath) && Files.isWritable(filePath) &&
+                    // starting recording audio data to the file in the separate thread
+                    asyncAudioFileRecording(filePath, format, handle, silence);
+        }
     }
 
     /**
@@ -952,14 +973,15 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
     /**
      * <action>
      * <native-call>
-     * To record the audio to the file in separate thread (asynchronously)
+     * To start the audio recording to the file in separate thread (asynchronously)
      *
      * @param targetFilePath the path to the file which will contain the recorded media data
      * @param format         parameter determining the type of the decoder for transformation the sound data
      * @param handle         the telephony device opened handle
      * @param silence        how many seconds it has to wait the silence in order to complete recording
+     * @return true if it started well
      */
-    protected void asyncAudioFileRecording(Path targetFilePath, Audio format, H handle, int silence) {
+    protected boolean asyncAudioFileRecording(Path targetFilePath, Audio format, H handle, int silence) {
         throw new UnsupportedOperationException("Please implement it further.");
     }
 
@@ -1317,73 +1339,6 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
             return operation.get();
         } finally {
             nativeEventsAccessLock.unlock();
-        }
-    }
-
-    /**
-     * <native-call>
-     * To start playing media from the temporary file with the particular media format
-     *
-     * @param handle   the telephony device handle
-     * @param filePath the path to the file which contents the media data
-     * @param format   parameter determining the type of the decoder for transformation the sound data
-     * @param timeout  maximum time of playing back in seconds (-1 for unlimited, waiting for end of stream)
-     * @return true if the operation started successfully
-     * @see #startAudioPlaying(H, String, Audio, int)
-     */
-    private boolean nativeStartAudioFilePlaying(H handle, String filePath, Audio format, int timeout) {
-        // try to start playing back the audio data from the file
-        final File audioFile = Paths.get(filePath).toFile();
-        if (isOpened(handle) && isReadyToPlay(handle) && audioFile.exists()) {
-            //
-            // starting playing back the file in the separate thread
-            asyncAudioFilePlaying(audioFile, format, handle);
-            //
-            // setting up interruption by timed out
-            if (timeout > 0) {
-                // to schedule stopping playing when the playing timeout will be reached
-                schedulePostponedAction(handle, () -> stopAudioFilePlaying(handle), timeout);
-            }
-            // audio file playing back is started well
-            return true;
-        } else {
-            // didn't start playing
-            return false;
-        }
-    }
-
-    /**
-     * <native-call>
-     * To start recording media to the temporary file with the particular media format
-     *
-     * @param handle   the telephony device handle
-     * @param filePath the path to the file which will contain recorded media data
-     * @param format   parameter determining the type of the decoder for transformation the sound data
-     * @param silence  time (seconds) how long silence in a line is allowed, after which the record operation will be finished.
-     * @param timeout  maximum time of playing back in seconds (-1 for unlimited, waiting for end of stream)
-     * @return true if the operation started successfully
-     * @see #startAudioRecording(H, String, Audio, int, int)
-     */
-    private boolean nativeStartAudioFileRecording(H handle, String filePath, Audio format, int silence, int timeout) {
-        if (timeout <= 0) {
-            // wrong value of the recording timeout
-            Tools.error("Timeout for audio recording is wrong : " + timeout);
-            return false;
-        }
-        // try to start recording the audio data to the file
-        final Path targetFilePath = Paths.get(filePath);
-        if (isOpened(handle) && isReadyToRecord(handle) && Files.exists(targetFilePath)) {
-            //
-            // starting recording audio data to the file in the separate thread
-            asyncAudioFileRecording(targetFilePath, format, handle, silence);
-            //
-            // to schedule the stop recording when the recording timeout will be reached
-            schedulePostponedAction(handle, () -> stopAudioFileRecording(handle, Result.TIMEOUT), timeout);
-            // audio data recording is started well
-            return true;
-        } else {
-            // didn't start recording
-            return false;
         }
     }
 }

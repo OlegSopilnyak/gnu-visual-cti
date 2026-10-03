@@ -299,8 +299,10 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
     }
 
     @Override
-    protected void asyncAudioFilePlaying(File audioFile, Audio format, H handle) {
-        scheduler.schedule(() -> nativePlayingBackAudioFile(handle, audioFile), 0, TimeUnit.MILLISECONDS);
+    protected boolean asyncAudioFilePlaying(File audioFile, Audio format, H handle) {
+        return !scheduler.schedule(
+                () -> nativePlayingBackAudioFile(handle, audioFile), 0, TimeUnit.MILLISECONDS
+        ).isDone();
     }
 
     @Override
@@ -331,10 +333,10 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
     }
 
     @Override
-    protected void asyncAudioFileRecording(Path targetFilePath, Audio format, H handle, int silence) {
-        scheduler.schedule(
+    protected boolean asyncAudioFileRecording(Path targetFilePath, Audio format, H handle, int silence) {
+        return !scheduler.schedule(
                 () -> capturingAudioToFile(targetFilePath, format, handle), 0, TimeUnit.MILLISECONDS
-        );
+        ).isDone();
     }
 
     @Override

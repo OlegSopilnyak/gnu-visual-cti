@@ -67,7 +67,6 @@ import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.TelephonyServiceProvider;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
-import org.visualcti.core.channel.telephony.operation.Result;
 import org.visualcti.core.channel.telephony.operation.adapter.TelephonyTone;
 import org.visualcti.media.Audio;
 
@@ -823,29 +822,22 @@ public class AbstractTelephonyServiceProviderTest<H> {
         String resourceName = "resourceName";
         H handle = (H) "handle";
         File audioFile = Files.newTemporaryFile();
-        String file = audioFile.getCanonicalPath();
         Audio audio = Audio.LINEAR_8;
-        int timeout = 1000;
         doReturn(handle).when(provider).nativeResourceOpen(resourceName);
         H resourceHandle = provider.openResource(resourceName);
         assertThat(provider.isOpened(resourceHandle)).isTrue();
         reset(provider);
         audioFile.deleteOnExit();
         doReturn(true).when(provider).isReadyToPlay(handle);
-        doAnswer(invocation -> null).when(provider).asyncAudioFilePlaying(audioFile, audio, handle);
-        doAnswer(invocation -> null).when(provider).stopAudioFilePlaying(handle);
-        doAnswer(invocation -> {
-            invocation.getArgument(1, Runnable.class).run();
-            return null;
-        }).when(provider).schedulePostponedAction(eq(handle), any(Runnable.class), anyInt());
+        doReturn(true).when(provider).asyncAudioFilePlaying(audioFile, audio, handle);
 
         // acting
-        boolean starts = provider.startAudioPlaying(resourceHandle, file, audio, timeout);
+        boolean starts = provider.startAudioPlaying(resourceHandle, audioFile.toPath(), audio, 1000);
 
         // check the behavior
+        verify(provider).isOpened(handle);
+        verify(provider).isReadyToPlay(handle);
         verify(provider).asyncAudioFilePlaying(audioFile, audio, handle);
-        verify(provider).schedulePostponedAction(eq(handle), any(Runnable.class), anyInt());
-        verify(provider).stopAudioFilePlaying(handle);
         // check results
         assertThat(starts).isTrue();
     }
@@ -855,7 +847,6 @@ public class AbstractTelephonyServiceProviderTest<H> {
         // preparing test data
         String resourceName = "resourceName";
         H handle = (H) "handle";
-        String file = "audio-file";
         Audio audio = Audio.LINEAR_8;
         int timeout = 1000;
         doReturn(handle).when(provider).nativeResourceOpen(resourceName);
@@ -865,7 +856,7 @@ public class AbstractTelephonyServiceProviderTest<H> {
         reset(provider);
 
         // acting
-        boolean starts = provider.startAudioPlaying(resourceHandle, file, audio, timeout);
+        boolean starts = provider.startAudioPlaying(resourceHandle, mock(Path.class), audio, timeout);
 
         // check the behavior
         verify(provider, never()).asyncAudioFilePlaying(any(File.class), eq(audio), any());
@@ -897,7 +888,6 @@ public class AbstractTelephonyServiceProviderTest<H> {
         String resourceName = "resourceName";
         H handle = (H) "handle";
         File audioFile = Files.newTemporaryFile();
-        String file = audioFile.getCanonicalPath();
         Audio audio = Audio.LINEAR_8;
         int silence = 10;
         int timeout = 1000;
@@ -907,20 +897,15 @@ public class AbstractTelephonyServiceProviderTest<H> {
         reset(provider);
         audioFile.deleteOnExit();
         doReturn(true).when(provider).isReadyToRecord(handle);
-        doAnswer(invocation -> null).when(provider).asyncAudioFileRecording(audioFile.toPath(), audio, handle, silence);
-        doAnswer(invocation -> null).when(provider).stopAudioFileRecording(eq(handle), any(OperationResultValue.class));
-        doAnswer(invocation -> {
-            invocation.getArgument(1, Runnable.class).run();
-            return null;
-        }).when(provider).schedulePostponedAction(eq(handle), any(Runnable.class), anyInt());
+        doReturn(true).when(provider).asyncAudioFileRecording(audioFile.toPath(), audio, handle, silence);
 
         // acting
-        boolean starts = provider.startAudioRecording(resourceHandle, file, audio, silence, timeout);
+        boolean starts = provider.startAudioRecording(resourceHandle, audioFile.toPath(), audio, silence, timeout);
 
         // check the behavior
+        verify(provider).isOpened(handle);
+        verify(provider).isReadyToRecord(handle);
         verify(provider).asyncAudioFileRecording(audioFile.toPath(), audio, handle, silence);
-        verify(provider).schedulePostponedAction(eq(handle), any(Runnable.class), anyInt());
-        verify(provider).stopAudioFileRecording(handle, Result.TIMEOUT);
         // check results
         assertThat(starts).isTrue();
         Files.delete(audioFile);
@@ -931,7 +916,6 @@ public class AbstractTelephonyServiceProviderTest<H> {
         // preparing test data
         String resourceName = "resourceName";
         H handle = (H) "handle";
-        String file = "audio-file";
         Audio audio = Audio.LINEAR_8;
         int silence = 10;
         int timeout = 1000;
@@ -942,7 +926,7 @@ public class AbstractTelephonyServiceProviderTest<H> {
         reset(provider);
 
         // acting
-        boolean starts = provider.startAudioRecording(resourceHandle, file, audio, silence, timeout);
+        boolean starts = provider.startAudioRecording(resourceHandle, mock(Path.class), audio, silence, timeout);
 
         // check the behavior
         verify(provider, never()).asyncAudioFileRecording(any(Path.class), any(Audio.class), any(), anyInt());

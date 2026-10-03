@@ -49,6 +49,7 @@ import javax.sound.sampled.UnsupportedAudioFileException;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Path;
 import java.util.function.Consumer;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.operation.Result;
@@ -72,7 +73,7 @@ public final class PlaybackUtils implements Constants {
      * @param audioFile     the audio file to play
      * @param resultUpdater the updater of play operation result value
      * @param <H>           sound-card device handle type
-     * @see org.visualcti.workflow.hardware.javasound.SoundCardServiceProvider#startAudioPlaying(H, String, Audio, int)
+     * @see org.visualcti.workflow.hardware.javasound.SoundCardServiceProvider#startAudioPlaying(H, Path, Audio, int)
      */
     public static <H extends SoundCardHandle> void playingBackAudioFile(
             final H handle, final File audioFile, final Consumer<OperationResultValue> resultUpdater

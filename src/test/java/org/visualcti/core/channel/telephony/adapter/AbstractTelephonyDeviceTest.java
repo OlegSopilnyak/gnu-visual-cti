@@ -115,11 +115,11 @@ public class AbstractTelephonyDeviceTest<H> {
     static final Device.ParameterName PLAYBACK_CODEC = MultimediaEngine.Parameter.PLAYBACK_CODEC;
     static final Device.ParameterName RECORD_CODEC = MultimediaEngine.Parameter.RECORD_CODEC;
     String telephonyDeviceName = "telephony-device";
-    TelephonyServiceProvider<H> provider;
-    CallsPortEngine<H> calls;
-    TonesEngine<H> tones;
-    MultimediaEngine<H> media;
-    FaxMachineEngine<H> faxes;
+    AbstractTelephonyServiceProvider<H> provider;
+    AbstractCallsPortEngine<H> calls;
+    AbstractTonesEngine<H> tones;
+    AbstractMultimediaEngine<H> media;
+    AbstractFaxMachineEngine<H> faxes;
     CallsPortEngine<H> mockedCalls;
     TonesEngine<H> mockedTones;
     MultimediaEngine<H> mockedMedia;
@@ -138,6 +138,7 @@ public class AbstractTelephonyDeviceTest<H> {
     @Before
     public void setUp() throws Exception {
         provider = spy(new TestTelephonyProvider());
+        // preparing device's parts spies
         calls = spy(new AbstractCallsPortEngine() {
         });
         tones = spy(new AbstractTonesEngine() {
@@ -152,6 +153,7 @@ public class AbstractTelephonyDeviceTest<H> {
                 return spy(super.createSessionFor(openedDeviceHandle));
             }
         });
+        // preparing device's parts mocks
         mockedCalls = mock(CallsPortEngine.class);
         mockedTones = mock(TonesEngine.class);
         mockedMedia = mock(MultimediaEngine.class);
@@ -1735,7 +1737,6 @@ public class AbstractTelephonyDeviceTest<H> {
         preparePlaybackCodecs(device);
         session.alive(true);
         reset(session);
-        doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(format), eq(timeout));
 
         // acting
         Future<OperationResultValue> action = shadowExecutor.submit(
@@ -1752,7 +1753,15 @@ public class AbstractTelephonyDeviceTest<H> {
         verify(media).canPlay(format);
         verifyMediaEventsManagement(provider, deviceHandle);
         verify(source, times(2)).read(any(byte[].class), eq(0), anyInt());
-        verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(format), eq(timeout));
+        verify(provider).startAudioPlaying(eq(deviceHandle), any(Path.class), eq(format), eq(timeout));
+        verify(provider, atLeastOnce()).isOpened(deviceHandle);
+        verify(provider).isReadyToPlay(deviceHandle);
+        verify(provider).asyncAudioFilePlaying(any(File.class), eq(format), eq(deviceHandle));
+        verify(provider).timeoutEventIn(eq(deviceHandle), anyString(), eq((long)timeout), eq(TimeUnit.SECONDS));
+        verify(provider).sendTimeoutEventFor(eq(deviceHandle), anyString());
+        verify(session).waitingForOperationComplete(1000L);
+        verify(session).operationComplete(Result.IO.EOF);
+        verify(session, never()).operationComplete(Result.TIMEOUT);
         verify(provider).stopAudioPlaying(deviceHandle);
         // check results
         assertThat(result).isEqualTo(Result.IO.EOF);
@@ -1760,7 +1769,7 @@ public class AbstractTelephonyDeviceTest<H> {
     }
 
     @Test
-    public void shouldPlaybackAudioRegular_Timeout() throws IOException {
+    public void shouldPlaybackAudioRegular_Timeout() throws IOException, InterruptedException {
         // preparing test data
         String mediaContent = "Audio Data Content";
         Audio format = Audio.LINEAR;
@@ -1770,7 +1779,6 @@ public class AbstractTelephonyDeviceTest<H> {
         preparePlaybackCodecs(device);
         session.alive(true);
         reset(session);
-        doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(format), eq(timeout));
 
         // acting
         OperationResultValue result = device.playbackAudio(session, source, format, terminationSymbolsMask, timeout);
@@ -1782,7 +1790,15 @@ public class AbstractTelephonyDeviceTest<H> {
         verify(media).canPlay(format);
         verifyMediaEventsManagement(provider, deviceHandle);
         verify(source, times(2)).read(any(byte[].class), eq(0), anyInt());
-        verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(format), eq(timeout));
+        verify(provider).startAudioPlaying(eq(deviceHandle), any(Path.class), eq(format), eq(timeout));
+        verify(provider, atLeastOnce()).isOpened(deviceHandle);
+        verify(provider).isReadyToPlay(deviceHandle);
+        verify(provider).asyncAudioFilePlaying(any(File.class), eq(format), eq(deviceHandle));
+        verify(provider).timeoutEventIn(eq(deviceHandle), anyString(), eq((long)timeout), eq(TimeUnit.SECONDS));
+        verify(provider).sendTimeoutEventFor(eq(deviceHandle), anyString());
+        verify(session).waitingForOperationComplete(1000L);
+        verify(session, never()).operationComplete(Result.IO.EOF);
+        verify(session).operationComplete(Result.TIMEOUT);
         verify(provider).stopAudioPlaying(deviceHandle);
         // check results
         assertThat(result).isEqualTo(Result.TIMEOUT);
@@ -1801,7 +1817,6 @@ public class AbstractTelephonyDeviceTest<H> {
         preparePlaybackCodecs(device);
         session.alive(true);
         reset(session);
-        doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(format), eq(timeout));
 
         // acting
         Future<Throwable> action = shadowExecutor.submit(() -> assertThrows(Throwable.class,
@@ -1819,7 +1834,15 @@ public class AbstractTelephonyDeviceTest<H> {
         verify(media).canPlay(format);
         verifyMediaEventsManagement(provider, deviceHandle);
         verify(source, times(2)).read(any(byte[].class), eq(0), anyInt());
-        verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(format), eq(timeout));
+        verify(provider).startAudioPlaying(eq(deviceHandle), any(Path.class), eq(format), eq(timeout));
+        verify(provider, atLeastOnce()).isOpened(deviceHandle);
+        verify(provider).isReadyToPlay(deviceHandle);
+        verify(provider).asyncAudioFilePlaying(any(File.class), eq(format), eq(deviceHandle));
+        verify(provider).timeoutEventIn(eq(deviceHandle), anyString(), eq((long)timeout), eq(TimeUnit.SECONDS));
+        verify(provider).sendTimeoutEventFor(eq(deviceHandle), anyString());
+        verify(session).waitingForOperationComplete(1000L);
+        verify(session, never()).operationComplete(Result.IO.EOF);
+        verify(session).operationComplete(Result.ERROR);
         verify(provider).stopAudioPlaying(deviceHandle);
         // check results
         assertThat(error).isInstanceOf(DeviceMalfunction.class);
@@ -1860,7 +1883,6 @@ public class AbstractTelephonyDeviceTest<H> {
         preparePlaybackCodecs(device);
         session.alive(true);
         reset(session);
-        doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(format), eq(-1));
 
         // acting
         boolean result = device.asyncPlaybackAudio(session, sound);
@@ -1872,7 +1894,12 @@ public class AbstractTelephonyDeviceTest<H> {
         verify(media).canPlay(format);
         verify(provider).disableEvents(deviceHandle, Result.IO.DTMF);
         verify(source, times(2)).read(any(byte[].class), eq(0), anyInt());
-        verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(format), eq(-1));
+        verify(provider).startAudioPlaying(eq(deviceHandle), any(Path.class), eq(format), eq(-1));
+        verify(provider, atLeastOnce()).isOpened(deviceHandle);
+        verify(provider).isReadyToPlay(deviceHandle);
+        verify(provider).asyncAudioFilePlaying(any(File.class), eq(format), eq(deviceHandle));
+        verify(provider, never()).schedulePostponedAction(any(), any(Runnable.class), anyInt());
+        verify(provider, never()).timeoutEventIn(any(), anyString(), anyLong(), any(TimeUnit.class));
         // check results
         assertThat(result).isTrue();
         assertThat(session.getState()).isEqualTo(TelephonyDevice.State.PLAY);
@@ -2040,9 +2067,6 @@ public class AbstractTelephonyDeviceTest<H> {
         prepareRecordCodec(format);
         session.alive(true);
         OperationResultValue recordingResult = Result.IO.EOF;
-        doReturn(true).when(provider).startAudioRecording(
-                eq(deviceHandle), anyString(), eq(format), eq(silence), eq(timeout)
-        );
 
         // acting
         Future<OperationResultValue> action = shadowExecutor.submit(
@@ -2070,7 +2094,7 @@ public class AbstractTelephonyDeviceTest<H> {
         verify(media).canRecord(format);
         verify(provider).enableEvents(deviceHandle, Result.IO.SILENCE);
         verifyMediaEventsManagement(provider, deviceHandle);
-        verify(provider).startAudioRecording(eq(deviceHandle), anyString(), eq(format), eq(silence), eq(timeout));
+        verify(provider).startAudioRecording(eq(deviceHandle), any(Path.class), eq(format), eq(silence), eq(timeout));
         verify(provider).stopAudioRecording(deviceHandle);
         // check results
         assertThat(result).isEqualTo(recordingResult);
@@ -2097,7 +2121,7 @@ public class AbstractTelephonyDeviceTest<H> {
         session.alive(true);
         OperationResultValue recordingResult = Result.TIMEOUT;
         doReturn(true).when(provider).startAudioRecording(
-                eq(deviceHandle), anyString(), eq(format), eq(silence), eq(timeout)
+                eq(deviceHandle), any(Path.class), eq(format), eq(silence), eq(timeout)
         );
 
         // acting
@@ -2124,7 +2148,7 @@ public class AbstractTelephonyDeviceTest<H> {
         verify(media).canRecord(format);
         verify(provider).enableEvents(deviceHandle, Result.IO.SILENCE);
         verifyMediaEventsManagement(provider, deviceHandle);
-        verify(provider).startAudioRecording(eq(deviceHandle), anyString(), eq(format), eq(silence), eq(timeout));
+        verify(provider).startAudioRecording(eq(deviceHandle), any(Path.class), eq(format), eq(silence), eq(timeout));
         verify(provider).stopAudioRecording(deviceHandle);
         // check results
         assertThat(result).isEqualTo(recordingResult);
@@ -2151,7 +2175,7 @@ public class AbstractTelephonyDeviceTest<H> {
         session.alive(true);
         OperationResultValue recordingResult = Result.ERROR;
         doReturn(true).when(provider).startAudioRecording(
-                eq(deviceHandle), anyString(), eq(format), eq(silence), eq(timeout)
+                eq(deviceHandle), any(Path.class), eq(format), eq(silence), eq(timeout)
         );
 
         // acting
@@ -2170,7 +2194,7 @@ public class AbstractTelephonyDeviceTest<H> {
         verify(media).canRecord(format);
         verify(provider).enableEvents(deviceHandle, Result.IO.SILENCE);
         verifyMediaEventsManagement(provider, deviceHandle);
-        verify(provider).startAudioRecording(eq(deviceHandle), anyString(), eq(format), eq(silence), eq(timeout));
+        verify(provider).startAudioRecording(eq(deviceHandle), any(Path.class), eq(format), eq(silence), eq(timeout));
         verify(provider).stopAudioRecording(deviceHandle);
         // check results
         assertThat(error).isInstanceOf(DeviceMalfunction.class);
@@ -2514,7 +2538,7 @@ public class AbstractTelephonyDeviceTest<H> {
         verifyEngineSessionProceedingAbility(faxes, session);
         verify(media).canPlay(format);
         verifyMediaEventsManagement(provider, deviceHandle);
-        verify(provider).startAudioPlaying(eq(deviceHandle), anyString(), eq(format), eq(timeout));
+        verify(provider).startAudioPlaying(eq(deviceHandle), any(Path.class), eq(format), eq(timeout));
         verify(provider).stopAudioPlaying(deviceHandle);
         // final IO result checking
         verify(source, times(2)).read(any(byte[].class), eq(0), anyInt());
@@ -2535,7 +2559,7 @@ public class AbstractTelephonyDeviceTest<H> {
         prepareRecordCodec(format);
         session.alive(true);
         doReturn(true).when(provider).startAudioRecording(
-                eq(deviceHandle), anyString(), eq(format), eq(silence), eq(timeout)
+                eq(deviceHandle), any(Path.class), eq(format), eq(silence), eq(timeout)
         );
 
         // acting
@@ -2564,7 +2588,7 @@ public class AbstractTelephonyDeviceTest<H> {
         verify(media).canRecord(format);
         verify(provider).enableEvents(deviceHandle, Result.IO.SILENCE);
         verifyMediaEventsManagement(provider, deviceHandle);
-        verify(provider).startAudioRecording(eq(deviceHandle), anyString(), eq(format), eq(silence), eq(timeout));
+        verify(provider).startAudioRecording(eq(deviceHandle), any(Path.class), eq(format), eq(silence), eq(timeout));
         verify(provider).stopAudioRecording(deviceHandle);
         // final IO result checking
         ArgumentCaptor<byte[]> captor = ArgumentCaptor.forClass(byte[].class);
@@ -3005,7 +3029,7 @@ public class AbstractTelephonyDeviceTest<H> {
         }
 
         @Override
-        protected void asyncAudioFilePlaying(File audioFile, Audio format, H handle) {
+        protected boolean asyncAudioFilePlaying(File audioFile, Audio format, H handle) {
             playAudioActivity = shadowExecutor.schedule(() -> {
                 try {
                     TimeUnit.SECONDS.sleep(3);
@@ -3013,6 +3037,7 @@ public class AbstractTelephonyDeviceTest<H> {
                     // doing nothing here
                 }
             }, 0, TimeUnit.MILLISECONDS);
+            return !playAudioActivity.isDone();
         }
 
         @Override
@@ -3028,7 +3053,7 @@ public class AbstractTelephonyDeviceTest<H> {
         }
 
         @Override
-        protected void asyncAudioFileRecording(Path targetFilePath, Audio format, H handle, int silence) {
+        protected boolean asyncAudioFileRecording(Path targetFilePath, Audio format, H handle, int silence) {
             recordAudioActivity = shadowExecutor.schedule(() -> {
                 try {
                     TimeUnit.SECONDS.sleep(3);
@@ -3036,6 +3061,7 @@ public class AbstractTelephonyDeviceTest<H> {
                     // doing nothing here
                 }
             }, 0, TimeUnit.MILLISECONDS);
+            return !recordAudioActivity.isDone();
         }
 
         @Override

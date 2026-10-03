@@ -40,6 +40,7 @@ package org.visualcti.core.channel.telephony;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Path;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceActivitySession;
 import org.visualcti.core.channel.device.DeviceEvent;
@@ -346,7 +347,7 @@ public interface TelephonyServiceProvider<H> extends Device.ServiceProvider<H> {
      * @return true if the operation started successfully
      * @see MultimediaEngine#playbackAudio(PhoneCallSession, InputStream, Audio, String, int)
      */
-    default boolean startAudioPlaying(H handle, String filePath, Audio format, int timeout) {
+    default boolean startAudioPlaying(H handle, Path filePath, Audio format, int timeout) {
         return false;
     }
 
@@ -355,7 +356,7 @@ public interface TelephonyServiceProvider<H> extends Device.ServiceProvider<H> {
      * To stop (interrupt) playing media
      *
      * @param handle the telephony device handle
-     * @see #startAudioPlaying(Object, String, Audio, int)
+     * @see #startAudioPlaying(H, Path, Audio, int)
      */
     default void stopAudioPlaying(H handle) {
         // doing nothing here
@@ -373,7 +374,7 @@ public interface TelephonyServiceProvider<H> extends Device.ServiceProvider<H> {
      * @return true if the operation started successfully
      * @see MultimediaEngine#recordAudio(PhoneCallSession, OutputStream, Audio, String, int, int)
      */
-    default boolean startAudioRecording(H handle, String filePath, Audio format, int silence, int timeout) {
+    default boolean startAudioRecording(H handle, Path filePath, Audio format, int silence, int timeout) {
         return false;
     }
 
@@ -382,7 +383,7 @@ public interface TelephonyServiceProvider<H> extends Device.ServiceProvider<H> {
      * To stop (interrupt) playing media
      *
      * @param handle the telephony device handle
-     * @see #startAudioRecording(H, String, Audio, int, int)
+     * @see #startAudioRecording(H, Path, Audio, int, int)
      */
     default void stopAudioRecording(H handle) {
         // doing nothing here
