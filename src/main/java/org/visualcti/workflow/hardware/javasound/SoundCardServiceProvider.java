@@ -306,14 +306,6 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
     }
 
     @Override
-    protected void stopAudioFilePlaying(H handle) {
-        // removing the source line from the handle (will stop the loop of the audio playing)
-        handle.setSourceLine(null);
-        // removing postponed activity for the handle
-        cancelPostponedActivity(handle);
-    }
-
-    @Override
     protected void nativeStopAudioFilePlaying(H handle) {
         // getting the playback channel line from the handle instance
         final SourceDataLine playbackChannel = handle.getSourceLine();
@@ -324,7 +316,12 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
             playbackChannel.close();
         }
         // to stop playing back the audio file
-        stopAudioFilePlaying(handle);
+        // removing the source line from the handle (will stop the loop of the audio playing)
+        handle.setSourceLine(null);
+        // waiting for completing of the audio playing back operation
+        PlaybackUtils.waitForOperationComplete(handle);
+        // cancelling postponed activity associated with the given handle
+        cancelPostponedActivity(handle);
     }
 
     @Override
@@ -337,14 +334,6 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
         return !scheduler.schedule(
                 () -> capturingAudioToFile(targetFilePath, format, handle), 0, TimeUnit.MILLISECONDS
         ).isDone();
-    }
-
-    @Override
-    protected void stopAudioFileRecording(H handle, OperationResultValue reason) {
-        // completing audio data capturing
-        CaptureUtils.completeCapturing(handle, () -> putEvent(stopIt(handle, AUDIO_RECORDING, reason)));
-        // removing postponed activity for the handle
-        deviceActivity.remove(handle);
     }
 
     @Override

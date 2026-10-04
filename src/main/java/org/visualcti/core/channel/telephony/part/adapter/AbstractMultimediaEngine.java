@@ -374,7 +374,7 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
                             session.setState(Device.State.ERROR);
                             return Result.ERROR;
                         }
-                        // operation is completed (leaving the loop)
+                        // record operation is completed (leaving the loop)
                         break;
                         // checking for the user input during the operation
                     } else if (operationResult == Result.IO.DTMF
@@ -385,7 +385,7 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
                             session.setState(Device.State.ERROR);
                             return Result.ERROR;
                         }
-                        // operation is terminated by DTMF input (leaving the loop)
+                        // operation is completed by masked DTMF input (leaving the loop)
                         break;
                         // checking device's hardware error
                     } else if (operationResult == Result.ERROR) {
@@ -518,7 +518,7 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
             final PhoneCallSession<H> session, final PlaybackContext context
     ) throws IOException {
         // creating the temporary audio data file
-        final Path tempFilePath = Files.createTempFile(session.getDeviceName(), ".audio");
+        final Path tempFilePath = Files.createTempFile(session.getDeviceName(), ".audio.wav");
         copyMediaData(tempFilePath, context.source);
         tempFilePath.toFile().deleteOnExit();
         context.tempFile = tempFilePath.toFile();

@@ -891,18 +891,6 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
 
     /**
      * <action>
-     * <native-call>
-     * To stop playing back the audio file
-     *
-     * @param handle the telephony device opened handle
-     * @see #asyncAudioFilePlaying(File, Audio, Object)
-     */
-    protected void stopAudioFilePlaying(H handle) {
-        throw new UnsupportedOperationException("Please implement it further.");
-    }
-
-    /**
-     * <action>
      * To stop (interrupt) playing media
      *
      * @param handle the telephony device handle
@@ -982,19 +970,6 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * @return true if it started well
      */
     protected boolean asyncAudioFileRecording(Path targetFilePath, Audio format, H handle, int silence) {
-        throw new UnsupportedOperationException("Please implement it further.");
-    }
-
-    /**
-     * <action>
-     * <native-call>
-     * To stop recording to the audio file
-     *
-     * @param handle the telephony device opened handle
-     * @param reason th reason of record stopping
-     * @see #asyncAudioFileRecording(Path, Audio, Object, int)
-     */
-    protected void stopAudioFileRecording(H handle, OperationResultValue reason) {
         throw new UnsupportedOperationException("Please implement it further.");
     }
 

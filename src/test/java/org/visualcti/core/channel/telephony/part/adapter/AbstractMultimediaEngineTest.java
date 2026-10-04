@@ -931,8 +931,7 @@ public class AbstractMultimediaEngineTest<H> {
         String audio = "Testing audio content";
         Audio recordFormat = Audio.ADPCM_8;
         String terminationSymbolsMask = "#";
-        int timeout = 2;
-        int silence = 1;
+        int timeout = 2, silence = 1;
         prepareRecordCodecs(recordFormat);
         File tempFile = prepareTemporaryAudioFile();
         doReturn(true).when(provider).startAudioRecording(
@@ -1197,8 +1196,7 @@ public class AbstractMultimediaEngineTest<H> {
         session.alive(true);
         Audio recordFormat = Audio.ADPCM_8;
         String terminationSymbolsMask = "#";
-        int timeout = 2;
-        int silence = 1;
+        int timeout = 2, silence = 1;
         prepareRecordCodecs(recordFormat);
         File tempFile = prepareTemporaryAudioFile();
         String malfunctionReason = "Record audio is failed.";
@@ -1379,7 +1377,7 @@ public class AbstractMultimediaEngineTest<H> {
         verifyPlaybackEventsAdjusting();
         verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
         verify(provider).startAudioPlaying(eq(deviceHandle), any(Path.class), eq(playbackFormat), eq(timeout));
-        verify(session).waitingForOperationComplete(1000L);
+        verify(session, atLeastOnce()).waitingForOperationComplete(1000L);
         verify(session).isTerminated();
         verify(session, never()).isDisconnected();
         verify(provider, atLeastOnce()).stopAudioPlaying(deviceHandle);

@@ -50,6 +50,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
+import java.util.concurrent.BlockingQueue;
 import java.util.function.Consumer;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.operation.Result;
@@ -64,7 +65,7 @@ import org.visualcti.workflow.hardware.javasound.io.Constants;
  *
  * @see org.visualcti.workflow.hardware.javasound.SoundCardServiceProvider
  */
-public final class PlaybackUtils implements Constants {
+public final class PlaybackUtils extends CommonUtils implements Constants {
     /**
      * <action>
      * To play back the audio file using handle's source line
@@ -81,20 +82,26 @@ public final class PlaybackUtils implements Constants {
         try (final AudioInputStream audioStream = AudioSystem.getAudioInputStream(audioFile)) {
             //
             // preparing audio data playing stuff
-            final SourceDataLine channel = beforeAudioPlaying(handle, audioStream.getFormat());
+            final SourceDataLine channel = preparingAudioPlaying(handle, audioStream.getFormat());
+            // mark the operation as in progress
+            startOperation(handle);
+            // preparing after party actions queue for capture completing
+            final BlockingQueue<Runnable> afterPartyQueue = getAfterPartyQueue(handle);
             //
             // playing back the audio
-            playingBackAudioStream(handle, audioStream, channel);
+            doPlayingBackStream(handle, afterPartyQueue, audioStream, channel);
             //
             // finalizing the audio file playing
             finalizeAudioFilePlayingBack(handle, channel, resultUpdater);
+            //
+            postOperation(afterPartyQueue);
         } catch (LineUnavailableException | UnsupportedAudioFileException | IOException e) {
             Tools.error("Failed to playback the audio");
             e.printStackTrace(Tools.err);
         } finally {
             // detaching the line from device's handle
             handle.setSourceLine(null);
-            handle.inProgress(false);
+            operationComplete(handle);
         }
     }
 
@@ -103,34 +110,31 @@ public final class PlaybackUtils implements Constants {
             H handle, SourceDataLine channel, Consumer<OperationResultValue> resultUpdater
     ) {
         //
-        // finalizing the audio file playing if source data line is active
-        if (channel.isActive()) {
-            // Wait for buffer to empty before closing
-            channel.drain();
-        }
         // audio playing operation is completed
         if (Boolean.TRUE.equals(handle.isSourceActive())) {
             // the end of audio stream is reached, sending EOF event
             resultUpdater.accept(Result.IO.EOF);
-        } else
             // audio playing back is terminated outside
-            if (channel.isActive()) {
-                // timeout state applied outside
-                // putting the operation timeout event
-                resultUpdater.accept(Result.TIMEOUT);
-            } else {
-                // audio playing back is stopped outside
-                // putting the event about the end of file reached
-                resultUpdater.accept(Result.IO.EOF);
-            }
-        //
-        // finishing up the channel's playback regardless it's status
-        channel.stop();
+        } else if (channel.isActive()) {
+            // timeout state applied outside
+            // putting the operation timeout event
+            resultUpdater.accept(Result.TIMEOUT);
+        } else {
+            // audio playing back is stopped outside
+            // putting the event about the end of file reached
+            resultUpdater.accept(Result.IO.EOF);
+        }
+        // finalizing the audio playing back
+        if (channel.isActive()) {
+            // Wait for buffer to empty before closing
+            channel.drain();
+        }
         channel.close();
+        channel.stop();
     }
 
     // preparing audio data playing stuff
-    static <H extends SoundCardHandle> SourceDataLine beforeAudioPlaying(
+    static <H extends SoundCardHandle> SourceDataLine preparingAudioPlaying(
             final H handle, final AudioFormat audioFormat
     ) throws LineUnavailableException {
         // preparing source data line for the audio playing
@@ -160,8 +164,9 @@ public final class PlaybackUtils implements Constants {
      * @param <H>                 sound-card device handle type
      * @throws IOException throws when something went wrong
      */
-    static <H extends SoundCardHandle> void playingBackAudioStream(
-            final H handle, final InputStream rawAudioInputStream, final SourceDataLine channel
+    static <H extends SoundCardHandle> void doPlayingBackStream(
+            final H handle, final BlockingQueue<Runnable> completedAction,
+            final InputStream rawAudioInputStream, final SourceDataLine channel
     ) throws IOException {
         //
         // playing back audio stuff preparation
@@ -170,7 +175,7 @@ public final class PlaybackUtils implements Constants {
         // playing back audio operation is started
         handle.inProgress(true);
         // getting audio chunks from the file and playing them back
-        while (Boolean.TRUE.equals(handle.isSourceActive())) {
+        while (Boolean.TRUE.equals(handle.isSourceActive()) && completedAction.isEmpty()) {
             // getting audio chunk from the file
             if ((bytesToPlay = rawAudioInputStream.read(buffer, 0, buffer.length)) > 0) {
                 // playing back the audio chunk through the started channel
@@ -179,6 +184,9 @@ public final class PlaybackUtils implements Constants {
                 break;
             }
         }
+        // finalizing transfer operation
+        channel.drain();
+        rawAudioInputStream.close();
     }
 
     // private constructor

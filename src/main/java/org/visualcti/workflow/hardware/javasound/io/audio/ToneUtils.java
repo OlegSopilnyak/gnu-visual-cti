@@ -50,6 +50,7 @@ import java.io.InputStream;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
@@ -65,7 +66,7 @@ import org.visualcti.workflow.hardware.javasound.SoundCardHandle;
  *
  * @see org.visualcti.workflow.hardware.javasound.SoundCardServiceProvider
  */
-public class ToneUtils {
+public class ToneUtils extends CommonUtils {
     // the format for tone's playing back
     public static final AudioFormat TONE_AUDIO_FORMAT = new AudioFormat(SAMPLE_RATE, 16, 1, true, false);
     // the container of DTMF tones
@@ -99,10 +100,14 @@ public class ToneUtils {
         try (ToneAudioInputStream toneIn = new ToneAudioInputStream(toneBytesBuffer)) {
             //
             // preparing audio data playing stuff
-            final SourceDataLine channel = PlaybackUtils.beforeAudioPlaying(handle, TONE_AUDIO_FORMAT);
+            final SourceDataLine channel = PlaybackUtils.preparingAudioPlaying(handle, TONE_AUDIO_FORMAT);
+            // mark the operation as in progress
+            startOperation(handle);
+            // preparing after party actions queue for capture completing
+            final BlockingQueue<Runnable> afterPartyQueue = getAfterPartyQueue(handle);
             //
             // playing back the tone as audio data input stream
-            PlaybackUtils.playingBackAudioStream(handle, toneIn, channel);
+            PlaybackUtils.doPlayingBackStream(handle, afterPartyQueue, toneIn, channel);
             //
             // finalizing the tone as audio input stream playing
             finalizeTonePlayingBack(channel, resultUpdater);
@@ -112,7 +117,7 @@ public class ToneUtils {
         } finally {
             // detaching the line from device's handle
             handle.setSourceLine(null);
-            handle.inProgress(false);
+            operationComplete(handle);
         }
     }
 

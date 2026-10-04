@@ -1796,7 +1796,7 @@ public class AbstractTelephonyDeviceTest<H> {
         verify(provider).asyncAudioFilePlaying(any(File.class), eq(format), eq(deviceHandle));
         verify(provider).timeoutEventIn(eq(deviceHandle), anyString(), eq((long)timeout), eq(TimeUnit.SECONDS));
         verify(provider).sendTimeoutEventFor(eq(deviceHandle), anyString());
-        verify(session).waitingForOperationComplete(1000L);
+        verify(session, atLeastOnce()).waitingForOperationComplete(1000L);
         verify(session, never()).operationComplete(Result.IO.EOF);
         verify(session).operationComplete(Result.TIMEOUT);
         verify(provider).stopAudioPlaying(deviceHandle);
@@ -2095,7 +2095,7 @@ public class AbstractTelephonyDeviceTest<H> {
         verify(provider).enableEvents(deviceHandle, Result.IO.SILENCE);
         verifyMediaEventsManagement(provider, deviceHandle);
         verify(provider).startAudioRecording(eq(deviceHandle), any(Path.class), eq(format), eq(silence), eq(timeout));
-        verify(provider).stopAudioRecording(deviceHandle);
+        verify(provider, atLeastOnce()).stopAudioRecording(deviceHandle);
         // check results
         assertThat(result).isEqualTo(recordingResult);
         assertThat(session.getState()).isEqualTo(Device.State.IDLE);
@@ -2149,7 +2149,7 @@ public class AbstractTelephonyDeviceTest<H> {
         verify(provider).enableEvents(deviceHandle, Result.IO.SILENCE);
         verifyMediaEventsManagement(provider, deviceHandle);
         verify(provider).startAudioRecording(eq(deviceHandle), any(Path.class), eq(format), eq(silence), eq(timeout));
-        verify(provider).stopAudioRecording(deviceHandle);
+        verify(provider, atLeastOnce()).stopAudioRecording(deviceHandle);
         // check results
         assertThat(result).isEqualTo(recordingResult);
         assertThat(session.getState()).isEqualTo(Device.State.IDLE);
@@ -2589,7 +2589,7 @@ public class AbstractTelephonyDeviceTest<H> {
         verify(provider).enableEvents(deviceHandle, Result.IO.SILENCE);
         verifyMediaEventsManagement(provider, deviceHandle);
         verify(provider).startAudioRecording(eq(deviceHandle), any(Path.class), eq(format), eq(silence), eq(timeout));
-        verify(provider).stopAudioRecording(deviceHandle);
+        verify(provider, atLeastOnce()).stopAudioRecording(deviceHandle);
         // final IO result checking
         ArgumentCaptor<byte[]> captor = ArgumentCaptor.forClass(byte[].class);
         ArgumentCaptor<Integer> dataSizeCaptor = ArgumentCaptor.forClass(Integer.class);
@@ -3001,7 +3001,6 @@ public class AbstractTelephonyDeviceTest<H> {
     private class TestTelephonyProvider extends AbstractTelephonyServiceProvider<H> {
         private volatile ScheduledFuture<?> playAudioActivity = null;
         private volatile ScheduledFuture<?> recordAudioActivity = null;
-        private volatile ScheduledFuture<?> postponedActivity = null;
 
         @Override
         protected H nativeResourceOpen(String name) {
@@ -3020,7 +3019,7 @@ public class AbstractTelephonyDeviceTest<H> {
 
         @Override
         protected void schedulePostponedAction(H handle, Runnable action, long after, TimeUnit unit) {
-            postponedActivity = shadowExecutor.schedule(action, after, unit);
+            shadowExecutor.schedule(action, after, unit);
         }
 
         @Override
@@ -3041,18 +3040,6 @@ public class AbstractTelephonyDeviceTest<H> {
         }
 
         @Override
-        protected void stopAudioFilePlaying(H handle) {
-            if (playAudioActivity != null && !playAudioActivity.isDone()) {
-                playAudioActivity.cancel(true);
-                playAudioActivity = null;
-            }
-            if (postponedActivity != null && !postponedActivity.isDone()) {
-                postponedActivity.cancel(true);
-                postponedActivity = null;
-            }
-        }
-
-        @Override
         protected boolean asyncAudioFileRecording(Path targetFilePath, Audio format, H handle, int silence) {
             recordAudioActivity = shadowExecutor.schedule(() -> {
                 try {
@@ -3062,18 +3049,6 @@ public class AbstractTelephonyDeviceTest<H> {
                 }
             }, 0, TimeUnit.MILLISECONDS);
             return !recordAudioActivity.isDone();
-        }
-
-        @Override
-        protected void stopAudioFileRecording(H handle, OperationResultValue reason) {
-            if (recordAudioActivity != null && !recordAudioActivity.isDone()) {
-                recordAudioActivity.cancel(true);
-                recordAudioActivity = null;
-            }
-            if (postponedActivity != null && !postponedActivity.isDone()) {
-                postponedActivity.cancel(true);
-                postponedActivity = null;
-            }
         }
     }
 }

@@ -58,12 +58,12 @@ public class CaptureUtilsTest {
     ScheduledExecutorService executor;
 
     @Before
-    public void setUp() throws Exception {
+    public void setUp() {
         executor = Executors.newScheduledThreadPool(2);
     }
 
     @After
-    public void tearDown() throws Exception {
+    public void tearDown() {
         executor.shutdown();
     }
 
@@ -75,7 +75,7 @@ public class CaptureUtilsTest {
         Audio format = Audio.LINEAR;
         Runnable afterCapturing = mock(Runnable.class);
         filePath.toFile().deleteOnExit();
-        executor.schedule(() -> CaptureUtils.completeCapturing(handle, afterCapturing), 500L, TimeUnit.MILLISECONDS);
+        executor.schedule(() -> CaptureUtils.completeOperation(handle, afterCapturing), 500L, TimeUnit.MILLISECONDS);
 
         // acting
         CaptureUtils.capturingAudioToFile(handle, filePath, format);
@@ -99,7 +99,7 @@ public class CaptureUtilsTest {
 
         // acting
         await().until(handle::isOperationInProgress);
-        CaptureUtils.completeCapturing(handle, afterCapturing);
+        CaptureUtils.completeOperation(handle, afterCapturing);
 
         // check the behavior
         verify(afterCapturing).run();
@@ -119,7 +119,7 @@ public class CaptureUtilsTest {
         filePath.toFile().deleteOnExit();
         executor.schedule(() -> CaptureUtils.capturingAudioToFile(handle, filePath, format), 0L, TimeUnit.MILLISECONDS);
         await().until(handle::isOperationInProgress);
-        executor.schedule(() -> CaptureUtils.completeCapturing(handle, afterCapturing), 500L, TimeUnit.MILLISECONDS);
+        executor.schedule(() -> CaptureUtils.completeOperation(handle, afterCapturing), 500L, TimeUnit.MILLISECONDS);
 
         // acting
         assertThat(handle.isOperationInProgress()).isTrue();

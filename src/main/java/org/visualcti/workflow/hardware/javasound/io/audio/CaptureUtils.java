@@ -50,11 +50,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Map;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 import org.visualcti.media.Audio;
 import org.visualcti.util.Tools;
 import org.visualcti.workflow.hardware.javasound.SoundCardHandle;
@@ -67,10 +63,7 @@ import org.visualcti.workflow.hardware.javasound.io.Constants;
  *
  * @see org.visualcti.workflow.hardware.javasound.SoundCardServiceProvider
  */
-public final class CaptureUtils implements Constants {
-    private static final Map<SoundCardHandle, BlockingQueue<Runnable>> afterParty = new ConcurrentHashMap<>();
-    public static final String QUEUE_IS_FULL = "CaptureUtils: AfterParty queue is full!!!";
-
+public final class CaptureUtils extends CommonUtils implements Constants {
     /**
      * <action>
      * To capture audio data and save recorded data to the output file in the WAVE format
@@ -92,11 +85,11 @@ public final class CaptureUtils implements Constants {
         // capturing audio to the file
         try {
             // preparing audio data capturing stuff
-            final TargetDataLine target = beforeAudioCapturing(handle, audioFormat);
+            final TargetDataLine target = preparingAudioCapturing(handle, audioFormat);
             // mark the operation as in progress
-            startedOperation(handle);
+            startOperation(handle);
             // capturing the audio and save it to the file
-            captureAudioToOutputFile(handle, outputFilePath, target);
+            doingCapturingToFile(handle, outputFilePath, target);
             // finalizing the audio capturing
             target.stop();
             target.close();
@@ -113,78 +106,12 @@ public final class CaptureUtils implements Constants {
         }
     }
 
-    /**
-     * <action>
-     * To complete audio data capturing and wait for it
-     *
-     * @param <H>            sound-card device handle type
-     * @param handle         the handle of the opened resource (sound card device's handle)
-     * @param afterRecording what it has to do after operation complete
-     * @see #waitForOperationComplete(H)
-     */
-    public static <H extends SoundCardHandle> void completeCapturing(final H handle, final Runnable afterRecording) {
-        final BlockingQueue<Runnable> completedAction = afterParty.get(handle);
-        if (completedAction != null && !completedAction.offer(afterRecording)) {
-            Tools.error(QUEUE_IS_FULL);
-            return;
-        }
-        // waiting for operation isn't complete
-        waitForOperationComplete(handle);
-    }
-
-    /**
-     * <action>
-     * To wait for operation isn't complete
-     *
-     * @param <H>    sound-card device handle type
-     * @param handle the handle of the opened resource (sound card device's handle)
-     * @see #waitForOperationComplete(H)
-     */
-    public static <H extends SoundCardHandle> void waitForOperationComplete(final H handle) {
-        while (handle.isOperationInProgress()) {
-            try {
-                TimeUnit.MILLISECONDS.sleep(50);
-            } catch (InterruptedException e) {
-                Tools.error("Operation completing is interrupted");
-                e.printStackTrace(Tools.err);
-                /* Clean up whatever needs to be handled before interrupting  */
-                Thread.currentThread().interrupt();
-            }
-        }
-    }
-
-    // to mark operation for handle as started
-    private static <H extends SoundCardHandle> void startedOperation(H handle) {
-        handle.inProgress(true);
-        final BlockingQueue<Runnable> previous = afterParty.put(handle, new ArrayBlockingQueue<>(1, true));
-        if (previous != null) {
-            final Runnable afterComplete = () -> Tools.error("CaptureUtils: Start Operation, Lost Runnable");
-            // freeing previous queue
-            if (!previous.offer(afterComplete)) {
-                Tools.error(QUEUE_IS_FULL);
-            }
-        }
-    }
-
-    // to mark operation for handle as completed
-    private static <H extends SoundCardHandle> void operationComplete(H handle) {
-        // operation is completed
-        handle.inProgress(false);
-        // removing capturing operation's count down latch
-        final BlockingQueue<Runnable> previous = afterParty.remove(handle);
-        if (previous != null) {
-            final Runnable afterComplete = () -> Tools.error("CaptureUtils: Complete Operation, Lost Runnable");
-            // freeing previous queue
-            if (!previous.offer(afterComplete)) {
-                Tools.error(QUEUE_IS_FULL);
-            }
-        }
-    }
-
-    // preparing TargetDataLine for audio capturing
-    private static <H extends SoundCardHandle> TargetDataLine beforeAudioCapturing(
+    /// private methods
+    // preparing stuff for audio capturing
+    private static <H extends SoundCardHandle> TargetDataLine preparingAudioCapturing(
             final H handle, final AudioFormat audioFormat
     ) throws LineUnavailableException {
+        // getting target line by audio format
         final TargetDataLine target = AudioSystem.getTargetDataLine(audioFormat);
         // adjusting and starting the target data line channel
         target.open(audioFormat);
@@ -193,37 +120,24 @@ public final class CaptureUtils implements Constants {
         return target;
     }
 
-    // capturing the audio (full cycle)
-    private static <H extends SoundCardHandle> void captureAudioToOutputFile(
+    // capturing the audio to output file (full cycle)
+    private static <H extends SoundCardHandle> void doingCapturingToFile(
             final H handle, final Path outputFilePath, final TargetDataLine target
     ) throws IOException {
         // preparing after party actions queue for capture completing
-        final BlockingQueue<Runnable> completedAction = afterParty.get(handle);
-        if (completedAction == null) {
-            // something went wrong
-            throw new IOException("Sound capturing is started in a wrong way.");
-        }
+        final BlockingQueue<Runnable> afterPartyQueue = getAfterPartyQueue(handle);
         //
         // capturing audio to the temporary file
-        final Path tempRawAudioPath = capturingRawAudio(handle, completedAction, target);
+        final Path tempRawAudioPath = capturedRawAudio(handle, afterPartyQueue, target);
         //
         // audio capturing operation is completed
-        finalizeCapturing(tempRawAudioPath, target.getFormat(), outputFilePath.toFile());
+        finalizeOperation(tempRawAudioPath, target.getFormat(), outputFilePath.toFile());
         //
-        // waiting for the audio capturing count down latch's freeing
-        try {
-            if (!completedAction.isEmpty()) {
-                completedAction.take().run();
-            }
-        } catch (InterruptedException e) {
-            /* Clean up whatever needs to be handled before interrupting  */
-            Thread.currentThread().interrupt();
-            throw new IOException("Count Down Latch is interrupted.", e);
-        }
+        postOperation(afterPartyQueue);
     }
 
     // capturing audio to the temporary file
-    private static <H extends SoundCardHandle> Path capturingRawAudio(
+    private static <H extends SoundCardHandle> Path capturedRawAudio(
             final H handle, final BlockingQueue<Runnable> completedAction, final TargetDataLine target
     ) throws IOException {
         // preparing temporary file for the captured RAW audio data
@@ -243,13 +157,15 @@ public final class CaptureUtils implements Constants {
                     break;
                 }
             }
+            // finalizing transfer operation
+            out.flush();
         }
         // returning the path to file with raw audio data
         return tempRawAudioPath;
     }
 
-    // finalizing the audio capturing
-    private static void finalizeCapturing(
+    // finalizing the audio capturing operation
+    private static void finalizeOperation(
             final Path tempRawAudioPath, final AudioFormat audioFormat, final File outputFile
     ) throws IOException {
         // saving the audio recording result

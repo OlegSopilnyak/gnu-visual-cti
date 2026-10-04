@@ -1031,8 +1031,6 @@ public class SoundCardServiceProviderTest {
         Files.copy(in, tempFilePath, StandardCopyOption.REPLACE_EXISTING);
         tempFilePath.toFile().deleteOnExit();
         int timeout = 1;
-        shadowScheduler.schedule(() -> provider.putEvent(stopIt(handle, "Testing playing", Result.TIMEOUT)),
-                timeout, TimeUnit.SECONDS);
         doAnswer(invocation -> shadowScheduler.schedule(
                 invocation.getArgument(0, Runnable.class),
                 invocation.getArgument(1, Long.class),
@@ -1042,6 +1040,8 @@ public class SoundCardServiceProviderTest {
         // acting
         boolean started = provider.startAudioPlaying(handle, tempFilePath, format, timeout);
         await().until(handle::isOperationInProgress);
+        // just stopping the playback operation in the timeout seconds
+        shadowScheduler.schedule(() -> handle.setSourceLine(null), timeout, TimeUnit.SECONDS);
         await().until(() -> !handle.isOperationInProgress());
 
         // check the behavior
@@ -1115,7 +1115,7 @@ public class SoundCardServiceProviderTest {
         // acting
         boolean started = provider.startAudioRecording(handle, tempFile.toPath(), format, silence, timeout);
         await().until(handle::isOperationInProgress);
-        shadowScheduler.schedule(() -> CaptureUtils.completeCapturing(handle,
+        shadowScheduler.schedule(() -> CaptureUtils.completeOperation(handle,
                 // sending the operation is completed by timeout event
                 () -> provider.putEvent(stopIt(handle, "Recording...", Result.TIMEOUT))
         ), 200, TimeUnit.MILLISECONDS);
@@ -1124,9 +1124,8 @@ public class SoundCardServiceProviderTest {
         // check the behavior
         verify(provider, atLeastOnce()).isOpened(handle);
         verify(provider).asyncAudioFileRecording(tempFile.toPath(), format, handle, silence);
-        verify(provider, never()).stopAudioFileRecording(any(), any(OperationResultValue.class));
         ArgumentCaptor<DeviceEvent<SoundCardHandle>> eventCaptor = ArgumentCaptor.forClass(DeviceEvent.class);
-        verify(provider, atLeastOnce()).putEvent(eventCaptor.capture());
+        verify(provider).putEvent(eventCaptor.capture());
         // check results
         DeviceEvent<SoundCardHandle> event = eventCaptor.getValue();
         assertThat(event.getEventType()).isSameAs(DeviceEvent.Type.DEVICE_SPECIFIC);
