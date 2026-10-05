@@ -152,6 +152,11 @@ public class AbstractTelephonyDeviceTest<H> {
             public DeviceActivitySession createSessionFor(Object openedDeviceHandle) {
                 return spy(super.createSessionFor(openedDeviceHandle));
             }
+
+            @Override
+            public boolean canBeConnected() {
+                return false;
+            }
         });
         // preparing device's parts mocks
         mockedCalls = mock(CallsPortEngine.class);
@@ -1757,7 +1762,7 @@ public class AbstractTelephonyDeviceTest<H> {
         verify(provider, atLeastOnce()).isOpened(deviceHandle);
         verify(provider).isReadyToPlay(deviceHandle);
         verify(provider).asyncAudioFilePlaying(any(File.class), eq(format), eq(deviceHandle));
-        verify(provider).timeoutEventIn(eq(deviceHandle), anyString(), eq((long)timeout), eq(TimeUnit.SECONDS));
+        verify(provider).timeoutEventIn(eq(deviceHandle), anyString(), eq((long) timeout), eq(TimeUnit.SECONDS));
         verify(provider).sendTimeoutEventFor(eq(deviceHandle), anyString());
         verify(session).waitingForOperationComplete(1000L);
         verify(session).operationComplete(Result.IO.EOF);
@@ -1794,7 +1799,7 @@ public class AbstractTelephonyDeviceTest<H> {
         verify(provider, atLeastOnce()).isOpened(deviceHandle);
         verify(provider).isReadyToPlay(deviceHandle);
         verify(provider).asyncAudioFilePlaying(any(File.class), eq(format), eq(deviceHandle));
-        verify(provider).timeoutEventIn(eq(deviceHandle), anyString(), eq((long)timeout), eq(TimeUnit.SECONDS));
+        verify(provider).timeoutEventIn(eq(deviceHandle), anyString(), eq((long) timeout), eq(TimeUnit.SECONDS));
         verify(provider).sendTimeoutEventFor(eq(deviceHandle), anyString());
         verify(session, atLeastOnce()).waitingForOperationComplete(1000L);
         verify(session, never()).operationComplete(Result.IO.EOF);
@@ -1838,7 +1843,7 @@ public class AbstractTelephonyDeviceTest<H> {
         verify(provider, atLeastOnce()).isOpened(deviceHandle);
         verify(provider).isReadyToPlay(deviceHandle);
         verify(provider).asyncAudioFilePlaying(any(File.class), eq(format), eq(deviceHandle));
-        verify(provider).timeoutEventIn(eq(deviceHandle), anyString(), eq((long)timeout), eq(TimeUnit.SECONDS));
+        verify(provider).timeoutEventIn(eq(deviceHandle), anyString(), eq((long) timeout), eq(TimeUnit.SECONDS));
         verify(provider).sendTimeoutEventFor(eq(deviceHandle), anyString());
         verify(session).waitingForOperationComplete(1000L);
         verify(session, never()).operationComplete(Result.IO.EOF);

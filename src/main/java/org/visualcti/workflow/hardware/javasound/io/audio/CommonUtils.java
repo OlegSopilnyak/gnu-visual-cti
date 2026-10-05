@@ -54,6 +54,8 @@ import org.visualcti.workflow.hardware.javasound.SoundCardHandle;
  * @see CaptureUtils
  */
 abstract class CommonUtils {
+    // the size of buffer that is using for media-transmitting operations
+    protected static final int BUFFER_SIZE = 2048;
     private static final String QUEUE_IS_FULL = "AfterParty queue is full!!!";
     private static final Map<SoundCardHandle, BlockingQueue<Runnable>> afterParty = new ConcurrentHashMap<>();
     /**

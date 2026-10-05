@@ -57,7 +57,6 @@ import org.visualcti.core.channel.telephony.operation.Result;
 import org.visualcti.media.Audio;
 import org.visualcti.util.Tools;
 import org.visualcti.workflow.hardware.javasound.SoundCardHandle;
-import org.visualcti.workflow.hardware.javasound.io.Constants;
 
 /**
  * Provider Facade Part:Class-Utility: The telephony service provider facade 'audio playing back implementation'
@@ -65,7 +64,7 @@ import org.visualcti.workflow.hardware.javasound.io.Constants;
  *
  * @see org.visualcti.workflow.hardware.javasound.SoundCardServiceProvider
  */
-public final class PlaybackUtils extends CommonUtils implements Constants {
+public final class PlaybackUtils extends CommonUtils {
     /**
      * <action>
      * To play back the audio file using handle's source line
@@ -124,11 +123,7 @@ public final class PlaybackUtils extends CommonUtils implements Constants {
             // putting the event about the end of file reached
             resultUpdater.accept(Result.IO.EOF);
         }
-        // finalizing the audio playing back
-        if (channel.isActive()) {
-            // Wait for buffer to empty before closing
-            channel.drain();
-        }
+        // finalizing the audio playing back channel's work
         channel.close();
         channel.stop();
     }
@@ -159,7 +154,7 @@ public final class PlaybackUtils extends CommonUtils implements Constants {
      * To play raw audio data stream through source data line
      *
      * @param handle              the handle of the opened resource (sound card device's handle)
-     * @param rawAudioInputStream the raw audio data input stream
+     * @param rawAudioInputStream the raw audio data stream
      * @param channel             the source data line
      * @param <H>                 sound-card device handle type
      * @throws IOException throws when something went wrong
@@ -174,7 +169,7 @@ public final class PlaybackUtils extends CommonUtils implements Constants {
         int bytesToPlay;
         // playing back audio operation is started
         handle.inProgress(true);
-        // getting audio chunks from the file and playing them back
+        // getting audio chunks from the raw audio data stream and playing them back
         while (Boolean.TRUE.equals(handle.isSourceActive()) && completedAction.isEmpty()) {
             // getting audio chunk from the file
             if ((bytesToPlay = rawAudioInputStream.read(buffer, 0, buffer.length)) > 0) {
@@ -184,8 +179,14 @@ public final class PlaybackUtils extends CommonUtils implements Constants {
                 break;
             }
         }
-        // finalizing transfer operation
-        channel.drain();
+        //
+        // finalizing audio transfer operation
+        if (channel.isActive()) {
+            // Wait for buffer to empty before closing
+            channel.drain();
+        }
+        //
+        // closing raw audio data stream
         rawAudioInputStream.close();
     }
 

@@ -66,7 +66,7 @@ import org.visualcti.workflow.hardware.javasound.SoundCardHandle;
  *
  * @see org.visualcti.workflow.hardware.javasound.SoundCardServiceProvider
  */
-public class ToneUtils extends CommonUtils {
+public final class ToneUtils extends CommonUtils {
     // the format for tone's playing back
     public static final AudioFormat TONE_AUDIO_FORMAT = new AudioFormat(SAMPLE_RATE, 16, 1, true, false);
     // the container of DTMF tones

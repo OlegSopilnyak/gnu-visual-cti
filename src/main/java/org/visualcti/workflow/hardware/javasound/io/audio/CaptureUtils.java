@@ -55,7 +55,6 @@ import org.visualcti.media.Audio;
 import org.visualcti.util.Tools;
 import org.visualcti.workflow.hardware.javasound.SoundCardHandle;
 import org.visualcti.workflow.hardware.javasound.SoundCardServiceProvider;
-import org.visualcti.workflow.hardware.javasound.io.Constants;
 
 /**
  * Provider Facade Part:Class-Utility: The telephony service provider facade 'audio capturing implementation'
@@ -63,7 +62,7 @@ import org.visualcti.workflow.hardware.javasound.io.Constants;
  *
  * @see org.visualcti.workflow.hardware.javasound.SoundCardServiceProvider
  */
-public final class CaptureUtils extends CommonUtils implements Constants {
+public final class CaptureUtils extends CommonUtils {
     /**
      * <action>
      * To capture audio data and save recorded data to the output file in the WAVE format

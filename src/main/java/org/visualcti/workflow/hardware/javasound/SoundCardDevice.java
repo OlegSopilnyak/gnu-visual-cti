@@ -37,7 +37,7 @@ Fax number: 217-356-3356
 */
 package org.visualcti.workflow.hardware.javasound;
 
-import org.visualcti.core.channel.device.DeviceActivitySession;
+import org.visualcti.core.channel.telephony.TelephonyFactory;
 import org.visualcti.core.channel.telephony.TelephonyServiceProvider;
 import org.visualcti.core.channel.telephony.adapter.AbstractTelephonyDevice;
 import org.visualcti.core.channel.telephony.adapter.AbstractTelephonyFactory;
@@ -73,38 +73,29 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
         super(name, provider, calls, tones, media, faxes);
     }
 
-    @Override
-    public DeviceActivitySession<H> createSessionFor(H handle) {
-        return new DefaultTelephonyCall<>(this, handle);
-    }
-
+    /**
+     * <accessor>
+     * To check, whether device can be used in operations of connections (conference)
+     * This flag, the factory may set in properties of the device
+     *
+     * @return true if device can be shared for another device
+     * @see TelephonyFactory
+     * @see CallsPortEngine.Parameter#SHARE_CALL_PORT_ALLOWED
+     */
     @Override
     public boolean canBeConnected() {
+        // cannot no doubts
         return false;
     }
 
-    /**
-     * <accessor>
-     * To get access to the wrong value device's low-level handle
-     *
-     * @return the value for a handle of an unopened device
-     * @see #isInvalidHandle(H)
-     */
     @Override
     protected H wrongHandle() {
         return SoundCardHandle.wrong();
     }
 
-    /**
-     * <accessor>
-     * To get access to the error value device's low-level handle
-     *
-     * @return the value for handle of corrupted device
-     * @see #isInvalidHandle(H)
-     */
     @Override
     protected H errorHandle() {
-        return SoundCardHandle.wrong();
+        return wrongHandle();
     }
 
     @Override
@@ -127,19 +118,23 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
         return new Fax();
     }
 
-    // inner classes
+    /// inner classes
+    // PhoneCall management
     private class CallControl extends AbstractCallsPortEngine<H> {
 
     }
 
+    // Telephony tones/user's input management
     private class Tones extends AbstractTonesEngine<H> {
 
     }
 
+    // Audio Play/Record management
     private class Media extends AbstractMultimediaEngine<H> {
 
     }
 
+    // Fax transmitting/receiving management
     private class Fax extends AbstractFaxMachineEngine<H> {
 
     }

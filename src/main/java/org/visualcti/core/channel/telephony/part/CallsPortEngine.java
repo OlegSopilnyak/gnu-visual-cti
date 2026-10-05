@@ -196,7 +196,7 @@ public interface CallsPortEngine<H> extends TelephonyDevicePart<H> {
      * @see Parameter#SHARE_CALL_PORT_ALLOWED
      */
     default boolean canBeConnected() {
-        return false;
+        throw new UnsupportedOperationException("Please implement it further.");
     }
 
     /**
