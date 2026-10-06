@@ -286,8 +286,8 @@ public abstract class AbstractTelephonyDevice<H, T extends TelephonyFactory<H, ?
      * @see #getProvider()
      */
     @Override
-    public DeviceActivitySession<H> startSession() throws IOException {
-        final PhoneCallSession<H> session = (PhoneCallSession<H>) super.startSession();
+    public <S extends DeviceActivitySession<H>> S startSession() throws IOException {
+        final PhoneCallSession<H> session = super.startSession();
         // analyzing the opened device session
         if (session != null && session.isOpened()) {
             // to get telephony service provider instance
@@ -313,7 +313,7 @@ public abstract class AbstractTelephonyDevice<H, T extends TelephonyFactory<H, ?
                 getFactory().shareDevice(handle);
             }
         }
-        return session;
+        return (S) session;
     }
 
     /**

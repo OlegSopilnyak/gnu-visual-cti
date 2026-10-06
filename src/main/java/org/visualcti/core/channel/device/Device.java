@@ -190,7 +190,7 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit, XmlAware
      * @return opened device's session
      * @throws IOException if device cannot start the session
      */
-    default DeviceActivitySession<H> startSession() throws IOException {
+    default <S extends DeviceActivitySession<H>> S startSession() throws IOException {
         // opening the device provider resource
         final H deviceHandle = serviceProvider().openResource(getName());
         // to check opened device's handle value
@@ -208,7 +208,7 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit, XmlAware
         // notifying about created session state
         stateChangedFor(session);
         // reruns built well device session
-        return session;
+        return (S) session;
     }
 
     /**

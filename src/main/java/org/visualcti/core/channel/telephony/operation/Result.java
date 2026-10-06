@@ -124,6 +124,11 @@ public enum Result implements OperationResultValue {
             public String getValue() {
                 return status;
             }
+
+            @Override
+            public String toString() {
+                return status;
+            }
         }
     }
 

@@ -37,10 +37,18 @@ Fax number: 217-356-3356
 */
 package org.visualcti.workflow.hardware.javasound;
 
+import javax.swing.JFrame;
+
+import java.awt.*;
+import java.io.IOException;
+import java.util.concurrent.atomic.AtomicReference;
+import org.visualcti.core.channel.device.Device;
+import org.visualcti.core.channel.device.DeviceActivitySession;
 import org.visualcti.core.channel.telephony.TelephonyFactory;
 import org.visualcti.core.channel.telephony.TelephonyServiceProvider;
 import org.visualcti.core.channel.telephony.adapter.AbstractTelephonyDevice;
 import org.visualcti.core.channel.telephony.adapter.AbstractTelephonyFactory;
+import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.core.channel.telephony.part.CallsPortEngine;
 import org.visualcti.core.channel.telephony.part.FaxMachineEngine;
 import org.visualcti.core.channel.telephony.part.MultimediaEngine;
@@ -49,6 +57,7 @@ import org.visualcti.core.channel.telephony.part.adapter.AbstractCallsPortEngine
 import org.visualcti.core.channel.telephony.part.adapter.AbstractFaxMachineEngine;
 import org.visualcti.core.channel.telephony.part.adapter.AbstractMultimediaEngine;
 import org.visualcti.core.channel.telephony.part.adapter.AbstractTonesEngine;
+import org.visualcti.workflow.hardware.javasound.ui.SoundCardUI;
 
 
 /**
@@ -61,16 +70,38 @@ import org.visualcti.core.channel.telephony.part.adapter.AbstractTonesEngine;
  * @version 3.2
  * @see AbstractTelephonyDevice
  */
+@SuppressWarnings("unchecked")
 public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTelephonyFactory<H, ?>>
         extends AbstractTelephonyDevice<H, F> {
+    private final AtomicReference<SoundCardUI<H>> uiHolder = new AtomicReference<>(null);
 
-    protected SoundCardDevice(String name, TelephonyServiceProvider<H> provider) {
+    public SoundCardDevice(String name, TelephonyServiceProvider<H> provider) {
         super(name, provider);
     }
 
     protected SoundCardDevice(String name, TelephonyServiceProvider<H> provider,
                               CallsPortEngine<H> calls, TonesEngine<H> tones, MultimediaEngine<H> media, FaxMachineEngine<H> faxes) {
         super(name, provider, calls, tones, media, faxes);
+    }
+
+    /**
+     * <action>
+     * To create and start device's session
+     *
+     * @return opened device's session
+     * @throws IOException if device cannot start the session
+     * @see Device#open()
+     * @see #createSessionFor(Object)
+     * @see #getProvider()
+     */
+    @Override
+    public <S extends DeviceActivitySession<H>> S startSession() throws IOException {
+        final PhoneCallSession<H> session = super.startSession();
+        final SoundCardUI<H>former = uiHolder.getAndSet(new SoundCardUI<>(session));
+        if (former != null) {
+            former.setVisible(false);
+        }
+        return (S) session;
     }
 
     /**
@@ -116,6 +147,35 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
     @Override
     protected FaxMachineEngine<H> faxPart() {
         return new Fax();
+    }
+
+    /**
+     * <debug>
+     * To show the ui of device in the Frame
+     */
+    public final void show() {
+        JFrame frame = new JFrame("emulator");
+        frame.getContentPane().add(this.uiHolder.get(), BorderLayout.CENTER);
+        frame.pack();
+        frame.setVisible(true);
+    }
+
+    /**
+     * <notify>
+     * The notify from UI "Ring" button
+     */
+    public void callAlerted() {
+        // TODO add communication with sound cadr device
+    }
+
+    /**
+     * <notify>
+     * To notify from UI "Answer" button
+     *
+     * @param analyzeResult CallAnalyze result
+     */
+    public final void answerCall(String analyzeResult) {
+        // TODO add communication with sound cadr device
     }
 
     /// inner classes

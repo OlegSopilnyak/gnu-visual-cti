@@ -75,7 +75,7 @@ public class SoundCardDevicesFactory<H extends SoundCardHandle, D extends SoundC
     // the value of type of the factory as a server unit
     public static final String DEVICES_FACTORY_UNIT_TYPE = "[SoundCard:telephony-channel-devices-board]";
 
-    protected SoundCardDevicesFactory(Executor deviceEventsExecutor, TelephonyServiceProvider<H> provider) {
+    public SoundCardDevicesFactory(Executor deviceEventsExecutor, TelephonyServiceProvider<H> provider) {
         super(deviceEventsExecutor, provider);
     }
 
