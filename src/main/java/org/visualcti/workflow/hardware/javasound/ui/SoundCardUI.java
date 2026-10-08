@@ -43,6 +43,7 @@ import java.awt.*;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.workflow.hardware.javasound.SoundCardDevice;
 import org.visualcti.workflow.hardware.javasound.SoundCardHandle;
+import org.visualcti.workflow.hardware.javasound.ui.panel.PhoneCallsPane;
 
 /**
  * <p>Title: Visual CTI Java Telephony Server</p>
@@ -56,6 +57,7 @@ import org.visualcti.workflow.hardware.javasound.SoundCardHandle;
  */
 public class SoundCardUI<H extends SoundCardHandle> extends JPanel {
     private final transient PhoneCallSession<H> deviceActivitySession;
+    private final transient PhoneCallsPane<H> callsControlPane;
 
     public SoundCardUI(PhoneCallSession<H> deviceActivitySession) {
         super(new BorderLayout(),true);
@@ -63,9 +65,18 @@ public class SoundCardUI<H extends SoundCardHandle> extends JPanel {
             throw new IllegalArgumentException("PhoneCall session cannot be null.");
         }
         this.deviceActivitySession = deviceActivitySession;
+        this.callsControlPane = new PhoneCallsPane<>(this);
     }
 
     public PhoneCallSession<H> getActiveSession() {
         return deviceActivitySession;
+    }
+
+    public void online() {
+        callsControlPane.setEnabled(true);
+    }
+
+    public void setHandset(boolean on) {
+        callsControlPane.setHandset(on);
     }
 }

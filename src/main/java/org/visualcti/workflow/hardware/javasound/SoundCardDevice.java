@@ -44,6 +44,7 @@ import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReference;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceActivitySession;
+import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.TelephonyFactory;
 import org.visualcti.core.channel.telephony.TelephonyServiceProvider;
 import org.visualcti.core.channel.telephony.adapter.AbstractTelephonyDevice;
@@ -150,6 +151,22 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
     }
 
     /**
+     * <action>
+     * To end a phone call.
+     *
+     * @param session the phone call's session, device is working with
+     * @return true if operation complete successfully
+     * @see PhoneCallSession
+     * @see #isOpened()
+     */
+    @Override
+    public boolean dropCall(final PhoneCallSession<H> session) {
+        session.alive(false);
+        uiHolder.get().setHandset(false);
+        return true;
+    }
+
+    /**
      * <debug>
      * To show the ui of device in the Frame
      */
@@ -164,8 +181,10 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
      * <notify>
      * The notify from UI "Ring" button
      */
-    public void callAlerted() {
-        // TODO add communication with sound cadr device
+    public void callAlerted(final PhoneCallSession<H> session) {
+        final SoundCardUI<H>ui = uiHolder.get();
+        session.alive(!session.isAlive());
+        ui.setHandset(session.isAlive());
     }
 
     /**
@@ -174,7 +193,7 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
      *
      * @param analyzeResult CallAnalyze result
      */
-    public final void answerCall(String analyzeResult) {
+    public final void answerCall(OperationResultValue analyzeResult) {
         // TODO add communication with sound cadr device
     }
 

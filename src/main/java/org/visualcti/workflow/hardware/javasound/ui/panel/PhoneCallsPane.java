@@ -37,6 +37,8 @@ Fax number: 217-356-3356
 */
 package org.visualcti.workflow.hardware.javasound.ui.panel;
 
+import static javax.swing.WindowConstants.EXIT_ON_CLOSE;
+
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
@@ -46,11 +48,10 @@ import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
+import javax.swing.SwingUtilities;
 import javax.swing.border.TitledBorder;
 
 import java.awt.*;
-import java.awt.event.ItemEvent;
-import java.awt.event.ItemListener;
 import java.io.IOException;
 import java.util.NoSuchElementException;
 import java.util.Random;
@@ -60,6 +61,7 @@ import org.jdom.DataConversionException;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.operation.Result;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
+import org.visualcti.core.channel.telephony.part.CallsPortEngine;
 import org.visualcti.workflow.hardware.javasound.SoundCardDevice;
 import org.visualcti.workflow.hardware.javasound.SoundCardDevicesFactory;
 import org.visualcti.workflow.hardware.javasound.SoundCardHandle;
@@ -80,19 +82,17 @@ import org.visualcti.workflow.hardware.javasound.ui.SoundCardUI;
  */
 @SuppressWarnings("unchecked")
 public class PhoneCallsPane<H extends SoundCardHandle> extends JPanel {
-    private final JTextField originate;
-    private final JTextField caller;
-    private final JTextField calling;
-    private final JTextField state;
-    private final JButton dropCall;
+    private final JTextField state = new JTextField("OFFLINE");
+    private final JButton dropCall = new JButton("Drop Call");
     // phone call related panels
-    private final WaitForIncomingCallPane waitCall;
-    private final MakeOutgoingCallPane makeCall;
-    private final PhoneNumbersPane callPar;
+    private final WaitForIncomingCallPane waitForCallPane;
+    private final MakeOutgoingCallPane makeCallPane;
+    private final PhoneNumbersPane phoneNumbersPane;
     // telephony device stuff
-    private final transient PhoneCallSession<H> activeSession;
-    private final transient SoundCardDevice<H, ?> device;
+    private final transient PhoneCallSession<H> activePhoneCallSession;
+    private final transient SoundCardDevice<H, ?> telephonyDevice;
 
+    @Deprecated
     public static <H extends SoundCardHandle> void main(String[] args) throws IOException, DataConversionException {
         ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
         SoundCardServiceProvider<H> provider = new SoundCardServiceProvider<>(scheduler);
@@ -102,6 +102,7 @@ public class PhoneCallsPane<H extends SoundCardHandle> extends JPanel {
                     .orElseThrow(() -> new NoSuchElementException("No devices in the factory"));
             PhoneCallsPane<H> pane = new PhoneCallsPane<>(new SoundCardUI<>(device.startSession()));
             JFrame frame = new JFrame("emulator");
+            frame.setDefaultCloseOperation(EXIT_ON_CLOSE);
             frame.getContentPane().add(pane, BorderLayout.CENTER);
             frame.pack();
             frame.setVisible(true);
@@ -110,41 +111,66 @@ public class PhoneCallsPane<H extends SoundCardHandle> extends JPanel {
 
     public PhoneCallsPane(final SoundCardUI<H> rootPanel) {
         super(new BorderLayout(), true);
-        activeSession = rootPanel.getActiveSession();
-        device = (SoundCardDevice<H, ?>) activeSession.getDevice();
-        // phone numbers
-        originate = new JTextField(12);
-        caller = new JTextField(12);
-        calling = new JTextField(12);
+        activePhoneCallSession = rootPanel.getActiveSession();
+        telephonyDevice = (SoundCardDevice<H, ?>) this.activePhoneCallSession.getDevice();
         // phone call status pane
-        final JPanel phoneCallStatus = new JPanel(new BorderLayout(), false);
-        // add status to the top of main pane
-        super.add(phoneCallStatus, BorderLayout.NORTH);
-        this.state = new JTextField("OFFLINE");
-        this.state.setBorder(null);
-        this.state.setFont(new Font("sanserif", Font.BOLD, 12));
-        phoneCallStatus.add(this.state, BorderLayout.CENTER);
-        this.dropCall = new JButton("Drop Call");
-        phoneCallStatus.add(this.dropCall, BorderLayout.EAST);
-        this.dropCall.addActionListener(e -> device.dropCall(activeSession));
+        // adding status to the top of main pane
+        add(buildingCallStatusPane(), BorderLayout.NORTH);
         // calls controls pane
-        final JPanel callControlPane = new JPanel(false);
-        super.add(callControlPane, BorderLayout.CENTER);
-        callControlPane.setLayout(new BoxLayout(callControlPane, BoxLayout.Y_AXIS));
-        callControlPane.add(Box.createVerticalStrut(10));
-        waitCall = new WaitForIncomingCallPane(device);
-        makeCall = new MakeOutgoingCallPane(device);
-        callPar = new PhoneNumbersPane();
-        callControlPane.add(this.callPar);
-        callControlPane.add(this.waitCall);
-        callControlPane.add(this.makeCall);
+        phoneNumbersPane = new PhoneNumbersPane();
+        waitForCallPane = new WaitForIncomingCallPane();
+        makeCallPane = new MakeOutgoingCallPane();
+        // adding status to the center of main pane
+        add(buildingCallsControlsPane(), BorderLayout.CENTER);
+        // prepare pane for visualization
+        setEnabled(true);
+        setHandset(activePhoneCallSession.isAlive());
+    }
+
+    private JPanel buildingCallStatusPane() {
+        final JPanel phoneCallStatus = new JPanel(new BorderLayout(), false);
+        state.setBorder(null);
+        state.setFont(new Font("sanserif", Font.BOLD, 12));
+        phoneCallStatus.add(state, BorderLayout.CENTER);
+        phoneCallStatus.add(dropCall, BorderLayout.EAST);
+        dropCall.addActionListener(e -> {
+            telephonyDevice.dropCall(activePhoneCallSession);
+            setHandset(false);
+        });
+        return phoneCallStatus;
+    }
+
+    private JPanel buildingCallsControlsPane() {
+        final JPanel callControlsPane = new JPanel(false);
+        callControlsPane.setLayout(new BoxLayout(callControlsPane, BoxLayout.Y_AXIS));
+        callControlsPane.add(Box.createVerticalStrut(10));
+        callControlsPane.add(this.phoneNumbersPane);
+        callControlsPane.add(this.waitForCallPane);
+        callControlsPane.add(this.makeCallPane);
+        return callControlsPane;
+    }
+
+    public void setHandset(boolean on) {
+        SwingUtilities.invokeLater(() -> {
+            dropCall.setEnabled(on);
+            waitForCallPane.ring.setEnabled(!on);
+            makeCallPane.setEnabled(!on);
+        });
     }
 
     private final class PhoneNumbersPane extends JPanel {
+        private final JTextField origin = new JTextField(12);
+        private final JTextField caller = new JTextField(12);
+        private final JTextField calling = new JTextField(12);
+
         PhoneNumbersPane() {
             super(false);
+            // setting up the origin phone number
+            origin.setText(telephonyDevice.getParameter(CallsPortEngine.Parameter.ORIGIN)
+                    .map(param -> param.getValue().toString()).orElse("")
+            );
             super.setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
-            addPhoneNumber("Origin", originate, this);
+            addPhoneNumber("Origin", origin, this);
             addPhoneNumber("Caller", caller, this);
             addPhoneNumber("Calling", calling, this);
         }
@@ -159,24 +185,24 @@ public class PhoneCallsPane<H extends SoundCardHandle> extends JPanel {
 
         @Override
         public void setEnabled(boolean enabled) {
-            originate.setEnabled(!enabled);
+            origin.setEnabled(!enabled);
             caller.setEnabled(!enabled);
             calling.setEnabled(!enabled);
         }
     }
 
     private final class WaitForIncomingCallPane extends JPanel {
-        private final JButton ring;
-        private final SoundCardDevice<H, ?> soundCardDevice;
+        private final JButton ring = new JButton("Ring");
 
-        WaitForIncomingCallPane(final SoundCardDevice<H, ?> device) {
+        WaitForIncomingCallPane() {
             super(new FlowLayout(FlowLayout.CENTER), false);
-            this.ring = new JButton("Ring");
-            super.add(this.ring);
-            super.setBorder(new TitledBorder("Wait For PhoneCall"));
-            this.ring.setFocusPainted(false);
-            this.soundCardDevice = device;
-            this.ring.addActionListener(e -> soundCardDevice.callAlerted());
+            add(ring);
+            setBorder(new TitledBorder("Wait For PhoneCall"));
+            ring.setFocusPainted(false);
+            ring.addActionListener(e -> {
+                setHandset(true);
+                telephonyDevice.callAlerted(activePhoneCallSession);
+            });
         }
 
         @Override
@@ -186,7 +212,6 @@ public class PhoneCallsPane<H extends SoundCardHandle> extends JPanel {
     }
 
     private final class MakeOutgoingCallPane extends JPanel {
-        private final transient SoundCardDevice<H, ?> soundCardDevice;
         private final transient OperationResultValue[] types = new OperationResultValue[]{
                 Result.CALL.Analysis.VOICE,
                 Result.CALL.Analysis.FAX,
@@ -200,54 +225,72 @@ public class PhoneCallsPane<H extends SoundCardHandle> extends JPanel {
         private final JButton answer;
         private final Random randomizer = new Random();
 
-        MakeOutgoingCallPane(final SoundCardDevice<H, ?> device) {
+        MakeOutgoingCallPane() {
             super(new BorderLayout(), false);
-            this.soundCardDevice = device;
             // preparing auto answer control pane
-            JPanel autoAnswerPane = new JPanel(new FlowLayout(FlowLayout.CENTER), false);
-            super.add(autoAnswerPane, BorderLayout.NORTH);
+            setBorder(new TitledBorder("Make PhoneCall"));
             autoAnswerCheck = new JCheckBox("autoAnswer");
             randomCheck = new JCheckBox("random", false);
+            randomCheck.setEnabled(false);
             answerType = new JComboBox<>(types);
-            autoAnswerPane.add(this.autoAnswerCheck);
-            autoAnswerPane.add(this.randomCheck);
-            this.randomCheck.setEnabled(false);
-            this.autoAnswerCheck.addItemListener(new ItemListener() {
-                @Override
-                public void itemStateChanged(ItemEvent ev) {
-                    if (autoAnswerCheck.isSelected()) {
-                        randomCheck.setEnabled(true);
-                        randomCheck.setSelected(false);
-                        answer.setEnabled(false);
-                        answerType.setEnabled(false);
-                        answerCall();
-                    } else {
-                        randomCheck.setEnabled(false);
-                        randomCheck.setSelected(false);
-                        answer.setEnabled(true);
-                        answerType.setEnabled(true);
-                    }
+            // preparing call analysis control pane
+            answer = new JButton("Answer");
+            answer.setFocusPainted(false);
+            this.answer.addActionListener(e -> answerCall());
+            //
+            // adding answer call analysis pane to the center of the root pane
+            add(buildingAnswerCallAnalysisPane(), BorderLayout.CENTER);
+            //
+            // building auto-answer pane
+            final JPanel autoAnswerPane = new JPanel(new FlowLayout(FlowLayout.CENTER), false);
+            autoAnswerPane.add(autoAnswerCheck);
+            autoAnswerPane.add(randomCheck);
+            // adding auto answer control pane to the top of the root pane
+            add(autoAnswerPane, BorderLayout.NORTH);
+            // randomizing the values in generator
+            assert (randomizer.ints(10, 1, types.length).count() == 10) : "Randomizer didn't init.";
+            // answer value combo box item changed listener
+            this.autoAnswerCheck.addItemListener(itemEvent -> {
+                if (autoAnswerCheck.isSelected()) {
+                    randomCheck.setEnabled(true);
+                    randomCheck.setSelected(false);
+                    answer.setEnabled(false);
+                    answerType.setEnabled(false);
+                    answerCall();
+                } else {
+                    randomCheck.setEnabled(false);
+                    randomCheck.setSelected(false);
+                    answer.setEnabled(true);
+                    answerType.setEnabled(true);
                 }
             });
-            JPanel ca = new JPanel(new FlowLayout(FlowLayout.LEFT), false);
-            super.add(ca, BorderLayout.CENTER);
-            answer = new JButton("Answer");
-            ca.add(this.answerType);
-            ca.add(this.answer);
-            this.answer.setFocusPainted(false);
-            this.answer.setMargin(new Insets(1, 1, 1, 1));
-            this.answer.addActionListener(e -> answerCall());
-            super.setBorder(new TitledBorder("Make PhoneCall"));
-            // randomize values in generator
-            randomizer.ints(10, 1, types.length).sum();
         }
 
+        private JPanel buildingAnswerCallAnalysisPane() {
+            final JPanel callAnalysis = new JPanel(new FlowLayout(FlowLayout.LEFT), false);
+            callAnalysis.add(this.answerType);
+            callAnalysis.add(this.answer);
+            this.answer.setFocusPainted(false);
+            this.answer.setMargin(new Insets(1, 1, 1, 1));
+            return callAnalysis;
+        }
+
+        // notification from UI-component (answer button) after make call device method
         private void answerCall() {
-            if (this.randomCheck.isSelected()) {
-                int index = this.randomizer.nextInt(types.length - 1);
-                this.answerType.setSelectedIndex(index);
+            if (randomCheck.isSelected()) {
+                final int index = randomizer.nextInt(types.length - 1);
+                answerType.setSelectedIndex(index);
             }
-            soundCardDevice.answerCall(String.valueOf(answerType.getSelectedItem()));
+            // notify about outgoing call answer
+            telephonyDevice.answerCall((OperationResultValue) answerType.getSelectedItem());
+        }
+
+        @Override
+        public void setEnabled(boolean enabled) {
+            autoAnswerCheck.setEnabled(enabled);
+            randomCheck.setEnabled(enabled);
+            answerType.setEnabled(enabled);
+            answer.setEnabled(enabled);
         }
     }
 
@@ -258,9 +301,9 @@ public class PhoneCallsPane<H extends SoundCardHandle> extends JPanel {
         Color background = enabled ? Color.green : Color.lightGray;
         this.state.setText(text);
         this.state.setBackground(background);
-        this.callPar.setEnabled(enabled);
-        this.waitCall.setEnabled(enabled);
-        this.makeCall.setEnabled(enabled);
+        this.phoneNumbersPane.setEnabled(enabled);
+        this.waitForCallPane.setEnabled(enabled);
+        this.makeCallPane.setEnabled(enabled);
     }
 }
 

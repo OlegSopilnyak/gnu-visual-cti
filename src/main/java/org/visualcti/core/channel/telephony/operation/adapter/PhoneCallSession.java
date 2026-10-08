@@ -130,7 +130,7 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
      */
     @Override
     public TelephonyDevice<H, ?> getDevice() {
-        return (TelephonyDevice<H, ?>) super.getDevice();
+        return super.getDevice();
     }
 
     /**

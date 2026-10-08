@@ -47,6 +47,7 @@ import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceActivitySession;
 import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.DeviceStateValue;
+import org.visualcti.core.channel.device.Factory;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
 
 /**
@@ -91,8 +92,8 @@ public class AbstractDeviceSession<H> implements DeviceActivitySession<H> {
      * @return the device-owner reference
      */
     @Override
-    public Device<H, ?> getDevice() {
-        return device;
+    public <D extends Device<H, ? extends Factory<H, ?>>> D getDevice() {
+        return (D) device;
     }
 
     /**

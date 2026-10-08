@@ -55,7 +55,7 @@ public interface DeviceActivitySession<H> extends DeviceEvent.Listener, Closeabl
      *
      * @return the device-owner reference
      */
-    Device<H, ? extends Factory<H, ?>> getDevice();
+    <D extends Device<H, ? extends Factory<H, ?>>> D getDevice();
 
     /**
      * <accessor>
