@@ -194,7 +194,17 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
      * @param analyzeResult CallAnalyze result
      */
     public final void answerCall(OperationResultValue analyzeResult) {
-        // TODO add communication with sound cadr device
+        // TODO add communication with sound card device
+    }
+
+    /**
+     * <notify>
+     * From UI notification when pressed button in dial pad
+     * @param activePhoneCallSession active device's session
+     * @param input pressed symbol
+     */
+    public void userInput(PhoneCallSession<H> activePhoneCallSession, String input) {
+        // TODO add communication with sound card device
     }
 
     /// inner classes

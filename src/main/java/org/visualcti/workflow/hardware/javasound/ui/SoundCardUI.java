@@ -41,8 +41,8 @@ import javax.swing.JPanel;
 
 import java.awt.*;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
-import org.visualcti.workflow.hardware.javasound.SoundCardDevice;
 import org.visualcti.workflow.hardware.javasound.SoundCardHandle;
+import org.visualcti.workflow.hardware.javasound.ui.panel.DtmfInputPane;
 import org.visualcti.workflow.hardware.javasound.ui.panel.PhoneCallsPane;
 
 /**
@@ -53,11 +53,14 @@ import org.visualcti.workflow.hardware.javasound.ui.panel.PhoneCallsPane;
  *
  * @author Sopilnyak Oleg
  * @version 3.2
- * @see SoundCardDevice
+ * @see PhoneCallSession
+ * @see PhoneCallsPane
+ * @see DtmfInputPane
  */
 public class SoundCardUI<H extends SoundCardHandle> extends JPanel {
     private final transient PhoneCallSession<H> deviceActivitySession;
     private final transient PhoneCallsPane<H> callsControlPane;
+    private final transient DtmfInputPane<H> dtmfInputPane;
 
     public SoundCardUI(PhoneCallSession<H> deviceActivitySession) {
         super(new BorderLayout(),true);
@@ -66,6 +69,7 @@ public class SoundCardUI<H extends SoundCardHandle> extends JPanel {
         }
         this.deviceActivitySession = deviceActivitySession;
         this.callsControlPane = new PhoneCallsPane<>(this);
+        this.dtmfInputPane = new DtmfInputPane<>(this);
     }
 
     public PhoneCallSession<H> getActiveSession() {
@@ -74,6 +78,7 @@ public class SoundCardUI<H extends SoundCardHandle> extends JPanel {
 
     public void online() {
         callsControlPane.setEnabled(true);
+        dtmfInputPane.setEnabled(true);
     }
 
     public void setHandset(boolean on) {
