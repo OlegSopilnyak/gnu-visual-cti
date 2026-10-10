@@ -45,8 +45,12 @@ import javax.swing.JPanel;
 import javax.swing.JTextField;
 
 import java.awt.*;
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -73,11 +77,12 @@ import org.visualcti.workflow.hardware.javasound.ui.SoundCardUI;
  * @see SoundCardUI
  */
 @SuppressWarnings("unchecked")
-public class DtmfInputPane<H extends SoundCardHandle> extends JPanel {
+public class DtmfInputPane<H extends SoundCardHandle> extends JPanel implements KeyListener {
     // The container of user's input
     private final transient JTextField dtmfBuffer = new JTextField();
     private final transient JPanel dialPad = new JPanel(new GridLayout(4, 3), false);
     private final transient Lock updateLock = new ReentrantLock(true);
+    private final transient Map<Character, JButton> dialPadButtons = new HashMap<>();
     // telephony device stuff
     private final transient PhoneCallSession<H> activePhoneCallSession;
     private final transient SoundCardDevice<H, ?> telephonyDevice;
@@ -91,14 +96,16 @@ public class DtmfInputPane<H extends SoundCardHandle> extends JPanel {
         final String[] dialPadSymbols = new String[]{"1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "0", "#"};
         Arrays.stream(dialPadSymbols).forEach(symbol -> dialPad.add(new DialPadButton(symbol)));
         add(dialPad, BorderLayout.CENTER);
+        setFocusable(true);
+        addKeyListener(this);
     }
 
     @Override
     public void setEnabled(boolean enabled) {
         updateSafely(() -> {
             dtmfBuffer.setText("");
-            Arrays.stream(dialPad.getComponents())
-                    .filter(JButton.class::isInstance).forEach(b -> setEnabled(enabled));
+            Arrays.stream(dialPad.getComponents()).filter(JButton.class::isInstance)
+                    .forEach(c -> setEnabled(enabled));
         });
     }
 
@@ -109,14 +116,36 @@ public class DtmfInputPane<H extends SoundCardHandle> extends JPanel {
         try (SoundCardDevicesFactory<H, ?> factory = new SoundCardDevicesFactory<>(scheduler, provider)) {
             factory.open();
             SoundCardDevice<H, ?> device = factory.devices().findFirst()
-                    .orElseThrow(() -> new NoSuchElementException("No devices in the factory"));
-            DtmfInputPane<H> pane = new DtmfInputPane<>(new SoundCardUI<>(device.startSession()));
-            JFrame frame = new JFrame("emulator");
-            frame.setDefaultCloseOperation(EXIT_ON_CLOSE);
+                    .orElseThrow(() -> new NoSuchElementException("No any device in the factory."));
+            PhoneCallSession<H> session = device.startSession();
+            // emulate connected phone call session
+            session.alive(true);
+            DtmfInputPane<H> pane = new DtmfInputPane<>(new SoundCardUI<>(session));
+            JFrame frame = new JFrame("Emulator");
             frame.getContentPane().add(pane, BorderLayout.CENTER);
+            frame.setDefaultCloseOperation(EXIT_ON_CLOSE);
             frame.pack();
             frame.setVisible(true);
         }
+    }
+
+    @Override
+    public void keyTyped(KeyEvent e) {
+        // doing nothing here
+    }
+
+    @Override
+    public void keyPressed(KeyEvent e) {
+        // doing nothing here
+    }
+
+    @Override
+    public void keyReleased(KeyEvent e) {
+        // call appropriate button's on click action if present
+        dialPadButtons.computeIfPresent(e.getKeyChar(), (key, button) -> {
+            button.doClick();
+            return button;
+        });
     }
 
     // private methods
@@ -131,18 +160,19 @@ public class DtmfInputPane<H extends SoundCardHandle> extends JPanel {
 
     // private inner classes
     private class DialPadButton extends JButton {
-        /**
-         * Creates a button with text.
-         *
-         * @param input the text of the button
-         */
         public DialPadButton(String input) {
             super(input);
             setFocusPainted(false);
-            addActionListener(e -> updateSafely(() -> {
+            dialPadButtons.put(input.charAt(0), this);
+            addActionListener(e -> buttonPressed(input));
+        }
+
+        private void buttonPressed(String input) {
+            updateSafely(() -> {
                 dtmfBuffer.setText(dtmfBuffer.getText() + input);
                 telephonyDevice.userInput(activePhoneCallSession, input);
-            }));
+            });
         }
+
     }
 }

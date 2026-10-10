@@ -204,7 +204,8 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
      * @param input pressed symbol
      */
     public void userInput(PhoneCallSession<H> activePhoneCallSession, String input) {
-        // TODO add communication with sound card device
+        // playing dtmf tone
+        dial(activePhoneCallSession, input);
     }
 
     /// inner classes
