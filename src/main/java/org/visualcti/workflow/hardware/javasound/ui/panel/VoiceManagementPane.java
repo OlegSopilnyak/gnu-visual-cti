@@ -82,6 +82,7 @@ public class VoiceManagementPane<H extends SoundCardHandle> extends JPanel {
     // telephony device stuff
     private final transient PhoneCallSession<H> activePhoneCallSession;
     private final transient SoundCardDevice<H, ?> telephonyDevice;
+    // ui stuff
     final JTextField playingBackFile = new JTextField(12);
     final JTextField recordingFile = new JTextField(12);
     private final JComboBox<Audio> formats;

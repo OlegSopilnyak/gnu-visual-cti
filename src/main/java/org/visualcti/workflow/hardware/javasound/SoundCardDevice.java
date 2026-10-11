@@ -213,10 +213,34 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
         // TODO add communication with sound card device
     }
 
+    public void setTransferredPages(PhoneCallSession<H> activePhoneCallSession, int newValue) {
+        // TODO add communication with sound card device
+    }
+
+    public void setRemoteID(PhoneCallSession<H> activePhoneCallSession, String str) {
+        // TODO add communication with sound card device
+    }
+
+    public String getLocalID(PhoneCallSession<H> activePhoneCallSession) {
+        return "";
+    }
+
+    public void setLocalID(PhoneCallSession<H> activePhoneCallSession, String str) {
+        // TODO add communication with sound card device
+    }
+
+    public String getFaxDocumentHeader(PhoneCallSession<H> activePhoneCallSession) {
+        return "";
+    }
+
+    public void setFaxDocumentHeader(PhoneCallSession<H> activePhoneCallSession, String str) {
+        // TODO add communication with sound card device
+    }
+
     /// inner classes
     // PhoneCall management
     private class CallControl extends AbstractCallsPortEngine<H> {
-
+        // TODO add communication with sound card device
     }
 
     // Telephony tones/user's input management

@@ -37,10 +37,7 @@ Fax number: 217-356-3356
 */
 package org.visualcti.workflow.hardware.javasound.ui.panel;
 
-import static javax.swing.WindowConstants.EXIT_ON_CLOSE;
-
 import javax.swing.JButton;
-import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 
@@ -48,21 +45,14 @@ import java.awt.BorderLayout;
 import java.awt.GridLayout;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import org.jdom.DataConversionException;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.workflow.hardware.javasound.SoundCardDevice;
-import org.visualcti.workflow.hardware.javasound.SoundCardDevicesFactory;
 import org.visualcti.workflow.hardware.javasound.SoundCardHandle;
-import org.visualcti.workflow.hardware.javasound.SoundCardServiceProvider;
 import org.visualcti.workflow.hardware.javasound.ui.SoundCardUI;
 
 /**
@@ -97,8 +87,6 @@ public class DtmfInputPane<H extends SoundCardHandle> extends JPanel implements 
         final String[] dialPadSymbols = new String[]{"1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "0", "#"};
         Arrays.stream(dialPadSymbols).forEach(symbol -> dialPad.add(new DialPadButton(symbol)));
         add(dialPad, BorderLayout.CENTER);
-        setFocusable(true);
-        addKeyListener(this);
     }
 
     @Override
@@ -108,26 +96,6 @@ public class DtmfInputPane<H extends SoundCardHandle> extends JPanel implements 
             Arrays.stream(dialPad.getComponents()).filter(JButton.class::isInstance)
                     .forEach(c -> setEnabled(enabled));
         });
-    }
-
-    @Deprecated
-    public static <H extends SoundCardHandle> void main(String[] args) throws IOException, DataConversionException {
-        ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
-        SoundCardServiceProvider<H> provider = new SoundCardServiceProvider<>(scheduler);
-        try (SoundCardDevicesFactory<H, ?> factory = new SoundCardDevicesFactory<>(scheduler, provider)) {
-            factory.open();
-            SoundCardDevice<H, ?> device = factory.devices().findFirst()
-                    .orElseThrow(() -> new NoSuchElementException("No any device in the factory."));
-            PhoneCallSession<H> session = device.startSession();
-            // emulate connected phone call session
-            session.alive(true);
-            DtmfInputPane<H> pane = new DtmfInputPane<>(new SoundCardUI<>(session));
-            JFrame frame = new JFrame("Emulator");
-            frame.getContentPane().add(pane, BorderLayout.CENTER);
-            frame.setDefaultCloseOperation(EXIT_ON_CLOSE);
-            frame.pack();
-            frame.setVisible(true);
-        }
     }
 
     @Override
