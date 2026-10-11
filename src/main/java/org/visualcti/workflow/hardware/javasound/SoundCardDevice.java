@@ -58,6 +58,7 @@ import org.visualcti.core.channel.telephony.part.adapter.AbstractCallsPortEngine
 import org.visualcti.core.channel.telephony.part.adapter.AbstractFaxMachineEngine;
 import org.visualcti.core.channel.telephony.part.adapter.AbstractMultimediaEngine;
 import org.visualcti.core.channel.telephony.part.adapter.AbstractTonesEngine;
+import org.visualcti.media.Audio;
 import org.visualcti.workflow.hardware.javasound.ui.SoundCardUI;
 
 
@@ -206,6 +207,10 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
     public void userInput(PhoneCallSession<H> activePhoneCallSession, String input) {
         // playing dtmf tone
         dial(activePhoneCallSession, input);
+    }
+
+    public void setRecordFormat(Audio selected) {
+        // TODO add communication with sound card device
     }
 
     /// inner classes
