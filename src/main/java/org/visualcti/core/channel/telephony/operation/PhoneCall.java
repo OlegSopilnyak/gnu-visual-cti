@@ -166,6 +166,11 @@ public interface PhoneCall extends Closeable {
             public int extension() {
                 return -1;
             }
+
+            @Override
+            public String toString() {
+                return "";
+            }
         };
         /**
          * <accssor>

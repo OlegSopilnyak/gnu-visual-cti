@@ -125,7 +125,7 @@ public class SoundCardDeviceTest<H extends SoundCardHandle> {
         });
         factory.open();
         factory.Start();
-        session = (PhoneCallSession<H>) spy(device.startSession());
+        session = spy(device.startSession());
         deviceHandle = session.getDeviceHandle();
         reset(device, session, factory, provider);
     }
@@ -247,7 +247,7 @@ public class SoundCardDeviceTest<H extends SoundCardHandle> {
         assertThat(device.isOpened()).isFalse();
         DeviceActivitySession<H> detached = sessionCaptor.getValue();
         assertThat(detached.isOpened()).isFalse();
-        assertThat(detached.getDevice()).isNull();
+        assertThat((Object) detached.getDevice()).isNull();
     }
 
     @Test

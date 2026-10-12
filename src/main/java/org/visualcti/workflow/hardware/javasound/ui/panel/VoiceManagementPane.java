@@ -37,13 +37,9 @@ Fax number: 217-356-3356
 */
 package org.visualcti.workflow.hardware.javasound.ui.panel;
 
-
-import static javax.swing.WindowConstants.EXIT_ON_CLOSE;
-
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JComboBox;
-import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
@@ -51,18 +47,10 @@ import javax.swing.border.TitledBorder;
 
 import java.awt.BorderLayout;
 import java.io.File;
-import java.io.IOException;
-import java.util.NoSuchElementException;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-import org.jdom.DataConversionException;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.media.Audio;
 import org.visualcti.workflow.hardware.javasound.SoundCardDevice;
-import org.visualcti.workflow.hardware.javasound.SoundCardDevicesFactory;
 import org.visualcti.workflow.hardware.javasound.SoundCardHandle;
-import org.visualcti.workflow.hardware.javasound.SoundCardServiceProvider;
 import org.visualcti.workflow.hardware.javasound.ui.SoundCardUI;
 
 /**
@@ -85,90 +73,88 @@ public class VoiceManagementPane<H extends SoundCardHandle> extends JPanel {
     // ui stuff
     final JTextField playingBackFile = new JTextField(12);
     final JTextField recordingFile = new JTextField(12);
+    final PlayAudioPane playing;
+    final RecordAudioPane recording;
     private final JComboBox<Audio> formats;
 
     public VoiceManagementPane(final SoundCardUI<H> rootPanel) {
         super(new BorderLayout(), true);
         activePhoneCallSession = rootPanel.getActiveSession();
         telephonyDevice = (SoundCardDevice<H, ?>) this.activePhoneCallSession.getDevice();
-        // making the main voice pane
-        // playback pane
-        add(new PlayAudioPane(), BorderLayout.NORTH);
+        // making the playback pane
         formats = new JComboBox<>(telephonyDevice.canRecord());
         formats.setEditable(false);
         formats.setSelectedItem(telephonyDevice.getRecordFormat());
+        playing = new PlayAudioPane();
+        add(playing, BorderLayout.NORTH);
+        // vertical glue
         add(Box.createVerticalGlue(), BorderLayout.CENTER);
-        // record pane
-        add(new RecordAudioPane(), BorderLayout.SOUTH);
+        // making the record pane
+        recording = new RecordAudioPane();
+        add(recording, BorderLayout.SOUTH);
         formats.addActionListener(e -> {
             final Audio selected = (Audio) formats.getSelectedItem();
             if (selected != null) telephonyDevice.setRecordFormat(selected);
         });
     }
 
-    @Deprecated
-    public static <H extends SoundCardHandle> void main(String[] args) throws IOException, DataConversionException {
-        ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
-        SoundCardServiceProvider<H> provider = new SoundCardServiceProvider<>(scheduler);
-        try (SoundCardDevicesFactory<H, ?> factory = new SoundCardDevicesFactory<>(scheduler, provider)) {
-            factory.open();
-            SoundCardDevice<H, ?> device = factory.devices().findFirst()
-                    .orElseThrow(() -> new NoSuchElementException("No any device in the factory."));
-            PhoneCallSession<H> session = device.startSession();
-            // emulate connected phone call session
-            session.alive(true);
-            File audioFile = File.createTempFile("audio", ".wav");
-            VoiceManagementPane<H> pane = new VoiceManagementPane<>(new SoundCardUI<>(session));
-            JFrame frame = new JFrame("Emulator");
-            frame.getContentPane().add(pane, BorderLayout.CENTER);
-            pane.startPlaying(audioFile);
-            pane.startRecording(audioFile);
-            scheduler.schedule(() -> {
-                pane.stopPlaying();
-                pane.stopRecording();
-            }, 1400, TimeUnit.MILLISECONDS);
-            frame.setDefaultCloseOperation(EXIT_ON_CLOSE);
-            frame.pack();
-            frame.setVisible(true);
-        }
-    }
-
     @Override
-    public void setEnabled(boolean enabled) {
-        this.formats.setEnabled(enabled);
+    public void setEnabled(final boolean enabled) {
+        playing.setEnabled(enabled);
+        recording.setEnabled(enabled);
     }
 
     public void startPlaying(final File audioFile) {
+        playing.setEnabled(true);
         playingBackFile.setText(audioFile.getName());
+        recording.setEnabled(false);
+        recordingFile.setText("");
     }
 
     public void stopPlaying() {
         playingBackFile.setText("");
+        recording.setEnabled(true);
     }
 
     public void startRecording(final File audioFile) {
+        recording.setEnabled(true);
         recordingFile.setText(audioFile.getName());
+        formats.setEnabled(false);
+        playing.setEnabled(false);
+        playingBackFile.setText("");
     }
 
     public void stopRecording() {
         recordingFile.setText("");
+        formats.setEnabled(true);
+        playing.setEnabled(true);
     }
 
-    private class PlayAudioPane extends JPanel {
+    private final class PlayAudioPane extends JPanel {
+        private final JLabel useFile = new JLabel("Use File: ");
         private PlayAudioPane() {
             super(false);
             setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
-            super.setBorder(new TitledBorder("Playback"));
+            setBorder(new TitledBorder("Playback"));
             final JPanel actionPane = new JPanel();
             add(actionPane);
             actionPane.setLayout(new BoxLayout(actionPane, BoxLayout.X_AXIS));
-            actionPane.add(new JLabel("Use File: "));
+            actionPane.add(useFile);
             actionPane.add(playingBackFile);
             playingBackFile.setEditable(false);
         }
+
+        @Override
+        public void setEnabled(boolean enabled) {
+            super.setEnabled(enabled);
+            useFile.setEnabled(enabled);
+            playingBackFile.setEnabled(enabled);
+        }
     }
 
-    private class RecordAudioPane extends JPanel {
+    private final class RecordAudioPane extends JPanel {
+        private final JLabel useFile = new JLabel("Use File: ");
+        private final JLabel format = new JLabel("Format: ");
         private RecordAudioPane() {
             super(false);
             setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
@@ -180,11 +166,19 @@ public class VoiceManagementPane<H extends SoundCardHandle> extends JPanel {
             add(actionPane);
             add(Box.createVerticalStrut(5));
             add(formatPane);
-            actionPane.add(new JLabel("Use File: "));
+            actionPane.add(useFile);
             actionPane.add(recordingFile);
             recordingFile.setEditable(false);
-            formatPane.add(new JLabel("Format: "));
+            formatPane.add(format);
             formatPane.add(formats);
+        }
+
+        @Override
+        public void setEnabled(boolean enabled) {
+            super.setEnabled(enabled);
+            useFile.setEnabled(enabled);
+            format.setEnabled(enabled);
+            formats.setEnabled(enabled);
         }
     }
 }

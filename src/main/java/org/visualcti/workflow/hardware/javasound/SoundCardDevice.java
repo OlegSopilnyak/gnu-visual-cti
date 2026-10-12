@@ -39,11 +39,10 @@ package org.visualcti.workflow.hardware.javasound;
 
 import javax.swing.JFrame;
 
-import java.awt.*;
+import java.awt.BorderLayout;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReference;
 import org.visualcti.core.channel.device.Device;
-import org.visualcti.core.channel.device.DeviceActivitySession;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.TelephonyFactory;
 import org.visualcti.core.channel.telephony.TelephonyServiceProvider;
@@ -97,13 +96,13 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
      * @see #getProvider()
      */
     @Override
-    public <S extends DeviceActivitySession<H>> S startSession() throws IOException {
+    public PhoneCallSession<H> startSession() throws IOException {
         final PhoneCallSession<H> session = super.startSession();
         final SoundCardUI<H>former = uiHolder.getAndSet(new SoundCardUI<>(session));
         if (former != null) {
             former.setVisible(false);
         }
-        return (S) session;
+        return session;
     }
 
     /**
@@ -163,7 +162,6 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
     @Override
     public boolean dropCall(final PhoneCallSession<H> session) {
         session.alive(false);
-        uiHolder.get().setHandset(false);
         return true;
     }
 
@@ -182,10 +180,9 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
      * <notify>
      * The notify from UI "Ring" button
      */
-    public void callAlerted(final PhoneCallSession<H> session) {
-        final SoundCardUI<H>ui = uiHolder.get();
+    public boolean callAlerted(final PhoneCallSession<H> session) {
         session.alive(!session.isAlive());
-        ui.setHandset(session.isAlive());
+        return session.isAlive();
     }
 
     /**
