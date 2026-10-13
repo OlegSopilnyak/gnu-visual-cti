@@ -49,7 +49,6 @@ import java.awt.FlowLayout;
 import java.io.File;
 import java.io.IOException;
 import java.util.NoSuchElementException;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -86,7 +85,7 @@ public class VoiceManagementPaneTest {
             test1.addActionListener(e -> {
                 try {
                     testPlaying(pane, scheduler);
-                } catch (IOException | ExecutionException | InterruptedException ex) {
+                } catch (IOException ex) {
                     throw new RuntimeException(ex);
                 }
             });
@@ -94,7 +93,7 @@ public class VoiceManagementPaneTest {
             test2.addActionListener(e -> {
                 try {
                     testRecording(pane, scheduler);
-                } catch (IOException | ExecutionException | InterruptedException ex) {
+                } catch (IOException ex) {
                     throw new RuntimeException(ex);
                 }
             });
@@ -112,7 +111,7 @@ public class VoiceManagementPaneTest {
 
     private static <H extends SoundCardHandle> void testPlaying(
             VoiceManagementPane<H> pane, ScheduledExecutorService scheduler
-    ) throws IOException, ExecutionException, InterruptedException {
+    ) throws IOException {
         File audioFile = File.createTempFile("audio", ".wav");
         pane.startPlaying(audioFile);
         audioFile.deleteOnExit();
@@ -121,7 +120,7 @@ public class VoiceManagementPaneTest {
     }
     private static <H extends SoundCardHandle> void testRecording(
             VoiceManagementPane<H> pane, ScheduledExecutorService scheduler
-    ) throws IOException, ExecutionException, InterruptedException {
+    ) throws IOException {
         File audioFile = File.createTempFile("audio", ".wav");
         pane.startRecording(audioFile);
         audioFile.deleteOnExit();

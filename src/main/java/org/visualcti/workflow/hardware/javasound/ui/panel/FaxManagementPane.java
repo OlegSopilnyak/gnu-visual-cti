@@ -39,11 +39,9 @@ package org.visualcti.workflow.hardware.javasound.ui.panel;
 
 
 import static javax.swing.SwingConstants.RIGHT;
-import static javax.swing.WindowConstants.EXIT_ON_CLOSE;
 
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
-import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
@@ -51,17 +49,11 @@ import javax.swing.border.TitledBorder;
 
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
-import java.io.IOException;
-import java.util.NoSuchElementException;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import org.jdom.DataConversionException;
 import org.visualcti.briquette.UI;
+import org.visualcti.core.channel.telephony.TelephonyDevice;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.workflow.hardware.javasound.SoundCardDevice;
-import org.visualcti.workflow.hardware.javasound.SoundCardDevicesFactory;
 import org.visualcti.workflow.hardware.javasound.SoundCardHandle;
-import org.visualcti.workflow.hardware.javasound.SoundCardServiceProvider;
 import org.visualcti.workflow.hardware.javasound.ui.SoundCardUI;
 
 /**
@@ -85,6 +77,8 @@ public class FaxManagementPane<H extends SoundCardHandle> extends JPanel {
     private final transient BasicFaxMachinePanel faxMachinePanel;
     private final transient FaxDocumentPane faxDocumentPanel;
     private final transient FaxTransmissionControlPane faxMachineControlPanel;
+    private final transient JButton startTransmission = new JButton("Start");
+    private final transient JButton stopTransmission = new JButton("Stop");
 
     public FaxManagementPane(final SoundCardUI<H> rootPanel) {
         super(new BorderLayout(), true);
@@ -97,52 +91,63 @@ public class FaxManagementPane<H extends SoundCardHandle> extends JPanel {
         add(faxMachinePanel, BorderLayout.NORTH);
         add(faxDocumentPanel, BorderLayout.CENTER);
         add(faxMachineControlPanel, BorderLayout.SOUTH);
-    }
-
-    @Deprecated
-    public static <H extends SoundCardHandle> void main(String[] args) throws IOException, DataConversionException {
-        ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
-        SoundCardServiceProvider<H> provider = new SoundCardServiceProvider<>(scheduler);
-        try (SoundCardDevicesFactory<H, ?> factory = new SoundCardDevicesFactory<>(scheduler, provider)) {
-            factory.open();
-            SoundCardDevice<H, ?> device = factory.devices().findFirst()
-                    .orElseThrow(() -> new NoSuchElementException("No any device in the factory."));
-            PhoneCallSession<H> session = device.startSession();
-            // emulate connected phone call session
-            session.alive(true);
-            FaxManagementPane<H> pane = new FaxManagementPane<>(new SoundCardUI<>(session));
-            JFrame frame = new JFrame("Emulator");
-            frame.getContentPane().add(pane, BorderLayout.CENTER);
-            frame.setDefaultCloseOperation(EXIT_ON_CLOSE);
-            frame.pack();
-            frame.setVisible(true);
-        }
+        startTransmission.addActionListener(e -> startFax());
+        stopTransmission.addActionListener(e -> stopFax());
+        stopTransmission.setEnabled(false);
     }
 
     @Override
     public void setEnabled(boolean enabled) {
         super.setEnabled(enabled);
+        faxDocumentPanel.setEnabled(enabled);
+        faxDocumentPanel.setEnabled(enabled);
+        faxMachineControlPanel.setEnabled(enabled);
     }
 
     protected void startFax() {
-        // doing noting here
+        startTransmission.setEnabled(false);
+        stopTransmission.setEnabled(true);
     }
 
     protected void stopFax() {
-        // doing noting here
+        startTransmission.setEnabled(true);
+        stopTransmission.setEnabled(false);
+    }
+
+    public void sendFax() {
+        startTransmission.setEnabled(true);
+        activePhoneCallSession.setState(TelephonyDevice.State.SENDFAX);
+    }
+
+    public void receiveFax() {
+        startTransmission.setEnabled(true);
+        activePhoneCallSession.setState(TelephonyDevice.State.RECVFAX);
     }
 
     private class BasicFaxMachinePanel extends JPanel {
+        private final JTextField pagesCount = new JTextField(5);
+        private final JTextField remoteID = new JTextField(10);
+        private final JTextField localID = new JTextField(10);
+        final JTextField documentHeader = new JTextField(10);
+
         private BasicFaxMachinePanel() {
             super(false);
             setBorder(new TitledBorder("Basis"));
             setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
-            JPanel panel = new JPanel(false);
+            // preparing UI stuff
+            add(transferredPages());
+            add(remoteFaxMachineId());
+            add(localFaxMachineId());
+            add(faxDocumentHeader());
+        }
+
+        private JPanel transferredPages() {
+            final JPanel panel = new JPanel(false);
             panel.setLayout(new BoxLayout(panel, BoxLayout.X_AXIS));
-            add(panel);
             panel.add(new JLabel("Transferred pages "));
             final int transferredPages = telephonyDevice.getTransferredPages(activePhoneCallSession);
-            final JTextField pagesCount = new JTextField(Integer.toString(transferredPages), 5);
+            pagesCount.setEditable(false);
+            pagesCount.setText(Integer.toString(transferredPages));
             pagesCount.setHorizontalAlignment(RIGHT);
             pagesCount.setDocument(new UI.validatingDocument() {
                 @Override
@@ -153,11 +158,15 @@ public class FaxManagementPane<H extends SoundCardHandle> extends JPanel {
                 }
             });
             panel.add(pagesCount);
-            panel = new JPanel(false);
+            return panel;
+        }
+
+        private JPanel remoteFaxMachineId() {
+            final JPanel panel = new JPanel(false);
             panel.setLayout(new BoxLayout(panel, BoxLayout.X_AXIS));
             panel.add(new JLabel("RemoteID: "));
-            add(panel);
-            final JTextField remoteID = new JTextField(telephonyDevice.getRemoteID(activePhoneCallSession), 10);
+            remoteID.setEditable(false);
+            remoteID.setText(telephonyDevice.getRemoteID(activePhoneCallSession));
             remoteID.setDocument(new UI.validatingDocument() {
                 @Override
                 protected void validate(String str) {
@@ -165,11 +174,15 @@ public class FaxManagementPane<H extends SoundCardHandle> extends JPanel {
                 }
             });
             panel.add(remoteID);
-            panel = new JPanel(false);
+            return panel;
+        }
+
+        private JPanel localFaxMachineId() {
+            final JPanel panel = new JPanel(false);
             panel.setLayout(new BoxLayout(panel, BoxLayout.X_AXIS));
             panel.add(new JLabel("LocalID: "));
-            add(panel);
-            final JTextField localID = new JTextField(telephonyDevice.getLocalID(activePhoneCallSession), 10);
+            localID.setEditable(false);
+            localID.setText(telephonyDevice.getLocalID(activePhoneCallSession));
             localID.setDocument(new UI.validatingDocument() {
                 @Override
                 protected void validate(String str) {
@@ -177,17 +190,31 @@ public class FaxManagementPane<H extends SoundCardHandle> extends JPanel {
                 }
             });
             panel.add(localID);
-            panel = new JPanel(new BorderLayout(), false);
+            return panel;
+        }
+
+        private JPanel faxDocumentHeader() {
+            final JPanel panel = new JPanel(new BorderLayout(), false);
             panel.setBorder(new TitledBorder("Fax Header"));
-            add(panel);
-            final JTextField header = new JTextField(telephonyDevice.getFaxDocumentHeader(activePhoneCallSession), 10);
-            header.setDocument(new UI.validatingDocument() {
+            documentHeader.setEditable(false);
+            documentHeader.setText(telephonyDevice.getFaxDocumentHeader(activePhoneCallSession));
+            documentHeader.setDocument(new UI.validatingDocument() {
                 @Override
                 protected void validate(String str) {
                     telephonyDevice.setFaxDocumentHeader(activePhoneCallSession, str);
                 }
             });
-            panel.add(header, BorderLayout.CENTER);
+            panel.add(documentHeader, BorderLayout.CENTER);
+            return panel;
+        }
+
+        @Override
+        public void setEnabled(boolean enabled) {
+            super.setEnabled(enabled);
+            pagesCount.setEnabled(enabled);
+            remoteID.setEnabled(enabled);
+            localID.setEnabled(enabled);
+            documentHeader.setEnabled(enabled);
         }
     }
 
@@ -202,12 +229,10 @@ public class FaxManagementPane<H extends SoundCardHandle> extends JPanel {
         private FaxTransmissionControlPane() {
             super(new FlowLayout(), false);
             setBorder(new TitledBorder("Transmission"));
-            final JButton start = new JButton("Start");
-            add(start);
-            start.addActionListener(e -> startFax());
-            final JButton stop = new JButton("Stop");
-            add(stop);
-            stop.addActionListener(e -> stopFax());
+            add(startTransmission);
+            startTransmission.addActionListener(e -> startFax());
+            add(stopTransmission);
+            stopTransmission.addActionListener(e -> stopFax());
         }
     }
 }

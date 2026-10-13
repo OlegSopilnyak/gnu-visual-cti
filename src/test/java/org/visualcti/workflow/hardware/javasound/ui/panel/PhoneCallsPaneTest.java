@@ -76,8 +76,8 @@ public class PhoneCallsPaneTest {
             JButton test1 = new JButton("test wait call");
             JButton test2 = new JButton("test make call");
             test1.addActionListener(e -> pane.waitingForCall());
-            control.add(test1);
             test2.addActionListener(e -> pane.makingCall("12345"));
+            control.add(test1);
             control.add(test2);
             frame.pack();
             frame.setVisible(true);
