@@ -60,6 +60,7 @@ import org.visualcti.core.channel.telephony.operation.Result;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneNumber;
 import org.visualcti.core.channel.telephony.part.CallsPortEngine;
+import org.visualcti.util.Tools;
 import org.visualcti.workflow.hardware.javasound.SoundCardDevice;
 import org.visualcti.workflow.hardware.javasound.SoundCardHandle;
 import org.visualcti.workflow.hardware.javasound.ui.SoundCardUI;
@@ -78,8 +79,6 @@ import org.visualcti.workflow.hardware.javasound.ui.SoundCardUI;
  */
 @SuppressWarnings("unchecked")
 public class PhoneCallsPane<H extends SoundCardHandle> extends JPanel {
-    public static final String WAIT_FOR_CALL = "WAIT FOR CALL";
-    public static final String MAKE_CALL = "MAKE CALL";
     final JTextField state = new JTextField("OFFLINE");
     private final JButton ring = new JButton("Ring");
     private final JButton dropCall = new JButton("Drop Call");
@@ -112,24 +111,24 @@ public class PhoneCallsPane<H extends SoundCardHandle> extends JPanel {
         setHandset(activePhoneCallSession.isAlive());
         //
         // configuring the buttons
+        // drop the call button
         dropCall.addActionListener(e -> {
-            setHandset(!telephonyDevice.dropCall(activePhoneCallSession));
+            telephonyDevice.dropCall(activePhoneCallSession);
             phoneNumbersPane.setEnabled(false);
         });
+        // incoming call rings button
         ring.addActionListener(e -> {
-            if (telephonyDevice.callAlerted(activePhoneCallSession)) {
-                setHandset(true);
-                final PhoneCall.Number calling = PhoneNumber.of(phoneNumbersPane.calling.getText());
-                activePhoneCallSession.callingNumber(calling);
-                phoneNumbersPane.calling.setText(calling.toString());
-                phoneNumbersPane.calling.setEditable(false);
-            }
+            telephonyDevice.callAlerted(activePhoneCallSession);
+            final PhoneCall.Number calling = PhoneNumber.of(phoneNumbersPane.calling.getText());
+            activePhoneCallSession.callingNumber(calling);
+            phoneNumbersPane.calling.setText(calling.toString());
+            phoneNumbersPane.calling.setEditable(false);
+            setHandset(activePhoneCallSession.isAlive());
         });
         answered.addActionListener(e -> answerCall());
     }
 
     public void waitingForCall() {
-        state.setText(WAIT_FOR_CALL);
         phoneNumbersPane.setEnabled(false);
         if (activePhoneCallSession.isAlive()) {
             setHandset(false);
@@ -138,14 +137,14 @@ public class PhoneCallsPane<H extends SoundCardHandle> extends JPanel {
             ring.setEnabled(true);
             makeCallPane.setEnabled(false);
             phoneNumbersPane.called.setText(phoneNumbersPane.origin.getText());
-            phoneNumbersPane.calling.setText("1");
+            phoneNumbersPane.calling.setText("5551234");
             phoneNumbersPane.calling.setEditable(true);
             phoneNumbersPane.calling.requestFocus();
         }
     }
 
     public void makingCall(String target) {
-        state.setText(MAKE_CALL);
+        Tools.print("UI:Make the call.");
         phoneNumbersPane.setEnabled(false);
         if (activePhoneCallSession.isAlive()) {
             setHandset(false);
@@ -165,16 +164,14 @@ public class PhoneCallsPane<H extends SoundCardHandle> extends JPanel {
 
     // notification from UI-component (answer button) after make call device method
     public void answerCall() {
-        if(MAKE_CALL.equalsIgnoreCase(state.getText())) {
-            // outgoing phone call is making
-            final OperationResultValue result = makeCallPane.answeredCall();
-            // is result means line is connected?
-            final boolean isConnected = isOnline.test(result);
-            activePhoneCallSession.alive(isConnected);
-            setHandset(isConnected);
-            // notify about outgoing call answer result
-            telephonyDevice.answerCall(result);
-        }
+        // outgoing phone call is making
+        final OperationResultValue result = makeCallPane.answeredCall();
+        // is result means line is connected?
+        final boolean isConnected = isOnline.test(result);
+        activePhoneCallSession.alive(isConnected);
+        setHandset(isConnected);
+        // notify about outgoing call answer result
+        telephonyDevice.answerCall(result);
     }
 
     public void setHandset(boolean on) {

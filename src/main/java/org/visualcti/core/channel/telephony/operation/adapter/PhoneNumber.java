@@ -53,9 +53,10 @@ public class PhoneNumber implements PhoneCall.Number {
     private final int extension;
 
     public static PhoneCall.Number of(final String phoneNumber) {
-        final PhoneNumberUtil util = PhoneNumberUtil.getInstance();
         try {
-            final Phonenumber.PhoneNumber parsed = util.parse(phoneNumber, Locale.getDefault().getCountry());
+            final Phonenumber.PhoneNumber parsed = PhoneNumberUtil.getInstance().parse(
+                    phoneNumber, Locale.getDefault().getCountry()
+            );
             final String nationalNumber = String.valueOf(parsed.getNationalNumber());
             final int nationalNumberLength = nationalNumber.length();
             final int countryCode = phoneNumber.startsWith("+") ? parsed.getCountryCode() : 0;

@@ -415,6 +415,19 @@ public abstract class AbstractTelephonyDevice<H, T extends TelephonyFactory<H, ?
     }
 
     /**
+     * <accessor>
+     * To check, whether device can accept the incoming call
+     * This flag, the factory may set in properties of the device
+     *
+     * @return true if device can accept the incoming phone call
+     * @see CallsPortEngine#canAcceptCall()
+     */
+    @Override
+    public boolean canAcceptCall() {
+        return calls.canAcceptCall();
+    }
+
+    /**
      * <action>
      * The incoming call is expected. For a user's telephone line a call is deemed accepted after
      * receipt rings of bells.
@@ -456,6 +469,19 @@ public abstract class AbstractTelephonyDevice<H, T extends TelephonyFactory<H, ?
      */
     public boolean waitForCall(PhoneCallSession<H> session, int rings, int timeout, boolean answer) {
         return isOpened() && calls.waitForCall(session, rings, timeout, answer);
+    }
+
+    /**
+     * <accessor>
+     * To check, whether device can make the outgoing call
+     * This flag, the factory may set in properties of the device
+     *
+     * @return true if device can make outgoing calls
+     * @see CallsPortEngine#canMakeCall()
+     */
+    @Override
+    public boolean canMakeCall() {
+        return calls.canMakeCall();
     }
 
     /**

@@ -41,13 +41,17 @@ import javax.swing.JFrame;
 
 import java.awt.BorderLayout;
 import java.io.IOException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
+import org.visualcti.core.channel.telephony.TelephonyDevice;
 import org.visualcti.core.channel.telephony.TelephonyFactory;
 import org.visualcti.core.channel.telephony.TelephonyServiceProvider;
 import org.visualcti.core.channel.telephony.adapter.AbstractTelephonyDevice;
 import org.visualcti.core.channel.telephony.adapter.AbstractTelephonyFactory;
+import org.visualcti.core.channel.telephony.operation.Result;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.core.channel.telephony.part.CallsPortEngine;
 import org.visualcti.core.channel.telephony.part.FaxMachineEngine;
@@ -58,6 +62,7 @@ import org.visualcti.core.channel.telephony.part.adapter.AbstractFaxMachineEngin
 import org.visualcti.core.channel.telephony.part.adapter.AbstractMultimediaEngine;
 import org.visualcti.core.channel.telephony.part.adapter.AbstractTonesEngine;
 import org.visualcti.media.Audio;
+import org.visualcti.util.Tools;
 import org.visualcti.workflow.hardware.javasound.ui.SoundCardUI;
 
 
@@ -86,6 +91,17 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
     }
 
     /**
+     * <accessor>
+     * To get the UI of the device
+     *
+     * @return the value
+     * @see SoundCardUI
+     */
+    public SoundCardUI<H> getUI() {
+        return uiHolder.get();
+    }
+
+    /**
      * <action>
      * To create and start device's session
      *
@@ -98,11 +114,24 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
     @Override
     public PhoneCallSession<H> startSession() throws IOException {
         final PhoneCallSession<H> session = super.startSession();
-        final SoundCardUI<H>former = uiHolder.getAndSet(new SoundCardUI<>(session));
+        final SoundCardUI<H> former = uiHolder.getAndSet(new SoundCardUI<>(session));
         if (former != null) {
+            former.getParent().remove(former);
             former.setVisible(false);
         }
         return session;
+    }
+
+    /**
+     * <checker>
+     * To check is phone call session opened for this device's part
+     *
+     * @param session the phone call's session, device is working with
+     * @return true if session opened well
+     */
+    @Override
+    public boolean isOpened(final PhoneCallSession<H> session) {
+        return session.getState() != Device.State.CLOSED && session.getDeviceHandle() != wrongHandle();
     }
 
     /**
@@ -161,8 +190,66 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
      */
     @Override
     public boolean dropCall(final PhoneCallSession<H> session) {
-        session.alive(false);
-        return true;
+        final boolean dropped = super.dropCall(session);
+        uiHolder.get().setHandset(!dropped);
+        return dropped;
+    }
+
+    /**
+     * <action>
+     * The incoming call is expected. For a user's telephone line a call is deemed accepted after
+     * receipt rings of bells.
+     *
+     * @param session the phone call's session, device is working with
+     * @param rings   the quantity of ring signals before answering the call
+     * @param timeout waiting time (seconds) how many seconds wait before timeout status returned
+     * @param answer  flag is needed answer to an incoming call
+     * @return true if operation complete successfully
+     * @see AbstractTelephonyDevice#waitForCall(PhoneCallSession, int, int, boolean)
+     */
+    @Override
+    public boolean waitForCall(
+            final PhoneCallSession<H> session, final int rings, final int timeout, final boolean answer
+    ) {
+        if (isOpened(session) && canAcceptCall() && session.isDisconnected()) {
+            uiHolder.get().waitingForCall();
+            final CountDownLatch operationLatch = new CountDownLatch(rings);
+            session.setState(TelephonyDevice.State.WAIT);
+            session.parameter(Parameter.WAIT_CALL_LATCH, operationLatch);
+            try {
+                if (operationLatch.await(timeout, TimeUnit.SECONDS)) {
+                    // all necessary rings are detected
+                    if (answer) {
+                        // answering to the incoming call and mark the session as alive
+                        session.alive(true);
+                        // setting up the appropriate operation result
+                        session.operationComplete(Result.CALL.ALERTING);
+                        // enabling call's disconnect events producing for the opened handle
+                        getProvider().enableEvents(session.getDeviceHandle(), Result.CALL.DISCONNECT);
+                    } else {
+                        // setting up the appropriate operation result
+                        session.operationComplete(Result.CALL.RINGS);
+                    }
+                } else {
+                    // operation timeout
+                    // setting up the appropriate operation result
+                    session.operationComplete(Result.TIMEOUT);
+                }
+            } catch (InterruptedException e) {
+                session.setState(Device.State.ERROR);
+                /* Clean up whatever needs to be handled before interrupting  */
+                Thread.currentThread().interrupt();
+                return false;
+            }
+            // removing wait for call operation latch
+            session.remove(Parameter.WAIT_CALL_LATCH);
+            // wait for call operation is complete
+            session.setState(Device.State.IDLE);
+            return true;
+        } else {
+            session.setState(Device.State.ERROR);
+            return false;
+        }
     }
 
     /**
@@ -179,10 +266,33 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
     /**
      * <notify>
      * The notify from UI "Ring" button
+     *
+     * @see #waitForCall(PhoneCallSession, int, int, boolean)
      */
-    public boolean callAlerted(final PhoneCallSession<H> session) {
-        session.alive(!session.isAlive());
-        return session.isAlive();
+    public void callAlerted(final PhoneCallSession<H> session) {
+        final CountDownLatch operationLatch = session.parameter(Parameter.WAIT_CALL_LATCH);
+        if (operationLatch == null) {
+            // rings without active wait for call operation
+            return;
+        }
+        // processing the call-ring-alert
+        operationLatch.countDown();
+        final long ringsRemaining = operationLatch.getCount();
+        if (ringsRemaining > 0) {
+            // not all incoming call rings were received
+            return;
+        }
+        // waiting for end of 'wait for call' operation
+        while(session.getState() == TelephonyDevice.State.WAIT) {
+            try {
+                TimeUnit.MILLISECONDS.sleep(50);
+            } catch (InterruptedException e) {
+                Tools.error("Waiting the 'wait for call' operation completion is failed");
+                e.printStackTrace(Tools.err);
+                /* Clean up whatever needs to be handled before interrupting  */
+                Thread.currentThread().interrupt();
+            }
+        }
     }
 
     /**
@@ -198,8 +308,9 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
     /**
      * <notify>
      * From UI notification when pressed button in dial pad
+     *
      * @param activePhoneCallSession active device's session
-     * @param input pressed symbol
+     * @param input                  pressed symbol
      */
     public void userInput(PhoneCallSession<H> activePhoneCallSession, String input) {
         // playing dtmf tone
@@ -253,5 +364,24 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
     // Fax transmitting/receiving management
     private class Fax extends AbstractFaxMachineEngine<H> {
 
+    }
+
+    /**
+     * Configured Parameter Names Enumeration: The parameter names of call parts of the telephony device
+     */
+    enum Parameter implements Device.ParameterName {
+        // the latch of wait for call operation
+        WAIT_CALL_LATCH("WAIT FOR CALL LATCH");
+
+        private final String name;
+
+        Parameter(String name) {
+            this.name = name;
+        }
+
+        @Override
+        public String value() {
+            return name.toLowerCase();
+        }
     }
 }

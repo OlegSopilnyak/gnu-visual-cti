@@ -52,11 +52,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import org.jdom.DataConversionException;
 import org.junit.Test;
+import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.workflow.hardware.javasound.SoundCardDevice;
 import org.visualcti.workflow.hardware.javasound.SoundCardDevicesFactory;
 import org.visualcti.workflow.hardware.javasound.SoundCardHandle;
 import org.visualcti.workflow.hardware.javasound.SoundCardServiceProvider;
-import org.visualcti.workflow.hardware.javasound.ui.SoundCardUI;
 
 public class PhoneCallsPaneTest {
 
@@ -67,7 +67,8 @@ public class PhoneCallsPaneTest {
             factory.open();
             SoundCardDevice<H, ?> device = factory.devices().findFirst()
                     .orElseThrow(() -> new NoSuchElementException("No devices in the factory"));
-            PhoneCallsPane<H> pane = new PhoneCallsPane<>(new SoundCardUI<>(device.startSession()));
+            PhoneCallSession<H> session = device.startSession();
+            PhoneCallsPane<H> pane = new PhoneCallsPane<>(device.getUI());
             JFrame frame = new JFrame("emulator");
             frame.setDefaultCloseOperation(EXIT_ON_CLOSE);
             frame.getContentPane().add(pane, BorderLayout.CENTER);

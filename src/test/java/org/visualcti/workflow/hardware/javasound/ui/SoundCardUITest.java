@@ -37,26 +37,34 @@ Fax number: 217-356-3356
 */
 package org.visualcti.workflow.hardware.javasound.ui;
 
-import static javax.swing.WindowConstants.EXIT_ON_CLOSE;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import javax.swing.BoxLayout;
+import javax.swing.JButton;
 import javax.swing.JFrame;
+import javax.swing.JPanel;
+import javax.swing.WindowConstants;
+import javax.swing.border.TitledBorder;
 
 import java.awt.BorderLayout;
+import java.awt.FlowLayout;
 import java.io.IOException;
 import java.util.NoSuchElementException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import org.jdom.DataConversionException;
 import org.junit.Test;
+import org.visualcti.core.channel.telephony.TelephonyDevice;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
+import org.visualcti.core.channel.telephony.operation.adapter.PhoneNumber;
+import org.visualcti.util.Tools;
 import org.visualcti.workflow.hardware.javasound.SoundCardDevice;
 import org.visualcti.workflow.hardware.javasound.SoundCardDevicesFactory;
 import org.visualcti.workflow.hardware.javasound.SoundCardHandle;
 import org.visualcti.workflow.hardware.javasound.SoundCardServiceProvider;
 
 public class SoundCardUITest {
-
     public static <H extends SoundCardHandle> void main(String[] args) throws IOException, DataConversionException {
         ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
         SoundCardServiceProvider<H> provider = new SoundCardServiceProvider<>(scheduler);
@@ -66,13 +74,51 @@ public class SoundCardUITest {
                     .orElseThrow(() -> new NoSuchElementException("No any device in the factory."));
             PhoneCallSession<H> session = device.startSession();
             // emulate connected phone call session
-            SoundCardUI<H> pane = new SoundCardUI<>(session);
+            SoundCardUI<H> pane = device.getUI();
             JFrame frame = new JFrame("Emulator");
             frame.getContentPane().add(pane, BorderLayout.CENTER);
-            frame.setDefaultCloseOperation(EXIT_ON_CLOSE);
+            JPanel control = new JPanel();
+            control.setLayout(new BoxLayout(control, BoxLayout.Y_AXIS));
+            frame.getContentPane().add(control, BorderLayout.SOUTH);
+            control.add(callControlPane(session, scheduler));
+            frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
             frame.pack();
             frame.setVisible(true);
         }
+    }
+
+    private static <H extends SoundCardHandle> JPanel callControlPane(PhoneCallSession<H> session, ExecutorService executor) {
+        TelephonyDevice<H, ?> device =  session.getDevice();
+        JPanel callControl = new JPanel(new FlowLayout());
+        callControl.setBorder(new TitledBorder("Call Control"));
+        JButton test1 = new JButton("wait call (answer)");
+        JButton test10 = new JButton("wait call (no answer)");
+        JButton test2 = new JButton("make call");
+        Runnable waitForCallAnswered = () -> {
+            Tools.print("Waiting for call: 2 rings, 2 secs, answer...");
+            Tools.print("Wait for call succeed:" + device.waitForCall(session, 2, 2, true));
+            Tools.print("Wait for call result:" + session.operationResult());
+            test1.setEnabled(true);
+        };
+        test1.addActionListener(e -> {
+            test1.setEnabled(false);
+            executor.submit(waitForCallAnswered);
+        });
+        callControl.add(test1);
+        Runnable waitForCallNotAnswered = () -> {
+            Tools.print("Waiting for call: 1 rings, 2 secs, no answer...");
+            Tools.print("Wait for call succeed:" + device.waitForCall(session, 1, 2, false));
+            Tools.print("Wait for call result:" + session.operationResult());
+            test10.setEnabled(true);
+        };
+        callControl.add(test10);
+        test10.addActionListener(e -> {
+            test10.setEnabled(false);
+            executor.submit(waitForCallNotAnswered);
+        });
+        test2.addActionListener(e -> device.makeCall(session, PhoneNumber.of("12345"), 2));
+        callControl.add(test2);
+        return callControl;
     }
 
     @Test

@@ -103,6 +103,10 @@ public class SoundCardUI<H extends SoundCardHandle> extends JPanel {
         addKeyListener(dtmfInputPane);
     }
 
+    public void waitingForCall() {
+        callsControlPane.waitingForCall();
+    }
+
     public PhoneCallSession<H> getActiveSession() {
         return deviceActivitySession;
     }
