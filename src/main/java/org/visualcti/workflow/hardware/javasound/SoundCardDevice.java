@@ -37,9 +37,6 @@ Fax number: 217-356-3356
 */
 package org.visualcti.workflow.hardware.javasound;
 
-import javax.swing.JFrame;
-
-import java.awt.BorderLayout;
 import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -51,7 +48,9 @@ import org.visualcti.core.channel.telephony.TelephonyFactory;
 import org.visualcti.core.channel.telephony.TelephonyServiceProvider;
 import org.visualcti.core.channel.telephony.adapter.AbstractTelephonyDevice;
 import org.visualcti.core.channel.telephony.adapter.AbstractTelephonyFactory;
+import org.visualcti.core.channel.telephony.operation.PhoneCall;
 import org.visualcti.core.channel.telephony.operation.Result;
+import org.visualcti.core.channel.telephony.operation.ToneId;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.core.channel.telephony.part.CallsPortEngine;
 import org.visualcti.core.channel.telephony.part.FaxMachineEngine;
@@ -253,21 +252,11 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
     }
 
     /**
-     * <debug>
-     * To show the ui of device in the Frame
-     */
-    public final void show() {
-        JFrame frame = new JFrame("emulator");
-        frame.getContentPane().add(this.uiHolder.get(), BorderLayout.CENTER);
-        frame.pack();
-        frame.setVisible(true);
-    }
-
-    /**
      * <notify>
      * The notify from UI "Ring" button
      *
      * @see #waitForCall(PhoneCallSession, int, int, boolean)
+     * @see org.visualcti.workflow.hardware.javasound.ui.panel.PhoneCallsPane
      */
     public void callAlerted(final PhoneCallSession<H> session) {
         final CountDownLatch operationLatch = session.parameter(Parameter.WAIT_CALL_LATCH);
@@ -283,7 +272,7 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
             return;
         }
         // waiting for end of 'wait for call' operation
-        while(session.getState() == TelephonyDevice.State.WAIT) {
+        while (session.getState() == TelephonyDevice.State.WAIT) {
             try {
                 TimeUnit.MILLISECONDS.sleep(50);
             } catch (InterruptedException e) {
@@ -296,12 +285,53 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
     }
 
     /**
+     * <action>
+     * To make the outgoing call. A mode of a set (pulse or tone) and others
+     * the necessary parameters are set by installations of port.
+     * <p>
+     * Possible values of {@link PhoneCallSession#operationResult()}:
+     * <p>
+     * {@link Result.CALL.Analysis#VOICE}         - the Man's voice is answered<BR/>
+     * {@link Result.CALL.Analysis#FAX}           - the fax - device has answered<BR/>
+     * {@link Result.CALL.Analysis#BUSY}          - calling number is engaged<BR/>
+     * {@link Result.CALL.Analysis#NO_ANSWER}     - the telephone number does not answer<BR/>
+     * {@link Result.CALL.Analysis#NO_DIAL_TONE}  - phone line is not capable to execute an outgoing call<BR/>
+     * because of the line's condition<BR/>
+     * {@link Result.CALL.Analysis#SIT}           - special information signal on a line<BR/>
+     * {@link Result.CALL.Analysis#NO_RESPONDING} - there is no signal after a phone number dialing up<BR/>
+     * {@link Result.CALL.Analysis#BAN}           - the dialing phone number is forbidden
+     *
+     * @param session the phone call's session, device is working with
+     * @param number  called telephone number
+     * @param timeout maximal waiting time for the answer (sec) after which call with
+     *                {@link PhoneCallSession#operationResult()} equals {@link Result.CALL.Analysis#NO_ANSWER} will be returned.
+     * @return true if operation complete successfully
+     * @see PhoneCallSession
+     * @see PhoneCallSession#operationResult()
+     * @see Result.CALL.Analysis
+     * @see PhoneCall.Number
+     * @see #isOpened()
+     */
+    @Override
+    public boolean makeCall(PhoneCallSession<H> session, PhoneCall.Number number, int timeout) {
+        if (isOpened(session) && canMakeCall() && session.isDisconnected()) {
+            uiHolder.get().makingCallFor(number);
+            playTone(session, ToneId.DIAL, 1.5F);
+            dial(session, number.toString());
+            playTone(session, ToneId.RINGBACK, 1.0F * timeout);
+        }
+        return true;
+    }
+
+    /**
      * <notify>
      * To notify from UI "Answer" button
      *
      * @param analyzeResult CallAnalyze result
+     * @see #makeCall(PhoneCallSession, PhoneCall.Number, int)
+     * @see Result.CALL.Analysis
      */
-    public final void answerCall(OperationResultValue analyzeResult) {
+    public final void answerCall(final OperationResultValue analyzeResult) {
         // TODO add communication with sound card device
     }
 

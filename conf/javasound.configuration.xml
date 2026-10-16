@@ -62,10 +62,10 @@ Fax number: 217-356-3356
             <parameter name="origin" type="string" value="+1234567890"/>
         </network>
         <media>
-            <tone name="dial" value="50,400,125,400,125,0,0,0,0,0"/>
-            <tone name="busy" value="53,500,200,0,0,55,40,55,40,4"/>
-            <tone name="ringback" value="54,450,150,0,0,150,100,550,400,0"/>
-            <tone name="disconnect" value="57,900,700,0,0,90,70,90,70,2"/>
+            <tone name="dial" value="50,350,125,440,125,200,0,0,0,0"/>
+            <tone name="busy" value="53,425,200,0,0,300,40,300,40,4"/>
+            <tone name="ringback" value="54,440,150,480,100,1000,100,2000,400,0"/>
+            <tone name="disconnect" value="57,425,300,0,0,300,70,300,70,2"/>
             <format type="record" value="LINEAR/8000"/>
             <format type="play" value="LINEAR/8000"/>
         </media>

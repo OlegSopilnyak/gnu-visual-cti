@@ -1247,16 +1247,42 @@ public class SoundCardServiceProviderTest {
     }
 
     @Test
-    public void shouldStartPlayingTone_Busy() throws IOException {
+    public void shouldStartPlayingTone_Dial() throws IOException {
         // preparing test data
         SoundCardHandle handle = provider.openResource(SOUND_DEVICE);
-        TelephonyTone tone = new TelephonyTone(ToneId.BUSY, "2,500,200,0,0,55,40,55,40,4");
+        TelephonyTone tone = new TelephonyTone(ToneId.DIAL, "1,350,125,440,125,200,0,0,0,0");
         doAnswer(invocation -> shadowScheduler.schedule(
                 invocation.getArgument(0, Runnable.class),
                 invocation.getArgument(1, Long.class),
                 invocation.getArgument(2, TimeUnit.class)
         )).when(scheduler).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
-        shadowScheduler.schedule(() -> provider.stopToneSending(handle), 800, TimeUnit.MILLISECONDS);
+        shadowScheduler.schedule(() -> provider.stopToneSending(handle), 1000, TimeUnit.MILLISECONDS);
+
+        // acting
+        boolean started = provider.startToneSending(handle, tone);
+        await().until(handle::isOperationInProgress);
+        await().until(() -> !handle.isOperationInProgress());
+
+        // check the behavior
+        verify(provider, atLeastOnce()).isOpened(handle);
+        verify(provider).nativeStartToneSending(handle, tone);
+        verify(provider).putEvent(any(DeviceEvent.class));
+        // check results
+        assertThat(started).isTrue();
+        assertThat(handle.isSourceActive()).isFalse();
+    }
+
+    @Test
+    public void shouldStartPlayingTone_Busy() throws IOException {
+        // preparing test data
+        SoundCardHandle handle = provider.openResource(SOUND_DEVICE);
+        TelephonyTone tone = new TelephonyTone(ToneId.BUSY, "2,425,200,0,0,300,40,300,40,4");
+        doAnswer(invocation -> shadowScheduler.schedule(
+                invocation.getArgument(0, Runnable.class),
+                invocation.getArgument(1, Long.class),
+                invocation.getArgument(2, TimeUnit.class)
+        )).when(scheduler).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+        shadowScheduler.schedule(() -> provider.stopToneSending(handle), 1000, TimeUnit.MILLISECONDS);
 
         // acting
         boolean started = provider.startToneSending(handle, tone);
@@ -1276,13 +1302,13 @@ public class SoundCardServiceProviderTest {
     public void shouldStartPlayingTone_Ringback() throws IOException {
         // preparing test data
         SoundCardHandle handle = provider.openResource(SOUND_DEVICE);
-        TelephonyTone tone = new TelephonyTone(ToneId.RINGBACK, "3,450,150,0,0,150,100,550,400,0");
+        TelephonyTone tone = new TelephonyTone(ToneId.RINGBACK, "3,440,150,480,100,1000,100,2000,400,0");
         doAnswer(invocation -> shadowScheduler.schedule(
                 invocation.getArgument(0, Runnable.class),
                 invocation.getArgument(1, Long.class),
                 invocation.getArgument(2, TimeUnit.class)
         )).when(scheduler).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
-        shadowScheduler.schedule(() -> provider.stopToneSending(handle), 1200, TimeUnit.MILLISECONDS);
+        shadowScheduler.schedule(() -> provider.stopToneSending(handle), 5200, TimeUnit.MILLISECONDS);
 
         // acting
         boolean started = provider.startToneSending(handle, tone);
@@ -1302,13 +1328,13 @@ public class SoundCardServiceProviderTest {
     public void shouldStartPlayingTone_Disconnect() throws IOException {
         // preparing test data
         SoundCardHandle handle = provider.openResource(SOUND_DEVICE);
-        TelephonyTone tone = new TelephonyTone(ToneId.DISCONNECT, "4,900,700,0,0,90,70,90,70,2");
+        TelephonyTone tone = new TelephonyTone(ToneId.DISCONNECT, "4,425,300,0,0,300,70,300,70,2");
         doAnswer(invocation -> shadowScheduler.schedule(
                 invocation.getArgument(0, Runnable.class),
                 invocation.getArgument(1, Long.class),
                 invocation.getArgument(2, TimeUnit.class)
         )).when(scheduler).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
-        shadowScheduler.schedule(() -> provider.stopToneSending(handle), 500, TimeUnit.MILLISECONDS);
+        shadowScheduler.schedule(() -> provider.stopToneSending(handle), 1500, TimeUnit.MILLISECONDS);
 
         // acting
         boolean started = provider.startToneSending(handle, tone);

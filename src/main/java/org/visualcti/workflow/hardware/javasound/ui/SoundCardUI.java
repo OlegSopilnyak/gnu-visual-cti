@@ -46,6 +46,7 @@ import javax.swing.border.TitledBorder;
 
 import java.awt.BorderLayout;
 import java.awt.Font;
+import org.visualcti.core.channel.telephony.operation.PhoneCall;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.workflow.hardware.javasound.SoundCardHandle;
 import org.visualcti.workflow.hardware.javasound.ui.panel.DtmfInputPane;
@@ -105,6 +106,10 @@ public class SoundCardUI<H extends SoundCardHandle> extends JPanel {
 
     public void waitingForCall() {
         callsControlPane.waitingForCall();
+    }
+
+    public void makingCallFor(final PhoneCall.Number target) {
+        callsControlPane.makingCall(target.toString());
     }
 
     public PhoneCallSession<H> getActiveSession() {

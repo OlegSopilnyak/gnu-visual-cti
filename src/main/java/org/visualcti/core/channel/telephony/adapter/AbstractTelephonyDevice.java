@@ -1065,7 +1065,7 @@ public abstract class AbstractTelephonyDevice<H, T extends TelephonyFactory<H, ?
     private void setupDefaultMediaTones() {
         final EnumMap<ToneId, TelephonyTone> tonesTable = new EnumMap<>(ToneId.class);
         storeTone(tonesTable, ToneId.BEEP, "-1,1000,0,0,0,0,0,0,0,0");
-        storeTone(tonesTable, ToneId.DIAL, "1,400,125,400,125,0,0,0,0,0");
+        storeTone(tonesTable, ToneId.DIAL, "1,400,125,400,125,500,0,0,0,0");
         storeTone(tonesTable, ToneId.BUSY, "2,500,200,0,0,55,40,55,40,4");
         storeTone(tonesTable, ToneId.RINGBACK, "3,450,150,0,0,150,100,550,400,0");
         storeTone(tonesTable, ToneId.DISCONNECT, "4,900,700,0,0,90,70,90,70,2");

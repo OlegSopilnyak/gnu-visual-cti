@@ -88,7 +88,7 @@ public class SoundCardUITest {
     }
 
     private static <H extends SoundCardHandle> JPanel callControlPane(PhoneCallSession<H> session, ExecutorService executor) {
-        TelephonyDevice<H, ?> device =  session.getDevice();
+        TelephonyDevice<H, ?> device = session.getDevice();
         JPanel callControl = new JPanel(new FlowLayout());
         callControl.setBorder(new TitledBorder("Call Control"));
         JButton test1 = new JButton("wait call (answer)");
@@ -116,7 +116,17 @@ public class SoundCardUITest {
             test10.setEnabled(false);
             executor.submit(waitForCallNotAnswered);
         });
-        test2.addActionListener(e -> device.makeCall(session, PhoneNumber.of("12345"), 2));
+        Runnable makeCallFor = () -> {
+            String target = "12435";
+            Tools.print("Making call to :" + target);
+            Tools.print("Making call to succeed :" + device.makeCall(session, PhoneNumber.of(target), 5));
+            Tools.print("Making call to result :" + session.operationResult());
+            test2.setEnabled(true);
+        };
+        test2.addActionListener(e -> {
+            test2.setEnabled(false);
+            executor.submit(makeCallFor);
+        });
         callControl.add(test2);
         return callControl;
     }

@@ -262,11 +262,12 @@ public final class ToneUtils extends CommonUtils {
             // empty tone or not declared primary tone frequency
             return new byte[0];
         }
+        final int toneOnTime = tone.getDuration().getOnTime();
         // generating final version of the tone's buffer
         try (ByteArrayOutputStream result = new ByteArrayOutputStream()) {
             final int primaryFreq = tone.getPrimary().getFrequencyHz();
             final int secondFreq = tone.getSecondary().getFrequencyHz();
-            final int playing = tone.getDuration().getOnTime();
+            final int playing = toneOnTime <= 0 ? 300 : toneOnTime;
             final int silence = tone.getDuration().getOffTime();
             // write the sound part of the tone
             result.write(secondFreq <= 0
@@ -323,12 +324,18 @@ public final class ToneUtils extends CommonUtils {
     /// inner classes
     // the input stream of generated tone's audio data
     private static class ToneAudioInputStream extends InputStream {
+        private static final int EOD = Integer.MIN_VALUE;
         private final byte[] buffer;
         private int index;
 
         private ToneAudioInputStream(byte[] buffer) {
             this.buffer = buffer;
             index = 0;
+        }
+
+        @Override
+        public int read() throws IOException {
+            throw new IOException("Not implemented here.");
         }
 
         @Override
@@ -339,16 +346,18 @@ public final class ToneUtils extends CommonUtils {
                 throw new IndexOutOfBoundsException();
             } else if (len == 0) {
                 return 0;
+            } else if (buffer == null || buffer.length == 0) {
+                return -1;
             } else {
                 int data = nextByte();
-                if (data == -1) {
+                if (data == EOD) {
                     return -1;
                 }
                 b[off] = (byte) data;
                 int stored = 1;
                 for (; stored < len; stored++) {
                     data = nextByte();
-                    if (data == -1) {
+                    if (data == EOD) {
                         break;
                     }
                     b[off + stored] = (byte) data;
@@ -357,14 +366,9 @@ public final class ToneUtils extends CommonUtils {
             }
         }
 
-        @Override
-        public int read() throws IOException{
-            throw new IOException("Not implemented here.");
-        }
-
         // getting next read byte value or -1
         private int nextByte() {
-            return buffer == null || buffer.length == 0 ? -1 : fromRing();
+            return buffer == null || buffer.length == 0 ? EOD : fromRing();
         }
 
         // getting byte from buffer's ring
