@@ -46,6 +46,9 @@ import javax.swing.border.TitledBorder;
 
 import java.awt.BorderLayout;
 import java.awt.Font;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
+import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.workflow.hardware.javasound.SoundCardHandle;
@@ -129,5 +132,17 @@ public class SoundCardUI<H extends SoundCardHandle> extends JPanel {
 
     public void setHandset(boolean on) {
         callsControlPane.setHandset(on);
+        dtmfInputPane.setEnabled(on);
+        voicePane.setEnabled(on);
+        faxPane.setEnabled(on);
+    }
+
+    public void makingCallResult(final BlockingQueue<OperationResultValue> answeredResultsQueue) {
+        try {
+            TimeUnit.MILLISECONDS.sleep(100);
+        } catch (InterruptedException e) {
+            return;
+        }
+        callsControlPane.makingCallResult(answeredResultsQueue);
     }
 }

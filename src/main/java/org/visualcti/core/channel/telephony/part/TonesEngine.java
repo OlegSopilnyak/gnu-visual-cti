@@ -42,6 +42,7 @@ import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.operation.Result;
 import org.visualcti.core.channel.telephony.operation.ToneId;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
+import org.visualcti.core.channel.telephony.operation.adapter.TelephonyTone;
 
 /**
  * The Part of the Telephony Channel Device: The root device part of the telephony signals and tones management
@@ -108,6 +109,19 @@ public interface TonesEngine<H> extends TelephonyDevicePart<H> {
      */
     default void playTone(PhoneCallSession<H> session, ToneId toneId, float time) {
         // doing nothing here
+    }
+
+    /**
+     * <finder>
+     * To find tone's body by tone-id
+     *
+     * @param id tone's ID
+     * @return telephony tone instance
+     * @see TelephonyTone
+     * @see ToneId
+     */
+    default TelephonyTone findToneById(final ToneId id) {
+        return null;
     }
 
     /**

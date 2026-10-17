@@ -107,6 +107,10 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
         this.scheduler = scheduler;
     }
 
+    public ScheduledExecutorService getSchedulerExecuter() {
+        return scheduler;
+    }
+
     @Override
     protected Collection<String> nativeAllowedDevices() {
         return Collections.singleton(SOUND_DEVICE);
@@ -512,9 +516,7 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
                     result -> putEvent(stopIt(handle, TONE_PLAYING, result));
             //
             // starting playing back the tone in the separated thread
-            scheduler.schedule(() -> ToneUtils.playingBackTone(handle, tone, operationResultUpdater),
-                    0, TimeUnit.MILLISECONDS
-            );
+            scheduler.execute(() -> ToneUtils.playingBackTone(handle, tone, operationResultUpdater));
             return true;
         } else {
             // didn't start playing

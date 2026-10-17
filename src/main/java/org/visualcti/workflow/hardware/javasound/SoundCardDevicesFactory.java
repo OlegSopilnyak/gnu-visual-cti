@@ -103,7 +103,7 @@ public class SoundCardDevicesFactory<H extends SoundCardHandle, D extends SoundC
 
     @Override
     public Device<H, ?> buildDevice(final String deviceName, final Device.ServiceProvider<H> serviceProvider) {
-        return new SoundCardDevice<>(SoundCardServiceProvider.SOUND_DEVICE, getProvider());
+        return new SoundCardDevice<>(SoundCardServiceProvider.SOUND_DEVICE, (SoundCardServiceProvider<H>) getProvider());
     }
 
     @Override

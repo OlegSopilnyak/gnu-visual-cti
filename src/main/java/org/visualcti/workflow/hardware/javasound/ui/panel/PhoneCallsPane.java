@@ -53,7 +53,7 @@ import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.Insets;
 import java.util.Random;
-import java.util.function.Predicate;
+import java.util.concurrent.BlockingQueue;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
 import org.visualcti.core.channel.telephony.operation.Result;
@@ -83,9 +83,6 @@ public class PhoneCallsPane<H extends SoundCardHandle> extends JPanel {
     private final JButton ring = new JButton("Ring");
     private final JButton dropCall = new JButton("Drop Call");
     private final JButton answered = new JButton("Answered");
-    // to test the value of make call operation result
-    private static final Predicate<OperationResultValue> isOnline = value ->
-            value == Result.CALL.Analysis.VOICE || value == Result.CALL.Analysis.FAX;
     // phone call related panels
     private final WaitForIncomingCallPane waitForCallPane;
     private final MakeOutgoingCallPane makeCallPane;
@@ -162,16 +159,16 @@ public class PhoneCallsPane<H extends SoundCardHandle> extends JPanel {
         }
     }
 
+    public void makingCallResult(final BlockingQueue<OperationResultValue> answeredResultsQueue) {
+        if (makeCallPane.autoAnswerCheck.isSelected() && !answeredResultsQueue.offer(makeCallPane.answeredCall()))
+            throw new AssertionError("Not enough room for make call answered result.");
+    }
+
     // notification from UI-component (answer button) after make call device method
     public void answerCall() {
-        // outgoing phone call is making
-        final OperationResultValue result = makeCallPane.answeredCall();
-        // is result means line is connected?
-        final boolean isConnected = isOnline.test(result);
-        activePhoneCallSession.alive(isConnected);
-        setHandset(isConnected);
+        // meaning outgoing phone call is made
         // notify about outgoing call answer result
-        telephonyDevice.answerCall(result);
+        telephonyDevice.answered(activePhoneCallSession, makeCallPane.answeredCall());
     }
 
     public void setHandset(boolean on) {

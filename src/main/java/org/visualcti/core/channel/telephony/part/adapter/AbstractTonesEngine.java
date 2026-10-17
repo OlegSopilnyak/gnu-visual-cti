@@ -97,8 +97,17 @@ public abstract class AbstractTonesEngine<H> extends AbstractDevicePart<H> imple
         }
     }
 
-    // to find tone's body by tone-id
-    private TelephonyTone findById(final ToneId id) {
+    /**
+     * <finder>
+     * To find tone's body by tone-id
+     *
+     * @param id tone's ID
+     * @return telephony tone instance
+     * @see TelephonyTone
+     * @see ToneId
+     */
+    @Override
+    public TelephonyTone findToneById(final ToneId id) {
         return deviceCore.getParameter(TonesEngine.Parameter.TONES_TABLE).map(
                 param -> param.<EnumMap<ToneId, TelephonyTone>>getValue().get(id)
         ).orElse(null);
@@ -124,7 +133,7 @@ public abstract class AbstractTonesEngine<H> extends AbstractDevicePart<H> imple
             // getting device service provider
             final TelephonyServiceProvider<H> serviceProvider = deviceCore.getProvider();
             final H deviceHandle = session.parameter(Device.Parameter.DEVICE_HANDLE);
-            if (serviceProvider.startToneSending(deviceHandle, findById(toneId))) {
+            if (serviceProvider.startToneSending(deviceHandle, findToneById(toneId))) {
                 // calculating the timeout time
                 final long timeout = (long) (time * 1000L);
                 if (timeout <= 0) {

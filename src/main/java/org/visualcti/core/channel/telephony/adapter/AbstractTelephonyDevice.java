@@ -840,6 +840,20 @@ public abstract class AbstractTelephonyDevice<H, T extends TelephonyFactory<H, ?
     }
 
     /**
+     * <finder>
+     * To find tone's body by tone-id
+     *
+     * @param id tone's ID
+     * @return telephony tone instance
+     * @see TelephonyTone
+     * @see ToneId
+     * @see TonesEngine#findToneById(ToneId)
+     */
+    @Override
+    public TelephonyTone findToneById(final ToneId id) {
+        return tones.findToneById(id);
+    }
+    /**
      * <action>
      * To receive the user input from the telephony line.
      * <p>

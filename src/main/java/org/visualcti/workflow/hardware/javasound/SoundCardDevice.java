@@ -38,14 +38,16 @@ Fax number: 217-356-3356
 package org.visualcti.workflow.hardware.javasound;
 
 import java.io.IOException;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Predicate;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.TelephonyDevice;
 import org.visualcti.core.channel.telephony.TelephonyFactory;
-import org.visualcti.core.channel.telephony.TelephonyServiceProvider;
 import org.visualcti.core.channel.telephony.adapter.AbstractTelephonyDevice;
 import org.visualcti.core.channel.telephony.adapter.AbstractTelephonyFactory;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
@@ -79,12 +81,15 @@ import org.visualcti.workflow.hardware.javasound.ui.SoundCardUI;
 public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTelephonyFactory<H, ?>>
         extends AbstractTelephonyDevice<H, F> {
     private final AtomicReference<SoundCardUI<H>> uiHolder = new AtomicReference<>(null);
+    // to test the value of make call operation result
+    private static final Predicate<OperationResultValue> isOnline = value ->
+            value == Result.CALL.Analysis.VOICE || value == Result.CALL.Analysis.FAX;
 
-    public SoundCardDevice(String name, TelephonyServiceProvider<H> provider) {
+    public SoundCardDevice(String name, SoundCardServiceProvider<H> provider) {
         super(name, provider);
     }
 
-    protected SoundCardDevice(String name, TelephonyServiceProvider<H> provider,
+    protected SoundCardDevice(String name, SoundCardServiceProvider<H> provider,
                               CallsPortEngine<H> calls, TonesEngine<H> tones, MultimediaEngine<H> media, FaxMachineEngine<H> faxes) {
         super(name, provider, calls, tones, media, faxes);
     }
@@ -213,35 +218,41 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
         if (isOpened(session) && canAcceptCall() && session.isDisconnected()) {
             uiHolder.get().waitingForCall();
             final CountDownLatch operationLatch = new CountDownLatch(rings);
-            session.setState(TelephonyDevice.State.WAIT);
             session.parameter(Parameter.WAIT_CALL_LATCH, operationLatch);
+            session.setState(TelephonyDevice.State.WAIT);
+            final H handle = session.getDeviceHandle();
             try {
+                handle.inProgress(true);
                 if (operationLatch.await(timeout, TimeUnit.SECONDS)) {
                     // all necessary rings are detected
                     if (answer) {
                         // answering to the incoming call and mark the session as alive
                         session.alive(true);
                         // setting up the appropriate operation result
-                        session.operationComplete(Result.CALL.ALERTING);
+                        session.operationResult(Result.CALL.ALERTING);
                         // enabling call's disconnect events producing for the opened handle
                         getProvider().enableEvents(session.getDeviceHandle(), Result.CALL.DISCONNECT);
                     } else {
                         // setting up the appropriate operation result
-                        session.operationComplete(Result.CALL.RINGS);
+                        session.operationResult(Result.CALL.RINGS);
                     }
                 } else {
                     // operation timeout
                     // setting up the appropriate operation result
-                    session.operationComplete(Result.TIMEOUT);
+                    session.operationResult(Result.TIMEOUT);
                 }
             } catch (InterruptedException e) {
                 session.setState(Device.State.ERROR);
+                session.operationResult(Result.ERROR);
                 /* Clean up whatever needs to be handled before interrupting  */
                 Thread.currentThread().interrupt();
                 return false;
+            } finally {
+                // removing wait for call operation latch
+                session.remove(Parameter.WAIT_CALL_LATCH);
+                // operation for handle is finished
+                handle.inProgress(false);
             }
-            // removing wait for call operation latch
-            session.remove(Parameter.WAIT_CALL_LATCH);
             // wait for call operation is complete
             session.setState(Device.State.IDLE);
             return true;
@@ -315,12 +326,77 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
     @Override
     public boolean makeCall(PhoneCallSession<H> session, PhoneCall.Number number, int timeout) {
         if (isOpened(session) && canMakeCall() && session.isDisconnected()) {
+            final BlockingQueue<OperationResultValue> answeredResultsQueue = new ArrayBlockingQueue<>(1);
+            session.parameter(Parameter.MAKE_CALL_QUEUE, answeredResultsQueue);
+            final SoundCardServiceProvider<H> provider = (SoundCardServiceProvider<H>) getProvider();
+            session.setState(TelephonyDevice.State.DIAL);
+            // preparing UI for make call operation
             uiHolder.get().makingCallFor(number);
-            playTone(session, ToneId.DIAL, 1.5F);
+            // playing dial-tone
+            playTone(session, ToneId.DIAL, 0.7F);
+            // dialing the number
             dial(session, number.toString());
-            playTone(session, ToneId.RINGBACK, 1.0F * timeout);
+            // getting device handle
+            final H handle = session.getDeviceHandle();
+            // starting ringback tone playing
+            if (provider.startToneSending(handle, findToneById(ToneId.RINGBACK))) {
+                // waiting for ringback tone plying is started
+                waitingForToneStart(handle);
+                // getting operation result for auto-answer feature
+                uiHolder.get().makingCallResult(answeredResultsQueue);
+            } else {
+                // ringback tone playing isn't started
+                return false;
+            }
+            try {
+                final OperationResultValue answered = answeredResultsQueue.poll(timeout, TimeUnit.SECONDS);
+                // stopping ringback tone playing
+                provider.stopToneSending(handle);
+                //
+                // analyzing the make call's answer
+                if (answered == null) {
+                    // operation timeout
+                    // setting up the appropriate operation result
+                    session.operationResult(Result.CALL.Analysis.NO_ANSWER);
+                    session.setState(Device.State.IDLE);
+                    session.alive(false);
+                    uiHolder.get().setHandset(false);
+                    return false;
+                }
+                // is answered result means line is connected?
+                final boolean isConnected = isOnline.test(answered);
+                uiHolder.get().setHandset(isConnected);
+                session.alive(isConnected);
+                // setting up the state and operation result values
+                session.operationResult(answered);
+                session.setState(Device.State.IDLE);
+                return true;
+            } catch (InterruptedException e) {
+                session.setState(Device.State.ERROR);
+                session.operationResult(Result.ERROR);
+                /* Clean up whatever needs to be handled before interrupting  */
+                Thread.currentThread().interrupt();
+                return false;
+            } finally {
+                // removing make call operation queue
+                session.remove(Parameter.MAKE_CALL_QUEUE);
+            }
+        } else {
+            session.setState(Device.State.ERROR);
+            session.operationComplete(Result.ERROR);
+            // it's impossible to make outgoing call
+            return false;
         }
-        return true;
+    }
+
+    private void waitingForToneStart(H handle) {
+        while (!handle.isOperationInProgress()) {
+            try {
+                TimeUnit.MILLISECONDS.sleep(50);
+            } catch (InterruptedException e) {
+                return;
+            }
+        }
     }
 
     /**
@@ -331,8 +407,11 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
      * @see #makeCall(PhoneCallSession, PhoneCall.Number, int)
      * @see Result.CALL.Analysis
      */
-    public final void answerCall(final OperationResultValue analyzeResult) {
-        // TODO add communication with sound card device
+    public final void answered(final PhoneCallSession<H> session, final OperationResultValue analyzeResult) {
+        final BlockingQueue<OperationResultValue> answeredResultsQueue = session.parameter(Parameter.MAKE_CALL_QUEUE);
+        if (answeredResultsQueue != null && !answeredResultsQueue.offer(analyzeResult)) {
+            throw new AssertionError("Not enough room for make call answered result.");
+        }
     }
 
     /**
@@ -340,11 +419,11 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
      * From UI notification when pressed button in dial pad
      *
      * @param activePhoneCallSession active device's session
-     * @param input                  pressed symbol
+     * @param inputCharacter         pressed symbol
      */
-    public void userInput(PhoneCallSession<H> activePhoneCallSession, String input) {
-        // playing dtmf tone
-        dial(activePhoneCallSession, input);
+    public void userInput(final PhoneCallSession<H> activePhoneCallSession, final String inputCharacter) {
+        // playing dtmf tone of the character
+        dial(activePhoneCallSession, inputCharacter);
     }
 
     public void setRecordFormat(Audio selected) {
@@ -378,22 +457,18 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
     /// inner classes
     // PhoneCall management
     private class CallControl extends AbstractCallsPortEngine<H> {
-        // TODO add communication with sound card device
     }
 
     // Telephony tones/user's input management
     private class Tones extends AbstractTonesEngine<H> {
-
     }
 
     // Audio Play/Record management
     private class Media extends AbstractMultimediaEngine<H> {
-
     }
 
     // Fax transmitting/receiving management
     private class Fax extends AbstractFaxMachineEngine<H> {
-
     }
 
     /**
@@ -401,7 +476,8 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
      */
     enum Parameter implements Device.ParameterName {
         // the latch of wait for call operation
-        WAIT_CALL_LATCH("WAIT FOR CALL LATCH");
+        WAIT_CALL_LATCH("WAIT FOR CALL LATCH"),
+        MAKE_CALL_QUEUE("MAKE CALL RESULTS QUEUE");
 
         private final String name;
 

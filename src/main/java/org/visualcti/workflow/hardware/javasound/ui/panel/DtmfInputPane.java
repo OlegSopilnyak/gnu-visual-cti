@@ -94,7 +94,7 @@ public class DtmfInputPane<H extends SoundCardHandle> extends JPanel implements 
         updateSafely(() -> {
             dtmfBuffer.setText("");
             Arrays.stream(dialPad.getComponents()).filter(JButton.class::isInstance)
-                    .forEach(c -> setEnabled(enabled));
+                    .forEach(c -> c.setEnabled(enabled));
         });
     }
 
