@@ -102,9 +102,13 @@ public class SoundCardUI<H extends SoundCardHandle> extends JPanel {
         modes.addTab("Dial Pad", dtmfInputPane);
         modes.addTab("Voice", voicePane);
         modes.addTab("Fax", faxPane);
+        //
+        // preparing keyboard events
         setFocusable(true);
-        // add listener for dtmf input
+        // to add listener for dtmf input
         addKeyListener(dtmfInputPane);
+        // initially handset is off
+        setHandset(false);
     }
 
     public void waitingForCall() {
@@ -121,13 +125,6 @@ public class SoundCardUI<H extends SoundCardHandle> extends JPanel {
 
     public void stateChanged(String newState) {
         state.setText(newState);
-    }
-
-    public void online() {
-        callsControlPane.setEnabled(true);
-        dtmfInputPane.setEnabled(true);
-        voicePane.setEnabled(true);
-        faxPane.setEnabled(true);
     }
 
     public void setHandset(boolean on) {

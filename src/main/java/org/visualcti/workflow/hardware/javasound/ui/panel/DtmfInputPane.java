@@ -40,6 +40,8 @@ package org.visualcti.workflow.hardware.javasound.ui.panel;
 import javax.swing.JButton;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
+import javax.swing.SwingUtilities;
+import javax.swing.border.TitledBorder;
 
 import java.awt.BorderLayout;
 import java.awt.GridLayout;
@@ -70,6 +72,7 @@ import org.visualcti.workflow.hardware.javasound.ui.SoundCardUI;
 @SuppressWarnings("unchecked")
 public class DtmfInputPane<H extends SoundCardHandle> extends JPanel implements KeyListener {
     // The container of user's input
+    private final transient JPanel inputPad = new JPanel(new BorderLayout(5, 0), false);
     private final transient JTextField dtmfBuffer = new JTextField();
     private final transient JPanel dialPad = new JPanel(new GridLayout(4, 3), false);
     private final transient Lock updateLock = new ReentrantLock(true);
@@ -82,25 +85,39 @@ public class DtmfInputPane<H extends SoundCardHandle> extends JPanel implements 
         super(new BorderLayout(), true);
         activePhoneCallSession = rootPanel.getActiveSession();
         telephonyDevice = (SoundCardDevice<H, ?>) this.activePhoneCallSession.getDevice();
-        add(dtmfBuffer, BorderLayout.NORTH);
+        inputPad.setBorder(new TitledBorder(" Input "));
+        inputPad.add(dtmfBuffer, BorderLayout.CENTER);
+        add(inputPad, BorderLayout.NORTH);
         dtmfBuffer.setEditable(false);
         final String[] dialPadSymbols = new String[]{"1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "0", "#"};
         Arrays.stream(dialPadSymbols).forEach(symbol -> dialPad.add(new DialPadButton(symbol)));
         add(dialPad, BorderLayout.CENTER);
+        dialPad.setFocusable(true);
+        dialPad.addKeyListener(this);
     }
 
     @Override
     public void setEnabled(boolean enabled) {
+        inputPad.setEnabled(enabled);
+        dialPad.setEnabled(enabled);
         updateSafely(() -> {
             dtmfBuffer.setText("");
-            Arrays.stream(dialPad.getComponents()).filter(JButton.class::isInstance)
-                    .forEach(c -> c.setEnabled(enabled));
+            dtmfBuffer.setEnabled(enabled);
+            Arrays.stream(dialPad.getComponents())
+                    .filter(JButton.class::isInstance).forEach(c -> c.setEnabled(enabled));
         });
+        if (enabled) {
+            dialPad.requestFocus();
+        }
     }
 
     @Override
     public void keyTyped(KeyEvent e) {
-        // doing nothing here
+        // call appropriate button's on click action if present
+        dialPadButtons.computeIfPresent(e.getKeyChar(), (key, button) -> {
+            button.doClick();
+            return button;
+        });
     }
 
     @Override
@@ -110,11 +127,7 @@ public class DtmfInputPane<H extends SoundCardHandle> extends JPanel implements 
 
     @Override
     public void keyReleased(KeyEvent e) {
-        // call appropriate button's on click action if present
-        dialPadButtons.computeIfPresent(e.getKeyChar(), (key, button) -> {
-            button.doClick();
-            return button;
-        });
+        // doing nothing here
     }
 
     // private methods
@@ -137,10 +150,11 @@ public class DtmfInputPane<H extends SoundCardHandle> extends JPanel implements 
         }
 
         private void buttonPressed(String input) {
-            updateSafely(() -> {
-                dtmfBuffer.setText(dtmfBuffer.getText() + input);
-                telephonyDevice.userInput(activePhoneCallSession, input);
-            });
+            SwingUtilities.invokeLater(() -> updateSafely(() -> {
+                        dtmfBuffer.setText(dtmfBuffer.getText() + input);
+                        telephonyDevice.userInput(activePhoneCallSession, input);
+                    })
+            );
         }
 
     }

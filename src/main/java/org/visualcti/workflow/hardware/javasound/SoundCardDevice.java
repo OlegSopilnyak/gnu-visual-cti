@@ -237,11 +237,14 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
                         session.operationResult(Result.CALL.RINGS);
                     }
                 } else {
-                    // operation timeout
+                    // operation timeout (there wasn't notification of operation's latch)
                     // setting up the appropriate operation result
                     session.operationResult(Result.TIMEOUT);
                 }
+                // updating UI
+                uiHolder.get().setHandset(session.isAlive());
             } catch (InterruptedException e) {
+                uiHolder.get().setHandset(false);
                 session.setState(Device.State.ERROR);
                 session.operationResult(Result.ERROR);
                 /* Clean up whatever needs to be handled before interrupting  */
@@ -258,6 +261,7 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
             return true;
         } else {
             session.setState(Device.State.ERROR);
+            session.operationResult(Result.ERROR);
             return false;
         }
     }
