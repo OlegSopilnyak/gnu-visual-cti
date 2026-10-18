@@ -99,7 +99,7 @@ public class FaxManagementPane<H extends SoundCardHandle> extends JPanel {
     @Override
     public void setEnabled(boolean enabled) {
         super.setEnabled(enabled);
-        faxDocumentPanel.setEnabled(enabled);
+        faxMachinePanel.setEnabled(enabled);
         faxDocumentPanel.setEnabled(enabled);
         faxMachineControlPanel.setEnabled(enabled);
     }
@@ -223,6 +223,11 @@ public class FaxManagementPane<H extends SoundCardHandle> extends JPanel {
             super(new BorderLayout(), false);
             setBorder(new TitledBorder("Document"));
         }
+
+        @Override
+        public void setEnabled(boolean enabled) {
+            super.setEnabled(enabled && telephonyDevice.canFax());
+        }
     }
 
     private class FaxTransmissionControlPane extends JPanel {
@@ -233,6 +238,13 @@ public class FaxManagementPane<H extends SoundCardHandle> extends JPanel {
             startTransmission.addActionListener(e -> startFax());
             add(stopTransmission);
             stopTransmission.addActionListener(e -> stopFax());
+        }
+
+        @Override
+        public void setEnabled(boolean enabled) {
+            super.setEnabled(enabled);
+            startTransmission.setEnabled(enabled);
+            stopTransmission.setEnabled(enabled);
         }
     }
 }

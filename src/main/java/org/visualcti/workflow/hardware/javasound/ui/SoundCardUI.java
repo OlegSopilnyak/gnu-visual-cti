@@ -98,10 +98,10 @@ public class SoundCardUI<H extends SoundCardHandle> extends JPanel {
         final JTabbedPane modes = new JTabbedPane(BOTTOM);
         modes.setFont(new Font("dialog", Font.BOLD, 9));
         super.add(modes, BorderLayout.CENTER);
-        modes.addTab("Call", callsControlPane);
-        modes.addTab("Dial Pad", dtmfInputPane);
-        modes.addTab("Voice", voicePane);
-        modes.addTab("Fax", faxPane);
+        modes.addTab("PhoneCall", callsControlPane);
+        modes.addTab("DialPad", dtmfInputPane);
+        modes.addTab("VoiceIO", voicePane);
+        modes.addTab("FaxIO", faxPane);
         //
         // preparing keyboard events
         setFocusable(true);
@@ -136,8 +136,10 @@ public class SoundCardUI<H extends SoundCardHandle> extends JPanel {
 
     public void makingCallResult(final BlockingQueue<OperationResultValue> answeredResultsQueue) {
         try {
-            TimeUnit.MILLISECONDS.sleep(100);
+            TimeUnit.MILLISECONDS.sleep(150);
         } catch (InterruptedException e) {
+            /* Clean up whatever needs to be handled before interrupting  */
+            Thread.currentThread().interrupt();
             return;
         }
         callsControlPane.makingCallResult(answeredResultsQueue);

@@ -44,6 +44,7 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.core.channel.device.Device;
@@ -64,6 +65,9 @@ import org.visualcti.server.unit.ServerUnitAdapter;
 public class AbstractDevice<H, F extends Factory<H, ?>> extends ServerUnitAdapter implements Device<H, F> {
     // the map of sessions' states of the device
     private final Map<H, DeviceStateValue> sessionStates = new ConcurrentHashMap<>();
+    // predicate to test is invalid the device activity session
+    protected static final Predicate<DeviceActivitySession<?>> isInvalid = session ->
+            session == null || session.getDeviceHandle() == null || session.getState() == null;
 
     /**
      * <builder>
@@ -100,7 +104,7 @@ public class AbstractDevice<H, F extends Factory<H, ?>> extends ServerUnitAdapte
      */
     @Override
     public void stateChangedFor(final DeviceActivitySession<H> session) {
-        if (isInvalid(session)) {
+        if (isInvalid.test(session)) {
             dispatchError("Wrong state changed notification for\n" + session);
         } else {
             // session is valid working with it
@@ -188,11 +192,5 @@ public class AbstractDevice<H, F extends Factory<H, ?>> extends ServerUnitAdapte
     @Override
     public int hashCode() {
         return super.hashCode();
-    }
-
-    /// / private methods
-    // to check the device session integrity
-    private static boolean isInvalid(DeviceActivitySession<?> session) {
-        return session == null || session.getDeviceHandle() == null || session.getState() == null;
     }
 }

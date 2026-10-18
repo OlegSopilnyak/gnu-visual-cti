@@ -122,6 +122,8 @@ public class PhoneCallsPane<H extends SoundCardHandle> extends JPanel {
             phoneNumbersPane.calling.setEditable(false);
             setHandset(activePhoneCallSession.isAlive());
         });
+        // answered call button
+        answered.setFocusable(false);
         answered.addActionListener(e -> answerCall());
     }
 
@@ -164,13 +166,6 @@ public class PhoneCallsPane<H extends SoundCardHandle> extends JPanel {
             throw new AssertionError("Not enough room for make call answered result.");
     }
 
-    // notification from UI-component (answer button) after make call device method
-    public void answerCall() {
-        // meaning outgoing phone call is made
-        // notify about outgoing call answer result
-        telephonyDevice.answered(activePhoneCallSession, makeCallPane.answeredCall());
-    }
-
     public void setHandset(boolean on) {
         dropCall.setEnabled(on);
         ring.setEnabled(!on);
@@ -180,6 +175,12 @@ public class PhoneCallsPane<H extends SoundCardHandle> extends JPanel {
     }
 
     /// private methods
+    // notification from UI-component (answer button) after make call device method
+    private void answerCall() {
+        // meaning outgoing phone call is made
+        // notify about outgoing call answer result
+        telephonyDevice.answered(activePhoneCallSession, makeCallPane.answeredCall());
+    }
     // call status and drop call
     private JPanel buildingCallStatusPane() {
         final JPanel phoneCallStatus = new JPanel(new BorderLayout(), false);
