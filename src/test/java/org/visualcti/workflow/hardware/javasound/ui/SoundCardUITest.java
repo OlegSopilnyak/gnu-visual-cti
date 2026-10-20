@@ -42,12 +42,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JFrame;
+import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JTextField;
 import javax.swing.WindowConstants;
 import javax.swing.border.TitledBorder;
 
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.FlowLayout;
+import java.awt.Font;
 import java.io.IOException;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ExecutorService;
@@ -80,18 +84,31 @@ public class SoundCardUITest {
             frame.getContentPane().add(device.getUI(), BorderLayout.CENTER);
             JPanel control = new JPanel();
             control.setLayout(new BoxLayout(control, BoxLayout.Y_AXIS));
+            JPanel results = new JPanel(new BorderLayout());
+            results.setBorder(new TitledBorder("Operation Result"));
+            control.add(results);
+            JTextField operationResult = new JTextField();
+            operationResult.setEditable(false);
+            operationResult.setFocusable(false);
+            operationResult.setFont(new Font("sanserif", Font.BOLD, 15));
+            operationResult.setBackground(Color.blue);
+            operationResult.setForeground(Color.yellow);
+            operationResult.setText("===");
+            results.add(operationResult, BorderLayout.CENTER);
             frame.getContentPane().add(control, BorderLayout.SOUTH);
-            control.add(callControlPane(session, scheduler));
+            control.add(callControlPane(operationResult, session, scheduler));
             control.add(userInputPane(session, scheduler));
             frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
             frame.pack();
             frame.setVisible(true);
-            // enabling to get of DTMF events
+            // enabling to pass out the DTMF events
             provider.enableEvents(session.getDeviceHandle(), Result.IO.DTMF);
         }
     }
 
-    private static <H extends SoundCardHandle> JPanel callControlPane(PhoneCallSession<H> session, ExecutorService executor) {
+    private static <H extends SoundCardHandle> JPanel callControlPane(
+            JTextField operationResult, PhoneCallSession<H> session, ExecutorService executor
+    ) {
         TelephonyDevice<H, ?> device = session.getDevice();
         JPanel callControl = new JPanel(new FlowLayout());
         callControl.setBorder(new TitledBorder("Call Control"));
@@ -99,9 +116,11 @@ public class SoundCardUITest {
         JButton test10 = new JButton("wait call (no answer)");
         JButton test2 = new JButton("make call");
         Runnable waitForCallAnswered = () -> {
+            operationResult.setText("===");
             Tools.print("Waiting for call: 2 rings, 2 secs, answer...");
             Tools.print("Wait for call succeed:" + device.waitForCall(session, 2, 2, true));
             Tools.print("Wait for call result:" + session.operationResult());
+            operationResult.setText("= " + session.operationResult() + " =");
             // enabling to get of DTMF events
             session.getDevice().getProvider().enableEvents(session.getDeviceHandle(), Result.IO.DTMF);
             test1.setEnabled(true);
@@ -112,9 +131,11 @@ public class SoundCardUITest {
         });
         callControl.add(test1);
         Runnable waitForCallNotAnswered = () -> {
+            operationResult.setText("===");
             Tools.print("Waiting for call: 1 rings, 2 secs, no answer...");
             Tools.print("Wait for call succeed:" + device.waitForCall(session, 1, 2, false));
             Tools.print("Wait for call result:" + session.operationResult());
+            operationResult.setText("= " + session.operationResult() + " =");
             // enabling to get of DTMF events
             session.getDevice().getProvider().enableEvents(session.getDeviceHandle(), Result.IO.DTMF);
             test10.setEnabled(true);
@@ -125,10 +146,12 @@ public class SoundCardUITest {
             executor.submit(waitForCallNotAnswered);
         });
         Runnable makeCallFor = () -> {
+            operationResult.setText("===");
             String target = "12435";
             Tools.print("Making call to :" + target);
             Tools.print("Making call to succeed :" + device.makeCall(session, PhoneNumber.of(target), 5));
             Tools.print("Making call to result :" + session.operationResult());
+            operationResult.setText("= " + session.operationResult() + " =");
             // enabling to get of DTMF events
             session.getDevice().getProvider().enableEvents(session.getDeviceHandle(), Result.IO.DTMF);
             test2.setEnabled(true);
@@ -145,22 +168,30 @@ public class SoundCardUITest {
     }
 
     private static <H extends SoundCardHandle> JPanel userInputPane(PhoneCallSession<H> session, ExecutorService executor) {
-        TelephonyDevice<H, ?> device = session.getDevice();
         JPanel panel = new JPanel(new FlowLayout());
         panel.setBorder(new TitledBorder("User Input"));
         JButton test = new JButton("get user input");
         test.setFocusable(false);
+        panel.add(test);
+        JPanel result = new JPanel(new BorderLayout());
+        panel.add(result);
+        result.add(new JLabel("Input Symbols: "), BorderLayout.WEST);
+        JTextField userInput = new JTextField(15);
+        userInput.setFocusable(false);
+        userInput.setEditable(false);
+        result.add(userInput, BorderLayout.CENTER);
         Runnable gettingUserInput = () -> {
-            Tools.print("Got user input :[" + device.getInputSymbols(session) + "]");
+            userInput.setText(session.getDevice().getInputSymbols(session));
+            Tools.print("Got user input :[" + userInput.getText() + "]");
             test.setEnabled(true);
         };
         test.addActionListener(e -> {
             test.setEnabled(false);
             executor.submit(gettingUserInput);
         });
-        panel.add(test);
         return panel;
     }
+
     @Test
     public void useMain() {
         assertThat(true).isTrue();
