@@ -141,124 +141,119 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
     public OperationResultValue playbackAudio(final PhoneCallSession<H> session,
                                               final InputStream source, final Audio format,
                                               final String terminationSymbolsMask, final int timeout) {
-        if (canProceed(session, () -> canPlay(format))) {
-            //
-            // creating audio play back context for the audio playing
-            final PlaybackContext context = buildingPlaybackContextFor(session);
-            context.source = source;
-            context.format = format;
-            context.timeout = timeout;
-            context.termMask = terminationSymbolsMask;
-            //
-            // adjusting other operation's stuff
-            final TelephonyServiceProvider<H> serviceProvider = context.serviceProvider;
-            final H deviceHandle = context.deviceHandle;
-            //
-            // playing back the audio data stream
-            try {
-                // starting the audio data playing back
-                if (!startAudioPlaying(session, context)) {
-                    // to start playing is failed
-                    final String errorReason = "Cannot start playing the audio data stream.";
-                    return playbackAudioError(deviceHandle, context.tempFile, session, errorReason);
-                }
-                // saving the temporary data media file
-                final File tempFile = context.tempFile;
-                // enabling end-of-file operation results
-                serviceProvider.enableEvents(deviceHandle, Result.IO.EOF);
-                // according to timeout value waiting for timeout as well
-                if (timeout > 0) {
-                    // enabling timeout operation results
-                    serviceProvider.enableEvents(deviceHandle, Result.TIMEOUT);
-                    serviceProvider.timeoutEventIn(deviceHandle, AUDIO_PLAYING, timeout, TimeUnit.SECONDS);
-                }
-                //
-                // processing the operation result after started waiting (several iterations maybe)
-                while (true) {
-                    // waiting for the event during 1 second
-                    oneSecondWaitingForOperationCompleteEvent(session);
-                    // getting the operation result after waiting for operation complete
-                    final OperationResultValue operationResult = session.operationResult();
-                    //
-                    // checking end-of-file or timeout operation results
-                    if (isPlayingCompleted.test(operationResult)) {
-                        // deleting temporary file
-                        if (!tempFile.delete()) {
-                            // for some reason didn't delete the temporary file
-                            session.setState(Device.State.ERROR);
-                            return Result.ERROR;
-                        }
-                        // operation is completed (leaving the loop)
-                        break;
-                        // checking for the user input during the operation
-                    } else if (operationResult == Result.IO.DTMF
-                            && context.isTerminatedBy(session.parameter(Device.Parameter.USER_INPUT))) {
-                        // deleting temporary file
-                        if (!tempFile.delete()) {
-                            // for some reason didn't delete the temporary file
-                            session.setState(Device.State.ERROR);
-                            return Result.ERROR;
-                        }
-                        // operation is terminated by DTMF input (leaving the loop)
-                        break;
-                        // checking device's hardware error
-                    } else if (operationResult == Result.ERROR) {
-                        // device hardware error is detected
-                        final String errorReason = "Playback audio is failed.";
-                        return playbackAudioError(deviceHandle, tempFile, session, errorReason);
-                        // checking for the operation's interruption
-                    } else if (session.isTerminated()) {
-                        // stopping audio data transmitting by service provider
-                        stopAudioPlaying(serviceProvider, deviceHandle);
-                        // removing unnecessary temp file
-                        if (tempFile.delete()) {
-                            session.operationResult(Result.TERMINATED);
-                            session.setState(Device.State.IDLE);
-                        }
-                        return Result.TERMINATED;
-                        // checking for the disconnection during the operation
-                    } else if (session.isDisconnected()) {
-                        // stopping audio data transmitting by service provider
-                        stopAudioPlaying(serviceProvider, deviceHandle);
-                        // deleting temporary file
-                        if (!tempFile.delete()) {
-                            session.setState(Device.State.ERROR);
-                            return Result.ERROR;
-                        }
-                        session.setState(Device.State.ERROR);
-                        breakingTheSession(session, "Playback audio is failed. The connection is lost.");
-                        //
-                        // disconnecting form the current phone call
-                        disconnect(session);
-                        // preparing method's response
-                        session.operationResult(Result.CALL.DISCONNECT);
-                        return Result.CALL.DISCONNECT;
-                    }
-                }
-            } catch (InterruptedException e) {
-                session.getDevice().dispatchError(e, "Cannot wait audio data transmitting completion.");
-                /* Clean up whatever needs to be handled before interrupting  */
-                Thread.currentThread().interrupt();
-                // stopping audio data transmitting by service provider
-                stopAudioPlaying(serviceProvider, deviceHandle);
-                session.setState(Device.State.ERROR);
-                return Result.ERROR;
-            } catch (IOException e) {
-                session.getDevice().dispatchError(e, "Temporary file creation failed.");
-                session.setState(Device.State.ERROR);
-                return Result.ERROR;
-            }
-            // operation is completed successfully by any reason
-            session.getDevice().dispatchEvent("Playback audio is completed.");
-            // unconditional stopping playback's operation
-            stopAudioPlaying(serviceProvider, deviceHandle);
-            // make playback's operation is complete
-            session.setState(Device.State.IDLE);
-            return session.operationResult();
+        if (!canProceed(session, () -> canPlay(format))) {// playback operation didn't start well
+            session.setState(Device.State.ERROR);
+            session.operationResult(Result.ERROR);
+            return Result.ERROR;
         }
-        // playback operation didn't start well
-        session.setState(Device.State.ERROR);
-        return Result.ERROR;
+        //
+        // creating audio play back context for the audio playing
+        final PlaybackContext context = buildingPlaybackContextFor(session);
+        context.source = source;
+        context.format = format;
+        context.timeout = timeout;
+        context.termMask = terminationSymbolsMask;
+        //
+        // adjusting other operation's stuff
+        final TelephonyServiceProvider<H> serviceProvider = context.serviceProvider;
+        final H deviceHandle = context.deviceHandle;
+        //
+        // playing back the audio data stream
+        try {
+            // starting the audio data playing back
+            if (!startAudioPlaying(session, context)) {
+                // to start playing is failed
+                final String errorReason = "Cannot start playing the audio data stream.";
+                return playbackAudioError(deviceHandle, context.tempFile, session, errorReason);
+            }
+            // saving the temporary data media file
+            final File tempFile = context.tempFile;
+            // enabling end-of-file operation results
+            serviceProvider.enableEvents(deviceHandle, Result.IO.EOF);
+            // according to timeout value waiting for timeout as well
+            if (timeout > 0) {
+                // enabling timeout operation results
+                serviceProvider.enableEvents(deviceHandle, Result.TIMEOUT);
+                serviceProvider.timeoutEventIn(deviceHandle, AUDIO_PLAYING, timeout, TimeUnit.SECONDS);
+            }
+            //
+            // processing the operation result after started waiting (several iterations maybe)
+            while (true) {
+                // waiting for the event during 1 second
+                // getting the operation result after waiting for operation complete
+                final OperationResultValue operationResult = oneSecondWaitingForOperationCompleteEvent(session);
+                //
+                // checking end-of-file or timeout operation results
+                // or the operation is completed by masked DTMF input
+                if (isPlayingCompleted.test(operationResult) || completedByTerminationSymbol(context)) {
+                    // deleting temporary file
+                    if (!tempFile.delete()) {
+                        // for some reason didn't delete the temporary file
+                        session.setState(Device.State.ERROR);
+                        session.operationResult(Result.ERROR);
+                        return Result.ERROR;
+                    }
+                    // playback operation is completed by operation's result value
+                    // or the operation is completed by masked DTMF input
+                    // (leaving the loop)
+                    break;
+                    // checking device's hardware error
+                } else if (operationResult == Result.ERROR) {
+                    // device hardware error is detected
+                    final String errorReason = "Playback audio is failed.";
+                    return playbackAudioError(deviceHandle, tempFile, session, errorReason);
+                    // checking for the operation's interruption
+                } else if (session.isTerminated()) {
+                    // stopping audio data transmitting by service provider
+                    stopAudioPlaying(serviceProvider, deviceHandle);
+                    // removing unnecessary temp file
+                    if (tempFile.delete()) {
+                        session.operationResult(Result.TERMINATED);
+                        session.setState(Device.State.IDLE);
+                    }
+                    return Result.TERMINATED;
+                    // checking for the disconnection during the operation
+                } else if (session.isDisconnected()) {
+                    // stopping audio data transmitting by service provider
+                    stopAudioPlaying(serviceProvider, deviceHandle);
+                    // deleting temporary file
+                    if (!tempFile.delete()) {
+                        session.setState(Device.State.ERROR);
+                        session.operationResult(Result.ERROR);
+                        return Result.ERROR;
+                    }
+                    session.setState(Device.State.ERROR);
+                    breakingTheSession(session, "Playback audio is failed. The connection is lost.");
+                    //
+                    // disconnecting form the current phone call
+                    disconnect(session);
+                    // preparing method's response
+                    session.operationResult(Result.CALL.DISCONNECT);
+                    return Result.CALL.DISCONNECT;
+                }
+            }
+        } catch (InterruptedException e) {
+            session.setState(Device.State.ERROR);
+            session.operationResult(Result.ERROR);
+            // stopping audio data transmitting by service provider
+            stopAudioPlaying(serviceProvider, deviceHandle);
+            session.getDevice().dispatchError(e, "Cannot wait audio data transmitting completion.");
+            /* Clean up whatever needs to be handled before interrupting  */
+            Thread.currentThread().interrupt();
+            return Result.ERROR;
+        } catch (IOException e) {
+            session.getDevice().dispatchError(e, "Temporary file creation failed.");
+            session.setState(Device.State.ERROR);
+            session.operationResult(Result.ERROR);
+            return Result.ERROR;
+        }
+        // operation is completed successfully by any reason
+        session.getDevice().dispatchEvent("Playback audio is completed.");
+        // unconditional stopping playback's operation
+        stopAudioPlaying(serviceProvider, deviceHandle);
+        // make playback's operation is complete
+        session.setState(Device.State.IDLE);
+        return session.operationResult();
     }
 
     /**
@@ -330,116 +325,110 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
     public OperationResultValue recordAudio(
             final PhoneCallSession<H> session, final OutputStream target, final Audio format,
             final String terminationSymbolsMask, final int silence, final int timeout) {
-        if (canProceed(session, () -> canRecord(format))) {
-            // staring the audio recording
-            final RecordContext context = buildingRecordContextFor(session);
-            context.target = target;
-            context.format = format;
-            context.timeout = timeout;
-            context.silence = silence;
-            context.termMask = terminationSymbolsMask;
-            //
-            // adjusting other operation's stuff
-            final TelephonyServiceProvider<H> serviceProvider = context.serviceProvider;
-            final H deviceHandle = context.deviceHandle;
-            //
-            // recording to the audio data stream
-            try {
-                // starting the audio data recording
-                if (!startRecording(session, context)) {
-                    // to start recording is failed
-                    final String errorReason = "Cannot start recording the audio file.";
-                    return recordAudioError(deviceHandle, context.tempFile, session, errorReason);
-                }
-                // saving the temporary data media file
-                final File tempFile = context.tempFile;
-                // enabling end-of-file operation results
-                serviceProvider.enableEvents(deviceHandle, Result.IO.EOF);
-                // enabling timeout operation results
-                serviceProvider.enableEvents(deviceHandle, Result.TIMEOUT);
-                // to schedule the timeout device-event after reached the value of timeout parameter in seconds
-                serviceProvider.timeoutEventIn(deviceHandle, AUDIO_RECORDING, timeout, TimeUnit.SECONDS);
-                //
-                while (true) {
-                    // waiting for the event during 1 second
-                    oneSecondWaitingForOperationCompleteEvent(session);
-                    // getting the operation result after waiting for operation complete
-                    final OperationResultValue operationResult = session.operationResult();
-                    //
-                    // checking timeout, end-of-file or silence operation results
-                    if (isRecordCompleted.test(operationResult)) {
-                        // stopping audio data transmitting by service provider
-                        // and copying recorded data to the target, removing unnecessary temp file
-                        if (!copyRecordedData(context, tempFile, target)) {
-                            session.setState(Device.State.ERROR);
-                            return Result.ERROR;
-                        }
-                        // record operation is completed (leaving the loop)
-                        break;
-                        // checking for the user input during the operation
-                    } else if (operationResult == Result.IO.DTMF
-                            && context.isTerminatedBy(session.parameter(Device.Parameter.USER_INPUT))) {
-                        // stopping audio data transmitting by service provider
-                        // and copying recorded data to the target, removing unnecessary temp file
-                        if (!copyRecordedData(context, tempFile, target)) {
-                            session.setState(Device.State.ERROR);
-                            return Result.ERROR;
-                        }
-                        // operation is completed by masked DTMF input (leaving the loop)
-                        break;
-                        // checking device's hardware error
-                    } else if (operationResult == Result.ERROR) {
-                        // device hardware error is detected
-                        final String errorReason = "Record audio is failed.";
-                        return recordAudioError(deviceHandle, tempFile, session, errorReason);
-                        // checking for the operation's interruption
-                    } else if (session.isTerminated()) {
-                        // stopping audio data transmitting by service provider
-                        stopAudioRecording(serviceProvider, deviceHandle);
-                        // copying recorded data to the target, removing unnecessary temp file
-                        if (copyRecordedData(context, tempFile, target)) {
-                            session.operationResult(Result.TERMINATED);
-                            session.setState(Device.State.IDLE);
-                        }
-                        return Result.TERMINATED;
-                        // checking for the disconnection during the operation
-                    } else if (session.isDisconnected()) {
-                        // stopping audio data transmitting by service provider
-                        stopAudioRecording(serviceProvider, deviceHandle);
-                        session.setState(Device.State.ERROR);
-                        breakingTheSession(session, "Recording audio is failed. The connection is lost.");
-                        //
-                        // disconnecting form the current phone call
-                        disconnect(session);
-                        session.operationResult(Result.CALL.DISCONNECT);
-                        // copying recorded data to the target, removing unnecessary temp file
-                        return copyRecordedData(context, tempFile, target) ? Result.CALL.DISCONNECT : Result.ERROR;
-                    }
-                }
-            } catch (IOException e) {
-                session.getDevice().dispatchError(e, "Temporary file creation failed.");
-                session.setState(Device.State.ERROR);
-                return Result.ERROR;
-            } catch (InterruptedException e) {
-                session.getDevice().dispatchError(e, "Cannot wait audio data transmitting completion.");
-                /* Clean up whatever needs to be handled before interrupting  */
-                Thread.currentThread().interrupt();
-                // stopping audio data transmitting by service provider
-                stopAudioRecording(serviceProvider, deviceHandle);
-                session.setState(Device.State.ERROR);
-                return Result.ERROR;
-            }
-            // operation is complete
-            session.getDevice().dispatchEvent("Record audio is completed.");
-            // unconditional stopping audio record's operation
-            stopAudioRecording(serviceProvider, deviceHandle);
-            // make send tone operation is complete
-            session.setState(Device.State.IDLE);
-            return session.operationResult();
+        if (!canProceed(session, () -> canRecord(format))) {// record operation didn't finish well
+            session.setState(Device.State.ERROR);
+            session.operationResult(Result.ERROR);
+            return Result.ERROR;
         }
-        // record operation didn't finish well
-        session.setState(Device.State.ERROR);
-        return Result.ERROR;
+        // staring the audio recording
+        final RecordContext context = buildingRecordContextFor(session);
+        context.target = target;
+        context.format = format;
+        context.timeout = timeout;
+        context.silence = silence;
+        context.termMask = terminationSymbolsMask;
+        //
+        // adjusting other operation's stuff
+        final TelephonyServiceProvider<H> serviceProvider = context.serviceProvider;
+        final H deviceHandle = context.deviceHandle;
+        //
+        // recording to the audio data stream
+        try {
+            // starting the audio data recording
+            if (!startRecording(session, context)) {
+                // to start recording is failed
+                final String errorReason = "Cannot start recording the audio file.";
+                return recordAudioError(deviceHandle, context.tempFile, session, errorReason);
+            }
+            // saving the temporary data media file
+            final File tempFile = context.tempFile;
+            // enabling end-of-file operation results
+            serviceProvider.enableEvents(deviceHandle, Result.IO.EOF);
+            // enabling timeout operation results
+            serviceProvider.enableEvents(deviceHandle, Result.TIMEOUT);
+            // to schedule the timeout device-event after reached the value of timeout parameter in seconds
+            serviceProvider.timeoutEventIn(deviceHandle, AUDIO_RECORDING, timeout, TimeUnit.SECONDS);
+            //
+            while (true) {
+                // waiting for the event during 1 second
+                // getting the operation result after waiting for operation complete
+                final OperationResultValue operationResult = oneSecondWaitingForOperationCompleteEvent(session);
+                //
+                // checking timeout, end-of-file or silence operation results
+                // or the operation is completed by masked DTMF input
+                if (isRecordCompleted.test(operationResult) || completedByTerminationSymbol(context)) {
+                    // stopping audio data transmitting by service provider
+                    // and copying recorded data to the target, removing unnecessary temp file
+                    if (!copyRecordedData(context, tempFile, target)) {
+                        session.setState(Device.State.ERROR);
+                        session.operationResult(Result.ERROR);
+                        return Result.ERROR;
+                    }
+                    // record operation is completed by operation's result value
+                    // or the operation is completed by masked DTMF input
+                    // (leaving the loop)
+                    break;
+                    // checking device's hardware error
+                } else if (operationResult == Result.ERROR) {
+                    // device hardware error is detected
+                    final String errorReason = "Record audio is failed.";
+                    return recordAudioError(deviceHandle, tempFile, session, errorReason);
+                    // checking for the operation's interruption
+                } else if (session.isTerminated()) {
+                    // stopping audio data transmitting by service provider
+                    stopAudioRecording(serviceProvider, deviceHandle);
+                    // copying recorded data to the target, removing unnecessary temp file
+                    if (copyRecordedData(context, tempFile, target)) {
+                        session.operationResult(Result.TERMINATED);
+                        session.setState(Device.State.IDLE);
+                    }
+                    return Result.TERMINATED;
+                    // checking for the disconnection during the operation
+                } else if (session.isDisconnected()) {
+                    // stopping audio data transmitting by service provider
+                    stopAudioRecording(serviceProvider, deviceHandle);
+                    session.setState(Device.State.ERROR);
+                    breakingTheSession(session, "Recording audio is failed. The connection is lost.");
+                    //
+                    // disconnecting form the current phone call
+                    disconnect(session);
+                    session.operationResult(Result.CALL.DISCONNECT);
+                    // copying recorded data to the target, removing unnecessary temp file
+                    return copyRecordedData(context, tempFile, target) ? Result.CALL.DISCONNECT : Result.ERROR;
+                }
+            }
+        } catch (IOException e) {
+            session.getDevice().dispatchError(e, "Temporary file creation failed.");
+            session.setState(Device.State.ERROR);
+            session.operationResult(Result.ERROR);
+            return Result.ERROR;
+        } catch (InterruptedException e) {
+            // stopping audio data transmitting by service provider
+            stopAudioRecording(serviceProvider, deviceHandle);
+            session.getDevice().dispatchError(e, "Cannot wait audio data transmitting completion.");
+            session.setState(Device.State.ERROR);
+            session.operationResult(Result.ERROR);
+            /* Clean up whatever needs to be handled before interrupting  */
+            Thread.currentThread().interrupt();
+            return Result.ERROR;
+        }
+        // operation is complete
+        session.getDevice().dispatchEvent("Record audio is completed.");
+        // unconditional stopping audio record's operation
+        stopAudioRecording(serviceProvider, deviceHandle);
+        // make send tone operation is complete
+        session.setState(Device.State.IDLE);
+        return session.operationResult();
     }
 
     /**
@@ -455,12 +444,18 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
     @Override
     public void terminate(PhoneCallSession<H> session) throws IOException {
         if (isOperationInProgress.test(session.getState())) {
-            session.operationComplete(Result.TERMINATED);
+            session.operationCompletingWithResult(Result.TERMINATED);
         }
         session.terminate();
     }
 
     /// private methods
+    // to check is operation completed by the user input's termination mask symbol
+    private boolean completedByTerminationSymbol(final GeneralContext context) {
+        final String sessionUserInput = context.session.parameter(Device.Parameter.USER_INPUT);
+        return context.session.operationResult() == Result.IO.DTMF && context.isTerminatedBy(sessionUserInput);
+    }
+
     // to check input session's state
     private boolean canProceed(final PhoneCallSession<H> session, BooleanSupplier isSupportFormat) {
         return session.isAlive() && isOpened(session) && isSupportFormat.getAsBoolean();
@@ -507,7 +502,7 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
         serviceProvider.enableEvents(deviceHandle, Result.CALL.DISCONNECT);
         //
         // creating audio play back context for the audio playing
-        final PlaybackContext context = new PlaybackContext();
+        final PlaybackContext context = new PlaybackContext(session);
         context.serviceProvider = serviceProvider;
         context.deviceHandle = deviceHandle;
         return context;
@@ -552,7 +547,7 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
         serviceProvider.enableEvents(deviceHandle, Result.CALL.DISCONNECT);
         //
         // creating audio play back context for the audio playing
-        final RecordContext context = new RecordContext();
+        final RecordContext context = new RecordContext(session);
         context.serviceProvider = serviceProvider;
         context.deviceHandle = deviceHandle;
         return context;
@@ -646,22 +641,28 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
     }
 
     // waiting for the next event for the device's session
-    private static <H> void oneSecondWaitingForOperationCompleteEvent(PhoneCallSession<H> session) throws InterruptedException {
+    private static <H> OperationResultValue oneSecondWaitingForOperationCompleteEvent(PhoneCallSession<H> session) throws InterruptedException {
         // continue waiting for the next event
         session.operationResult(Result.NONE);
         // continue waiting for a bit lesser duration
         session.waitingForOperationComplete(1000L);
+        return session.operationResult();
     }
 
     /// inner classes
     //  the general context for multimedia IO operation
     private class GeneralContext {
+        final PhoneCallSession<H> session;
         TelephonyServiceProvider<H> serviceProvider;
         H deviceHandle;
         File tempFile;
         Audio format;
         int timeout = -1;
         String termMask = "";
+
+        protected GeneralContext(PhoneCallSession<H> session) {
+            this.session = session;
+        }
 
         boolean hasTerminationMask() {
             return !isStringEmpty.test(termMask);
@@ -684,11 +685,19 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
     // the context for audio playing back operation
     private class PlaybackContext extends GeneralContext {
         InputStream source;
+
+        protected PlaybackContext(PhoneCallSession<H> session) {
+            super(session);
+        }
     }
 
     // the context for audio record operation
     private class RecordContext extends GeneralContext {
         OutputStream target;
         int silence;
+
+        protected RecordContext(PhoneCallSession<H> session) {
+            super(session);
+        }
     }
 }

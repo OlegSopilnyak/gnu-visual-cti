@@ -198,7 +198,7 @@ public class PhoneCallSessionTest {
     @Test
     public void shouldWaitForOperationComplete_Interrupted() throws InterruptedException {
         // preparing test data
-        executor.schedule(() -> session.operationComplete(Result.OK), 50, TimeUnit.MILLISECONDS);
+        executor.schedule(() -> session.operationCompletingWithResult(Result.OK), 50, TimeUnit.MILLISECONDS);
 
         // acting
         session.waitingForOperationComplete(200L);
@@ -231,7 +231,7 @@ public class PhoneCallSessionTest {
         await().until(() -> session.operationResult() == Result.NONE);
 
         // acting
-        session.operationComplete(Result.TERMINATED);
+        session.operationCompletingWithResult(Result.TERMINATED);
 
         // check results
         assertThat(session.operationResult()).isSameAs(Result.TERMINATED);
@@ -541,7 +541,7 @@ public class PhoneCallSessionTest {
         session.proceedDeviceSpecificEvent(event);
 
         // check the behavior
-        verify(session).operationComplete(Result.CALL.RINGS);
+        verify(session).operationCompletingWithResult(Result.CALL.RINGS);
         verify(factory, never()).onDeviceEvent(any(DeviceEvent.class));
         // check results
         assertThat(session.getState()).isSameAs(TelephonyDevice.State.WAIT);
@@ -582,7 +582,7 @@ public class PhoneCallSessionTest {
 
         // check the behavior
         verify(session).alive(false);
-        verify(session).operationComplete(Result.CALL.DISCONNECT);
+        verify(session).operationCompletingWithResult(Result.CALL.DISCONNECT);
         // check results
     }
 
@@ -608,7 +608,7 @@ public class PhoneCallSessionTest {
         verify(session).parameterOrDefault(Device.Parameter.USER_INPUT,"");
         verify(event).getOption(DeviceEvent.Option.INPUT);
         verify(session).parameter(Device.Parameter.USER_INPUT,userInput);
-        verify(session).operationComplete(Result.IO.DTMF);
+        verify(session).operationCompletingWithResult(Result.IO.DTMF);
         // check results
         assertThat(session.<String>parameter(Device.Parameter.USER_INPUT)).isEqualTo(userInput);
         session.proceedDeviceSpecificEvent(event);
@@ -651,7 +651,7 @@ public class PhoneCallSessionTest {
 
         // check the behavior
         verify(device).dispatchError(errorDescription);
-        verify(session).operationComplete(Result.ERROR);
+        verify(session).operationCompletingWithResult(Result.ERROR);
         // check results
         assertThat(accepted).isTrue();
     }

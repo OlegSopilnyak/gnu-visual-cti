@@ -123,7 +123,6 @@ public class PhoneCallsPane<H extends SoundCardHandle> extends JPanel {
             setHandset(activePhoneCallSession.isAlive());
         });
         // answered call button
-        answered.setFocusable(false);
         answered.addActionListener(e -> answerCall());
     }
 
@@ -187,6 +186,7 @@ public class PhoneCallsPane<H extends SoundCardHandle> extends JPanel {
         state.setBorder(null);
         state.setFont(new Font("sanserif", Font.BOLD, 12));
         state.setEditable(false);
+        dropCall.setFocusable(false);
         phoneCallStatus.add(state, BorderLayout.CENTER);
         phoneCallStatus.add(dropCall, BorderLayout.EAST);
         return phoneCallStatus;
@@ -240,13 +240,14 @@ public class PhoneCallsPane<H extends SoundCardHandle> extends JPanel {
     private final class WaitForIncomingCallPane extends JPanel {
         WaitForIncomingCallPane() {
             super(new FlowLayout(FlowLayout.CENTER), false);
-            add(ring);
             setBorder(new TitledBorder("Wait For PhoneCall"));
+            add(ring);
             ring.setFocusPainted(false);
         }
 
         @Override
         public void setEnabled(boolean enabled) {
+            super.setEnabled(enabled);
             ring.setEnabled(!enabled);
         }
     }
@@ -273,7 +274,7 @@ public class PhoneCallsPane<H extends SoundCardHandle> extends JPanel {
             randomCheck.setEnabled(false);
             answerType = new JComboBox<>(types);
             // preparing call analysis control pane
-            answered.setFocusPainted(false);
+            answerType.setFocusable(false);
             //
             // adding answer call analysis pane to the center of the root pane
             add(buildingAnswerCallAnalysisPane(), BorderLayout.CENTER);

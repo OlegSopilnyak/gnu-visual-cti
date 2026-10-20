@@ -47,7 +47,9 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Predicate;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceActivitySession;
+import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.DeviceStateValue;
+import org.visualcti.core.channel.device.adapter.AbstractDeviceEvent;
 import org.visualcti.core.channel.device.adapter.AbstractDeviceSession;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.TelephonyDevice;
@@ -258,6 +260,8 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
                         session.operationResult(Result.CALL.ALERTING);
                         // enabling call's disconnect events producing for the opened handle
                         getProvider().enableEvents(session.getDeviceHandle(), Result.CALL.DISCONNECT);
+                        // activating dial pad
+                        ui.activateDialPad();
                     } else {
                         // setting up the appropriate operation result
                         session.operationResult(Result.CALL.RINGS);
@@ -406,7 +410,7 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
             }
         } else {
             session.setState(Device.State.ERROR);
-            session.operationComplete(Result.ERROR);
+            session.operationCompletingWithResult(Result.ERROR);
             // it's impossible to make outgoing call
             return false;
         }
@@ -428,15 +432,41 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
     }
 
     /**
+     * <accessor>
+     * To take entered symbols.<BR/>
+     * The string of the input symbols from the buffer comes back.<BR/>
+     * Internal input buffer will be cleaned
+     *
+     * @param session the phone call's session, device is working with
+     * @return digits sequence accepted by user's input
+     * @see AbstractTelephonyDevice#getInputSymbols(PhoneCallSession)
+     * @see #userInput(PhoneCallSession, String)
+     */
+    @Override
+    public String getInputSymbols(PhoneCallSession<H> session) {
+        // clearing the dial pad UI for get input symbols operation
+        uiHolder.get().clearDialPad();
+        // doing super action
+        return super.getInputSymbols(session);
+    }
+
+    /**
      * <notify>
      * From UI notification when pressed button in dial pad
      *
      * @param activePhoneCallSession active device's session
      * @param inputCharacter         pressed symbol
+     * @see org.visualcti.workflow.hardware.javasound.ui.panel.DtmfInputPane.DialPadButton
      */
     public void userInput(final PhoneCallSession<H> activePhoneCallSession, final String inputCharacter) {
         // playing dtmf tone of the character
         dial(activePhoneCallSession, inputCharacter);
+        // sending DTMF device event
+        ((SoundCardServiceProvider<H>) getProvider()).putEvent(AbstractDeviceEvent.<H>of(DeviceEvent.Type.DEVICE_SPECIFIC)
+                .deviceHandle(activePhoneCallSession.getDeviceHandle()).description("User Input")
+                .deviceName(SoundCardServiceProvider.SOUND_DEVICE).vendor(SoundCardServiceProvider.DEVICE_FACTORY_VENDOR)
+                .option(DeviceEvent.Option.REASON, Result.IO.DTMF).option(DeviceEvent.Option.INPUT, inputCharacter)
+        );
     }
 
     public void setRecordFormat(Audio selected) {

@@ -96,6 +96,7 @@ public class SoundCardUI<H extends SoundCardHandle> extends JPanel {
         //
         // making tabbed panes
         final JTabbedPane modes = new JTabbedPane(BOTTOM);
+        modes.setFocusable(false);
         modes.setFont(new Font("dialog", Font.BOLD, 9));
         super.add(modes, BorderLayout.CENTER);
         modes.addTab("PhoneCall", callsControlPane);
@@ -143,5 +144,13 @@ public class SoundCardUI<H extends SoundCardHandle> extends JPanel {
             return;
         }
         callsControlPane.makingCallResult(answeredResultsQueue);
+    }
+
+    public void activateDialPad() {
+        dtmfInputPane.activateDialPad();
+    }
+
+    public void clearDialPad() {
+        dtmfInputPane.clearDtmfBuffer();
     }
 }

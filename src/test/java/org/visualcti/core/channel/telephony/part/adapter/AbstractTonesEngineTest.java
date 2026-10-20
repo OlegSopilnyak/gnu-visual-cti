@@ -341,7 +341,7 @@ public class AbstractTonesEngineTest<H> {
         engine.uses(device);
         session.alive(true);
         doReturn(true).when(provider).startToneSending(deviceHandle, tone);
-        executor.schedule(() -> session.operationComplete(Result.ERROR), 100, TimeUnit.MILLISECONDS);
+        executor.schedule(() -> session.operationCompletingWithResult(Result.ERROR), 100, TimeUnit.MILLISECONDS);
 
         // acting
         Throwable error = assertThrows(Throwable.class, () -> engine.playTone(session, id, time));
@@ -379,7 +379,7 @@ public class AbstractTonesEngineTest<H> {
         doReturn(true).when(provider).startToneSending(deviceHandle, tone);
         executor.schedule(() -> {
             session.alive(false);
-            session.operationComplete(Result.CALL.DISCONNECT);
+            session.operationCompletingWithResult(Result.CALL.DISCONNECT);
         }, 100, TimeUnit.MILLISECONDS);
 
         // acting
@@ -450,7 +450,7 @@ public class AbstractTonesEngineTest<H> {
         doReturn(true).when(session).isAlive();
         executor.schedule(() -> {
             session.parameter(Device.Parameter.USER_INPUT, userInput);
-            session.operationComplete(Result.IO.DTMF);
+            session.operationCompletingWithResult(Result.IO.DTMF);
         }, 100, TimeUnit.MILLISECONDS);
 
         // acting
@@ -488,7 +488,7 @@ public class AbstractTonesEngineTest<H> {
         doReturn(true).when(session).isAlive();
         executor.schedule(() -> {
             session.parameter(Device.Parameter.USER_INPUT, userInput);
-            session.operationComplete(Result.IO.DTMF);
+            session.operationCompletingWithResult(Result.IO.DTMF);
         }, 100, TimeUnit.MILLISECONDS);
 
         // acting
@@ -526,7 +526,7 @@ public class AbstractTonesEngineTest<H> {
         doReturn(true).when(session).isAlive();
         executor.schedule(() -> {
             session.parameter(Device.Parameter.USER_INPUT, userInput);
-            session.operationComplete(Result.IO.DTMF);
+            session.operationCompletingWithResult(Result.IO.DTMF);
         }, 100, TimeUnit.MILLISECONDS);
 
         // acting
@@ -607,7 +607,7 @@ public class AbstractTonesEngineTest<H> {
         session.alive(true);
         executor.schedule(() -> {
             session.alive(false);
-            session.operationComplete(Result.CALL.DISCONNECT);
+            session.operationCompletingWithResult(Result.CALL.DISCONNECT);
         }, 100, TimeUnit.MILLISECONDS);
 
         // acting
@@ -634,7 +634,7 @@ public class AbstractTonesEngineTest<H> {
         engine.uses(device);
         doReturn(true).when(session).isOpened();
         doReturn(true).when(session).isAlive();
-        executor.schedule(() -> session.operationComplete(Result.ERROR), 100, TimeUnit.MILLISECONDS);
+        executor.schedule(() -> session.operationCompletingWithResult(Result.ERROR), 100, TimeUnit.MILLISECONDS);
 
         // acting
         Throwable error = assertThrows(Throwable.class,

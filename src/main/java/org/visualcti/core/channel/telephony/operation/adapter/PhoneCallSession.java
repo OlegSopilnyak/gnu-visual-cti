@@ -417,7 +417,7 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
             // signaling about device's malfunction
             device.dispatchError(String.valueOf(event.getDescription()));
             // the malfunction is detected during device's operation
-            operationComplete(Result.ERROR);
+            operationCompletingWithResult(Result.ERROR);
         }
         // accepted event is processed well
         return true;
@@ -436,7 +436,7 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
      * @see Result#TERMINATED
      * @see Result.CALL#DISCONNECT
      * @see Result.IO#DTMF
-     * @see #operationComplete(OperationResultValue)
+     * @see #operationCompletingWithResult(OperationResultValue)
      */
     protected void proceedDeviceSpecificEvent(final DeviceEvent<H> event) {
         final Optional<OperationResultValue> eventReason = event.getOption(DeviceEvent.Option.REASON);
@@ -458,7 +458,7 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
                 userInputDetected(event);
             } else {
                 // other event types just completing the operation which is waiting for complete
-                operationComplete(reason);
+                operationCompletingWithResult(reason);
             }
         }
     }
@@ -470,7 +470,7 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
         if (currentState == WAIT) {
             // detected incoming call event for session in WAIT state
             // completing the operation which wait for complete if any
-            operationComplete(Result.CALL.RINGS);
+            operationCompletingWithResult(Result.CALL.RINGS);
         } else if (currentState == IDLE && isDisconnected()) {
             // detected incoming call event for session in IDLE state
             // and phone call isn't alive as well
@@ -493,15 +493,18 @@ public abstract class PhoneCallSession<H> extends AbstractDeviceSession<H> imple
     private void operationDisconnectIsDetected() {
         alive(false);
         // completing the operation which wait for complete if any
-        operationComplete(Result.CALL.DISCONNECT);
+        operationCompletingWithResult(Result.CALL.DISCONNECT);
     }
 
     // user input detected in the current operation, accepted event with 'dtmf' reason
     private void userInputDetected(final DeviceEvent<H> event) {
-        // getting user input from the event and store it to the parameter of phone-call-session
-        this.parameter(Device.Parameter.USER_INPUT, parameterOrDefault(Device.Parameter.USER_INPUT, "")
-                + event.<String>getOption(DeviceEvent.Option.INPUT).orElse(""));
-        // completing the operation which wait for complete if any
-        operationComplete(Result.IO.DTMF);
+        // getting user input value from the event
+        final Optional<String> eventUserInput = event.getOption(DeviceEvent.Option.INPUT);
+        // getting stored user input value from the 'phone call session'
+        final String sessionUserInput = parameterOrDefault(Device.Parameter.USER_INPUT, "");
+        // updating the value of session's parameter (user input)
+        parameter(Device.Parameter.USER_INPUT, sessionUserInput + eventUserInput.orElse(""));
+        // completing the operation which is waiting for complete if any
+        operationCompletingWithResult(Result.IO.DTMF);
     }
 }

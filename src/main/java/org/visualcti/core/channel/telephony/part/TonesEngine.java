@@ -167,7 +167,7 @@ public interface TonesEngine<H> extends TelephonyDevicePart<H> {
      * @return digits sequence accepted by user's input
      * @see #inputDigits(PhoneCallSession, int, int, String)
      */
-    default String getInputSymbols(PhoneCallSession<H> session) {
+    default String getInputSymbols(final PhoneCallSession<H> session) {
         try {
             return session.parameterOrDefault(Device.Parameter.USER_INPUT, "");
         } finally {

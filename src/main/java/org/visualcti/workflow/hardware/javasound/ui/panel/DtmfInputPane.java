@@ -100,15 +100,23 @@ public class DtmfInputPane<H extends SoundCardHandle> extends JPanel implements 
     public void setEnabled(boolean enabled) {
         inputPad.setEnabled(enabled);
         dialPad.setEnabled(enabled);
-        updateSafely(() -> {
-            dtmfBuffer.setText("");
-            dtmfBuffer.setEnabled(enabled);
-            Arrays.stream(dialPad.getComponents())
-                    .filter(JButton.class::isInstance).forEach(c -> c.setEnabled(enabled));
-        });
+        dtmfBuffer.setEnabled(enabled);
+        clearDtmfBuffer();
+        updateSafely(() -> Arrays.stream(dialPad.getComponents())
+                .filter(JButton.class::isInstance).forEach(c -> c.setEnabled(enabled)));
+        // getting focus for dial-pad
         if (enabled) {
-            dialPad.requestFocus();
+            activateDialPad();
         }
+    }
+
+    public void activateDialPad() {
+        dtmfBuffer.setEnabled(true);
+        dialPad.requestFocusInWindow();
+    }
+
+    public void clearDtmfBuffer() {
+        dtmfBuffer.setText("");
     }
 
     @Override
@@ -141,7 +149,7 @@ public class DtmfInputPane<H extends SoundCardHandle> extends JPanel implements 
     }
 
     // private inner classes
-    private class DialPadButton extends JButton {
+    public class DialPadButton extends JButton {
         public DialPadButton(String input) {
             super(input);
             setFocusPainted(false);

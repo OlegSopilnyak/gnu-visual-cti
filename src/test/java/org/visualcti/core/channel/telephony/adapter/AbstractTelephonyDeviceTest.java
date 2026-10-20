@@ -183,7 +183,7 @@ public class AbstractTelephonyDeviceTest<H> {
         factory.addDevice(device);
         device.setXML(new Element(deviceVendor));
         factory.addDevice(mockedDevice);
-        session = (PhoneCallSession<H>) device.startSession();
+        session = device.startSession();
     }
 
     @Test
@@ -194,7 +194,7 @@ public class AbstractTelephonyDeviceTest<H> {
         doReturn(deviceHandle).when(provider).openResource(telephonyDeviceName);
 
         // acting
-        PhoneCallSession<H> startedSession = (PhoneCallSession<H>) device.startSession();
+        PhoneCallSession<H> startedSession = device.startSession();
 
         // check the behavior
         verify(provider).openResource(telephonyDeviceName);
@@ -230,7 +230,7 @@ public class AbstractTelephonyDeviceTest<H> {
         doReturn(true).when(device).canBeConnected();
 
         // acting
-        PhoneCallSession<H> startedSession = (PhoneCallSession<H>) device.startSession();
+        PhoneCallSession<H> startedSession = device.startSession();
 
         // check the behavior
         verify(provider).openResource(telephonyDeviceName);
@@ -397,13 +397,13 @@ public class AbstractTelephonyDeviceTest<H> {
         // check the behavior
         verify(calls).waitForCall(session, rings, timeout, answer);
         verify(calls).canAcceptCall();
-        verify(session, never()).isDisconnected();
+        verify(session).isDisconnected();
         verify(calls, never()).canBeConnected();
         // check results
         assertThat(success).isFalse();
         assertThat(session.isAlive()).isFalse();
         assertThat(session.getState()).isSameAs(Device.State.ERROR);
-        assertThat(session.operationResult()).isSameAs(Result.NONE);
+        assertThat(session.operationResult()).isSameAs(Result.ERROR);
     }
 
     @Test
@@ -482,7 +482,7 @@ public class AbstractTelephonyDeviceTest<H> {
         verify(calls).makeCall(session, target, timeout);
         verify(calls).canMakeCall();
         verify(session, atLeastOnce()).getDeviceHandle();
-        verify(session, never()).isDisconnected();
+        verify(session).isDisconnected();
         // check results
         assertThat(success).isFalse();
         assertThat(session.isAlive()).isFalse();
@@ -1318,7 +1318,7 @@ public class AbstractTelephonyDeviceTest<H> {
                 // doing nothing here
             }
             // completing fax document transmitting operation
-            session.operationComplete(Result.IO.EOF);
+            session.operationCompletingWithResult(Result.IO.EOF);
         };
 
         // acting
@@ -1371,7 +1371,7 @@ public class AbstractTelephonyDeviceTest<H> {
                 assertThrows(Throwable.class, () -> device.receive(session, target, pollingMode, issueVoiceRequest))
         );
         await().until(() -> session.operationIsActive());
-        shadowExecutor.schedule(() -> session.operationComplete(Result.ERROR), 50, TimeUnit.MILLISECONDS);
+        shadowExecutor.schedule(() -> session.operationCompletingWithResult(Result.ERROR), 50, TimeUnit.MILLISECONDS);
         Throwable error = action.get();
 
         // check the behavior
@@ -1381,7 +1381,7 @@ public class AbstractTelephonyDeviceTest<H> {
         verifyReceiveFaxEventsManagement(provider, faxHandle);
         verify(session).setState(TelephonyDevice.State.RECVFAX);
         verify(provider).startFaxReceiving(eq(faxHandle), anyString(), eq(issueVoiceRequest));
-        verify(session).waitingForOperationComplete(1000L);
+        verify(session, atLeastOnce()).waitingForOperationComplete(1000L);
         verify(provider).stopFaxReceiving(faxHandle);
         verify(device).dispatchError(errorReason);
         verify(session, times(2)).operationResult(Result.ERROR);
@@ -1474,7 +1474,7 @@ public class AbstractTelephonyDeviceTest<H> {
                 () -> device.transmit(session, source, format, issueVoiceRequest)
         );
         await().until(() -> session.operationIsActive());
-        shadowExecutor.schedule(() -> session.operationComplete(Result.IO.EOF), 50, TimeUnit.MILLISECONDS);
+        shadowExecutor.schedule(() -> session.operationCompletingWithResult(Result.IO.EOF), 50, TimeUnit.MILLISECONDS);
         OperationResultValue result = action.get();
 
         // check the behavior
@@ -1513,7 +1513,7 @@ public class AbstractTelephonyDeviceTest<H> {
                 assertThrows(Throwable.class, () -> device.transmit(session, source, format, issueVoiceRequest))
         );
         await().until(() -> session.operationIsActive());
-        shadowExecutor.schedule(() -> session.operationComplete(Result.ERROR), 50, TimeUnit.MILLISECONDS);
+        shadowExecutor.schedule(() -> session.operationCompletingWithResult(Result.ERROR), 50, TimeUnit.MILLISECONDS);
         Throwable error = action.get();
 
         // check the behavior
@@ -1748,7 +1748,7 @@ public class AbstractTelephonyDeviceTest<H> {
                 () -> device.playbackAudio(session, source, format, terminationSymbolsMask, timeout)
         );
         await().until(() -> session.operationIsActive());
-        shadowExecutor.schedule(() -> session.operationComplete(Result.IO.EOF), 50, TimeUnit.MILLISECONDS);
+        shadowExecutor.schedule(() -> session.operationCompletingWithResult(Result.IO.EOF), 50, TimeUnit.MILLISECONDS);
         OperationResultValue result = action.get();
 
         // check the behavior
@@ -1765,8 +1765,8 @@ public class AbstractTelephonyDeviceTest<H> {
         verify(provider).timeoutEventIn(eq(deviceHandle), anyString(), eq((long) timeout), eq(TimeUnit.SECONDS));
         verify(provider).sendTimeoutEventFor(eq(deviceHandle), anyString());
         verify(session).waitingForOperationComplete(1000L);
-        verify(session).operationComplete(Result.IO.EOF);
-        verify(session, never()).operationComplete(Result.TIMEOUT);
+        verify(session).operationCompletingWithResult(Result.IO.EOF);
+        verify(session, never()).operationCompletingWithResult(Result.TIMEOUT);
         verify(provider).stopAudioPlaying(deviceHandle);
         // check results
         assertThat(result).isEqualTo(Result.IO.EOF);
@@ -1802,8 +1802,8 @@ public class AbstractTelephonyDeviceTest<H> {
         verify(provider).timeoutEventIn(eq(deviceHandle), anyString(), eq((long) timeout), eq(TimeUnit.SECONDS));
         verify(provider).sendTimeoutEventFor(eq(deviceHandle), anyString());
         verify(session, atLeastOnce()).waitingForOperationComplete(1000L);
-        verify(session, never()).operationComplete(Result.IO.EOF);
-        verify(session).operationComplete(Result.TIMEOUT);
+        verify(session, never()).operationCompletingWithResult(Result.IO.EOF);
+        verify(session).operationCompletingWithResult(Result.TIMEOUT);
         verify(provider).stopAudioPlaying(deviceHandle);
         // check results
         assertThat(result).isEqualTo(Result.TIMEOUT);
@@ -1829,7 +1829,7 @@ public class AbstractTelephonyDeviceTest<H> {
                 )
         );
         await().until(() -> session.operationIsActive());
-        shadowExecutor.schedule(() -> session.operationComplete(Result.ERROR), 50, TimeUnit.MILLISECONDS);
+        shadowExecutor.schedule(() -> session.operationCompletingWithResult(Result.ERROR), 50, TimeUnit.MILLISECONDS);
         Throwable error = action.get();
 
         // check the behavior
@@ -1846,8 +1846,8 @@ public class AbstractTelephonyDeviceTest<H> {
         verify(provider).timeoutEventIn(eq(deviceHandle), anyString(), eq((long) timeout), eq(TimeUnit.SECONDS));
         verify(provider).sendTimeoutEventFor(eq(deviceHandle), anyString());
         verify(session).waitingForOperationComplete(1000L);
-        verify(session, never()).operationComplete(Result.IO.EOF);
-        verify(session).operationComplete(Result.ERROR);
+        verify(session, never()).operationCompletingWithResult(Result.IO.EOF);
+        verify(session).operationCompletingWithResult(Result.ERROR);
         verify(provider).stopAudioPlaying(deviceHandle);
         // check results
         assertThat(error).isInstanceOf(DeviceMalfunction.class);
@@ -2088,7 +2088,7 @@ public class AbstractTelephonyDeviceTest<H> {
                 // doing nothing here
             }
             // completing media-data transmitting operation (end of media data)
-            session.operationComplete(recordingResult);
+            session.operationCompletingWithResult(recordingResult);
         }, 50, TimeUnit.MILLISECONDS);
         OperationResultValue result = action.get();
 
@@ -2189,7 +2189,7 @@ public class AbstractTelephonyDeviceTest<H> {
                 )
         );
         await().until(() -> session.operationIsActive());
-        shadowExecutor.schedule(() -> session.operationComplete(recordingResult), 50, TimeUnit.MILLISECONDS);
+        shadowExecutor.schedule(() -> session.operationCompletingWithResult(recordingResult), 50, TimeUnit.MILLISECONDS);
         Throwable error = action.get();
 
         // check the behavior
@@ -2304,7 +2304,7 @@ public class AbstractTelephonyDeviceTest<H> {
                 assertThrows(Throwable.class, () -> device.playTone(session, tone))
         );
         await().until(() -> session.operationIsActive());
-        shadowExecutor.schedule(() -> session.operationComplete(Result.ERROR), 50, TimeUnit.MILLISECONDS);
+        shadowExecutor.schedule(() -> session.operationCompletingWithResult(Result.ERROR), 50, TimeUnit.MILLISECONDS);
         Throwable error = recording.get();
 
         // check the behavior
@@ -2373,7 +2373,7 @@ public class AbstractTelephonyDeviceTest<H> {
                 assertThrows(Throwable.class, () -> device.inputDigits(session, digitsCount, timeout, terminationSymbolsMask))
         );
         await().until(() -> session.operationIsActive());
-        shadowExecutor.schedule(() -> session.operationComplete(Result.ERROR), 50, TimeUnit.MILLISECONDS);
+        shadowExecutor.schedule(() -> session.operationCompletingWithResult(Result.ERROR), 50, TimeUnit.MILLISECONDS);
         Throwable error = recording.get();
 
         // check the behavior
@@ -3029,7 +3029,7 @@ public class AbstractTelephonyDeviceTest<H> {
 
         @Override
         protected Runnable sendTimeoutEventFor(H handle, String actionName) {
-            return () -> session.operationComplete(Result.TIMEOUT);
+            return () -> session.operationCompletingWithResult(Result.TIMEOUT);
         }
 
         @Override

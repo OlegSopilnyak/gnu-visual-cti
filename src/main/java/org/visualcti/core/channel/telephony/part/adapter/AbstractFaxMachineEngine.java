@@ -326,7 +326,7 @@ public abstract class AbstractFaxMachineEngine<H> extends AbstractDevicePart<H> 
                     throw new IOException("Cannot start FAX sending");
                 }
                 // start to wait for the operation result
-                session.operationComplete(Result.NONE);
+                session.operationCompletingWithResult(Result.NONE);
                 // waiting for operation complete event from the events source for particular device handle
                 while (session.getState() == TelephonyDevice.State.SENDFAX) {
                     // waiting for an event during the fax document transmitting
@@ -461,7 +461,7 @@ public abstract class AbstractFaxMachineEngine<H> extends AbstractDevicePart<H> 
     // terminate current fax machine active operation
     private void terminateOperation(PhoneCallSession<H> session, Consumer<H> operation) {
         operation.accept(session.parameter(Device.Parameter.FAX_DEVICE_HANDLE));
-        session.operationComplete(Result.TERMINATED);
+        session.operationCompletingWithResult(Result.TERMINATED);
     }
 
     // copying received fax document from temporary file to the target output stream

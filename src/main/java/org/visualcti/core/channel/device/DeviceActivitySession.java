@@ -41,6 +41,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
 
 /**
@@ -152,13 +153,59 @@ public interface DeviceActivitySession<H> extends DeviceEvent.Listener, Closeabl
 
     /**
      * <action>
-     * To wait for the running operation complete or timeout
+     * To wait for the running operation's completion or timeout
      *
-     * @param timeout how long to wait
+     * @param timeout how long to wait (negative forever)
      * @throws InterruptedException if operation is interrupted outside
+     * @see #parameter(Device.ParameterName)
+     * @see Device.Parameter#LATCH
+     * @see CountDownLatch#await(long, TimeUnit)
+     * @see CountDownLatch#await()
+     * @see Device#dispatchEvent(String)
      */
-    default void waitingForOperationComplete(long timeout) throws InterruptedException {
-        throw new UnsupportedOperationException("Not supported yet.");
+    default void waitingForOperationComplete(final long timeout) throws InterruptedException {
+        // preparing running operation's latch
+        final CountDownLatch completeOperationLatch = new CountDownLatch(1);
+        // saving the latch as session's parameter
+        this.parameter(Device.Parameter.LATCH, completeOperationLatch);
+        // doing by timeout value
+        if (timeout > 0) {
+            // positive value of the timeout
+            // start waiting until operation complete or timeout
+            if (completeOperationLatch.await(timeout, TimeUnit.MILLISECONDS)) {
+                // latch was notified outside
+                getDevice().dispatchEvent("Operation was completed");
+            } else {
+                // latch wasn't notified outside
+                getDevice().dispatchEvent("Operation was timed out");
+            }
+        } else {
+            // negative or zero value of the timeout
+            // start waiting until operation complete (no limits)
+            completeOperationLatch.await();
+        }
+    }
+
+    /**
+     * <action>
+     * To notify about the previously running in the phone-call-session operation is completed
+     *
+     * @param completionReason the reason of the operation's complete
+     * @see #waitingForOperationComplete(long)
+     * @see #operationResult(OperationResultValue)
+     * @see #remove(Device.ParameterName)
+     * @see Device.Parameter#LATCH
+     * @see CountDownLatch#countDown()
+     */
+    default void operationCompletingWithResult(final OperationResultValue completionReason) {
+        // updating session's operation result
+        operationResult(completionReason);
+        // completing the operation which is waiting for complete
+        final CountDownLatch completeOperationLatch = remove(Device.Parameter.LATCH);
+        if ((completeOperationLatch) != null) {
+            // releasing the latch of running operation
+            completeOperationLatch.countDown();
+        }
     }
 
     /**
@@ -168,29 +215,14 @@ public interface DeviceActivitySession<H> extends DeviceEvent.Listener, Closeabl
      *
      * @return true if operation is waiting for completion
      * @see #waitingForOperationComplete(long)
-     * @see #operationComplete(OperationResultValue)
+     * @see #operationCompletingWithResult(OperationResultValue)
+     * @see #parameter(Device.ParameterName)
+     * @see Device.Parameter#LATCH
+     * @see CountDownLatch#getCount()
      */
     default boolean operationIsActive() {
         final CountDownLatch completeOperationLatch = parameter(Device.Parameter.LATCH);
         return completeOperationLatch != null && completeOperationLatch.getCount() > 0;
-    }
-
-    /**
-     * <action>
-     * To notify about the previously running in the phone-call-session operation is completed
-     *
-     * @param completionReason the reason of the operation's complete
-     * @see #waitingForOperationComplete(long)
-     */
-    default void operationComplete(final OperationResultValue completionReason) {
-        // updating session's operation result
-        operationResult(completionReason);
-        // completing the operation which is waiting for complete
-        final CountDownLatch completeOperationLatch = remove(Device.Parameter.LATCH);
-        if ((completeOperationLatch) != null) {
-            // releasing the latch of running operation
-            completeOperationLatch.countDown();
-        }
     }
 
     /**

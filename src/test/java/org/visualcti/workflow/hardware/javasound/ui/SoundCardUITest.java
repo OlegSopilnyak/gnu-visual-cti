@@ -56,6 +56,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import org.jdom.DataConversionException;
 import org.junit.Test;
 import org.visualcti.core.channel.telephony.TelephonyDevice;
+import org.visualcti.core.channel.telephony.operation.Result;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneNumber;
 import org.visualcti.util.Tools;
@@ -66,24 +67,27 @@ import org.visualcti.workflow.hardware.javasound.SoundCardServiceProvider;
 
 public class SoundCardUITest {
     public static <H extends SoundCardHandle> void main(String[] args) throws IOException, DataConversionException {
-        ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
+        ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(12);
         SoundCardServiceProvider<H> provider = new SoundCardServiceProvider<>(scheduler);
         try (SoundCardDevicesFactory<H, ?> factory = new SoundCardDevicesFactory<>(scheduler, provider)) {
             factory.open();
+            factory.Start();
             SoundCardDevice<H, ?> device = factory.devices().findFirst()
                     .orElseThrow(() -> new NoSuchElementException("No any device in the factory."));
             PhoneCallSession<H> session = device.startSession();
             // emulate connected phone call session
-            SoundCardUI<H> pane = device.getUI();
             JFrame frame = new JFrame("Emulator");
-            frame.getContentPane().add(pane, BorderLayout.CENTER);
+            frame.getContentPane().add(device.getUI(), BorderLayout.CENTER);
             JPanel control = new JPanel();
             control.setLayout(new BoxLayout(control, BoxLayout.Y_AXIS));
             frame.getContentPane().add(control, BorderLayout.SOUTH);
             control.add(callControlPane(session, scheduler));
+            control.add(userInputPane(session, scheduler));
             frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
             frame.pack();
             frame.setVisible(true);
+            // enabling to get of DTMF events
+            provider.enableEvents(session.getDeviceHandle(), Result.IO.DTMF);
         }
     }
 
@@ -98,6 +102,8 @@ public class SoundCardUITest {
             Tools.print("Waiting for call: 2 rings, 2 secs, answer...");
             Tools.print("Wait for call succeed:" + device.waitForCall(session, 2, 2, true));
             Tools.print("Wait for call result:" + session.operationResult());
+            // enabling to get of DTMF events
+            session.getDevice().getProvider().enableEvents(session.getDeviceHandle(), Result.IO.DTMF);
             test1.setEnabled(true);
         };
         test1.addActionListener(e -> {
@@ -109,6 +115,8 @@ public class SoundCardUITest {
             Tools.print("Waiting for call: 1 rings, 2 secs, no answer...");
             Tools.print("Wait for call succeed:" + device.waitForCall(session, 1, 2, false));
             Tools.print("Wait for call result:" + session.operationResult());
+            // enabling to get of DTMF events
+            session.getDevice().getProvider().enableEvents(session.getDeviceHandle(), Result.IO.DTMF);
             test10.setEnabled(true);
         };
         callControl.add(test10);
@@ -121,6 +129,8 @@ public class SoundCardUITest {
             Tools.print("Making call to :" + target);
             Tools.print("Making call to succeed :" + device.makeCall(session, PhoneNumber.of(target), 5));
             Tools.print("Making call to result :" + session.operationResult());
+            // enabling to get of DTMF events
+            session.getDevice().getProvider().enableEvents(session.getDeviceHandle(), Result.IO.DTMF);
             test2.setEnabled(true);
         };
         test2.addActionListener(e -> {
@@ -128,9 +138,29 @@ public class SoundCardUITest {
             executor.submit(makeCallFor);
         });
         callControl.add(test2);
+        test1.setFocusable(false);
+        test10.setFocusable(false);
+        test2.setFocusable(false);
         return callControl;
     }
 
+    private static <H extends SoundCardHandle> JPanel userInputPane(PhoneCallSession<H> session, ExecutorService executor) {
+        TelephonyDevice<H, ?> device = session.getDevice();
+        JPanel panel = new JPanel(new FlowLayout());
+        panel.setBorder(new TitledBorder("User Input"));
+        JButton test = new JButton("get user input");
+        test.setFocusable(false);
+        Runnable gettingUserInput = () -> {
+            Tools.print("Got user input :[" + device.getInputSymbols(session) + "]");
+            test.setEnabled(true);
+        };
+        test.addActionListener(e -> {
+            test.setEnabled(false);
+            executor.submit(gettingUserInput);
+        });
+        panel.add(test);
+        return panel;
+    }
     @Test
     public void useMain() {
         assertThat(true).isTrue();

@@ -400,7 +400,7 @@ public class AbstractMultimediaEngineTest<H> {
                 engine.playbackAudio(session, source, playbackFormat, terminationSymbolsMask, timeout)
         );
         await().until(() -> session.operationIsActive());
-        executor.schedule(() -> session.operationComplete(Result.IO.EOF), 50, TimeUnit.MILLISECONDS);
+        executor.schedule(() -> session.operationCompletingWithResult(Result.IO.EOF), 50, TimeUnit.MILLISECONDS);
         OperationResultValue result = playback.get();
 
         // check the behavior
@@ -443,7 +443,7 @@ public class AbstractMultimediaEngineTest<H> {
                 engine.playbackAudio(session, source, playbackFormat, terminationSymbolsMask, timeout)
         );
         await().until(() -> session.operationIsActive());
-        executor.schedule(() -> session.operationComplete(Result.TIMEOUT), 50, TimeUnit.MILLISECONDS);
+        executor.schedule(() -> session.operationCompletingWithResult(Result.TIMEOUT), 50, TimeUnit.MILLISECONDS);
         OperationResultValue result = playback.get();
 
         // check the behavior
@@ -487,7 +487,7 @@ public class AbstractMultimediaEngineTest<H> {
                 engine.playbackAudio(session, source, playbackFormat, terminationSymbolsMask, timeout)
         );
         await().until(() -> session.operationIsActive());
-        executor.schedule(() -> session.operationComplete(Result.IO.DTMF), 100, TimeUnit.MILLISECONDS);
+        executor.schedule(() -> session.operationCompletingWithResult(Result.IO.DTMF), 100, TimeUnit.MILLISECONDS);
         OperationResultValue result = playback.get();
 
         // check the behavior
@@ -526,14 +526,14 @@ public class AbstractMultimediaEngineTest<H> {
         preparePlaybackCodecs(playbackFormat);
         doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), any(Path.class), eq(playbackFormat), eq(timeout));
         session.parameter(Device.Parameter.USER_INPUT, terminationSymbolsMask);
-        executor.schedule(() -> session.operationComplete(Result.TIMEOUT), 500, TimeUnit.MILLISECONDS);
+        executor.schedule(() -> session.operationCompletingWithResult(Result.TIMEOUT), 500, TimeUnit.MILLISECONDS);
 
         // acting
         Future<OperationResultValue> playback = executor.submit(() ->
                 engine.playbackAudio(session, source, playbackFormat, terminationSymbolsMask, timeout)
         );
         await().until(() -> session.operationIsActive());
-        executor.schedule(() -> session.operationComplete(Result.IO.DTMF), 100, TimeUnit.MILLISECONDS);
+        executor.schedule(() -> session.operationCompletingWithResult(Result.IO.DTMF), 100, TimeUnit.MILLISECONDS);
         OperationResultValue result = playback.get();
 
         // check the behavior
@@ -572,14 +572,14 @@ public class AbstractMultimediaEngineTest<H> {
         preparePlaybackCodecs(playbackFormat);
         doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), any(Path.class), eq(playbackFormat), eq(timeout));
         session.parameter(Device.Parameter.USER_INPUT, "*");
-        executor.schedule(() -> session.operationComplete(Result.TIMEOUT), 500, TimeUnit.MILLISECONDS);
+        executor.schedule(() -> session.operationCompletingWithResult(Result.TIMEOUT), 500, TimeUnit.MILLISECONDS);
 
         // acting
         Future<OperationResultValue> playback = executor.submit(() ->
                 engine.playbackAudio(session, source, playbackFormat, terminationSymbolsMask, timeout)
         );
         await().until(() -> session.operationIsActive());
-        executor.schedule(() -> session.operationComplete(Result.IO.DTMF), 100, TimeUnit.MILLISECONDS);
+        executor.schedule(() -> session.operationCompletingWithResult(Result.IO.DTMF), 100, TimeUnit.MILLISECONDS);
         OperationResultValue result = playback.get();
 
         // check the behavior
@@ -618,14 +618,14 @@ public class AbstractMultimediaEngineTest<H> {
         preparePlaybackCodecs(playbackFormat);
         doReturn(true).when(provider).startAudioPlaying(eq(deviceHandle), any(Path.class), eq(playbackFormat), eq(timeout));
         session.parameter(Device.Parameter.USER_INPUT, "");
-        executor.schedule(() -> session.operationComplete(Result.TIMEOUT), 500, TimeUnit.MILLISECONDS);
+        executor.schedule(() -> session.operationCompletingWithResult(Result.TIMEOUT), 500, TimeUnit.MILLISECONDS);
 
         // acting
         Future<OperationResultValue> playback = executor.submit(() ->
                 engine.playbackAudio(session, source, playbackFormat, terminationSymbolsMask, timeout)
         );
         await().until(() -> session.operationIsActive());
-        executor.schedule(() -> session.operationComplete(Result.IO.DTMF), 100, TimeUnit.MILLISECONDS);
+        executor.schedule(() -> session.operationCompletingWithResult(Result.IO.DTMF), 100, TimeUnit.MILLISECONDS);
         OperationResultValue result = playback.get();
 
         // check the behavior
@@ -671,7 +671,7 @@ public class AbstractMultimediaEngineTest<H> {
                 )
         );
         await().until(() -> session.operationIsActive());
-        executor.schedule(() -> session.operationComplete(Result.ERROR), 100, TimeUnit.MILLISECONDS);
+        executor.schedule(() -> session.operationCompletingWithResult(Result.ERROR), 100, TimeUnit.MILLISECONDS);
         Throwable result = playback.get();
 
         // check the behavior
@@ -761,7 +761,7 @@ public class AbstractMultimediaEngineTest<H> {
         await().until(() -> session.operationIsActive());
         executor.schedule(() -> {
             session.alive(false);
-            session.operationComplete(Result.CALL.DISCONNECT);
+            session.operationCompletingWithResult(Result.CALL.DISCONNECT);
         }, 100, TimeUnit.MILLISECONDS);
         OperationResultValue result = playback.get();
 
@@ -821,7 +821,7 @@ public class AbstractMultimediaEngineTest<H> {
                 // doing nothing here
             }
             // completing media-data transmitting operation (end of media data)
-            session.operationComplete(recordingResult);
+            session.operationCompletingWithResult(recordingResult);
         }, 50, TimeUnit.MILLISECONDS);
         OperationResultValue result = recording.get();
 
@@ -889,7 +889,7 @@ public class AbstractMultimediaEngineTest<H> {
                 // doing nothing here
             }
             // completing media-data transmitting operation (end of media data)
-            session.operationComplete(recordingResult);
+            session.operationCompletingWithResult(recordingResult);
         }, 50, TimeUnit.MILLISECONDS);
         OperationResultValue result = recording.get();
 
@@ -957,7 +957,7 @@ public class AbstractMultimediaEngineTest<H> {
                 // doing nothing here
             }
             // completing media-data transmitting operation (end of media data)
-            session.operationComplete(Result.IO.DTMF);
+            session.operationCompletingWithResult(Result.IO.DTMF);
         }, 50, TimeUnit.MILLISECONDS);
         OperationResultValue result = recording.get();
 
@@ -1009,7 +1009,7 @@ public class AbstractMultimediaEngineTest<H> {
         );
         OperationResultValue recordingResult = Result.TIMEOUT;
         session.parameter(Device.Parameter.USER_INPUT, "*");
-        executor.schedule(() -> session.operationComplete(recordingResult), 500, TimeUnit.MILLISECONDS);
+        executor.schedule(() -> session.operationCompletingWithResult(recordingResult), 500, TimeUnit.MILLISECONDS);
 
         // acting
         Future<OperationResultValue> recording = executor.submit(() -> {
@@ -1028,7 +1028,7 @@ public class AbstractMultimediaEngineTest<H> {
                 // doing nothing here
             }
             // completing media-data transmitting operation (end of media data)
-            session.operationComplete(Result.IO.DTMF);
+            session.operationCompletingWithResult(Result.IO.DTMF);
         }, 50, TimeUnit.MILLISECONDS);
         OperationResultValue result = recording.get();
 
@@ -1074,7 +1074,7 @@ public class AbstractMultimediaEngineTest<H> {
                 .startAudioRecording(eq(deviceHandle), any(Path.class), eq(recordFormat), eq(silence), eq(timeout));
         OperationResultValue recordingResult = Result.TIMEOUT;
         session.parameter(Device.Parameter.USER_INPUT, "*");
-        executor.schedule(() -> session.operationComplete(Result.TIMEOUT), 500, TimeUnit.MILLISECONDS);
+        executor.schedule(() -> session.operationCompletingWithResult(Result.TIMEOUT), 500, TimeUnit.MILLISECONDS);
 
         // acting
         Future<OperationResultValue> recording = executor.submit(() -> {
@@ -1093,7 +1093,7 @@ public class AbstractMultimediaEngineTest<H> {
                 // doing nothing here
             }
             // completing media-data transmitting operation (end of media data)
-            session.operationComplete(Result.IO.DTMF);
+            session.operationCompletingWithResult(Result.IO.DTMF);
         }, 50, TimeUnit.MILLISECONDS);
         OperationResultValue result = recording.get();
 
@@ -1139,7 +1139,7 @@ public class AbstractMultimediaEngineTest<H> {
                 eq(deviceHandle), any(Path.class), eq(recordFormat), eq(silence), eq(timeout)
         );
         OperationResultValue recordingResult = Result.TIMEOUT;
-        executor.schedule(() -> session.operationComplete(recordingResult), 500, TimeUnit.MILLISECONDS);
+        executor.schedule(() -> session.operationCompletingWithResult(recordingResult), 500, TimeUnit.MILLISECONDS);
 
         // acting
         Future<OperationResultValue> recording = executor.submit(() -> {
@@ -1158,7 +1158,7 @@ public class AbstractMultimediaEngineTest<H> {
                 // doing nothing here
             }
             // completing media-data transmitting operation (end of media data)
-            session.operationComplete(Result.IO.DTMF);
+            session.operationCompletingWithResult(Result.IO.DTMF);
         }, 50, TimeUnit.MILLISECONDS);
         OperationResultValue result = recording.get();
 
@@ -1215,7 +1215,7 @@ public class AbstractMultimediaEngineTest<H> {
                 )
         );
         await().until(() -> session.operationIsActive());
-        executor.schedule(() -> session.operationComplete(Result.ERROR), 50, TimeUnit.MILLISECONDS);
+        executor.schedule(() -> session.operationCompletingWithResult(Result.ERROR), 50, TimeUnit.MILLISECONDS);
         Throwable result = recording.get();
 
         // check the behavior
@@ -1319,7 +1319,7 @@ public class AbstractMultimediaEngineTest<H> {
         await().until(() -> session.operationIsActive());
         executor.schedule(() -> {
             session.alive(false);
-            session.operationComplete(Result.CALL.DISCONNECT);
+            session.operationCompletingWithResult(Result.CALL.DISCONNECT);
         }, 100, TimeUnit.MILLISECONDS);
         OperationResultValue result = recording.get();
 

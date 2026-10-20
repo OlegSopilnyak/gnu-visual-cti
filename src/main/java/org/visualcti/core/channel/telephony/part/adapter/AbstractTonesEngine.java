@@ -126,78 +126,81 @@ public abstract class AbstractTonesEngine<H> extends AbstractDevicePart<H> imple
      */
     @Override
     public void playTone(PhoneCallSession<H> session, ToneId toneId, float time) {
-        if (canProceed(session)) {
-            // staring tone sending
-            session.getDevice().dispatchEvent("Sending [" + toneId + "] tone for '" + time + "' seconds.");
-            session.setState(TelephonyDevice.State.TONE);
-            // getting device service provider
-            final TelephonyServiceProvider<H> serviceProvider = deviceCore.getProvider();
-            final H deviceHandle = session.parameter(Device.Parameter.DEVICE_HANDLE);
-            if (serviceProvider.startToneSending(deviceHandle, findToneById(toneId))) {
-                // calculating the timeout time
-                final long timeout = (long) (time * 1000L);
-                if (timeout <= 0) {
-                    // stopping tone generation
-                    serviceProvider.stopToneSending(deviceHandle);
-                    // start the operation is failed (wrong tone sending timeout) Exception won't throw
-                    onDeviceError(session, "Tone sending time is too short.", false);
-                    // make send tone operation is complete
-                    session.setState(Device.State.IDLE);
-                    session.operationResult(Result.ERROR);
-                    return;
-                }
-                // waiting for the timeout time
-                try {
-                    session.waitingForOperationComplete(timeout);
-                    // checking the operation result value after waiting operation complete
-                    if (session.operationResult() == Result.ERROR) {
-                        // stopping tone generation
-                        serviceProvider.stopToneSending(deviceHandle);
-                        // device error is detected
-                        onDeviceError(session, "Tone sending is failed.");
-                        // unreachable code place
-                        return;
-                        // checking for the termination of the operation
-                    } else if (session.isTerminated()) {
-                        // stopping tone generation
-                        serviceProvider.stopToneSending(deviceHandle);
-                        // tone send operation is terminated
-                        session.setState(Device.State.IDLE);
-                        return;
-                        // checking for the disconnection during the operation
-                    } else if (session.isDisconnected()) {
-                        // stopping tone generation
-                        serviceProvider.stopToneSending(deviceHandle);
-                        session.setState(Device.State.ERROR);
-                        breakingTheSession(session, "Tone sending is failed. The connection is lost.");
-                        //
-                        // disconnecting from the current phone call
-                        disconnect(session);
-                        session.operationResult(Result.CALL.DISCONNECT);
-                        return;
-                    }
-                } catch (InterruptedException e) {
-                    session.getDevice().dispatchError(e, "Cannot wait for tone send operation complete.");
-                    /* Clean up whatever needs to be handled before interrupting  */
-                    Thread.currentThread().interrupt();
-                }
-            } else {
-                // start the operation is failed Exception won't throw
-                onDeviceError(session, "Start tone sending is failed.", false);
+        if (!canProceed(session)) {
+            session.setState(Device.State.ERROR);
+            session.operationResult(Result.ERROR);
+            return;
+        }
+        // staring tone sending
+        session.getDevice().dispatchEvent("Sending [" + toneId + "] tone for '" + time + "' seconds.");
+        session.setState(TelephonyDevice.State.TONE);
+        // getting device service provider
+        final TelephonyServiceProvider<H> serviceProvider = deviceCore.getProvider();
+        final H deviceHandle = session.parameter(Device.Parameter.DEVICE_HANDLE);
+        if (serviceProvider.startToneSending(deviceHandle, findToneById(toneId))) {
+            // calculating the timeout time
+            final long timeout = (long) (time * 1000L);
+            if (timeout <= 0) {
+                // stopping tone generation
+                serviceProvider.stopToneSending(deviceHandle);
+                // start the operation is failed (wrong tone sending timeout) Exception won't throw
+                onDeviceError(session, "Tone sending time is too short.", false);
+                // make send tone operation is complete
+                session.setState(Device.State.IDLE);
                 session.operationResult(Result.ERROR);
                 return;
             }
-            // operation is complete
-            session.getDevice().dispatchEvent("Tone sending is completed.");
-            // stopping tone generation
-            serviceProvider.stopToneSending(deviceHandle);
-            // make send tone operation is complete
-            session.setState(Device.State.IDLE);
-            session.operationResult(Result.OK);
+            // waiting for the timeout time
+            try {
+                session.waitingForOperationComplete(timeout);
+                // checking the operation result value after waiting operation complete
+                if (session.operationResult() == Result.ERROR) {
+                    // stopping tone generation
+                    serviceProvider.stopToneSending(deviceHandle);
+                    // device error is detected
+                    onDeviceError(session, "Tone sending is failed.");
+                    // unreachable code statement below
+                    return;
+                    // checking for the termination of the operation
+                } else if (session.isTerminated()) {
+                    // stopping tone generation
+                    serviceProvider.stopToneSending(deviceHandle);
+                    // tone send operation is terminated
+                    session.setState(Device.State.IDLE);
+                    return;
+                    // checking for the disconnection during the operation
+                } else if (session.isDisconnected()) {
+                    // stopping tone generation
+                    serviceProvider.stopToneSending(deviceHandle);
+                    session.setState(Device.State.ERROR);
+                    breakingTheSession(session, "Tone sending is failed. The connection is lost.");
+                    //
+                    // disconnecting from the current phone call
+                    disconnect(session);
+                    session.operationResult(Result.CALL.DISCONNECT);
+                    return;
+                }
+            } catch (InterruptedException e) {
+                session.getDevice().dispatchError(e, "Cannot wait for tone send operation complete.");
+                session.operationResult(Result.ERROR);
+                session.setState(Device.State.ERROR);
+                /* Clean up whatever needs to be handled before interrupting  */
+                Thread.currentThread().interrupt();
+                return;
+            }
         } else {
-            session.setState(Device.State.ERROR);
+            // start the operation is failed Exception won't throw
+            onDeviceError(session, "Start tone sending is failed.", false);
             session.operationResult(Result.ERROR);
+            return;
         }
+        // operation is complete
+        session.getDevice().dispatchEvent("Tone sending is completed.");
+        // stopping tone generation
+        serviceProvider.stopToneSending(deviceHandle);
+        // make send tone operation is complete
+        session.setState(Device.State.IDLE);
+        session.operationResult(Result.OK);
     }
 
     /**
@@ -229,85 +232,87 @@ public abstract class AbstractTonesEngine<H> extends AbstractDevicePart<H> imple
     @Override
     public OperationResultValue inputDigits(final PhoneCallSession<H> session, final int digitsCount,
                                             final int oneSymbolTimeout, final String terminationSymbolsMask) {
-        if (canProceed(session)) {
-            // staring tone sending
-            session.getDevice().dispatchEvent("Getting the user input.");
-            session.setState(TelephonyDevice.State.GTDIG);
-            // getting device service provider
-            final TelephonyServiceProvider<H> serviceProvider = deviceCore.getProvider();
-            final H deviceHandle = session.parameter(Device.Parameter.DEVICE_HANDLE);
-            // cleaning the user's input for the current session
-            session.parameter(Device.Parameter.USER_INPUT, "");
-            //
-            // enabling DTMF events producing for the opened handle
-            serviceProvider.enableEvents(deviceHandle, Result.IO.DTMF);
-            // getting user input (digitsCount symbols)
-            for (int i = 1; i <= digitsCount; i++) {
-                // waiting for the timeout time
-                try {
-                    session.waitingForOperationComplete(oneSymbolTimeout);
-                    final OperationResultValue operationResult = session.operationResult();
-                    // checking the operation result value after waiting operation complete
-                    if (operationResult == Result.ERROR) {
-                        // stopping DTMF events producing for the opened handle
-                        serviceProvider.disableEvents(deviceHandle, Result.IO.DTMF);
-                        // device error is detected
-                        onDeviceError(session, "Getting the user input is failed.");
-                        return Result.ERROR;
-                    } else if (session.isTerminated()) {
-                        // stopping DTMF events producing for the opened handle
-                        serviceProvider.disableEvents(deviceHandle, Result.IO.DTMF);
-                        // tone send operation is terminated
-                        session.setState(Device.State.IDLE);
-                        return Result.TERMINATED;
-                        // checking disconnection during the operation
-                    } else if (session.isDisconnected()) {
-                        // phone line disconnection is detected
-                        // stopping DTMF events producing for the opened handle
-                        serviceProvider.disableEvents(deviceHandle, Result.IO.DTMF);
-                        // tone send operation is interrupted
-                        session.setState(Device.State.ERROR);
-                        //
-                        // disconnecting from the current phone call
-                        disconnect(session);
-                        // returning the operation result
-                        session.operationResult(Result.CALL.DISCONNECT);
-                        return Result.CALL.DISCONNECT;
-                    } else if (operationResult == Result.IO.DTMF) {
-                        // user input detected
-                        final String userInput = session.parameter(Device.Parameter.USER_INPUT);
-                        if (isTerminationMaskSymbol(session, userInput, terminationSymbolsMask)
-                                || userInput.length() >= digitsCount) {
-                            // is reached the end of user input condition
-                            break;
-                        } else {
-                            // cleaning processed operation result for the next iteration
-                            session.operationResult(Result.NONE);
-                            // the next iteration of the loop
-                        }
-                    } else {
-                        // operation is timed out
-                        session.operationResult(Result.TIMEOUT);
-                        // leaving the loop
-                        break;
-                    }
-                } catch (InterruptedException e) {
-                    session.getDevice().dispatchError(e, "Cannot wait for user input operation complete.");
-                    /* Clean up whatever needs to be handled before interrupting  */
-                    Thread.currentThread().interrupt();
-                    return Result.ERROR;
-                }
-            }
-            // operation is complete
-            session.getDevice().dispatchEvent("User input getting is completed.");
-            // stopping DTMF events producing for the opened handle
-            serviceProvider.disableEvents(deviceHandle, Result.IO.DTMF);
-            // make send tone operation is complete
-            session.setState(Device.State.IDLE);
-        } else {
+        if (!canProceed(session)) {
             session.setState(Device.State.ERROR);
             session.operationResult(Result.ERROR);
+            return Result.ERROR;
         }
+        // staring user input getting
+        session.getDevice().dispatchEvent("Getting the user input.");
+        session.setState(TelephonyDevice.State.GTDIG);
+        // getting device service provider
+        final TelephonyServiceProvider<H> serviceProvider = deviceCore.getProvider();
+        final H deviceHandle = session.parameter(Device.Parameter.DEVICE_HANDLE);
+        // cleaning the user's input for the current session
+        session.parameter(Device.Parameter.USER_INPUT, "");
+        //
+        // enabling DTMF events producing for the opened handle
+        serviceProvider.enableEvents(deviceHandle, Result.IO.DTMF);
+        // getting user input (digitsCount symbols)
+        for (int i = 1; i <= digitsCount; i++) {
+            // waiting for the timeout time
+            try {
+                session.waitingForOperationComplete(oneSymbolTimeout);
+                final OperationResultValue operationResult = session.operationResult();
+                // checking the operation result value after waiting operation complete
+                if (operationResult == Result.ERROR) {
+                    // stopping DTMF events producing for the opened handle
+                    serviceProvider.disableEvents(deviceHandle, Result.IO.DTMF);
+                    // device error is detected
+                    onDeviceError(session, "Getting the user input is failed.");
+                    // unreachable code statement below
+                    return Result.ERROR;
+                } else if (session.isTerminated()) {
+                    // stopping DTMF events producing for the opened handle
+                    serviceProvider.disableEvents(deviceHandle, Result.IO.DTMF);
+                    // tone send operation is terminated
+                    session.setState(Device.State.IDLE);
+                    return Result.TERMINATED;
+                    // checking disconnection during the operation
+                } else if (session.isDisconnected()) {
+                    // phone line disconnection is detected
+                    // stopping DTMF events producing for the opened handle
+                    serviceProvider.disableEvents(deviceHandle, Result.IO.DTMF);
+                    // tone send operation is interrupted
+                    session.setState(Device.State.ERROR);
+                    //
+                    // disconnecting from the current phone call
+                    disconnect(session);
+                    // returning the operation result
+                    session.operationResult(Result.CALL.DISCONNECT);
+                    return Result.CALL.DISCONNECT;
+                } else if (operationResult == Result.IO.DTMF) {
+                    // user input detected
+                    final String userInput = session.parameter(Device.Parameter.USER_INPUT);
+                    if (isTerminatedBySymbol(session, userInput, terminationSymbolsMask) || userInput.length() >= digitsCount) {
+                        // reached the end of user input condition
+                        break;
+                    } else {
+                        // cleaning processed operation result for the next iteration
+                        session.operationResult(Result.NONE);
+                        // go to the next iteration of the loop
+                    }
+                } else {
+                    // operation is timed out
+                    session.operationResult(Result.TIMEOUT);
+                    // leaving the loop
+                    break;
+                }
+            } catch (InterruptedException e) {
+                session.getDevice().dispatchError(e, "Cannot wait for user input operation complete.");
+                session.setState(Device.State.ERROR);
+                session.operationResult(Result.ERROR);
+                /* Clean up whatever needs to be handled before interrupting  */
+                Thread.currentThread().interrupt();
+                return Result.ERROR;
+            }
+        }
+        // operation is complete
+        session.getDevice().dispatchEvent("User input getting is completed.");
+        // stopping DTMF events producing for the opened handle
+        serviceProvider.disableEvents(deviceHandle, Result.IO.DTMF);
+        // make send tone operation is complete
+        session.setState(Device.State.IDLE);
         return session.operationResult();
     }
 
@@ -339,7 +344,7 @@ public abstract class AbstractTonesEngine<H> extends AbstractDevicePart<H> imple
     @Override
     public void terminate(PhoneCallSession<H> session) throws IOException {
         if (isOperationInProgress.test(session.getState())) {
-            session.operationComplete(Result.TERMINATED);
+            session.operationCompletingWithResult(Result.TERMINATED);
         }
         session.terminate();
     }
@@ -351,7 +356,7 @@ public abstract class AbstractTonesEngine<H> extends AbstractDevicePart<H> imple
     }
 
     // to check is user's input contains the symbol from the termination mask
-    private boolean isTerminationMaskSymbol(PhoneCallSession<H> session, String userInput, String terminationSymbolsMask) {
+    private boolean isTerminatedBySymbol(PhoneCallSession<H> session, String userInput, String terminationSymbolsMask) {
         if (!isEmpty(userInput)) {
             // getting the last symbol of the user input in the context
             final String lastSymbol = userInput.substring(userInput.length() - 1);

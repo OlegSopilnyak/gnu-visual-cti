@@ -147,7 +147,7 @@ public class AbstractCallsPortEngineTest<H> {
         verify(session).detachAll();
         verify(session).accept(any(DeviceEvent.class));
         verify(session).alive(false);
-        verify(session).operationComplete(Result.CALL.DISCONNECT);
+        verify(session).operationCompletingWithResult(Result.CALL.DISCONNECT);
         verify(session).operationResult(Result.CALL.DISCONNECT);
         verify(provider).disableEvents(deviceHandle);
         verify(provider).enableEvents(deviceHandle, Result.CALL.RINGS);
@@ -192,7 +192,7 @@ public class AbstractCallsPortEngineTest<H> {
         verify(session).setState(Device.State.ERROR);
         verify(session).accept(any(DeviceEvent.class));
         verify(device).dispatchError(errorReason);
-        verify(session).operationComplete(Result.ERROR);
+        verify(session).operationCompletingWithResult(Result.ERROR);
         verify(session).operationResult(Result.ERROR);
         verify(session, never()).alive(anyBoolean());
         // check results
@@ -284,7 +284,7 @@ public class AbstractCallsPortEngineTest<H> {
         verify(session, times(timeout)).operationResult(Result.NONE);
         verify(session, times(timeout)).waitingForOperationComplete(1000L);
         verify(session, atLeastOnce()).operationResult();
-        verify(session).operationComplete(Result.TIMEOUT);
+        verify(session).operationResult(Result.TIMEOUT);
         verify(session).setState(Device.State.IDLE);
         // check results
         assertThat(done).isTrue();
@@ -318,7 +318,7 @@ public class AbstractCallsPortEngineTest<H> {
         verify(session, times(timeout)).operationResult(Result.NONE);
         verify(session, times(timeout * 2)).waitingForOperationComplete(500L);
         verify(session, atLeastOnce()).operationResult();
-        verify(session).operationComplete(Result.TIMEOUT);
+        verify(session).operationResult(Result.TIMEOUT);
         verify(session).setState(Device.State.IDLE);
         // check results
         assertThat(done).isTrue();
@@ -338,7 +338,7 @@ public class AbstractCallsPortEngineTest<H> {
         int rings = 2;
         int timeout = 10;
         boolean answer = true;
-        executor.schedule(() -> session.operationComplete(Result.CALL.RINGS), 50, TimeUnit.MILLISECONDS);
+        executor.schedule(() -> session.operationCompletingWithResult(Result.CALL.RINGS), 50, TimeUnit.MILLISECONDS);
 
         // acting
         boolean done = engine.waitForCall(session, rings, timeout, answer);
@@ -361,7 +361,7 @@ public class AbstractCallsPortEngineTest<H> {
         verify(provider).answerCall(deviceHandle);
         verify(session).alive(true);
         verify(provider).enableEvents(deviceHandle, Result.CALL.DISCONNECT);
-        verify(session).operationComplete(Result.CALL.ALERTING);
+        verify(session).operationResult(Result.CALL.ALERTING);
         verify(session).setState(Device.State.IDLE);
         // check results
         assertThat(done).isTrue();
@@ -381,7 +381,7 @@ public class AbstractCallsPortEngineTest<H> {
         int rings = 2;
         int timeout = 10;
         boolean answer = false;
-        executor.schedule(() -> session.operationComplete(Result.CALL.RINGS), 50, TimeUnit.MILLISECONDS);
+        executor.schedule(() -> session.operationCompletingWithResult(Result.CALL.RINGS), 50, TimeUnit.MILLISECONDS);
 
 
         // acting
@@ -405,7 +405,7 @@ public class AbstractCallsPortEngineTest<H> {
         verify(provider, never()).answerCall(any());
         verify(session, never()).alive(anyBoolean());
         verify(provider, never()).enableEvents(any(), eq(Result.CALL.DISCONNECT));
-        verify(session, times(2)).operationComplete(Result.CALL.RINGS);
+        verify(session).operationCompletingWithResult(Result.CALL.RINGS);
         verify(session).setState(Device.State.IDLE);
         // check results
         assertThat(done).isTrue();
@@ -425,7 +425,7 @@ public class AbstractCallsPortEngineTest<H> {
         int rings = 2;
         int timeout = 10;
         boolean answer = false;
-        executor.schedule(() -> session.operationComplete(Result.ERROR), 50, TimeUnit.MILLISECONDS);
+        executor.schedule(() -> session.operationCompletingWithResult(Result.ERROR), 50, TimeUnit.MILLISECONDS);
         String malfunctionReason = "Wait for incoming call is failed.";
 
 
@@ -444,7 +444,7 @@ public class AbstractCallsPortEngineTest<H> {
         verify(session).operationResult(Result.NONE);
         verify(session).waitingForOperationComplete(1000L);
         verify(session).operationResult();
-        verify(session).operationComplete(Result.ERROR);
+        verify(session).operationCompletingWithResult(Result.ERROR);
         verify(session).setState(Device.State.ERROR);
         // check results
         assertThat(error).isInstanceOf(DeviceMalfunction.class);
@@ -472,7 +472,7 @@ public class AbstractCallsPortEngineTest<H> {
         verify(engine, never()).canBeConnected();
         verify(device, atLeastOnce()).getName();
         verify(device, never()).getParameter(any(Device.ParameterName.class));
-        verify(session, never()).isDisconnected();
+        verify(session).isDisconnected();
         // check results
         assertThat(done).isFalse();
     }
@@ -491,8 +491,8 @@ public class AbstractCallsPortEngineTest<H> {
 
         // check the behavior
         verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
-        verify(engine).canAcceptCall();
         verify(session).isAlive();
+        verify(engine, never()).canAcceptCall();
         // check results
         assertThat(done).isFalse();
     }
@@ -540,7 +540,7 @@ public class AbstractCallsPortEngineTest<H> {
         PhoneCall.Number number = mock(PhoneCall.Number.class);
         int timeout = 10;
         doReturn(true).when(provider).startCalling(deviceHandle, number, timeout);
-        executor.schedule(() -> session.operationComplete(Result.CALL.Analysis.VOICE), 50, TimeUnit.MILLISECONDS);
+        executor.schedule(() -> session.operationCompletingWithResult(Result.CALL.Analysis.VOICE), 50, TimeUnit.MILLISECONDS);
 
         // acting
         boolean done = engine.makeCall(session, number, timeout);
@@ -576,7 +576,7 @@ public class AbstractCallsPortEngineTest<H> {
         PhoneCall.Number number = mock(PhoneCall.Number.class);
         int timeout = 10;
         doReturn(true).when(provider).startCalling(deviceHandle, number, timeout);
-        executor.schedule(() -> session.operationComplete(Result.CALL.Analysis.FAX), 50, TimeUnit.MILLISECONDS);
+        executor.schedule(() -> session.operationCompletingWithResult(Result.CALL.Analysis.FAX), 50, TimeUnit.MILLISECONDS);
 
         // acting
         boolean done = engine.makeCall(session, number, timeout);
@@ -615,7 +615,7 @@ public class AbstractCallsPortEngineTest<H> {
         PhoneCall.Number number = mock(PhoneCall.Number.class);
         int timeout = 10;
         doReturn(true).when(provider).startCalling(deviceHandle, number, timeout);
-        executor.schedule(() -> session.operationComplete(Result.ERROR), 50, TimeUnit.MILLISECONDS);
+        executor.schedule(() -> session.operationCompletingWithResult(Result.ERROR), 50, TimeUnit.MILLISECONDS);
 
         // acting
         Throwable error = assertThrows(Throwable.class, () -> engine.makeCall(session, number, timeout));
@@ -631,7 +631,7 @@ public class AbstractCallsPortEngineTest<H> {
         verify(provider).startCalling(deviceHandle, number, timeout);
         verify(session).waitingForOperationComplete(timeout * 1000L);
         verify(session).operationResult();
-        verify(session).operationComplete(Result.ERROR);
+        verify(session).operationCompletingWithResult(Result.ERROR);
         verify(session).setState(Device.State.ERROR);
         // check results
         assertThat(error).isInstanceOf(DeviceMalfunction.class);
@@ -649,7 +649,7 @@ public class AbstractCallsPortEngineTest<H> {
         PhoneCall.Number number = mock(PhoneCall.Number.class);
         int timeout = 10;
         doReturn(true).when(provider).startCalling(deviceHandle, number, timeout);
-        executor.schedule(() -> session.operationComplete(Result.CALL.Analysis.BUSY), 50, TimeUnit.MILLISECONDS);
+        executor.schedule(() -> session.operationCompletingWithResult(Result.CALL.Analysis.BUSY), 50, TimeUnit.MILLISECONDS);
 
         // acting
         boolean done = engine.makeCall(session, number, timeout);
@@ -690,7 +690,7 @@ public class AbstractCallsPortEngineTest<H> {
         // check the behavior
         verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
         verify(engine).canMakeCall();
-        verify(session, never()).isAlive();
+        verify(session).isAlive();
         // check results
         assertThat(done).isFalse();
         assertThat(session.isAlive()).isFalse();
@@ -711,8 +711,8 @@ public class AbstractCallsPortEngineTest<H> {
 
         // check the behavior
         verify(session).parameter(Device.Parameter.DEVICE_HANDLE);
-        verify(engine).canMakeCall();
         verify(session).isAlive();
+        verify(engine, never()).canMakeCall();
         // check results
         assertThat(done).isFalse();
         assertThat(session.getState()).isEqualTo(Device.State.ERROR);

@@ -71,6 +71,9 @@ public abstract class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> i
     private static final Predicate<TelephonyDeviceCore<?>> deviceCanAcceptCall =
             core -> core.getParameter(CallsPortEngine.Parameter.ACCEPT_CALL_ALLOWED)
                     .<Boolean>map(ConfigurationParameter::getValue).orElse(false);
+    // predicate to check is phone call session state allows for disconnected session
+    private final transient Predicate<PhoneCallSession<H>> sessionIsDisconnected = session ->
+            isOpened(session) && session.isDisconnected();
     // predicate to check is service provider can make an outgoing call
     private static final Predicate<TelephonyDeviceCore<?>> providerCanMakeCall =
             core -> core.getProvider().canMakeCall(core.getName());
@@ -156,6 +159,7 @@ public abstract class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> i
         return providerCanAcceptCall.and(deviceCanAcceptCall).test(deviceCore);
     }
 
+
     /**
      * <action>
      * The incoming call is expected. For a user's telephone line a call is deemed accepted after
@@ -199,78 +203,83 @@ public abstract class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> i
      * @see #canAcceptCall()
      */
     @Override
-    public boolean waitForCall(PhoneCallSession<H> session, int rings, int timeout, boolean answer) {
-        // checking the operation's allowance and session's state
-        if (isOpened(session) && this.canAcceptCall() && session.isDisconnected()) {
-            //
-            // getting device service provider
-            final TelephonyServiceProvider<H> serviceProvider = deviceCore.getProvider();
-            // waiting for incoming call during the timeout value seconds
-            int tryCount = timeout;
-            // setting up values for the main loop
-            final boolean canBeConnected = canBeConnected();
-            final long halfSecondMilliseconds = TimeUnit.MILLISECONDS.toMillis(500);
-            final long waitForCallDelay = canBeConnected ? halfSecondMilliseconds : halfSecondMilliseconds * 2;
-            // wait for call loop
-            do {
-                try {
-                    // checking capture of the resource
-                    if (canBeConnected && !session.capture(session)) {
-                        // the session is captive
-                        final String newStateMessage =
-                                "The session is shared with " + session.captiveBy().orElse("unknown");
-                        session.getDevice().dispatchEvent(newStateMessage);
-                        // failed the end of method's call
-                        return false;
-                    }
-                    // preparing the session for wait for incoming call and
-                    // waiting for incoming call 1 second of the timeout's seconds
-                    preparingWaitForCall(session, serviceProvider);
-                    // waiting for incoming call 1 second of the timeout's seconds
-                    session.waitingForOperationComplete(waitForCallDelay);
-                    // checking the operation result value after waiting operation complete
-                    if (session.operationResult() == Result.ERROR) {
-                        // device error is detected
-                        onDeviceError(session, "Wait for incoming call is failed.");
-                        // unreachable code place
-                        return false;
-                        // checking wait for call operation results
-                    } else if (isThereIncomingCallDetected(session, serviceProvider, answer)) {
-                        // incoming call for the telephony device is detected
-                        session.getDevice().dispatchEvent("Wait for call operation is completed.");
-                        // operation is completed successfully
-                        return true;
-                        // checking is operation terminated
-                    } else if (session.isTerminated()) {
-                        // wait for call operation is complete
-                        session.setState(Device.State.IDLE);
-                        return false;
-                        // checking is it possible to share the phone call session during wait for call operation
-                    } else if (canBeConnected) {
-                        // waiting for incoming call or make call 1 second of the timeout's seconds
-                        session.getDevice().dispatchEvent("Sharing 'wait for call' operation resource.");
-                        // releasing captive session
-                        session.release(session);
-                        // waiting for incoming call or start making the outgoing call for
-                        session.waitingForOperationComplete(waitForCallDelay);
-                    }
-                } catch (InterruptedException e) {
-                    session.getDevice().dispatchError(e, "Cannot wait for call operation complete.");
-                    /* Clean up whatever needs to be handled before interrupting  */
-                    Thread.currentThread().interrupt();
-                    return false;
-                }
-            } while (--tryCount > 0);
-            // setting up the appropriate operation result
-            session.operationComplete(Result.TIMEOUT);
-            // wait for call operation is complete
-            session.setState(Device.State.IDLE);
-            return true;
-        } else {
-            // accept call isn't allowed or handle has wrong value or session isn't disconnected
+    public boolean waitForCall(
+            final PhoneCallSession<H> session, final int rings, final int timeout, final boolean answer
+    ) {
+        // checking the session's state and the operation's allowance
+        if (sessionIsDisconnected.and(s -> canAcceptCall()).negate().test(session)) {
+            // operation isn't allowed or handle has wrong value or session is alive
             session.setState(Device.State.ERROR);
+            session.operationResult(Result.ERROR);
             return false;
         }
+        //
+        // getting device service provider
+        final TelephonyServiceProvider<H> serviceProvider = deviceCore.getProvider();
+        // waiting for incoming call during the timeout value seconds
+        int tryCount = timeout;
+        // setting up values for the main loop
+        final boolean canBeConnected = canBeConnected();
+        final long halfSecondMilliseconds = TimeUnit.MILLISECONDS.toMillis(500);
+        final long waitForCallDelay = canBeConnected ? halfSecondMilliseconds : halfSecondMilliseconds * 2;
+        // waiting for the incoming call main loop
+        do {
+            try {
+                // checking capture of the resource
+                if (canBeConnected && !session.capture(session)) {
+                    // the session is captive
+                    final String newStateMessage =
+                            "The session is shared with " + session.captiveBy().orElse("unknown");
+                    session.getDevice().dispatchEvent(newStateMessage);
+                    // device session capturing is failed despite it's allowed, ending the method's phone call waiting
+                    return false;
+                }
+                // preparing the session for wait for incoming call and
+                // waiting for incoming call 1 second of the timeout's seconds
+                preparingWaitForCall(session, serviceProvider);
+                // waiting for incoming call 1 second of the timeout's seconds
+                session.waitingForOperationComplete(waitForCallDelay);
+                // checking the operation result value after waiting operation complete
+                if (session.operationResult() == Result.ERROR) {
+                    // device error is detected
+                    onDeviceError(session, "Wait for incoming call is failed.");
+                    // unreachable code place
+                    return false;
+                    // checking wait for call operation results
+                } else if (isThereIncomingCallDetected(session, serviceProvider, answer)) {
+                    // incoming call for the telephony device is detected
+                    session.getDevice().dispatchEvent("Wait for call operation is completed.");
+                    // operation is completed successfully
+                    return true;
+                    // checking is operation terminated
+                } else if (session.isTerminated()) {
+                    // wait for call operation is complete
+                    session.setState(Device.State.IDLE);
+                    return false;
+                    // checking is it possible to share the phone call session during wait for call operation
+                } else if (canBeConnected) {
+                    // waiting for incoming call or make call 1 second of the timeout's seconds
+                    session.getDevice().dispatchEvent("Sharing 'wait for call' operation resource.");
+                    // releasing captive session
+                    session.release(session);
+                    // waiting for incoming call or start making the outgoing call for
+                    session.waitingForOperationComplete(waitForCallDelay);
+                }
+            } catch (InterruptedException e) {
+                session.getDevice().dispatchError(e, "Cannot wait for call operation complete.");
+                session.operationResult(Result.ERROR);
+                session.setState(Device.State.ERROR);
+                /* Clean up whatever needs to be handled before interrupting  */
+                Thread.currentThread().interrupt();
+                return false;
+            }
+        } while (--tryCount > 0);
+        // setting up the appropriate operation result
+        session.operationResult(Result.TIMEOUT);
+        // wait for call operation is complete
+        session.setState(Device.State.IDLE);
+        return true;
+
     }
 
     /**
@@ -319,54 +328,59 @@ public abstract class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> i
     @Override
     public boolean makeCall(final PhoneCallSession<H> session, final PhoneCall.Number phoneNumber, final int timeout) {
         // checking the operation's allowance and session's state
-        if (isOpened(session) && canMakeCall() && session.isDisconnected()) {
-            // preparing the session for make outgoing call
-            preparingCallMaker(session, deviceCore.getProvider(), phoneNumber);
-            // start outgoing call making
-            if (!startCalling(session, phoneNumber, timeout)) {
-                session.operationComplete(Result.ERROR);
-                onDeviceError(session, "Cannot start call on the device side.");
+        if (sessionIsDisconnected.and(s -> canMakeCall()).negate().test(session)) {
+            // operation isn't allowed or handle has wrong value or session is alive
+            session.setState(Device.State.ERROR);
+            session.operationResult(Result.ERROR);
+            return false;
+        }
+        // preparing the session for make outgoing call
+        preparingCallMaker(session, deviceCore.getProvider(), phoneNumber);
+        //
+        // start outgoing call making
+        if (!startCallMaking(session, phoneNumber, timeout)) {
+            session.operationCompletingWithResult(Result.ERROR);
+            onDeviceError(session, "Cannot start call on the device side.");
+            // unreachable statement
+            return false;
+        }
+        //
+        // waiting for an answer from the called number side 'timeout' seconds
+        try {
+            session.waitingForOperationComplete(timeout * 1000L);
+            // checking the operation result value after waiting operation complete
+            if (session.operationResult() == Result.ERROR) {
+                // device error is detected
+                onDeviceError(session, "Make call operation is failed.");
                 // unreachable statement
                 return false;
-            }
-            // waiting for an answer from the called number side 'timeout' seconds
-            try {
-                session.waitingForOperationComplete(timeout * 1000L);
-                // checking the operation result value after waiting operation complete
-                if (session.operationResult() == Result.ERROR) {
-                    // device error is detected
-                    onDeviceError(session, "Make call operation is failed.");
-                    // unreachable statement
-                    return false;
-                    // checking wait for call operation results
-                } else if (isThereOutgoingCallCompleted(session)) {
-                    // outgoing call for the session is made
-                    session.getDevice().dispatchEvent("Make call operation complete.");
-                    // checking is operation terminated
-                } else if (session.isTerminated()) {
-                    // wait for call operation is complete
-                    session.setState(Device.State.IDLE);
-                    return false;
-                } else {
-                    // outgoing call for the session isn't made
-                    session.alive(false);
-                    session.operationComplete(Result.CALL.Analysis.NO_ANSWER);
-                    session.getDevice().dispatchEvent("Make call operation is failed.");
-                }
-                // make call operation is complete
+                // checking wait for call operation results
+            } else if (isThereOutgoingCallCompleted(session)) {
+                // outgoing call for the session is made
+                session.getDevice().dispatchEvent("Make call operation complete.");
+                // checking is operation terminated
+            } else if (session.isTerminated()) {
+                // wait for call operation is complete
                 session.setState(Device.State.IDLE);
-                // operation finished well
-                return true;
-            } catch (InterruptedException e) {
-                session.getDevice().dispatchError(e, "Cannot wait for make call operation complete.");
-                /* Clean up whatever needs to be handled before interrupting  */
-                Thread.currentThread().interrupt();
                 return false;
+            } else {
+                // outgoing call for the session isn't made
+                session.alive(false);
+                session.operationResult(Result.CALL.Analysis.NO_ANSWER);
+                session.getDevice().dispatchEvent("Make call operation is failed.");
             }
+            // make call operation is complete
+            session.setState(Device.State.IDLE);
+            // operation is completed well
+            return true;
+        } catch (InterruptedException e) {
+            session.getDevice().dispatchError(e, "Cannot wait for make call operation complete.");
+            session.operationResult(Result.ERROR);
+            session.setState(Device.State.ERROR);
+            /* Clean up whatever needs to be handled before interrupting  */
+            Thread.currentThread().interrupt();
+            return false;
         }
-        session.setState(Device.State.ERROR);
-        session.operationComplete(Result.ERROR);
-        return false;
     }
 
     /**
@@ -443,14 +457,14 @@ public abstract class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> i
     public boolean connect(PhoneCallSession<H> session, PhoneCall.Number calledPhoneNumber, int timeout, Sound toPlay) {
         if (!isOpened(session)) {
             // session isn't opened yet
-            session.operationComplete(Result.ERROR);
+            session.operationCompletingWithResult(Result.ERROR);
             return false;
         } else if (connectedTo(calledPhoneNumber, timeout, toPlay, session)) {
             // device phone call session is connected with another one
             return true;
         } else {
             // device doesn't support linking with another one or not connected to allowed one
-            session.operationComplete(Result.CALL.Analysis.NO_DIAL_TONE);
+            session.operationCompletingWithResult(Result.CALL.Analysis.NO_DIAL_TONE);
             return false;
         }
     }
@@ -471,15 +485,16 @@ public abstract class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> i
     public void terminate(PhoneCallSession<H> session) throws IOException {
         final DeviceStateValue state = session.getState();
         if (state == TelephonyDevice.State.WAIT || state == TelephonyDevice.State.DIAL) {
-            session.operationComplete(Result.TERMINATED);
+            session.operationCompletingWithResult(Result.TERMINATED);
         }
         session.terminate();
     }
 
     /// private methods
     // preparing the session for wait for incoming call
-    private void preparingWaitForCall(final PhoneCallSession<H> session,
-                                      final TelephonyServiceProvider<H> serviceProvider) throws InterruptedException {
+    private void preparingWaitForCall(
+            final PhoneCallSession<H> session, final TelephonyServiceProvider<H> serviceProvider
+    ) {
         // getting the device's handle from the session
         final H handle = session.getDeviceHandle();
         // setting up called number for waiting incoming call to
@@ -493,16 +508,16 @@ public abstract class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> i
     }
 
     // checking wait for call operation results
-    private static <H> boolean isThereIncomingCallDetected(final PhoneCallSession<H> session,
-                                                           final TelephonyServiceProvider<H> serviceProvider,
-                                                           final boolean answer) {
+    private static <H> boolean isThereIncomingCallDetected(
+            final PhoneCallSession<H> session, final TelephonyServiceProvider<H> serviceProvider, final boolean answer
+    ) {
         if (waitForCallOperationResultExpected.negate().test(session.operationResult())) {
-            // noting is happened, meaning there is no any expected operation result
+            // nothing is happened meaning there is no any expected operation result
             return false;
         }
         // getting the device's handle from the session
         final H handle = session.getDeviceHandle();
-        // stop producing events for incoming call
+        // stopping processing events for incoming call
         serviceProvider.disableEvents(handle, Result.CALL.RINGS);
         // getting caller phone number and storing it to the session
         session.callingNumber(serviceProvider.getCallerID(handle));
@@ -511,12 +526,12 @@ public abstract class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> i
             // to answer to the incoming call and mark the session as alive
             session.alive(serviceProvider.answerCall(handle));
             // setting up the appropriate operation result
-            session.operationComplete(Result.CALL.ALERTING);
+            session.operationResult(Result.CALL.ALERTING);
             // enabling call's disconnect events producing for the opened handle
             serviceProvider.enableEvents(handle, Result.CALL.DISCONNECT);
         } else {
             // setting up the appropriate operation result
-            session.operationComplete(Result.CALL.RINGS);
+            session.operationResult(Result.CALL.RINGS);
         }
         // wait for call operation is complete
         session.setState(Device.State.IDLE);
@@ -542,7 +557,7 @@ public abstract class AbstractCallsPortEngine<H> extends AbstractDevicePart<H> i
     }
 
     // to start building outgoing phone call to the phone number
-    private boolean startCalling(PhoneCallSession<H> session, PhoneCall.Number phoneNumber, int timeout) {
+    private boolean startCallMaking(PhoneCallSession<H> session, PhoneCall.Number phoneNumber, int timeout) {
         return deviceCore.getProvider().startCalling(session.getDeviceHandle(), phoneNumber, timeout);
     }
 

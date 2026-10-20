@@ -41,14 +41,11 @@ package org.visualcti.core.channel.device.adapter;
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceActivitySession;
 import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.DeviceStateValue;
 import org.visualcti.core.channel.device.Factory;
-import org.visualcti.core.channel.device.operation.OperationResultValue;
 
 /**
  * Abstract Device's Context: The context of device's activity
@@ -118,37 +115,6 @@ public class AbstractDeviceSession<H> implements DeviceActivitySession<H> {
     @Override
     public boolean isOpened() {
         return isValidDeviceHandle() && DeviceActivitySession.super.isOpened();
-    }
-
-    /**
-     * <action>
-     * To wait the running operation complete or timeout
-     *
-     * @param timeout how long to wait
-     * @throws InterruptedException if operation is interrupted outside
-     * @see #operationComplete(OperationResultValue)
-     * @see CountDownLatch
-     * @see CountDownLatch#await(long, TimeUnit)
-     * @see CountDownLatch#await()
-     */
-    @Override
-    public void waitingForOperationComplete(long timeout) throws InterruptedException {
-        // preparing running operation's latch
-        final CountDownLatch latch = new CountDownLatch(1);
-        parameter(Device.Parameter.LATCH, latch);
-        if (timeout > 0) {
-            // start waiting until operation complete or timeout
-            if (latch.await(timeout, TimeUnit.MILLISECONDS)) {
-                // latch was notified outside
-                device.dispatchEvent("Operation was completed");
-            } else {
-                // latch wasn't notified outside
-                device.dispatchEvent("Operation was timed out");
-            }
-        } else {
-            // start waiting until operation complete (no limits)
-            latch.await();
-        }
     }
 
     /**

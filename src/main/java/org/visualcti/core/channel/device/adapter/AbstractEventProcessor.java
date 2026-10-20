@@ -237,7 +237,7 @@ public abstract class AbstractEventProcessor<H> extends RunnableUnitAdapter impl
      * @see RunnableUnitAdapter#dispatchEvent(String)
      */
     @Override
-    public void currentUnitState(UnitState unitState) {
+    public void currentUnitState(final UnitState unitState) {
         // changing the attribute value
         super.currentUnitState(unitState);
         // dealing with event dispatching factory's thread
