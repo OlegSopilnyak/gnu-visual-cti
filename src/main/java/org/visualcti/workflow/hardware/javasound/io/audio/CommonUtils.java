@@ -37,6 +37,9 @@ Fax number: 217-356-3356
 */
 package org.visualcti.workflow.hardware.javasound.io.audio;
 
+import javax.sound.sampled.FloatControl;
+import javax.sound.sampled.SourceDataLine;
+
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -58,6 +61,7 @@ abstract class CommonUtils {
     protected static final int BUFFER_SIZE = 2048;
     private static final String QUEUE_IS_FULL = "AfterParty queue is full!!!";
     private static final Map<SoundCardHandle, BlockingQueue<Runnable>> afterParty = new ConcurrentHashMap<>();
+
     /**
      * <action>
      * To wait for operation isn't completed
@@ -81,11 +85,11 @@ abstract class CommonUtils {
     /**
      * <test-action>
      * To complete audio data capturing and wait for it
-     * @apiNote (for tests purposes only)
      *
      * @param <H>            sound-card device handle type
      * @param handle         the handle of the opened resource (sound card device's handle)
      * @param afterRecording what it has to do after operation complete
+     * @apiNote (for tests purposes only)
      */
     public static <H extends SoundCardHandle> void completeOperation(final H handle, final Runnable afterRecording) {
         final BlockingQueue<Runnable> completedAction = afterParty.get(handle);
@@ -128,6 +132,28 @@ abstract class CommonUtils {
             // freeing previous queue
             if (!previous.offer(afterComplete)) {
                 Tools.error(QUEUE_IS_FULL);
+            }
+        }
+    }
+
+    // adjusting playing volume value from handle
+    protected static <H extends SoundCardHandle> void adjustPlayingVolume(final H handle, final SourceDataLine line) {
+        if (line.isControlSupported(FloatControl.Type.MASTER_GAIN)) {
+            // current value
+            final float volume = handle.getSourceVolume();
+            try {
+                final FloatControl gainControl = (FloatControl) line.getControl(FloatControl.Type.MASTER_GAIN);
+
+                // Минимальное и максимальное значение в децибелах
+                final float min = gainControl.getMinimum(); // например, -80.0f (почти тишина)
+                final float max = gainControl.getMaximum(); // например, 6.0f (максимум)
+
+                // Устанавливаем желаемое значение в децибелах
+                // Например, устанавливаем среднее или конкретное значение
+                gainControl.setValue(volume < min ? min : Math.min(volume, max));
+            } catch (IllegalArgumentException e) {
+                Tools.error("Cannot set volume for master gain " + volume);
+                e.printStackTrace(Tools.err);
             }
         }
     }

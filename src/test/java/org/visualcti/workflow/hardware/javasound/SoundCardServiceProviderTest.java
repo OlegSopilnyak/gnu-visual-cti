@@ -141,7 +141,7 @@ public class SoundCardServiceProviderTest {
 
         // check the behavior
         verify(provider).nativeResourceOpen(deviceName);
-        verify(provider).availableFormatsFor(any());
+        verify(provider, never()).availableFormatsFor(any());
         // check results
         assertThat(handle).isNotNull();
         assertThat(handle.canUse()).isFalse();
@@ -1024,6 +1024,7 @@ public class SoundCardServiceProviderTest {
     public void shouldStartAudioPlaying() throws IOException {
         // preparing test data
         SoundCardHandle handle = provider.openResource(SOUND_DEVICE);
+        handle.setSourceVolume(-12.0f);
         Audio format = Audio.LINEAR;
         InputStream in = provider.getClass().getResourceAsStream("/VM/prompts/MAIN_MENU1.WAV");
         assertThat(in).isNotNull();
@@ -1208,6 +1209,7 @@ public class SoundCardServiceProviderTest {
         // preparing test data
         SoundCardHandle handle = provider.openResource(SOUND_DEVICE);
         String dtmf = "1234-555(#*)";
+        handle.setSourceVolume(-35);
         assertThat(provider.isOpened(handle)).isTrue();
         reset(provider);
 
@@ -1230,6 +1232,7 @@ public class SoundCardServiceProviderTest {
                 invocation.getArgument(1, Long.class),
                 invocation.getArgument(2, TimeUnit.class)
         )).when(scheduler).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+        handle.setSourceVolume(-35);
         shadowScheduler.schedule(() -> provider.stopToneSending(handle), 500, TimeUnit.MILLISECONDS);
 
         // acting
@@ -1256,6 +1259,7 @@ public class SoundCardServiceProviderTest {
                 invocation.getArgument(1, Long.class),
                 invocation.getArgument(2, TimeUnit.class)
         )).when(scheduler).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+        handle.setSourceVolume(-35);
         shadowScheduler.schedule(() -> provider.stopToneSending(handle), 1000, TimeUnit.MILLISECONDS);
 
         // acting
@@ -1282,6 +1286,7 @@ public class SoundCardServiceProviderTest {
                 invocation.getArgument(1, Long.class),
                 invocation.getArgument(2, TimeUnit.class)
         )).when(scheduler).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+        handle.setSourceVolume(-35);
         shadowScheduler.schedule(() -> provider.stopToneSending(handle), 1000, TimeUnit.MILLISECONDS);
 
         // acting
@@ -1308,7 +1313,8 @@ public class SoundCardServiceProviderTest {
                 invocation.getArgument(1, Long.class),
                 invocation.getArgument(2, TimeUnit.class)
         )).when(scheduler).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
-        shadowScheduler.schedule(() -> provider.stopToneSending(handle), 5200, TimeUnit.MILLISECONDS);
+        handle.setSourceVolume(-35);
+        shadowScheduler.schedule(() -> provider.stopToneSending(handle), 4200, TimeUnit.MILLISECONDS);
 
         // acting
         boolean started = provider.startToneSending(handle, tone);
@@ -1334,6 +1340,7 @@ public class SoundCardServiceProviderTest {
                 invocation.getArgument(1, Long.class),
                 invocation.getArgument(2, TimeUnit.class)
         )).when(scheduler).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+        handle.setSourceVolume(-35);
         shadowScheduler.schedule(() -> provider.stopToneSending(handle), 1500, TimeUnit.MILLISECONDS);
 
         // acting
@@ -1360,6 +1367,7 @@ public class SoundCardServiceProviderTest {
                 invocation.getArgument(1, Long.class),
                 invocation.getArgument(2, TimeUnit.class)
         )).when(scheduler).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+        handle.setSourceVolume(-35);
         assertThat(provider.startToneSending(handle, tone)).isTrue();
         await().until(handle::isOperationInProgress);
         reset(provider);

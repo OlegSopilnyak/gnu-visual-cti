@@ -72,6 +72,7 @@ public class ToneUtilsTest {
     public void shouldPlayingBackTone() {
         // preparing test data
         SoundCardHandle handle = SoundCardHandle.WRONG_HANDLE;
+        handle.setSourceVolume(-50);
         TelephonyTone tone = new TelephonyTone(ToneId.BEEP, "-1,1000,0,0,0,0,0,0,0,0");
         Consumer<OperationResultValue> resultUpdater = mock(Consumer.class);
         executor.schedule(() -> {
@@ -91,10 +92,12 @@ public class ToneUtilsTest {
     @Test
     public void shouldDialingDtmf() {
         // preparing test data
+        SoundCardHandle handle = SoundCardHandle.WRONG_HANDLE;
+        handle.setSourceVolume(-50);
         String dtmf = "555(#*)";
 
         // acting
-        ToneUtils.dialingDtmf(dtmf);
+        ToneUtils.dialingDtmf(handle, dtmf);
 
         // check the behavior
         // check results

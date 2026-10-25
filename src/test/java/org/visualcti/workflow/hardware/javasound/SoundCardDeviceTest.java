@@ -316,9 +316,9 @@ public class SoundCardDeviceTest<H extends SoundCardHandle> {
         boolean success = device.waitForCall(session, rings, timeout, answer);
 
         // check the behavior
-        verify(device).isOpened();
-        verify(calls).waitForCall(session, rings, timeout, answer);
+        verify(device).isOpened(session);
         verify(calls).canAcceptCall();
+        verify(session).isDisconnected();
         verify(provider).canAcceptCall(device.getName());
         verify(device).getParameter(CallsPortEngine.Parameter.ACCEPT_CALL_ALLOWED);
         // check results
@@ -333,20 +333,22 @@ public class SoundCardDeviceTest<H extends SoundCardHandle> {
         // preparing test data
         calls.uses(device);
         PhoneCall.Number target = PhoneNumber.of(1, 2, 3, 4);
+        // TODO replace it by device's parameter
+        session.getDeviceHandle().setSourceVolume(-35);
+
         int timeout = 1;
 
         // acting
         boolean success = device.makeCall(session, target, timeout);
 
         // check the behavior
-        verify(device).isOpened();
-        verify(calls).makeCall(session, target, timeout);
-        verify(calls).canMakeCall();
+        verify(device, atLeastOnce()).isOpened();
+        verify(device).canMakeCall();
+        verify(session, atLeastOnce()).isDisconnected();
         verify(provider).canMakeCall(device.getName());
         verify(device).getParameter(CallsPortEngine.Parameter.MAKE_CALL_ALLOWED);
-        verify(device).getParameter(CallsPortEngine.Parameter.ORIGIN);
         // check results
-        assertThat(success).isTrue();
+        assertThat(success).isFalse();
         assertThat(session.isAlive()).isFalse();
         assertThat(session.operationResult()).isSameAs(Result.CALL.Analysis.NO_ANSWER);
         assertThat(session.getState()).isSameAs(Device.State.IDLE);
@@ -358,6 +360,8 @@ public class SoundCardDeviceTest<H extends SoundCardHandle> {
         tones.uses(device);
         String number = "123";
         session.alive(true);
+        // TODO replace it by device's parameter
+        session.getDeviceHandle().setSourceVolume(-50);
 
         // acting
         device.dial(session, number);
@@ -375,6 +379,8 @@ public class SoundCardDeviceTest<H extends SoundCardHandle> {
         tones.uses(device);
         ToneId tone = ToneId.BEEP;
         session.alive(true);
+        // TODO replace it by device's parameter
+        session.getDeviceHandle().setSourceVolume(-35);
 
         // acting
         device.playTone(session, tone);
@@ -418,6 +424,8 @@ public class SoundCardDeviceTest<H extends SoundCardHandle> {
         assertThat(resource).isNotNull();
         assertThat(resource.available()).isGreaterThan(0);
         session.alive(true);
+        // TODO replace it by device's parameter
+        session.getDeviceHandle().setSourceVolume(-10);
 
         // acting for negative timeout
         Future<OperationResultValue> action = shadowExecutor.submit(

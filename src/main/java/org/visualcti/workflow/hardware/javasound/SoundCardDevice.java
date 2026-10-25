@@ -148,7 +148,7 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
     public PhoneCallSession<H> startSession() throws IOException {
         final PhoneCallSession<H> session = super.startSession();
         final SoundCardUI<H> former = uiHolder.getAndSet(new SoundCardUI<>(session));
-        if (former != null) {
+        if (former != null && former.getParent() != null) {
             former.getParent().remove(former);
             former.setVisible(false);
         }

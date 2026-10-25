@@ -37,7 +37,6 @@ Fax number: 217-356-3356
 */
 package org.visualcti.workflow.hardware.javasound;
 
-import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.DataLine;
 import javax.sound.sampled.Port;
@@ -48,7 +47,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -61,6 +60,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceEvent;
@@ -108,8 +108,21 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
         this.scheduler = scheduler;
     }
 
-    public ScheduledExecutorService getSchedulerExecuter() {
-        return scheduler;
+    @Override
+    public boolean canFax(final H handle) {
+        return isOpened(handle);
+    }
+
+    /**
+     * <accessor>
+     * To check is there any shadow activity running for the given handle
+     *
+     * @param handle the handle of the opened resource (sound card device's handle)
+     * @return true if there is any shadow activity running for the given handle
+     */
+    public boolean hasShadowActivity(final H handle) {
+        final ScheduledFuture<?> currentActivity = deviceActivity.get(handle);
+        return currentActivity != null && !currentActivity.isDone();
     }
 
     @Override
@@ -132,30 +145,21 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
         // post-processing after resource handle's getting
         if (isValid(resourceHandle)) {
             // registering the available codecs for the opened resource by the resource's handle
-            final List<Audio> codecs = availableFormatsFor(resourceHandle);
-            final Device.ParameterName parameterName = MultimediaEngine.Parameter.ALLOWED_CODECS;
-            final ConfigurationParameter parameter = ConfigurationParameter.of(parameterName.value(), codecs);
-            nativeSetResourceParameter(resourceHandle, parameterName, parameter);
+            registeringAvailableMediaFormats(resourceHandle);
         }
         return resourceHandle;
     }
 
     @Override
     protected List<Audio> availableFormatsFor(H handle) {
-        if (!isValid(handle)) {
-            return Collections.emptyList();
-        }
-        // getting the available formats for the correctly opened resource
-        final List<Audio> formats = new ArrayList<>(20);
         // iterating over the available audio formats
-        for (final Audio audio : Audio.values()) {
-            final AudioFormat format = audio.toFormat();
-            if (format != null && AudioSystem.isLineSupported(new DataLine.Info(DataLine.class, format))) {
-                formats.add(audio);
-            }
-        }
-        // returning the available formats
-        return formats;
+        return isValid(handle)
+                // iterating over the supported audio formats
+                ? Arrays.stream(Audio.values()).filter(this::isAudioSupported)
+                // returning the available supported audios list
+                .collect(Collectors.toList())
+                // returning the empty collection
+                : Collections.emptyList();
     }
 
     @Override
@@ -258,11 +262,6 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
     }
 
     @Override
-    public boolean canFax(final H handle) {
-        return isOpened(handle);
-    }
-
-    @Override
     protected H nativeFaxResourceOpen(String name) {
         return SOUND_DEVICE.equals(name) ? (H) soundCardResourceHandle() : SoundCardHandle.wrong();
     }
@@ -295,7 +294,6 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
     protected boolean nativeStartFaxReceiving(H handle, String filePath, boolean issueVoiceRequest) {
         return nativeStartFax(handle, filePath, "Started fax receiving");
     }
-
 
     @Override
     protected void nativeStopFaxReceiving(H handle) {
@@ -387,7 +385,7 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
     @Override
     protected void nativeDialingDtmf(H handle, String toDial) {
         if (handle.getSource() != null && toDial != null && !toDial.trim().isEmpty()) {
-            ToneUtils.dialingDtmf(toDial);
+            ToneUtils.dialingDtmf(handle, toDial);
         }
     }
 
@@ -418,19 +416,20 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
         Tools.print("=== Commiting tones registration for :" + handle);
     }
 
-    /**
-     * <accessor>
-     * To check is there any shadow activity running for the given handle
-     *
-     * @param handle the handle of the opened resource (sound card device's handle)
-     * @return true if there is any shadow activity running for the given handle
-     */
-    public boolean hasShadowActivity(final H handle) {
-        final ScheduledFuture<?> currentActivity = deviceActivity.get(handle);
-        return currentActivity != null && !currentActivity.isDone();
+    /// private methods
+    // to check is audio supported for sound data-line
+    private boolean isAudioSupported(Audio audio) {
+        return audio.toFormat() != null &&
+                AudioSystem.isLineSupported(new DataLine.Info(DataLine.class, audio.toFormat()));
     }
 
-    /// private methods
+    // registering the available codecs for the opened resource by the resource's handle
+    private void registeringAvailableMediaFormats(H handle) {
+        final Device.ParameterName name = MultimediaEngine.Parameter.ALLOWED_CODECS;
+        final ConfigurationParameter parameter = ConfigurationParameter.of(name.value(), availableFormatsFor(handle));
+        nativeSetResourceParameter(handle, name, parameter);
+    }
+
     // starting fax activity
     private boolean nativeStartFax(H handle, String filePath, String errorReason) {
         if (isOpened(handle) && Paths.get(filePath).toFile().exists()) {
@@ -518,7 +517,10 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
                     result -> putEvent(stopIt(handle, TONE_PLAYING, result));
             //
             // starting playing back the tone in the separated thread
-            scheduler.execute(() -> ToneUtils.playingBackTone(handle, tone, operationResultUpdater));
+            scheduler.schedule(
+                    () -> ToneUtils.playingBackTone(handle, tone, operationResultUpdater),
+                    0, TimeUnit.MILLISECONDS
+            );
             return true;
         } else {
             // didn't start playing

@@ -144,6 +144,7 @@ public final class PlaybackUtils extends CommonUtils {
         });
         // adjusting and starting the source data line channel
         channel.open(audioFormat);
+        adjustPlayingVolume(handle, channel);
         handle.setSourceLine(channel);
         channel.start();
         return channel;

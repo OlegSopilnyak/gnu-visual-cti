@@ -128,9 +128,9 @@ public final class ToneUtils extends CommonUtils {
      *
      * @param toDial the DTMF string to dial
      */
-    public static void dialingDtmf(final String toDial) {
+    public static <H extends SoundCardHandle> void dialingDtmf(final  H handle, final String toDial) {
         // playing composed buffer
-        playComposedToneBuffer(
+        playComposedToneBuffer(handle,
                 // making audio buffer for string to dial
                 composeAudioBufferFor(toDial)
         );
@@ -182,11 +182,12 @@ public final class ToneUtils extends CommonUtils {
     }
 
     // to play tone from the bytes buffer
-    private static void playComposedToneBuffer(byte[] buffer) {
+    private static <H extends SoundCardHandle> void playComposedToneBuffer(H handle, byte[] buffer) {
         if (buffer != null && buffer.length > 0) {
             try {
                 final SourceDataLine line = AudioSystem.getSourceDataLine(TONE_AUDIO_FORMAT);
                 line.open(TONE_AUDIO_FORMAT);
+                adjustPlayingVolume(handle, line);
                 line.start();
                 line.write(buffer, 0, buffer.length);
                 line.drain();
