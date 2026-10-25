@@ -95,8 +95,8 @@ public class AbstractMultimediaEngineTest<H> {
     String deviceName = "device-name";
     H deviceHandle = (H) "handle";
     static final Device.ParameterName ALLOWED_CODECS = MultimediaEngine.Parameter.ALLOWED_CODECS;
-    static final Device.ParameterName PLAYBACK_CODEC = MultimediaEngine.Parameter.PLAYBACK_CODEC;
-    static final Device.ParameterName RECORD_CODEC = MultimediaEngine.Parameter.RECORD_CODEC;
+//    static final Device.ParameterName PLAYBACK_CODEC = MultimediaEngine.Parameter.AUDIO_PLAYER_TYPE;
+//    static final Device.ParameterName RECORD_CODEC = MultimediaEngine.Parameter.AUDIO_RECORDER_TYPE;
 
     @Before
     public void setUp() {
@@ -192,13 +192,13 @@ public class AbstractMultimediaEngineTest<H> {
         engine.uses(device);
         Audio rawFormat = Audio.ALAW_8;
         ConfigurationParameter rawAudio = spy(ConfigurationParameter.of("play", rawFormat));
-        doReturn(Optional.of(rawAudio)).when(device).getParameter(PLAYBACK_CODEC);
+        doReturn(Optional.of(rawAudio)).when(device).getParameter(MultimediaEngine.Parameter.PLAYBACK_FORMAT);
 
         // acting
         Audio audio = engine.getRawFormat();
 
         // check the behavior
-        verify(device).getParameter(PLAYBACK_CODEC);
+        verify(device).getParameter(MultimediaEngine.Parameter.PLAYBACK_FORMAT);
         verify(rawAudio).getValue();
         // check results
         assertThat(audio).isSameAs(rawFormat);
@@ -210,13 +210,13 @@ public class AbstractMultimediaEngineTest<H> {
         engine.uses(device);
         Audio recordFormat = Audio.ADPCM_8;
         ConfigurationParameter rawAudio = spy(ConfigurationParameter.of("record", recordFormat));
-        doReturn(Optional.of(rawAudio)).when(device).getParameter(RECORD_CODEC);
+        doReturn(Optional.of(rawAudio)).when(device).getParameter(MultimediaEngine.Parameter.RECORD_FORMAT);
 
         // acting
         Audio audio = engine.getRecordFormat();
 
         // check the behavior
-        verify(device).getParameter(RECORD_CODEC);
+        verify(device).getParameter(MultimediaEngine.Parameter.RECORD_FORMAT);
         verify(rawAudio).getValue();
         // check results
         assertThat(audio).isSameAs(recordFormat);
@@ -228,7 +228,7 @@ public class AbstractMultimediaEngineTest<H> {
         engine.uses(device);
         Audio recordFormat = Audio.ADPCM_8;
         ConfigurationParameter rawAudio = spy(ConfigurationParameter.of("record", recordFormat));
-        doReturn(Optional.of(rawAudio)).when(device).getParameter(RECORD_CODEC);
+        doReturn(Optional.of(rawAudio)).when(device).getParameter(MultimediaEngine.Parameter.RECORD_FORMAT);
 
         // acting
         Audio[] all = engine.canRecord();
@@ -245,7 +245,7 @@ public class AbstractMultimediaEngineTest<H> {
         engine.uses(device);
         Audio recordFormat = Audio.ADPCM_8;
         ConfigurationParameter rawAudio = spy(ConfigurationParameter.of("record", recordFormat));
-        doReturn(Optional.of(rawAudio)).when(device).getParameter(RECORD_CODEC);
+        doReturn(Optional.of(rawAudio)).when(device).getParameter(MultimediaEngine.Parameter.RECORD_FORMAT);
 
         // acting
         boolean can = engine.canRecord(recordFormat);
@@ -276,7 +276,7 @@ public class AbstractMultimediaEngineTest<H> {
         engine.uses(device);
         Audio recordFormat = Audio.ADPCM_8;
         ConfigurationParameter rawAudio = spy(ConfigurationParameter.of("record", recordFormat));
-        doReturn(Optional.of(rawAudio)).when(device).getParameter(RECORD_CODEC);
+        doReturn(Optional.of(rawAudio)).when(device).getParameter(MultimediaEngine.Parameter.RECORD_FORMAT);
 
         // acting
         boolean can = engine.canRecord(Audio.ADPCM_6);
@@ -1464,7 +1464,7 @@ public class AbstractMultimediaEngineTest<H> {
     }
 
     private void prepareRecordCodecs(Audio recordFormat) {
-        Device.ParameterName parameterName = RECORD_CODEC;
+        Device.ParameterName parameterName = MultimediaEngine.Parameter.RECORD_FORMAT;
         ConfigurationParameter rawAudio = spy(ConfigurationParameter.of(parameterName.value(), recordFormat));
         doReturn(Optional.of(rawAudio)).when(device).getParameter(parameterName);
     }
@@ -1481,7 +1481,7 @@ public class AbstractMultimediaEngineTest<H> {
     }
 
     private void verifyPlaybackEventsAdjusting(boolean isMaskExists) {
-        verify(provider).disableEvents(deviceHandle);
+        verify(provider, atLeastOnce()).disableEvents(deviceHandle);
         if (isMaskExists) {
             verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
         }
@@ -1494,7 +1494,7 @@ public class AbstractMultimediaEngineTest<H> {
     }
 
     private void verifyRecordEventsAdjusting(boolean isMaskExists) {
-        verify(provider).disableEvents(deviceHandle);
+        verify(provider, atLeastOnce()).disableEvents(deviceHandle);
         if (isMaskExists) {
             verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
         }

@@ -83,7 +83,8 @@ public interface TelephonyDevice<H, F extends TelephonyFactory<H, ?>> extends De
         // phone line's playback record features engine
         MultimediaEngine<H>,
         // phone line's fax-machine features engine
-        FaxMachineEngine<H> {
+        FaxMachineEngine<H>
+{
     //
     // the value of type the device as the server unit
     String UNIT_TYPE = "[telephony-channel-device]";
@@ -95,8 +96,9 @@ public interface TelephonyDevice<H, F extends TelephonyFactory<H, ?>> extends De
     // XML-Configuration elements' and attributes' names
     String DEVICE_NETWORK_ROOT = "network";
     String DEVICE_MEDIA_ROOT = "media";
-    String DEVICE_MEDIA_TONE_ROOT = "tone";
-    String DEVICE_MEDIA_CODEC_ROOT = "format";
+    String DEVICE_MEDIA_TONE_PARAMETER = "tone";
+    String DEVICE_MEDIA_FORMAT_PARAMETER = "format";
+    String DEVICE_MEDIA_VOLUME_PARAMETER = "volume";
     String DEVICE_MEDIA_TONE_NAME_ATTRIBUTE = "name";
     String DEVICE_PARAMETER_TYPE_ATTRIBUTE = "type";
     String DEVICE_PARAMETER_VALUE_ATTRIBUTE = "value";

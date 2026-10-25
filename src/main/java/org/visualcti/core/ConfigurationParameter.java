@@ -150,11 +150,20 @@ public class ConfigurationParameter {
                 ;
     }
 
+    @Override
+    public String toString() {
+        return "ConfigurationParameter{" +
+                "name='" + name + '\'' +
+                ", type='" + type + '\'' +
+                ", value='" + getValue() + '\'' +
+                '}';
+    }
+
     // private methods
     private Object valueByType() {
         switch (type) {
             case NUMBER_TYPE:
-                return Integer.valueOf(value);
+                return Double.valueOf(value);
             case BOOLEAN_TYPE:
                 return Boolean.valueOf(value);
             case STRING_TYPE:

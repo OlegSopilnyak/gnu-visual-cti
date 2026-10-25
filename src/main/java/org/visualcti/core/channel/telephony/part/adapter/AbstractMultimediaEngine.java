@@ -186,6 +186,10 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
                 // checking end-of-file or timeout operation results
                 // or the operation is completed by masked DTMF input
                 if (isPlayingCompleted.test(operationResult) || completedByTerminationSymbol(context)) {
+                    // stop processing the further device events for the handle
+                    serviceProvider.disableEvents(deviceHandle);
+                    // stopping audio data transmitting by service provider
+                    stopAudioPlaying(serviceProvider, deviceHandle);
                     // deleting temporary file
                     if (!tempFile.delete()) {
                         // for some reason didn't delete the temporary file
@@ -295,7 +299,7 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
      */
     @Override
     public Audio getRecordFormat() {
-        return deviceCore.getParameter(Parameter.RECORD_CODEC)
+        return deviceCore.getParameter(Parameter.RECORD_FORMAT)
                 .<Audio>map(ConfigurationParameter::getValue).orElse(null);
     }
 
@@ -367,6 +371,8 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
                 // checking timeout, end-of-file or silence operation results
                 // or the operation is completed by masked DTMF input
                 if (isRecordCompleted.test(operationResult) || completedByTerminationSymbol(context)) {
+                    // stop processing the further device events for the handle
+                    serviceProvider.disableEvents(deviceHandle);
                     // stopping audio data transmitting by service provider
                     // and copying recorded data to the target, removing unnecessary temp file
                     if (!copyRecordedData(context, tempFile, target)) {
@@ -471,7 +477,7 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
 
     // Returns the audio format to play raw data (without header)
     private Audio playbackRawCodec() {
-        return deviceCore.getParameter(Parameter.PLAYBACK_CODEC)
+        return deviceCore.getParameter(Parameter.PLAYBACK_FORMAT)
                 .<Audio>map(ConfigurationParameter::getValue)
                 .orElse(null);
     }

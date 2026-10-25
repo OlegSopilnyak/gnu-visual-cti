@@ -112,8 +112,50 @@ import org.visualcti.media.Sound;
 @SuppressWarnings({"unchecked", "rawtypes"})
 public class AbstractTelephonyDeviceTest<H> {
     static final Device.ParameterName ALLOWED_CODECS = MultimediaEngine.Parameter.ALLOWED_CODECS;
-    static final Device.ParameterName PLAYBACK_CODEC = MultimediaEngine.Parameter.PLAYBACK_CODEC;
-    static final Device.ParameterName RECORD_CODEC = MultimediaEngine.Parameter.RECORD_CODEC;
+    public static final String DEFAULT_CONFIGURATION_XML_PATTERN =
+            "  <default>\n" +
+                    "    <network>\n" +
+                    "      <parameter name=\"in\" type=\"boolean\" value=\"true\" />\n" +
+                    "      <parameter name=\"out\" type=\"boolean\" value=\"true\" />\n" +
+                    "      <parameter name=\"share\" type=\"boolean\" value=\"true\" />\n" +
+                    "      <parameter name=\"origin\" type=\"string\" value=\"321\" />\n" +
+                    "    </network>\n" +
+                    "    <media>\n" +
+                    "      <tone name = \"dial\" value = \"1250,400,125,400,125,0,0,0,0,0\"/>\n" +
+                    "      <tone name = \"busy\" value = \"1253,500,200,0,0,55,40,55,40,4\"/>\n" +
+                    "      <tone name = \"ringback\" value = \"1254,450,150,0,0,150,100,550,400,0\"/>\n" +
+                    "      <tone name = \"disconnect\" value = \"1257,900,700,0,0,90,70,90,70,2\"/>\n" +
+                    "      <format type = \"record\" value = \"OKI/6000\" />\n" +
+                    "      <format type = \"play\" value = \"OKI/8000\" />\n" +
+                    "      <volume type=\"record\" value=\"0.0\" />\n" +
+                    "      <volume type=\"play\" value=\"-15.0\" />\n" +
+                    "    </media>\n" +
+                    "  </default>\n";
+    public static final String DEVICE_CONFIGURATION_XML_PATTERN =
+            "  <device name = \"%s\" type = \"analog\">\n" +
+                    "    <network>\n" +
+                    "      <parameter name=\"in\" type=\"boolean\" value=\"false\" />\n" +
+                    "      <parameter name=\"out\" type=\"boolean\" value=\"false\" />\n" +
+                    "      <parameter name=\"share\" type=\"boolean\" value=\"false\" />\n" +
+                    "      <parameter name=\"fax\" type=\"boolean\" value=\"true\" />\n" +
+                    "      <parameter name=\"origin\" type=\"string\" value=\"117\" />\n" +
+                    "    </network>\n" +
+                    "    <media>\n" +
+                    "      <tone name = \"dial\" value = \"250,400,125,400,125,0,0,0,0,0\"/>\n" +
+                    "      <tone name = \"busy\" value = \"253,500,200,0,0,55,40,55,40,4\"/>\n" +
+                    "      <tone name = \"ringback\" value = \"254,450,150,0,0,150,100,550,400,0\"/>\n" +
+                    "      <tone name = \"disconnect\" value = \"257,900,700,0,0,90,70,90,70,2\"/>\n" +
+                    "      <format type = \"record\" value = \"ULAW/8000\" />\n" +
+                    "      <format type = \"play\" value = \"OKI/8000\" />\n" +
+                    "      <volume type=\"record\" value=\"1.0\" />\n" +
+                    "      <volume type=\"play\" value=\"-40.0\" />\n" +
+                    "    </media>\n" +
+                    "  </device>\n";
+    public static final String CONFIGURATION_XML_PATTERN =
+            "<device-vendor>\n" +
+                    DEFAULT_CONFIGURATION_XML_PATTERN +
+                    DEVICE_CONFIGURATION_XML_PATTERN +
+                    "</device-vendor>\n";
     String telephonyDeviceName = "telephony-device";
     AbstractTelephonyServiceProvider<H> provider;
     AbstractCallsPortEngine<H> calls;
@@ -1677,7 +1719,7 @@ public class AbstractTelephonyDeviceTest<H> {
         // preparing test data
         media.uses(device);
         Audio audio = Audio.LINEAR;
-        Device.ParameterName name = PLAYBACK_CODEC;
+        Device.ParameterName name = MultimediaEngine.Parameter.PLAYBACK_FORMAT;
         ConfigurationParameter playbackCodec = spy(ConfigurationParameter.of(name.value(), audio));
         device.setParameter(name, playbackCodec);
         reset(device);
@@ -1697,7 +1739,7 @@ public class AbstractTelephonyDeviceTest<H> {
     public void shouldNotGetRawPlayingFormat_NoAvailableCodec() {
         // preparing test data
         media.uses(device);
-        Device.ParameterName name = PLAYBACK_CODEC;
+        Device.ParameterName name = MultimediaEngine.Parameter.PLAYBACK_FORMAT;
         Audio defaultCodec = factory.defaultPlaybackCodec();
         reset(device);
 
@@ -1767,7 +1809,8 @@ public class AbstractTelephonyDeviceTest<H> {
         verify(session).waitingForOperationComplete(1000L);
         verify(session).operationCompletingWithResult(Result.IO.EOF);
         verify(session, never()).operationCompletingWithResult(Result.TIMEOUT);
-        verify(provider).stopAudioPlaying(deviceHandle);
+        verify(provider, atLeastOnce()).disableEvents(deviceHandle);
+        verify(provider, atLeastOnce()).stopAudioPlaying(deviceHandle);
         // check results
         assertThat(result).isEqualTo(Result.IO.EOF);
         assertThat(session.getState()).isEqualTo(Device.State.IDLE);
@@ -1804,7 +1847,8 @@ public class AbstractTelephonyDeviceTest<H> {
         verify(session, atLeastOnce()).waitingForOperationComplete(1000L);
         verify(session, never()).operationCompletingWithResult(Result.IO.EOF);
         verify(session).operationCompletingWithResult(Result.TIMEOUT);
-        verify(provider).stopAudioPlaying(deviceHandle);
+        verify(provider, atLeastOnce()).disableEvents(deviceHandle);
+        verify(provider, atLeastOnce()).stopAudioPlaying(deviceHandle);
         // check results
         assertThat(result).isEqualTo(Result.TIMEOUT);
         assertThat(session.getState()).isEqualTo(Device.State.IDLE);
@@ -1921,7 +1965,7 @@ public class AbstractTelephonyDeviceTest<H> {
         // preparing test data
         media.uses(device);
         Audio audio = Audio.LINEAR;
-        Device.ParameterName name = RECORD_CODEC;
+        Device.ParameterName name = MultimediaEngine.Parameter.RECORD_FORMAT;
         device.setParameter(name, spy(ConfigurationParameter.of(name.value(), audio)));
         reset(device);
 
@@ -1949,7 +1993,7 @@ public class AbstractTelephonyDeviceTest<H> {
         // check the behavior
         verify(media).canRecord();
         verify(media).getRecordFormat();
-        verify(device).getParameter(RECORD_CODEC);
+        verify(device).getParameter(MultimediaEngine.Parameter.RECORD_FORMAT);
         // check results
         assertThat(all).containsExactly(defaultCodec);
     }
@@ -2005,9 +2049,7 @@ public class AbstractTelephonyDeviceTest<H> {
         // preparing test data
         media.uses(device);
         Audio audio = Audio.LINEAR;
-        Device.ParameterName name = RECORD_CODEC;
-        ConfigurationParameter recordCodec = spy(ConfigurationParameter.of(name.value(), audio));
-        device.setParameter(name, recordCodec);
+        prepareRecordCodec(audio);
         reset(device);
 
         // acting
@@ -2015,8 +2057,7 @@ public class AbstractTelephonyDeviceTest<H> {
 
         // check the behavior
         verify(media).getRecordFormat();
-        verify(device).getParameter(name);
-        verify(recordCodec).getValue();
+        verify(device).getParameter(MultimediaEngine.Parameter.RECORD_FORMAT);
         // check results
         assertThat(rawAudio).isEqualTo(Audio.LINEAR);
     }
@@ -2025,7 +2066,7 @@ public class AbstractTelephonyDeviceTest<H> {
     public void shouldNotGetRecordFormat_NoAvailableCodec() {
         // preparing test data
         media.uses(device);
-        Device.ParameterName name = RECORD_CODEC;
+        Device.ParameterName name = MultimediaEngine.Parameter.RECORD_FORMAT;
         Audio defaultCodec = factory.defaultRecordCodec();
         reset(device);
 
@@ -2661,42 +2702,7 @@ public class AbstractTelephonyDeviceTest<H> {
     @Test
     public void shouldSetUpConfiguration_ConcreteDevice() throws IOException, DataConversionException {
         // preparing test data
-        String configuration =
-                "<device-vendor>\n" +
-                        "  <default>\n" +
-                        "    <network>\n" +
-                        "      <parameter name=\"in\" type=\"boolean\" value=\"true\" />\n" +
-                        "      <parameter name=\"out\" type=\"boolean\" value=\"true\" />\n" +
-                        "      <parameter name=\"share\" type=\"boolean\" value=\"true\" />\n" +
-                        "      <parameter name=\"origin\" type=\"string\" value=\"321\" />\n" +
-                        "    </network>\n" +
-                        "    <media>\n" +
-                        "      <tone name = \"dial\" value = \"1250,400,125,400,125,0,0,0,0,0\"/>\n" +
-                        "      <tone name = \"busy\" value = \"1253,500,200,0,0,55,40,55,40,4\"/>\n" +
-                        "      <tone name = \"ringback\" value = \"1254,450,150,0,0,150,100,550,400,0\"/>\n" +
-                        "      <tone name = \"disconnect\" value = \"1257,900,700,0,0,90,70,90,70,2\"/>\n" +
-                        "      <format type = \"record\" value = \"OKI/6000\" />\n" +
-                        "      <format type = \"play\" value = \"OKI/8000\" />\n" +
-                        "    </media>\n" +
-                        "  </default>\n" +
-                        "  <device name = \"telephony-device\" type = \"analog\">\n" +
-                        "    <network>\n" +
-                        "      <parameter name=\"in\" type=\"boolean\" value=\"false\" />\n" +
-                        "      <parameter name=\"out\" type=\"boolean\" value=\"false\" />\n" +
-                        "      <parameter name=\"share\" type=\"boolean\" value=\"false\" />\n" +
-                        "      <parameter name=\"fax\" type=\"boolean\" value=\"true\" />\n" +
-                        "      <parameter name=\"origin\" type=\"string\" value=\"117\" />\n" +
-                        "    </network>\n" +
-                        "    <media>\n" +
-                        "      <tone name = \"dial\" value = \"250,400,125,400,125,0,0,0,0,0\"/>\n" +
-                        "      <tone name = \"busy\" value = \"253,500,200,0,0,55,40,55,40,4\"/>\n" +
-                        "      <tone name = \"ringback\" value = \"254,450,150,0,0,150,100,550,400,0\"/>\n" +
-                        "      <tone name = \"disconnect\" value = \"257,900,700,0,0,90,70,90,70,2\"/>\n" +
-                        "      <format type = \"record\" value = \"ULAW/8000\" />\n" +
-                        "      <format type = \"play\" value = \"OKI/8000\" />\n" +
-                        "    </media>\n" +
-                        "  </device>\n" +
-                        "</device-vendor>\n";
+        String configuration = String.format(CONFIGURATION_XML_PATTERN, telephonyDeviceName);
         Element xml = device.load(new ByteArrayInputStream(configuration.getBytes()));
         reset(device);
 
@@ -2711,8 +2717,10 @@ public class AbstractTelephonyDeviceTest<H> {
         verify(device, times(3)).setParameter(eq(CallsPortEngine.Parameter.ORIGIN), any(ConfigurationParameter.class));
         verify(device).setParameter(eq(FaxMachineEngine.Parameter.FAX_ALLOWED), any(ConfigurationParameter.class));
         verify(device, times(3)).applyDeviceMediaParameters(any(Element.class));
-        verify(device, times(3)).setParameter(eq(MultimediaEngine.Parameter.PLAYBACK_CODEC), any(ConfigurationParameter.class));
-        verify(device, times(3)).setParameter(eq(MultimediaEngine.Parameter.RECORD_CODEC), any(ConfigurationParameter.class));
+        verify(device, times(3)).setParameter(eq(MultimediaEngine.Parameter.PLAYBACK_FORMAT), any(ConfigurationParameter.class));
+        verify(device, times(3)).setParameter(eq(MultimediaEngine.Parameter.RECORD_FORMAT), any(ConfigurationParameter.class));
+        verify(device, times(3)).setParameter(eq(MultimediaEngine.Parameter.PLAYBACK_VOLUME), any(ConfigurationParameter.class));
+        verify(device, times(3)).setParameter(eq(MultimediaEngine.Parameter.RECORD_VOLUME), any(ConfigurationParameter.class));
         verify(device, never()).setParameter(eq(TonesEngine.Parameter.TONES_TABLE), any(ConfigurationParameter.class));
         // check results
         // device network parameters values
@@ -2736,16 +2744,26 @@ public class AbstractTelephonyDeviceTest<H> {
         ConfigurationParameter canFax = device.getParameter(FaxMachineEngine.Parameter.FAX_ALLOWED).orElse(null);
         assertThat(canFax).isNotNull();
         assertThat(canFax.<Boolean>getValue()).isTrue();
-
         // device media parameters values
-        assertThat(device.getParameter(MultimediaEngine.Parameter.PLAYBACK_CODEC)).isPresent();
-        ConfigurationParameter playback = device.getParameter(MultimediaEngine.Parameter.PLAYBACK_CODEC).orElse(null);
-        assertThat(playback).isNotNull();
-        assertThat(playback.<Audio>getValue()).isSameAs(Audio.ADPCM_8);
-        assertThat(device.getParameter(MultimediaEngine.Parameter.RECORD_CODEC)).isPresent();
-        ConfigurationParameter recordCodec = device.getParameter(MultimediaEngine.Parameter.RECORD_CODEC).orElse(null);
-        assertThat(recordCodec).isNotNull();
-        assertThat(recordCodec.<Audio>getValue()).isSameAs(Audio.ULAW_8);
+        // audio formats
+        assertThat(device.getParameter(MultimediaEngine.Parameter.PLAYBACK_FORMAT)).isPresent();
+        ConfigurationParameter playbackFormat = device.getParameter(MultimediaEngine.Parameter.PLAYBACK_FORMAT).orElse(null);
+        assertThat(playbackFormat).isNotNull();
+        assertThat(playbackFormat.<Audio>getValue()).isSameAs(Audio.ADPCM_8);
+        assertThat(device.getParameter(MultimediaEngine.Parameter.RECORD_FORMAT)).isPresent();
+        ConfigurationParameter recordFormat = device.getParameter(MultimediaEngine.Parameter.RECORD_FORMAT).orElse(null);
+        assertThat(recordFormat).isNotNull();
+        assertThat(recordFormat.<Audio>getValue()).isSameAs(Audio.ULAW_8);
+        // audio volume levels
+        assertThat(device.getParameter(MultimediaEngine.Parameter.PLAYBACK_VOLUME)).isPresent();
+        ConfigurationParameter playbackVolume = device.getParameter(MultimediaEngine.Parameter.PLAYBACK_VOLUME).orElse(null);
+        assertThat(playbackVolume).isNotNull();
+        assertThat(playbackVolume.<Number>getValue()).isEqualTo(-40.0);
+        assertThat(device.getParameter(MultimediaEngine.Parameter.RECORD_VOLUME)).isPresent();
+        ConfigurationParameter recordVolume = device.getParameter(MultimediaEngine.Parameter.RECORD_VOLUME).orElse(null);
+        assertThat(recordVolume).isNotNull();
+        assertThat(recordVolume.<Number>getValue()).isEqualTo(1.0);
+        // audio tones
         assertThat(device.getParameter(TonesEngine.Parameter.TONES_TABLE)).isPresent();
         ConfigurationParameter tonesParameter = device.getParameter(TonesEngine.Parameter.TONES_TABLE).orElse(null);
         assertThat(tonesParameter).isNotNull();
@@ -2759,42 +2777,8 @@ public class AbstractTelephonyDeviceTest<H> {
     @Test
     public void shouldSetUpConfiguration_DefaultDevice() throws IOException, DataConversionException {
         // preparing test data
-        String configuration =
-                "<device-vendor>\n" +
-                        "  <default>\n" +
-                        "    <network>\n" +
-                        "      <parameter name=\"in\" type=\"boolean\" value=\"true\" />\n" +
-                        "      <parameter name=\"out\" type=\"boolean\" value=\"true\" />\n" +
-                        "      <parameter name=\"share\" type=\"boolean\" value=\"true\" />\n" +
-                        "      <parameter name=\"origin\" type=\"string\" value=\"321\" />\n" +
-                        "    </network>\n" +
-                        "    <media>\n" +
-                        "      <tone name = \"dial\" value = \"1250,400,125,400,125,0,0,0,0,0\"/>\n" +
-                        "      <tone name = \"busy\" value = \"1253,500,200,0,0,55,40,55,40,4\"/>\n" +
-                        "      <tone name = \"ringback\" value = \"1254,450,150,0,0,150,100,550,400,0\"/>\n" +
-                        "      <tone name = \"disconnect\" value = \"1257,900,700,0,0,90,70,90,70,2\"/>\n" +
-                        "      <format type = \"record\" value = \"OKI/6000\" />\n" +
-                        "      <format type = \"play\" value = \"OKI/8000\" />\n" +
-                        "    </media>\n" +
-                        "  </default>\n" +
-                        "  <device name = \"telephony-device-\" type = \"analog\">\n" +
-                        "    <network>\n" +
-                        "      <parameter name=\"in\" type=\"boolean\" value=\"false\" />\n" +
-                        "      <parameter name=\"out\" type=\"boolean\" value=\"false\" />\n" +
-                        "      <parameter name=\"share\" type=\"boolean\" value=\"false\" />\n" +
-                        "      <parameter name=\"fax\" type=\"boolean\" value=\"true\" />\n" +
-                        "      <parameter name=\"origin\" type=\"string\" value=\"117\" />\n" +
-                        "    </network>\n" +
-                        "    <media>\n" +
-                        "      <tone name = \"dial\" value = \"250,400,125,400,125,0,0,0,0,0\"/>\n" +
-                        "      <tone name = \"busy\" value = \"253,500,200,0,0,55,40,55,40,4\"/>\n" +
-                        "      <tone name = \"ringback\" value = \"254,450,150,0,0,150,100,550,400,0\"/>\n" +
-                        "      <tone name = \"disconnect\" value = \"257,900,700,0,0,90,70,90,70,2\"/>\n" +
-                        "      <format type = \"record\" value = \"ULAW/8000\" />\n" +
-                        "      <format type = \"play\" value = \"OKI/8000\" />\n" +
-                        "    </media>\n" +
-                        "  </device>\n" +
-                        "</device-vendor>\n";
+        String wrongTelephonyDeviceName = telephonyDeviceName + "-";
+        String configuration = String.format(CONFIGURATION_XML_PATTERN, wrongTelephonyDeviceName);
         Element xml = device.load(new ByteArrayInputStream(configuration.getBytes()));
         reset(device);
 
@@ -2809,8 +2793,10 @@ public class AbstractTelephonyDeviceTest<H> {
         verify(device, times(2)).setParameter(eq(CallsPortEngine.Parameter.ORIGIN), any(ConfigurationParameter.class));
         verify(device, never()).setParameter(eq(FaxMachineEngine.Parameter.FAX_ALLOWED), any(ConfigurationParameter.class));
         verify(device, times(2)).applyDeviceMediaParameters(any(Element.class));
-        verify(device, times(2)).setParameter(eq(MultimediaEngine.Parameter.PLAYBACK_CODEC), any(ConfigurationParameter.class));
-        verify(device, times(2)).setParameter(eq(MultimediaEngine.Parameter.RECORD_CODEC), any(ConfigurationParameter.class));
+        verify(device, times(2)).setParameter(eq(MultimediaEngine.Parameter.PLAYBACK_FORMAT), any(ConfigurationParameter.class));
+        verify(device, times(2)).setParameter(eq(MultimediaEngine.Parameter.RECORD_FORMAT), any(ConfigurationParameter.class));
+        verify(device, times(2)).setParameter(eq(MultimediaEngine.Parameter.PLAYBACK_VOLUME), any(ConfigurationParameter.class));
+        verify(device, times(2)).setParameter(eq(MultimediaEngine.Parameter.RECORD_VOLUME), any(ConfigurationParameter.class));
         verify(device, never()).setParameter(eq(TonesEngine.Parameter.TONES_TABLE), any(ConfigurationParameter.class));
         // check results
         // device network parameters values
@@ -2831,16 +2817,26 @@ public class AbstractTelephonyDeviceTest<H> {
         assertThat(origin).isNotNull();
         assertThat(origin.<PhoneCall.Number>getValue().number()).isEqualTo(321);
         assertThat(device.getParameter(FaxMachineEngine.Parameter.FAX_ALLOWED)).isEmpty();
-
         // device media parameters values
-        assertThat(device.getParameter(MultimediaEngine.Parameter.PLAYBACK_CODEC)).isPresent();
-        ConfigurationParameter playback = device.getParameter(MultimediaEngine.Parameter.PLAYBACK_CODEC).orElse(null);
-        assertThat(playback).isNotNull();
-        assertThat(playback.<Audio>getValue()).isSameAs(Audio.ADPCM_8);
-        assertThat(device.getParameter(MultimediaEngine.Parameter.RECORD_CODEC)).isPresent();
-        ConfigurationParameter recordCodec = device.getParameter(MultimediaEngine.Parameter.RECORD_CODEC).orElse(null);
-        assertThat(recordCodec).isNotNull();
-        assertThat(recordCodec.<Audio>getValue()).isSameAs(Audio.ADPCM_6);
+        // audio formats
+        assertThat(device.getParameter(MultimediaEngine.Parameter.PLAYBACK_FORMAT)).isPresent();
+        ConfigurationParameter playbackFormat = device.getParameter(MultimediaEngine.Parameter.PLAYBACK_FORMAT).orElse(null);
+        assertThat(playbackFormat).isNotNull();
+        assertThat(playbackFormat.<Audio>getValue()).isSameAs(Audio.ADPCM_8);
+        assertThat(device.getParameter(MultimediaEngine.Parameter.RECORD_FORMAT)).isPresent();
+        ConfigurationParameter recordFormat = device.getParameter(MultimediaEngine.Parameter.RECORD_FORMAT).orElse(null);
+        assertThat(recordFormat).isNotNull();
+        assertThat(recordFormat.<Audio>getValue()).isSameAs(Audio.ADPCM_6);
+        // audio volume levels
+        assertThat(device.getParameter(MultimediaEngine.Parameter.PLAYBACK_VOLUME)).isPresent();
+        ConfigurationParameter playbackVolume = device.getParameter(MultimediaEngine.Parameter.PLAYBACK_VOLUME).orElse(null);
+        assertThat(playbackVolume).isNotNull();
+        assertThat(playbackVolume.<Number>getValue()).isEqualTo(-15.0);
+        assertThat(device.getParameter(MultimediaEngine.Parameter.RECORD_VOLUME)).isPresent();
+        ConfigurationParameter recordVolume = device.getParameter(MultimediaEngine.Parameter.RECORD_VOLUME).orElse(null);
+        assertThat(recordVolume).isNotNull();
+        assertThat(recordVolume.<Number>getValue()).isEqualTo(0.0);
+        // audio tones
         assertThat(device.getParameter(TonesEngine.Parameter.TONES_TABLE)).isPresent();
         ConfigurationParameter tonesParameter = device.getParameter(TonesEngine.Parameter.TONES_TABLE).orElse(null);
         assertThat(tonesParameter).isNotNull();
@@ -2855,23 +2851,7 @@ public class AbstractTelephonyDeviceTest<H> {
     public void shouldGetDeviceConfiguration() throws IOException, DataConversionException {
         // preparing test data
         String configuration = "<device-vendor>\n" +
-                "  <device name = \"telephony-device\" type = \"analog\">\n" +
-                "    <network>\n" +
-                "      <parameter name=\"in\" type=\"boolean\" value=\"false\" />\n" +
-                "      <parameter name=\"out\" type=\"boolean\" value=\"false\" />\n" +
-                "      <parameter name=\"share\" type=\"boolean\" value=\"false\" />\n" +
-                "      <parameter name=\"fax\" type=\"boolean\" value=\"true\" />\n" +
-                "      <parameter name=\"origin\" type=\"string\" value=\"117\" />\n" +
-                "    </network>\n" +
-                "    <media>\n" +
-                "      <tone name = \"dial\" value = \"250,400,125,400,125,0,0,0,0,0\"/>\n" +
-                "      <tone name = \"busy\" value = \"253,500,200,0,0,55,40,55,40,4\"/>\n" +
-                "      <tone name = \"ringback\" value = \"254,450,150,0,0,150,100,550,400,0\"/>\n" +
-                "      <tone name = \"disconnect\" value = \"257,900,700,0,0,90,70,90,70,2\"/>\n" +
-                "      <format type = \"record\" value = \"ULAW/8000\" />\n" +
-                "      <format type = \"play\" value = \"OKI/8000\" />\n" +
-                "    </media>\n" +
-                "  </device>\n" +
+                String.format(DEVICE_CONFIGURATION_XML_PATTERN, telephonyDeviceName) +
                 "</device-vendor>\n";
         Element xml = device.load(new ByteArrayInputStream(configuration.getBytes()));
         String loadedConfiguration = asString(xml.getChild("device"));
@@ -2929,7 +2909,7 @@ public class AbstractTelephonyDeviceTest<H> {
     }
 
     private void prepareRecordCodec(Audio format) {
-        Device.ParameterName name = RECORD_CODEC;
+        Device.ParameterName name = MultimediaEngine.Parameter.RECORD_FORMAT;
         device.setParameter(name, spy(ConfigurationParameter.of(name.value(), format)));
     }
 
@@ -2967,7 +2947,7 @@ public class AbstractTelephonyDeviceTest<H> {
         verify(provider, atLeastOnce()).disableEvents(deviceHandle);
         verify(provider).enableEvents(deviceHandle, Result.CALL.DISCONNECT);
         verify(provider).enableEvents(deviceHandle, Result.IO.DTMF);
-        verify(provider).disableEvents(deviceHandle, Result.IO.DTMF);
+        verify(provider, atLeastOnce()).disableEvents(deviceHandle, Result.IO.DTMF);
     }
 
     // to terminate device's current activity

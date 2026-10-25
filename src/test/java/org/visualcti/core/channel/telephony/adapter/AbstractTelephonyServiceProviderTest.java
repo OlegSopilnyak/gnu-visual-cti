@@ -78,6 +78,10 @@ public class AbstractTelephonyServiceProviderTest<H> {
     @Before
     public void setUp() {
         provider = spy(new AbstractTelephonyServiceProvider() {
+            @Override
+            protected Object nativeResourceOpen(String name) {
+                return null;
+            }
         });
     }
 
@@ -970,7 +974,7 @@ public class AbstractTelephonyServiceProviderTest<H> {
 
         // check the behavior
         verify(provider).isOpened(resourceHandle);
-        verify(provider).nativeFindResourceParameter(resourceHandle, parameterName);
+        verify(provider).findResourceParameterFor(resourceHandle, parameterName);
         // check results
         assertThat(parameter).isNotNull().isPresent().contains(configurationParameter);
     }
@@ -994,7 +998,7 @@ public class AbstractTelephonyServiceProviderTest<H> {
 
         // check the behavior
         verify(provider).isOpened(handle);
-        verify(provider).nativeFindResourceParameter(handle, parameterNameNoThere);
+        verify(provider).findResourceParameterFor(handle, parameterNameNoThere);
         // check results
         assertThat(parameter).isNotNull().isEmpty();
     }
@@ -1019,7 +1023,7 @@ public class AbstractTelephonyServiceProviderTest<H> {
 
         // check the behavior
         verify(provider).isOpened(handle);
-        verify(provider, never()).nativeFindResourceParameter(any(), any(Device.ParameterName.class));
+        verify(provider, never()).findResourceParameterFor(any(), any(Device.ParameterName.class));
         // check results
         assertThat(parameter).isNotNull().isEmpty();
     }

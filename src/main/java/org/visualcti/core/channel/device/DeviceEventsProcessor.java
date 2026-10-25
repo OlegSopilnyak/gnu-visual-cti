@@ -53,12 +53,12 @@ public interface DeviceEventsProcessor<H> extends RunnableServerUnit {
     /**
      * Enumeration: Parameter names for device event processor options
      */
-    enum OptionName implements Device.ParameterName {
+    enum Option implements Device.ParameterName {
         WAIT_EVENT_TIMEOUT("WAIT_EVENT_TIMEOUT_PROPERTY");
 
         private final String name;
 
-        OptionName(String name) {
+        Option(String name) {
             this.name = name;
         }
 
@@ -77,7 +77,7 @@ public interface DeviceEventsProcessor<H> extends RunnableServerUnit {
      * @param <T> the type of the option value
      * @see Optional
      */
-    <T> Optional<T> getOption(OptionName name);
+    <T> Optional<T> getOption(Option name);
 
     /**
      * <mutator>
@@ -87,7 +87,7 @@ public interface DeviceEventsProcessor<H> extends RunnableServerUnit {
      * @param value new value of the option
      * @param <T>   the type of the option value
      */
-    <T> void setOption(OptionName name, T value);
+    <T> void setOption(Option name, T value);
 
     /**
      * <accessor>

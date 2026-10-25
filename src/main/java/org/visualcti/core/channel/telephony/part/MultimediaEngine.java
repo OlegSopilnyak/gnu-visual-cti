@@ -59,10 +59,18 @@ public interface MultimediaEngine<H> extends TelephonyDevicePart<H> {
      * Configured Parameter Names Enumeration: The parameter names of multimedia part of the telephony device
      */
     enum Parameter implements Device.ParameterName {
+        // which volume is used for recording by default (from xml-configuration)
+        RECORD_FORMAT("RECORD-FORMAT"),
+        // which volume is used for playing back by default (from xml-configuration)
+        PLAYBACK_FORMAT("PLAYBACK-FORMAT"),
+        // which volume is used for recording by default (from xml-configuration)
+        RECORD_VOLUME("RECORD-VOLUME"),
+        // which volume is used for playing back by default (from xml-configuration)
+        PLAYBACK_VOLUME("PLAYBACK-VOLUME"),
         // which format is used for recording by default (from xml-configuration)
-        RECORD_CODEC("RECORD"),
+        AUDIO_RECORDER_TYPE("RECORD"),
         // which format is used for playing back by default (from xml-configuration)
-        PLAYBACK_CODEC("PLAY"),
+        AUDIO_PLAYER_TYPE("PLAY"),
         // the list of audio formats can be used for multimedia (from telephony service provider)
         ALLOWED_CODECS("ALLOWED-CODECS-LIST"),
         // the temporary file that is using for media transmitting operations (for tests purposes)
@@ -79,6 +87,7 @@ public interface MultimediaEngine<H> extends TelephonyDevicePart<H> {
         public String value() {
             return name.toLowerCase();
         }
+
     }
 
     /**

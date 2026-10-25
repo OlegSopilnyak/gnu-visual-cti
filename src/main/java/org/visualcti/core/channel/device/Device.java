@@ -459,10 +459,8 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit, XmlAware
      * @see TimeUnit#sleep(long)
      */
     default boolean repair() {
-        final ConfigurationParameter attempt = getParameter(Parameter.REPAIR_ATTEMPT).orElse(null);
-        final int repairTryAttempts = attempt != null ? attempt.getValue() : 20;
-        final ConfigurationParameter nextTryIn = getParameter(Parameter.REPAIR_TIMEOUT).orElse(null);
-        final int nextTryInSeconds = nextTryIn != null ? nextTryIn.getValue() : 3000;
+        final int repairTryAttempts = integerValueOf(Parameter.REPAIR_ATTEMPT, 20);
+        final int nextTryInSeconds = integerValueOf(Parameter.REPAIR_TIMEOUT, 3000);
         // repairing sequence
         try {
             // closing the device
@@ -484,6 +482,19 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit, XmlAware
         }
         // not repaired
         return false;
+    }
+
+    /**
+     * <accessor>
+     * To get device's parameter value as integer or value by default
+     *
+     * @param parameterName the name of parameter to get
+     * @param defaultValue the value if parameter isn't exist
+     * @return the parameter's value
+     */
+    default int integerValueOf(final Device.Parameter parameterName, final int defaultValue) {
+        final ConfigurationParameter parameter = getParameter(parameterName).orElse(null);
+        return parameter == null ? defaultValue : parameter.<Number>getValue().intValue();
     }
 
     static void tryToOpenTheDevice(final Device<?, ?> device) throws IOException {
@@ -535,7 +546,24 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit, XmlAware
      * The parent of configured parameter names enumerations
      */
     interface ParameterName {
+        /**
+         * <accessor>
+         * To get string value of the parameter name
+         *
+         * @return parameter name as string
+         */
         String value();
+
+        /**
+         * <checker>
+         * To compare parameter name with the name as string
+         *
+         * @param nameAsString parameter name as the string
+         * @return true if name as string equals parameter name
+         */
+        default boolean isEqualsTo(final String nameAsString) {
+            return nameAsString != null && nameAsString.equalsIgnoreCase(this.value());
+        }
     }
 
     /**
@@ -583,7 +611,7 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit, XmlAware
          * @param name the name of the resource
          * @return handle for the opened resource
          * @throws IOException if the channel's resource cannot be opened or activated
-         * @see DeviceActivitySession#getDeviceHandle()
+         * @see Device#startSession()
          */
         H openResource(String name) throws IOException;
 
@@ -635,6 +663,17 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit, XmlAware
          */
         default Collection<String> allowedDevices() {
             return Collections.emptyList();
+        }
+
+        /**
+         * <mutator>
+         * To configure provider's parameters by the opened device's options
+         *
+         * @param device opened device
+         * @see Device
+         */
+        default void configureBy(Device<H,?> device) {
+            // doing nothing here
         }
     }
 }

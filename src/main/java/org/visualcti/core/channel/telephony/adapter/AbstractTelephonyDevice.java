@@ -853,6 +853,7 @@ public abstract class AbstractTelephonyDevice<H, T extends TelephonyFactory<H, ?
     public TelephonyTone findToneById(final ToneId id) {
         return tones.findToneById(id);
     }
+
     /**
      * <action>
      * To receive the user input from the telephony line.
@@ -923,12 +924,12 @@ public abstract class AbstractTelephonyDevice<H, T extends TelephonyFactory<H, ?
     public void setXML(final Element vendorConfigurationXml) throws IOException, DataConversionException, NumberFormatException, NullPointerException {
         // applying the factory's default parameters of device
         applyDeviceParameters(getFactory().defaultDeviceXml())
-        // applying by default vendor's device parameters
-        .applyDeviceParameters(vendorConfigurationXml.getChild(DEFAULT_ROOT));
+                // applying by default vendor's device parameters
+                .applyDeviceParameters(vendorConfigurationXml.getChild(DEFAULT_ROOT));
         // looking for concrete device parameters in the vendor's configuration-xml by device name
         final String deviceName = this.getName();
         final Optional<Element> deviceConfiguration = vendorConfigurationXml.getChildren(DEVICE_ROOT).stream()
-                .filter(xml -> deviceName.equals(((Element)xml).getAttributeValue(DEVICE_NAME_ATTRIBUTE)))
+                .filter(xml -> deviceName.equals(((Element) xml).getAttributeValue(DEVICE_NAME_ATTRIBUTE)))
                 .findFirst();
         if (deviceConfiguration.isPresent()) {
             // applying by concrete device parameters if any
@@ -937,6 +938,9 @@ public abstract class AbstractTelephonyDevice<H, T extends TelephonyFactory<H, ?
             // no entry there (in the configuration) applying default and save to factory's configuration
             getFactory().saveFactoryConfigurationFor(this);
         }
+        //
+        // configuring the device's service provider by configured device
+        getProvider().configureBy(this);
     }
 
     /**
@@ -998,11 +1002,15 @@ public abstract class AbstractTelephonyDevice<H, T extends TelephonyFactory<H, ?
     protected void applyDeviceMediaParameters(final Element deviceMediaConfiguration) throws IOException {
         if (deviceMediaConfiguration != null) {
             // processing the parameters of the device's media codecs XML elements
-            final List<Element> codecs = deviceMediaConfiguration.getChildren(DEVICE_MEDIA_CODEC_ROOT);
-            codecs.forEach(this::applyDeviceMediaCodecParameters);
+            // codecs formats
+            final List<Element> codecs = deviceMediaConfiguration.getChildren(DEVICE_MEDIA_FORMAT_PARAMETER);
+            codecs.forEach(this::applyDeviceAudioFormatParameter);
+            // volume levels of the audio transmitting
+            final List<Element> volumes = deviceMediaConfiguration.getChildren(DEVICE_MEDIA_VOLUME_PARAMETER);
+            volumes.forEach(this::applyDeviceMediaVolumeParameter);
             // processing the parameters of the device's media tones XML elements
-            final List<Element> tonesXmls = deviceMediaConfiguration.getChildren(DEVICE_MEDIA_TONE_ROOT);
-            tonesXmls.forEach(this::applyDeviceMediaToneParameters);
+            final List<Element> tones = deviceMediaConfiguration.getChildren(DEVICE_MEDIA_TONE_PARAMETER);
+            tones.forEach(this::applyDeviceMediaToneParameters);
             // registering configured tones in the service provider for the current device
             registerDeviceTones();
         }
@@ -1094,12 +1102,12 @@ public abstract class AbstractTelephonyDevice<H, T extends TelephonyFactory<H, ?
         tonesTable.put(toneId, new TelephonyTone(toneId, toneAsString));
     }
 
-    // applying device's media codecs parameters from xml-element of the configuration
-    private void applyDeviceMediaCodecParameters(final Element codecXml) {
-        // setting up the codec parameters
-        final String codecType = codecXml.getAttributeValue(DEVICE_PARAMETER_TYPE_ATTRIBUTE);
-        final String codecValue = codecXml.getAttributeValue(DEVICE_PARAMETER_VALUE_ATTRIBUTE);
-        if (codecType == null || codecValue == null) {
+    // applying device's media audio format parameters from xml-element of the configuration
+    private void applyDeviceAudioFormatParameter(final Element audioFormatXml) {
+        // setting up the audio format parameter
+        final String actionType = audioFormatXml.getAttributeValue(DEVICE_PARAMETER_TYPE_ATTRIBUTE);
+        final String codecValue = audioFormatXml.getAttributeValue(DEVICE_PARAMETER_VALUE_ATTRIBUTE);
+        if (actionType == null || codecValue == null) {
             // wrong codec XML
             return;
         }
@@ -1107,18 +1115,74 @@ public abstract class AbstractTelephonyDevice<H, T extends TelephonyFactory<H, ?
         final Audio codec = Audio.of(codecValue);
         if (codec == null) {
             dispatchError("Unknown codec value: " + codecValue);
-        } else if (MultimediaEngine.Parameter.PLAYBACK_CODEC.value().equalsIgnoreCase(codecType)) {
-            setupMediaCodecParameterFor(MultimediaEngine.Parameter.PLAYBACK_CODEC, codec);
-        } else if (MultimediaEngine.Parameter.RECORD_CODEC.value().equalsIgnoreCase(codecType)) {
-            setupMediaCodecParameterFor(MultimediaEngine.Parameter.RECORD_CODEC, codec);
+        } else if (MultimediaEngine.Parameter.AUDIO_PLAYER_TYPE.isEqualsTo(actionType)) {
+            setupMediaFormatParameterFor(MultimediaEngine.Parameter.AUDIO_PLAYER_TYPE, codec);
+        } else if (MultimediaEngine.Parameter.AUDIO_RECORDER_TYPE.isEqualsTo(actionType)) {
+            setupMediaFormatParameterFor(MultimediaEngine.Parameter.AUDIO_RECORDER_TYPE, codec);
         } else {
-            dispatchError("Unknown codec type: " + codecType);
+            dispatchError("Unknown codec type: " + actionType);
+        }
+    }
+
+    // applying device's media volume parameters from xml-element of the configuration
+    private void applyDeviceMediaVolumeParameter(final Element mediaVolumeXml) {
+        // setting up the media volume parameter
+        final String actionType = mediaVolumeXml.getAttributeValue(DEVICE_PARAMETER_TYPE_ATTRIBUTE);
+        final String volumeValue = mediaVolumeXml.getAttributeValue(DEVICE_PARAMETER_VALUE_ATTRIBUTE);
+        if (actionType == null || volumeValue == null) {
+            // wrong volume XML
+            return;
+        }
+        // getting volume value from the string
+        final Float volume = toFloat(volumeValue);
+        if (volume == null) {
+            dispatchError("Unknown volume value: " + volumeValue);
+        } else if (MultimediaEngine.Parameter.AUDIO_PLAYER_TYPE.isEqualsTo(actionType)) {
+            setupMediaVolumeParameterFor(MultimediaEngine.Parameter.AUDIO_PLAYER_TYPE, volume);
+        } else if (MultimediaEngine.Parameter.AUDIO_RECORDER_TYPE.isEqualsTo(actionType)) {
+            setupMediaVolumeParameterFor(MultimediaEngine.Parameter.AUDIO_RECORDER_TYPE, volume);
+        } else {
+            dispatchError("Unknown volume type: " + actionType);
+        }
+    }
+
+    // safe parsing String to the Float type
+    private static Float toFloat(String value) {
+        try {
+            return Float.parseFloat(value);
+        } catch (NullPointerException | NumberFormatException e) {
+            return null;
         }
     }
 
     // setting up particular codec for the device
-    private void setupMediaCodecParameterFor(final Device.ParameterName codecParameter, final Audio value) {
-        setParameter(codecParameter, ConfigurationParameter.of(codecParameter.value(), value));
+    private void setupMediaFormatParameterFor(Device.ParameterName activityType, Audio format) {
+        final Device.ParameterName deviceParameterName = formatParameterFor(activityType);
+        setParameter(deviceParameterName, ConfigurationParameter.of(activityType.value(), format));
+    }
+
+    private static Device.ParameterName formatParameterFor(Device.ParameterName activityType) {
+        if (activityType == MultimediaEngine.Parameter.AUDIO_RECORDER_TYPE) {
+            return MultimediaEngine.Parameter.RECORD_FORMAT;
+        } else if (activityType == MultimediaEngine.Parameter.AUDIO_PLAYER_TYPE) {
+            return MultimediaEngine.Parameter.PLAYBACK_FORMAT;
+        }
+        throw new IllegalArgumentException("Unknown format's activity type: " + activityType);
+    }
+
+    // setting up particular codec for the device
+    private void setupMediaVolumeParameterFor(final Device.ParameterName activityType, final Float value) {
+        final Device.ParameterName deviceParameterName = volumeParameterFor(activityType);
+        setParameter(deviceParameterName, ConfigurationParameter.of(activityType.value(), value));
+    }
+
+    private static Device.ParameterName volumeParameterFor(Device.ParameterName activityType) {
+        if (activityType == MultimediaEngine.Parameter.AUDIO_RECORDER_TYPE) {
+            return MultimediaEngine.Parameter.RECORD_VOLUME;
+        } else if (activityType == MultimediaEngine.Parameter.AUDIO_PLAYER_TYPE) {
+            return MultimediaEngine.Parameter.PLAYBACK_VOLUME;
+        }
+        throw new IllegalArgumentException("Unknown volume's activity type: " + activityType);
     }
 
     // collecting media part configuration of the device and adding it to the device's configuration root
@@ -1126,8 +1190,10 @@ public abstract class AbstractTelephonyDevice<H, T extends TelephonyFactory<H, ?
         final Element partXml = new Element(DEVICE_MEDIA_ROOT);
         // adding device parameters
         addToneParametersTo(partXml);
-        addCodecParametersTo(partXml, MultimediaEngine.Parameter.RECORD_CODEC);
-        addCodecParametersTo(partXml, MultimediaEngine.Parameter.PLAYBACK_CODEC);
+        addMediaFormatParametersTo(partXml, MultimediaEngine.Parameter.RECORD_FORMAT);
+        addMediaFormatParametersTo(partXml, MultimediaEngine.Parameter.PLAYBACK_FORMAT);
+        addMediaVolumeParametersTo(partXml,  MultimediaEngine.Parameter.RECORD_VOLUME);
+        addMediaVolumeParametersTo(partXml,  MultimediaEngine.Parameter.PLAYBACK_VOLUME);
         // adding network part to the device's configuration xml
         rootElement.addContent(partXml);
     }
@@ -1147,17 +1213,25 @@ public abstract class AbstractTelephonyDevice<H, T extends TelephonyFactory<H, ?
     // adding device's tone parameters to the media part
     private void addToneParametersTo(final Element partXml, final TelephonyTone telephonyTone) {
         if (telephonyTone != null) {
-            partXml.addContent(new Element(DEVICE_MEDIA_TONE_ROOT)
+            partXml.addContent(new Element(DEVICE_MEDIA_TONE_PARAMETER)
                     .setAttribute(DEVICE_MEDIA_TONE_NAME_ATTRIBUTE, telephonyTone.getId().toString().toLowerCase())
                     .setAttribute(DEVICE_PARAMETER_VALUE_ATTRIBUTE, telephonyTone.toString())
             );
         }
     }
 
-    // adding device's codec parameters to the media part
-    private void addCodecParametersTo(final Element partXml, final Device.ParameterName name) {
-        getParameter(name).ifPresent(param -> partXml.addContent(new Element(DEVICE_MEDIA_CODEC_ROOT)
-                .setAttribute(DEVICE_PARAMETER_TYPE_ATTRIBUTE, name.value().toLowerCase())
+    // adding device's codec parameter (format) to the media part
+    private void addMediaFormatParametersTo(final Element partXml, final Device.ParameterName name) {
+        getParameter(name).ifPresent(param -> partXml.addContent(new Element(DEVICE_MEDIA_FORMAT_PARAMETER)
+                .setAttribute(DEVICE_PARAMETER_TYPE_ATTRIBUTE, param.getName())
+                .setAttribute(DEVICE_PARAMETER_VALUE_ATTRIBUTE, param.getValue().toString())
+        ));
+    }
+
+    // adding device's codec parameter (volume) to the media part
+    private void addMediaVolumeParametersTo(final Element partXml, final Device.ParameterName name) {
+        getParameter(name).ifPresent(param -> partXml.addContent(new Element(DEVICE_MEDIA_VOLUME_PARAMETER)
+                .setAttribute(DEVICE_PARAMETER_TYPE_ATTRIBUTE, param.getName())
                 .setAttribute(DEVICE_PARAMETER_VALUE_ATTRIBUTE, param.getValue().toString())
         ));
     }

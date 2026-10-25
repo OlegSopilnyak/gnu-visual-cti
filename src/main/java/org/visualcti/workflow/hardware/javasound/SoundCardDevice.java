@@ -38,6 +38,8 @@ Fax number: 217-356-3356
 package org.visualcti.workflow.hardware.javasound;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
@@ -45,6 +47,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceActivitySession;
 import org.visualcti.core.channel.device.DeviceEvent;
@@ -53,7 +56,6 @@ import org.visualcti.core.channel.device.adapter.AbstractDeviceEvent;
 import org.visualcti.core.channel.device.adapter.AbstractDeviceSession;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.TelephonyDevice;
-import org.visualcti.core.channel.telephony.TelephonyFactory;
 import org.visualcti.core.channel.telephony.adapter.AbstractTelephonyDevice;
 import org.visualcti.core.channel.telephony.adapter.AbstractTelephonyFactory;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
@@ -97,7 +99,8 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
     enum Parameter implements Device.ParameterName {
         // the latch of wait for call operation
         WAIT_CALL_LATCH("WAIT FOR CALL LATCH"),
-        MAKE_CALL_QUEUE("MAKE CALL RESULTS QUEUE");
+        MAKE_CALL_QUEUE("MAKE CALL RESULTS QUEUE")
+        ;
 
         private final String name;
 
@@ -170,8 +173,7 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
      * This flag, the factory may set in properties of the device
      *
      * @return true if device can be shared for another device
-     * @see TelephonyFactory
-     * @see CallsPortEngine.Parameter#SHARE_CALL_PORT_ALLOWED
+     * @see CallsPortEngine#canBeConnected()
      */
     @Override
     public boolean canBeConnected() {
@@ -215,8 +217,7 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
      *
      * @param session the phone call's session, device is working with
      * @return true if operation complete successfully
-     * @see PhoneCallSession
-     * @see #isOpened()
+     * @see TelephonyDevice#dropCall(PhoneCallSession)
      */
     @Override
     public boolean dropCall(final PhoneCallSession<H> session) {
@@ -235,12 +236,11 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
      * @param timeout waiting time (seconds) how many seconds wait before timeout status returned
      * @param answer  flag is needed answer to an incoming call
      * @return true if operation complete successfully
-     * @see AbstractTelephonyDevice#waitForCall(PhoneCallSession, int, int, boolean)
+     * @see TelephonyDevice#waitForCall(PhoneCallSession, int, int, boolean)
      */
     @Override
-    public boolean waitForCall(
-            final PhoneCallSession<H> session, final int rings, final int timeout, final boolean answer
-    ) {
+    public boolean waitForCall(final PhoneCallSession<H> session, final int rings,
+                               final int timeout, final boolean answer) {
         if (isOpened(session) && canAcceptCall() && session.isDisconnected()) {
             // preparing UI for wait for call operation
             final SoundCardUI<H> ui = uiHolder.get();
@@ -250,6 +250,7 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
             session.setState(TelephonyDevice.State.WAIT);
             final H handle = session.getDeviceHandle();
             try {
+                session.remove(Device.Parameter.TERMINATE);
                 handle.inProgress(true);
                 if (operationLatch.await(timeout, TimeUnit.SECONDS)) {
                     // all necessary rings are detected
@@ -302,6 +303,7 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
      *
      * @see #waitForCall(PhoneCallSession, int, int, boolean)
      * @see org.visualcti.workflow.hardware.javasound.ui.panel.PhoneCallsPane
+     * @see #waitForCall(PhoneCallSession, int, int, boolean)
      */
     public void callAlerted(final PhoneCallSession<H> session) {
         final CountDownLatch operationLatch = session.parameter(Parameter.WAIT_CALL_LATCH);
@@ -340,14 +342,10 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
      * @param timeout maximal waiting time for the answer (sec) after which call with
      *                {@link PhoneCallSession#operationResult()} equals {@link Result.CALL.Analysis#NO_ANSWER} will be returned.
      * @return true if operation complete successfully
-     * @see PhoneCallSession
-     * @see PhoneCallSession#operationResult()
-     * @see Result.CALL.Analysis
-     * @see PhoneCall.Number
-     * @see #isOpened()
+     * @see TelephonyDevice#makeCall(PhoneCallSession, PhoneCall.Number, int)
      */
     @Override
-    public boolean makeCall(PhoneCallSession<H> session, PhoneCall.Number number, int timeout) {
+    public boolean makeCall(final PhoneCallSession<H> session, final PhoneCall.Number number, final int timeout) {
         if (isOpened(session) && canMakeCall() && session.isDisconnected()) {
             final BlockingQueue<OperationResultValue> answeredResultsQueue = new ArrayBlockingQueue<>(1);
             session.parameter(Parameter.MAKE_CALL_QUEUE, answeredResultsQueue);
@@ -367,6 +365,7 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
                 waitUntil(() -> !handle.isOperationInProgress(), "ringback tone playing start");
                 // setting up make the call device's state
                 session.setState(TelephonyDevice.State.DIAL);
+                session.remove(Device.Parameter.TERMINATE);
                 // getting operation result for auto-answer feature
                 ui.makingCallResult(answeredResultsQueue);
             } else {
@@ -423,12 +422,47 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
      * @param analyzeResult CallAnalyze result
      * @see #makeCall(PhoneCallSession, PhoneCall.Number, int)
      * @see Result.CALL.Analysis
+     * @see #makeCall(PhoneCallSession, PhoneCall.Number, int)
      */
     public final void answered(final PhoneCallSession<H> session, final OperationResultValue analyzeResult) {
         final BlockingQueue<OperationResultValue> answeredResultsQueue = session.parameter(Parameter.MAKE_CALL_QUEUE);
         if (answeredResultsQueue != null && !answeredResultsQueue.offer(analyzeResult)) {
             throw new AssertionError("Not enough room for make call answered result.");
         }
+    }
+
+    /**
+     * <action>
+     * To receive the user input from the telephony line.
+     * <p>
+     * Possible values of the user input operation result:
+     * <p>
+     * {@link Result.IO#DTMF} - the sequence of symbols is accepted it's in the digits buffer of the detector.<BR/>
+     * For reception of value from buffer, it is necessary to call {@link #getInputSymbols(PhoneCallSession)}.<BR/>
+     * {@link Result#TIMEOUT} - in time of timeout there is no any symbol accepted.<BR/>
+     * {@link Result.CALL#DISCONNECT} - the operation is interrupted owing to break of telephony connection;<BR/>
+     * {@link Result#TERMINATED} - the operation is interrupted by system.<BR/>
+     * {@link Result.CALL.Analysis#FAX} - signal of a fax-machine is in the line.
+     * <p>
+     * At reception of symbol from an array determined by a mask input
+     * interrupts and come back symbols which are entered up to
+     * interruptions by a symbol from a mask
+     *
+     * @param session                the phone call's session, device is working with
+     * @param digitsCount            quantity of expected symbols
+     * @param timeout                maximal waiting time (seconds) of input of next symbol
+     * @param terminationSymbolsMask set of symbols finishing up the user input (mask). The mask is passed to the method
+     *                               as any combination of comma separated symbols<BR/>(0-9,*,#), for example: " 1, 2, #, 0 ".<BR/>
+     *                               The symbol finished up the input from the <b>terminationSymbolsMask</b>
+     *                               will not be placed to the buffer of input symbols
+     * @return the operation's result
+     * @see OperationResultValue
+     * @see TelephonyDevice#inputDigits(PhoneCallSession, int, int, String)
+     */
+    @Override
+    public OperationResultValue inputDigits(final PhoneCallSession<H> session, final int digitsCount, final int timeout,
+                                            final String terminationSymbolsMask) {
+        return doWithUI(session, () -> super.inputDigits(session, digitsCount, timeout, terminationSymbolsMask));
     }
 
     /**
@@ -439,11 +473,10 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
      *
      * @param session the phone call's session, device is working with
      * @return digits sequence accepted by user's input
-     * @see AbstractTelephonyDevice#getInputSymbols(PhoneCallSession)
-     * @see #userInput(PhoneCallSession, String)
+     * @see TelephonyDevice#getInputSymbols(PhoneCallSession)
      */
     @Override
-    public String getInputSymbols(PhoneCallSession<H> session) {
+    public String getInputSymbols(final PhoneCallSession<H> session) {
         // clearing the dial pad UI for get input symbols operation
         uiHolder.get().clearDialPad();
         // doing super action
@@ -467,6 +500,45 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
                 .deviceName(SoundCardServiceProvider.SOUND_DEVICE).vendor(SoundCardServiceProvider.DEVICE_FACTORY_VENDOR)
                 .option(DeviceEvent.Option.REASON, Result.IO.DTMF).option(DeviceEvent.Option.INPUT, inputCharacter)
         );
+    }
+
+    /**
+     * <action>
+     * Playback the audio data stream.
+     *
+     * @param session                the phone call's session, device is working with
+     * @param source                 the input stream, from which undertake sound data for playback to the telephone line
+     * @param format                 parameter determining type of the decoder for transformation the sound data
+     * @param terminationSymbolsMask set of symbols finishing up the playing (mask). The mask is passed to the method
+     *                               as any combination of comma separated symbols<BR/>(0-9,*,#), for example: " 1, 2, #, 0 ".
+     * @param timeout                maximum time of playing back in seconds (-1 for unlimited, waiting for end of stream)
+     * @return the operation's result
+     * @see TelephonyDevice#playbackAudio(PhoneCallSession, InputStream, Audio, String, int)
+     */
+    @Override
+    public OperationResultValue playbackAudio(
+            final PhoneCallSession<H> session, final InputStream source, final Audio format,
+            final String terminationSymbolsMask, final int timeout) {
+        return doWithUI(session, () -> super.playbackAudio(session, source, format, terminationSymbolsMask, timeout));
+    }
+
+    /**
+     * <action>
+     * Recording the audio data from the telephone line.
+     *
+     * @param session                the phone call's session, device is working with
+     * @param target                 the output stream where recorded data will be placed
+     * @param format                 parameter determining type of the record audio data
+     * @param terminationSymbolsMask set of symbols finishing up the recording (mask). The mask is passed to the method
+     *                               as any combination of comma separated symbols<BR/>(0-9,*,#), for example: " 1, 2, #, 0 ".
+     * @param silence                time (seconds) how long silence in a line is allowed, after which the record operation be finished.
+     * @param timeout                maximum time of recording in seconds
+     * @return the operation's result
+     * @see TelephonyDevice#recordAudio(PhoneCallSession, OutputStream, Audio, String, int, int)
+     */
+    @Override
+    public OperationResultValue recordAudio(PhoneCallSession<H> session, OutputStream target, Audio format, String terminationSymbolsMask, int silence, int timeout) {
+        return doWithUI(session, () -> super.recordAudio(session, target, format, terminationSymbolsMask, silence, timeout));
     }
 
     public void setRecordFormat(Audio selected) {
@@ -503,6 +575,7 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
      *
      * @param session the context with new value of the state
      * @see AbstractDeviceSession#setState(DeviceStateValue)
+     * @see Device#stateChangedFor(DeviceActivitySession)
      */
     @Override
     public void stateChangedFor(final DeviceActivitySession<H> session) {
@@ -514,6 +587,26 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
     }
 
     /// private methods
+    // to transfer keyboard focus to dial-pad of UI
+    private void activateDialPadUI(PhoneCallSession<H> session) {
+        if (session.isAlive()) {
+            // adjusting the device's UI
+            uiHolder.get().activateDialPad();
+        }
+    }
+
+    // doing the action returning result with UI
+    private OperationResultValue doWithUI(
+            PhoneCallSession<H> session, Supplier<OperationResultValue> actionResultValue
+    ) {
+        try {
+            activateDialPadUI(session);
+            return actionResultValue.get();
+        } finally {
+            activateDialPadUI(session);
+        }
+    }
+
     // to wait until condition is true
     private void waitUntil(final BooleanSupplier condition, final String operation) {
         while (condition.getAsBoolean()) {

@@ -69,8 +69,10 @@ public class SoundCardHandle {
 
     private final AtomicReference<SourceDataLine> sourceLine = new AtomicReference<>(null);
     private final AtomicBoolean sourceActive = new AtomicBoolean(false);
+    private final AtomicReference<Float> sourceVolume = new AtomicReference<>(null);
     private final AtomicReference<TargetDataLine> targetLine = new AtomicReference<>(null);
     private final AtomicBoolean targetActive = new AtomicBoolean(false);
+    private final AtomicReference<Float> targetVolume = new AtomicReference<>(null);
 
     /**
      * <builder>
@@ -105,7 +107,7 @@ public class SoundCardHandle {
     @Override
     public String toString() {
         return "SoundCard Device Handle {" +
-                "valid="+ canUse()+
+                "valid=" + canUse() +
                 ", can-play=" + (getSource() != null) +
                 ", can-record=" + (getTarget() != null) +
                 ", in-progress=" + inProgress.get() +
@@ -140,6 +142,18 @@ public class SoundCardHandle {
         return sourceLine.get();
     }
 
+    public float getSourceVolume() {
+        return sourceVolume.get() == null ? 0.0F : sourceVolume.get();
+    }
+
+    public void setSourceVolume(final float volume) {
+        sourceVolume.getAndSet(volume);
+    }
+
+    public Boolean isTargetActive() {
+        return targetActive.get();
+    }
+
     public void setTargetLine(final TargetDataLine line) {
         targetLine.getAndSet(line);
         targetActive.getAndSet(line != null);
@@ -149,8 +163,12 @@ public class SoundCardHandle {
         return targetLine.get();
     }
 
-    public Boolean isTargetActive() {
-        return targetActive.get();
+    public float getTargetVolume() {
+        return targetVolume.get() == null ? 0.0F : targetVolume.get();
+    }
+
+    public void setTargetVolume(final float volume) {
+        targetVolume.getAndSet(volume);
     }
 
     /**

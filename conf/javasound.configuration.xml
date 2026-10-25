@@ -51,6 +51,8 @@ Fax number: 217-356-3356
             <tone name="disconnect" value="257,900,700,0,0,90,70,90,70,2"/>
             <format type="record" value="LINEAR16/11025"/>
             <format type="play" value="LINEAR16/11025"/>
+            <volume type ="record" value="0.0"/>
+            <volume type ="play" value="-40.0"/>
         </media>
     </default>
     <device name="SoundCard" type="analog">

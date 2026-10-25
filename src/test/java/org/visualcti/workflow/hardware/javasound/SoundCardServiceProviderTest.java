@@ -1185,7 +1185,7 @@ public class SoundCardServiceProviderTest {
         // check the behavior
         verify(provider).isOpened(handle);
         verify(provider).availableFormatsFor(handle);
-        verify(provider).nativeFindResourceParameter(handle, parameterName);
+        verify(provider).findResourceParameterFor(handle, parameterName);
         // check results
         assertThat(parameter).isNotNull().isPresent().contains(parameterValue);
     }

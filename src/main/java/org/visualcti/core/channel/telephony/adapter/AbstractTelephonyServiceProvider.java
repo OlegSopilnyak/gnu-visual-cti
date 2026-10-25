@@ -79,7 +79,6 @@ import org.visualcti.core.channel.telephony.operation.PhoneCall;
 import org.visualcti.core.channel.telephony.operation.ToneId;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.core.channel.telephony.operation.adapter.TelephonyTone;
-import org.visualcti.core.channel.telephony.part.MultimediaEngine;
 import org.visualcti.media.Audio;
 import org.visualcti.media.Fax;
 import org.visualcti.util.Tools;
@@ -94,7 +93,6 @@ import org.visualcti.util.Tools;
 @SuppressWarnings("unchecked")
 public abstract class AbstractTelephonyServiceProvider<H> implements TelephonyServiceProvider<H> {
     public static final float SAMPLE_RATE = 8000.0F; // Standard telephony sample rate
-    public static final Device.ParameterName ALLOWED_CODECS_NAME = MultimediaEngine.Parameter.ALLOWED_CODECS;
     public static final String AUDIO_PLAYING = "Audio playing back...";
     public static final String TONE_PLAYING = "Tone playing back...";
     public static final String AUDIO_RECORDING = "Audio recording...";
@@ -113,14 +111,14 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * <action>
      * To open the device-related resource (device's implementation)
      *
-     * @param name the name of the resource
+     * @param resourceName the name of the resource
      * @return handle for the opened resource
      * @throws IOException if the channel's resource cannot be opened or activated
      * @see TelephonyServiceProvider#openResource(String)
      */
     @Override
-    public H openResource(final String name) throws IOException {
-        return internalResourceOpen(name, this::nativeResourceOpen);
+    public H openResource(final String resourceName) throws IOException {
+        return internalResourceOpen(resourceName, this::nativeResourceOpen);
     }
 
     /**
@@ -133,7 +131,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * @see #openResource(String)
      */
     protected H nativeResourceOpen(String name) throws IOException {
-        return null;
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     /**
@@ -178,13 +176,13 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * <accessor>
      * To check is the resource with name already opened successfully
      *
-     * @param name the name of the telephony device
+     * @param deviceName the name of the telephony device
      * @return true if the resource was already opened
      * @see #openResource(String)
      * @see #closeResource(H)
      */
-    protected boolean isOpened(String name) {
-        return Optional.ofNullable(openedResources.get(name))
+    protected boolean isOpened(String deviceName) {
+        return Optional.ofNullable(openedResources.get(deviceName))
                 .map(handles -> !handles.isEmpty())
                 .orElse(false);
     }
@@ -193,67 +191,72 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * <acessor>
      * To find any opened handle for the resource by name
      *
-     * @param name the name of the opened resource
+     * @param deviceName the name of the opened resource
      * @return handle to opened resource or empty
      * @see TelephonyServiceProvider#openedHandleByName(String)
      * @see Optional
      */
     @Override
-    public Optional<H> openedHandleByName(final String name) {
-        return Optional.ofNullable(openedResources.get(name))
+    public Optional<H> openedHandleByName(final String deviceName) {
+        return Optional.ofNullable(openedResources.get(deviceName))
                 .map(handles -> handles.isEmpty() ? null : handles.get(0));
     }
 
     /**
-     * <acessor>
-     * To get the resource-specific device parameter by parameter name
+     * <finder>
+     * To look for the resource-specific device parameter value by it name
      *
-     * @param handle        the handle of the opened resource
-     * @param parameterName the name of parameter to get
+     * @param handle        the handle of the resource
+     * @param parameterName the name of parameter to find
      * @return there exists parameter value or empty if not exists
      * @see Device.ParameterName
      * @see ConfigurationParameter
      * @see Optional
      * @see #isOpened(H)
+     * @see #findResourceParameterFor(H, Device.ParameterName)
      */
     @Override
     public Optional<ConfigurationParameter> findResourceParameter(
             final H handle, final Device.ParameterName parameterName
     ) {
-        return isOpened(handle) ? nativeFindResourceParameter(handle, parameterName) : Optional.empty();
+        // handle should be for opened resource then looking for configuration parameter by it name by the valid handle
+        return isOpened(handle) ? findResourceParameterFor(handle, parameterName) : Optional.empty();
     }
 
     /**
-     * <native-call>
      * <finder>
-     * To get the opened resource-specific device parameter by parameter name
+     * <native-call>
+     * To look for the opened resource-specific device parameter by the name
      *
-     * @param handle the handle of the opened resource
-     * @param name   the name of parameter to get
+     * @param handle        the handle of the opened resource
+     * @param parameterName the handle of the resource
      * @return there exists parameter value or empty if not exists
      * @see #findResourceParameter(H, Device.ParameterName)
      */
-    protected Optional<ConfigurationParameter> nativeFindResourceParameter(H handle, Device.ParameterName name) {
-        return Optional.ofNullable(resourceParameters.get(handle)).map(parameterMap -> parameterMap.get(name));
+    protected Optional<ConfigurationParameter> findResourceParameterFor(H handle, Device.ParameterName parameterName) {
+        // getting resource's parameters by handle then looking for the parameter value by it name
+        return Optional.ofNullable(resourceParameters.get(handle))
+                .map(parametersMap -> parametersMap.get(parameterName));
     }
 
     /**
-     * <native-call>
      * <updater>
+     * <native-call>
      * To set up the opened resource-specific device parameter with parameter name
      *
-     * @param handle the handle of the opened resource
-     * @param name   the name of parameter to get
+     * @param handle        the handle of the opened resource
+     * @param parameterName the name of parameter to get
      * @return true if the parameter is set up successfully, false otherwise
-     * @see #nativeFindResourceParameter(H, Device.ParameterName)
+     * @see #findResourceParameterFor(H, Device.ParameterName)
      */
-    protected boolean nativeSetResourceParameter(H handle, Device.ParameterName name, ConfigurationParameter parameter) {
+    protected boolean nativeSetResourceParameter(
+            H handle, Device.ParameterName parameterName, ConfigurationParameter parameter
+    ) {
         if (isValid(handle)) {
-            resourceParameters.computeIfAbsent(handle, h -> new ConcurrentHashMap<>()).put(name, parameter);
+            resourceParameters.computeIfAbsent(handle, h -> new ConcurrentHashMap<>()).put(parameterName, parameter);
             return true;
-        } else {
-            return false;
         }
+        return false;
     }
 
     /**
@@ -270,6 +273,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
     }
 
     /**
+     * <acessor>
      * <native-call>
      * To get the collection of allowed devices names
      *

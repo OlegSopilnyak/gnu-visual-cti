@@ -75,9 +75,11 @@ public class AbstractDevice<H, F extends Factory<H, ?>> extends ServerUnitAdapte
      *
      * @param provider the provider of the channel device actions
      * @see Device.ServiceProvider
+     * @see Device.Parameter#PROVIDER
      */
-    protected AbstractDevice(ServiceProvider<H> provider) {
-        properties.put(Parameter.PROVIDER.value(), provider);
+    protected AbstractDevice(Device.ServiceProvider<H> provider) {
+        // put the provider as the device property
+        properties.put(Device.Parameter.PROVIDER.value(), provider);
     }
 
     /**

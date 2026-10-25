@@ -98,7 +98,7 @@ public abstract class AbstractEventProcessor<H> extends RunnableUnitAdapter impl
      * @see Optional
      */
     @Override
-    public <T> Optional<T> getOption(final OptionName name) {
+    public <T> Optional<T> getOption(final Option name) {
         return Optional.ofNullable((T) properties.get(name.value()));
     }
 
@@ -110,7 +110,7 @@ public abstract class AbstractEventProcessor<H> extends RunnableUnitAdapter impl
      * @param value new value of the option
      */
     @Override
-    public <T> void setOption(final OptionName name, final T value) {
+    public <T> void setOption(final Option name, final T value) {
         properties.put(name.value(), value);
     }
 
@@ -263,8 +263,8 @@ public abstract class AbstractEventProcessor<H> extends RunnableUnitAdapter impl
         // to enable device's events getting
         eventsProvider.enableEventsGetting();
         // adjusting how long wait for device event occurrence parameter
-        this.howLongWaitForDeviceEvent = this.<Long>getOption(OptionName.WAIT_EVENT_TIMEOUT).orElseGet(() -> {
-            setOption(OptionName.WAIT_EVENT_TIMEOUT, DEFAULT_WAIT_EVENT_TIMEOUT);
+        this.howLongWaitForDeviceEvent = this.<Long>getOption(Option.WAIT_EVENT_TIMEOUT).orElseGet(() -> {
+            setOption(Option.WAIT_EVENT_TIMEOUT, DEFAULT_WAIT_EVENT_TIMEOUT);
             return DEFAULT_WAIT_EVENT_TIMEOUT;
         });
         //

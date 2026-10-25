@@ -70,6 +70,7 @@ import org.visualcti.core.channel.telephony.adapter.AbstractTelephonyServiceProv
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
 import org.visualcti.core.channel.telephony.operation.Result;
 import org.visualcti.core.channel.telephony.operation.adapter.TelephonyTone;
+import org.visualcti.core.channel.telephony.part.MultimediaEngine;
 import org.visualcti.media.Audio;
 import org.visualcti.util.Tools;
 import org.visualcti.workflow.hardware.javasound.io.audio.CaptureUtils;
@@ -121,13 +122,22 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
         if (isOpened(name)) {
             throw new IOException("Device :" + name + ": is already opened");
         }
-        // registering codecs for the opened resource
-        return registerResourceCodecs(SOUND_DEVICE.equals(name)
-                // building the device's handle instance
+        // building resource's handle
+        final H resourceHandle = SOUND_DEVICE.equals(name)
+                // building the sound card device's handle instance
                 ? soundCardResourceHandle()
                 // wrong handle instance
-                : SoundCardHandle.wrong()
-        );
+                : SoundCardHandle.wrong();
+        //
+        // post-processing after resource handle's getting
+        if (isValid(resourceHandle)) {
+            // registering the available codecs for the opened resource by the resource's handle
+            final List<Audio> codecs = availableFormatsFor(resourceHandle);
+            final Device.ParameterName parameterName = MultimediaEngine.Parameter.ALLOWED_CODECS;
+            final ConfigurationParameter parameter = ConfigurationParameter.of(parameterName.value(), codecs);
+            nativeSetResourceParameter(resourceHandle, parameterName, parameter);
+        }
+        return resourceHandle;
     }
 
     @Override
@@ -149,13 +159,13 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
     }
 
     @Override
-    protected Optional<ConfigurationParameter> nativeFindResourceParameter(H handle, Device.ParameterName name) {
-        return super.nativeFindResourceParameter(handle, name);
+    protected Optional<ConfigurationParameter> findResourceParameterFor(H handle, Device.ParameterName parameterName) {
+        return super.findResourceParameterFor(handle, parameterName);
     }
 
     @Override
-    protected boolean nativeSetResourceParameter(H handle, Device.ParameterName name, ConfigurationParameter parameter) {
-        return super.nativeSetResourceParameter(handle, name, parameter);
+    protected boolean nativeSetResourceParameter(H handle, Device.ParameterName parameterName, ConfigurationParameter parameter) {
+        return super.nativeSetResourceParameter(handle, parameterName, parameter);
     }
 
     @Override
@@ -421,14 +431,6 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
     }
 
     /// private methods
-    // registering the available codecs for the opened resource by the resource's handle
-    private H registerResourceCodecs(H handle) {
-        nativeSetResourceParameter(handle, ALLOWED_CODECS_NAME,
-                ConfigurationParameter.of(ALLOWED_CODECS_NAME.value(), availableFormatsFor(handle))
-        );
-        return handle;
-    }
-
     // starting fax activity
     private boolean nativeStartFax(H handle, String filePath, String errorReason) {
         if (isOpened(handle) && Paths.get(filePath).toFile().exists()) {

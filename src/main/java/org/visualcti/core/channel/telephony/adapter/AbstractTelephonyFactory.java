@@ -305,8 +305,10 @@ public abstract class AbstractTelephonyFactory<H, T extends TelephonyDevice<H, ?
                 .addContent(toneDefinition(ToneId.BUSY, "253,500,200,0,0,55,40,55,40,4"))
                 .addContent(toneDefinition(ToneId.RINGBACK, "254,450,150,0,0,150,100,550,400,0"))
                 .addContent(toneDefinition(ToneId.DISCONNECT, "257,900,700,0,0,90,70,90,70,2"))
-                .addContent(formatDefinition(MultimediaEngine.Parameter.RECORD_CODEC, defaultRecordCodec()))
-                .addContent(formatDefinition(MultimediaEngine.Parameter.PLAYBACK_CODEC, defaultPlaybackCodec()))
+                .addContent(formatDefinition(MultimediaEngine.Parameter.AUDIO_RECORDER_TYPE, defaultRecordCodec()))
+                .addContent(formatDefinition(MultimediaEngine.Parameter.AUDIO_PLAYER_TYPE, defaultPlaybackCodec()))
+                .addContent(volumeDefinition(MultimediaEngine.Parameter.AUDIO_RECORDER_TYPE, 1.0f))
+                .addContent(volumeDefinition(MultimediaEngine.Parameter.AUDIO_PLAYER_TYPE, -10.0f))
                 ;
     }
 
@@ -369,16 +371,23 @@ public abstract class AbstractTelephonyFactory<H, T extends TelephonyDevice<H, ?
 
     // prepare tone xml-parameter
     private Element toneDefinition(final ToneId toneId, final String definition) {
-        return new Element(TelephonyDevice.DEVICE_MEDIA_TONE_ROOT)
+        return new Element(TelephonyDevice.DEVICE_MEDIA_TONE_PARAMETER)
                 .setAttribute(TelephonyDevice.DEVICE_MEDIA_TONE_NAME_ATTRIBUTE, toneId.toString().toLowerCase())
                 .setAttribute(TelephonyDevice.DEVICE_PARAMETER_VALUE_ATTRIBUTE, definition);
     }
 
-    // prepare tone xml-parameter
-    private Element formatDefinition(final Device.ParameterName name, Audio format) {
-        return new Element(TelephonyDevice.DEVICE_MEDIA_CODEC_ROOT)
-                .setAttribute(TelephonyDevice.DEVICE_PARAMETER_TYPE_ATTRIBUTE, name.value().toLowerCase())
+    // prepare audio format xml-parameter
+    private Element formatDefinition(Device.ParameterName typeName, Audio format) {
+        return new Element(TelephonyDevice.DEVICE_MEDIA_FORMAT_PARAMETER)
+                .setAttribute(TelephonyDevice.DEVICE_PARAMETER_TYPE_ATTRIBUTE, typeName.value().toLowerCase())
                 .setAttribute(TelephonyDevice.DEVICE_PARAMETER_VALUE_ATTRIBUTE, format.toString());
+    }
+
+    // prepare audio volume xml-parameter
+    private Element volumeDefinition(Device.ParameterName typeName, Float db) {
+        return new Element(TelephonyDevice.DEVICE_MEDIA_VOLUME_PARAMETER)
+                .setAttribute(TelephonyDevice.DEVICE_PARAMETER_TYPE_ATTRIBUTE, typeName.value().toLowerCase())
+                .setAttribute(TelephonyDevice.DEVICE_PARAMETER_VALUE_ATTRIBUTE, db.toString());
     }
 
     // to do safe the related to sessions collection operation

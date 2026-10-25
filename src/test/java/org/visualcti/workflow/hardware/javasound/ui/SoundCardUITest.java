@@ -52,7 +52,11 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.FlowLayout;
 import java.awt.Font;
+import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.file.Files;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -63,6 +67,7 @@ import org.visualcti.core.channel.telephony.TelephonyDevice;
 import org.visualcti.core.channel.telephony.operation.Result;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneNumber;
+import org.visualcti.media.Audio;
 import org.visualcti.util.Tools;
 import org.visualcti.workflow.hardware.javasound.SoundCardDevice;
 import org.visualcti.workflow.hardware.javasound.SoundCardDevicesFactory;
@@ -98,6 +103,7 @@ public class SoundCardUITest {
             frame.getContentPane().add(control, BorderLayout.SOUTH);
             control.add(callControlPane(operationResult, session, scheduler));
             control.add(userInputPane(session, scheduler));
+            control.add(voiceControlPane(operationResult, session, scheduler));
             frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
             frame.pack();
             frame.setVisible(true);
@@ -110,11 +116,19 @@ public class SoundCardUITest {
             JTextField operationResult, PhoneCallSession<H> session, ExecutorService executor
     ) {
         TelephonyDevice<H, ?> device = session.getDevice();
-        JPanel callControl = new JPanel(new FlowLayout());
+        JPanel callControl = new JPanel();
         callControl.setBorder(new TitledBorder("Call Control"));
+        callControl.setLayout(new BoxLayout(callControl, BoxLayout.Y_AXIS));
+        JPanel waiter = new JPanel(new FlowLayout());
+        JPanel maker = new JPanel(new FlowLayout());
+        callControl.add(waiter);
+        callControl.add(maker);
         JButton test1 = new JButton("wait call (answer)");
         JButton test10 = new JButton("wait call (no answer)");
+        waiter.add(test1);
+        waiter.add(test10);
         JButton test2 = new JButton("make call");
+        maker.add(test2);
         Runnable waitForCallAnswered = () -> {
             operationResult.setText("===");
             Tools.print("Waiting for call: 2 rings, 2 secs, answer...");
@@ -122,14 +136,13 @@ public class SoundCardUITest {
             Tools.print("Wait for call result:" + session.operationResult());
             operationResult.setText("= " + session.operationResult() + " =");
             // enabling to get of DTMF events
-            session.getDevice().getProvider().enableEvents(session.getDeviceHandle(), Result.IO.DTMF);
+            device.getProvider().enableEvents(session.getDeviceHandle(), Result.IO.DTMF);
             test1.setEnabled(true);
         };
         test1.addActionListener(e -> {
             test1.setEnabled(false);
             executor.submit(waitForCallAnswered);
         });
-        callControl.add(test1);
         Runnable waitForCallNotAnswered = () -> {
             operationResult.setText("===");
             Tools.print("Waiting for call: 1 rings, 2 secs, no answer...");
@@ -137,10 +150,9 @@ public class SoundCardUITest {
             Tools.print("Wait for call result:" + session.operationResult());
             operationResult.setText("= " + session.operationResult() + " =");
             // enabling to get of DTMF events
-            session.getDevice().getProvider().enableEvents(session.getDeviceHandle(), Result.IO.DTMF);
+            device.getProvider().enableEvents(session.getDeviceHandle(), Result.IO.DTMF);
             test10.setEnabled(true);
         };
-        callControl.add(test10);
         test10.addActionListener(e -> {
             test10.setEnabled(false);
             executor.submit(waitForCallNotAnswered);
@@ -153,14 +165,13 @@ public class SoundCardUITest {
             Tools.print("Making call to result :" + session.operationResult());
             operationResult.setText("= " + session.operationResult() + " =");
             // enabling to get of DTMF events
-            session.getDevice().getProvider().enableEvents(session.getDeviceHandle(), Result.IO.DTMF);
+            device.getProvider().enableEvents(session.getDeviceHandle(), Result.IO.DTMF);
             test2.setEnabled(true);
         };
         test2.addActionListener(e -> {
             test2.setEnabled(false);
             executor.submit(makeCallFor);
         });
-        callControl.add(test2);
         test1.setFocusable(false);
         test10.setFocusable(false);
         test2.setFocusable(false);
@@ -190,6 +201,122 @@ public class SoundCardUITest {
             executor.submit(gettingUserInput);
         });
         return panel;
+    }
+
+    private static <H extends SoundCardHandle> JPanel voiceControlPane(
+            JTextField operationResult, PhoneCallSession<H> session, ExecutorService executor
+    ) {
+        TelephonyDevice<H, ?> device = session.getDevice();
+        JPanel voiceControl = new JPanel();
+        voiceControl.setBorder(new TitledBorder("Sound Control"));
+        voiceControl.setLayout(new BoxLayout(voiceControl, BoxLayout.Y_AXIS));
+        JPanel player = new JPanel(new FlowLayout());
+        JPanel recorder = new JPanel(new FlowLayout());
+        voiceControl.add(player);
+        voiceControl.add(recorder);
+        JButton test1 = new JButton("Play (no mask)");
+        JButton test10 = new JButton("Play (* mask)");
+        player.add(test1);
+        player.add(test10);
+        JButton test2 = new JButton("Record (no mask)");
+        JButton test21 = new JButton("Record (* mask)");
+        recorder.add(test2);
+        recorder.add(test21);
+        Audio format = Audio.LINEAR;
+        Runnable playingNoMask = () -> {
+            operationResult.setText("===");
+            String audioFileName = "/VM/prompts/PLAY_GREETING_PHONESOFT.WAV";
+            try(InputStream in = device.getClass().getResourceAsStream(audioFileName)) {
+                Tools.print("Playing with no mask : " + audioFileName);
+                Tools.print("Playing with no mask result: " + device.playbackAudio(session, in, format, "", 10));
+            } catch (IOException e) {
+                operationResult.setText("= IO Exception :" + session.operationResult() + " =");
+            }
+            operationResult.setText("= " + session.operationResult() + " =");
+            // enabling to get of DTMF events for tests
+            device.getProvider().enableEvents(session.getDeviceHandle(), Result.IO.DTMF);
+            test1.setEnabled(true);
+        };
+        test1.addActionListener(e -> {
+            test1.setEnabled(false);
+            executor.submit(playingNoMask);
+        });
+        Runnable playingWithMask = () -> {
+            operationResult.setText("===");
+            String audioFileName = "/VM/prompts/PLAY_GREETING_PHONESOFT.WAV";
+            try(InputStream in = device.getClass().getResourceAsStream(audioFileName)) {
+                Tools.print("Playing with * as mask : " + audioFileName);
+                Tools.print("Playing with * as mask result: " + device.playbackAudio(session, in, format, "*", 10));
+            } catch (IOException e) {
+                operationResult.setText("= IO Exception :" + session.operationResult() + " =");
+            }
+            operationResult.setText("= " + session.operationResult() + " =");
+            // enabling to get of DTMF events
+            device.getProvider().enableEvents(session.getDeviceHandle(), Result.IO.DTMF);
+            test10.setEnabled(true);
+        };
+        test10.addActionListener(e -> {
+            test10.setEnabled(false);
+            executor.submit(playingWithMask);
+        });
+        Runnable recordingNoMask = () -> {
+            operationResult.setText("===");
+            try {
+                File audioFile = File.createTempFile("testAudio", ".WAV");
+                audioFile.deleteOnExit();
+                Tools.print("Recording with no mask : " + audioFile.getName());
+                try(OutputStream out = Files.newOutputStream(audioFile.toPath())) {
+                    Tools.print("Recording with no mask result: " + device.recordAudio(session, out, format, "", 2,5));
+                    operationResult.setText("= " + session.operationResult() + " =");
+                }
+                try (InputStream in = Files.newInputStream(audioFile.toPath())) {
+                    Tools.print("Playing with no mask : " + audioFile.getName());
+                    device.playbackAudio(session, in, format, "", 10);
+                    operationResult.setText("= " + session.operationResult() + " =");
+                }
+            } catch (IOException e) {
+                operationResult.setText("= IO Exception :" + session.operationResult() + " =");
+            }
+            // enabling to get of DTMF events
+            session.getDevice().getProvider().enableEvents(session.getDeviceHandle(), Result.IO.DTMF);
+            test2.setEnabled(true);
+        };
+        test2.addActionListener(e -> {
+            test2.setEnabled(false);
+            executor.submit(recordingNoMask);
+        });
+        Runnable recordingWithMask = () -> {
+            operationResult.setText("===");
+            try {
+                File audioFile = File.createTempFile("testAudio", ".WAV");
+                audioFile.deleteOnExit();
+                Tools.print("Recording with * as mask : " + audioFile.getName());
+                try(OutputStream out = Files.newOutputStream(audioFile.toPath())) {
+                    Tools.print("Recording with no mask result: " + device.recordAudio(session, out, format, "*", 2,5));
+                    operationResult.setText("= " + session.operationResult() + " =");
+                }
+                try (InputStream in = Files.newInputStream(audioFile.toPath())) {
+                    Tools.print("Playing with * as mask : " + audioFile.getName());
+                    device.playbackAudio(session, in, format, "", 10);
+                    operationResult.setText("= " + session.operationResult() + " =");
+                }
+            } catch (IOException e) {
+                operationResult.setText("= IO Exception :" + session.operationResult() + " =");
+            }
+            // enabling to get of DTMF events
+            session.getDevice().getProvider().enableEvents(session.getDeviceHandle(), Result.IO.DTMF);
+            test21.setEnabled(true);
+        };
+        test21.addActionListener(e -> {
+            test2.setEnabled(false);
+            executor.submit(recordingWithMask);
+        });
+        //
+        test1.setFocusable(false);
+        test10.setFocusable(false);
+        test2.setFocusable(false);
+        test21.setFocusable(false);
+        return voiceControl;
     }
 
     @Test
