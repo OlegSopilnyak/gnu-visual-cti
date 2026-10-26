@@ -938,9 +938,6 @@ public abstract class AbstractTelephonyDevice<H, T extends TelephonyFactory<H, ?
             // no entry there (in the configuration) applying default and save to factory's configuration
             getFactory().saveFactoryConfigurationFor(this);
         }
-        //
-        // configuring the device's service provider by configured device
-        getProvider().configureBy(this);
     }
 
     /**
@@ -1003,14 +1000,14 @@ public abstract class AbstractTelephonyDevice<H, T extends TelephonyFactory<H, ?
         if (deviceMediaConfiguration != null) {
             // processing the parameters of the device's media codecs XML elements
             // codecs formats
-            final List<Element> codecs = deviceMediaConfiguration.getChildren(DEVICE_MEDIA_FORMAT_PARAMETER);
-            codecs.forEach(this::applyDeviceAudioFormatParameter);
+            final List<Element> formatsXml = deviceMediaConfiguration.getChildren(DEVICE_MEDIA_FORMAT_PARAMETER);
+            formatsXml.forEach(this::applyDeviceAudioFormatParameter);
             // volume levels of the audio transmitting
-            final List<Element> volumes = deviceMediaConfiguration.getChildren(DEVICE_MEDIA_VOLUME_PARAMETER);
-            volumes.forEach(this::applyDeviceMediaVolumeParameter);
+            final List<Element> volumesXml = deviceMediaConfiguration.getChildren(DEVICE_MEDIA_VOLUME_PARAMETER);
+            volumesXml.forEach(this::applyDeviceMediaVolumeParameter);
             // processing the parameters of the device's media tones XML elements
-            final List<Element> tones = deviceMediaConfiguration.getChildren(DEVICE_MEDIA_TONE_PARAMETER);
-            tones.forEach(this::applyDeviceMediaToneParameters);
+            final List<Element> tonesXml = deviceMediaConfiguration.getChildren(DEVICE_MEDIA_TONE_PARAMETER);
+            tonesXml.forEach(this::applyDeviceMediaToneParameters);
             // registering configured tones in the service provider for the current device
             registerDeviceTones();
         }

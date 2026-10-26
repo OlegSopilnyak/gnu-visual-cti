@@ -140,9 +140,7 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
      *
      * @return opened device's session
      * @throws IOException if device cannot start the session
-     * @see Device#open()
-     * @see #createSessionFor(Object)
-     * @see #getProvider()
+     * @see Device#startSession()
      */
     @Override
     public PhoneCallSession<H> startSession() throws IOException {
@@ -153,6 +151,22 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTeleph
             former.setVisible(false);
         }
         return session;
+    }
+
+    /**
+     * <action>
+     * Getting the device hardware parameters from service provider by device's handle
+     * and store them to the device's basic parameters
+     *
+     * @param handle valid opened device handle value
+     * @see #startSession()
+     */
+    @Override
+    public void fillingDeviceSpecific(final H handle) {
+        super.fillingDeviceSpecific(handle);
+        // adjusting playback/record volumes
+        handle.setSourceVolume(floatValueOf(MultimediaEngine.Parameter.PLAYBACK_VOLUME, 0.0f));
+        handle.setTargetVolume(floatValueOf(MultimediaEngine.Parameter.RECORD_VOLUME, 0.0f));
     }
 
     /**

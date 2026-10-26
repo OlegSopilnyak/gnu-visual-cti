@@ -438,8 +438,8 @@ public class AbstractDeviceTest<H> {
         verify(device).findInitiatedSession();
         verify(device).sessions();
         verify(device).fillingDeviceSpecific(handle);
-        verify(device).hasHardwareParameters();
-        verify(device, atLeastOnce()).hardwareParameterNames();
+        verify(device).noImportedVendorParameters();
+        verify(device, atLeastOnce()).vendorParametersNames();
         verify(device, never()).setParameter(any(Device.ParameterName.class), any(ConfigurationParameter.class));
         verify(device).createSessionFor(handle);
         verify(factory.getHub()).addDeviceEventListenerFor(deviceName, deviceSession);
@@ -468,10 +468,10 @@ public class AbstractDeviceTest<H> {
     public void shouldGetHardwareParameterNames() {
         // preparing test data
         Device.ParameterName name = mock(Device.ParameterName.class);
-        doReturn(Collections.singleton(name)).when(device).hardwareParameterNames();
+        doReturn(Collections.singleton(name)).when(device).vendorParametersNames();
 
         // acting
-        Collection<Device.ParameterName> hardware = device.hardwareParameterNames();
+        Collection<Device.ParameterName> hardware = device.vendorParametersNames();
 
         // check results
         assertThat(hardware).isNotEmpty().containsExactly(name);
@@ -482,7 +482,7 @@ public class AbstractDeviceTest<H> {
         // preparing test data
 
         // acting
-        Collection<Device.ParameterName>hardware = device.hardwareParameterNames();
+        Collection<Device.ParameterName>hardware = device.vendorParametersNames();
 
         // check results
         assertThat(hardware).isEmpty();
@@ -493,18 +493,18 @@ public class AbstractDeviceTest<H> {
         // preparing test data
         Device.ParameterName name = mock(Device.ParameterName.class);
         doReturn("mocked-name").when(name).value();
-        doReturn(Collections.singleton(name)).when(device).hardwareParameterNames();
+        doReturn(Collections.singleton(name)).when(device).vendorParametersNames();
         ConfigurationParameter parameter = mock(ConfigurationParameter.class);
         device.setParameter(name, parameter);
 
         // acting
-        boolean has = device.hasHardwareParameters();
+        boolean has = device.noImportedVendorParameters();
 
         // check the behavior
-        verify(device).hasHardwareParameters();
+        verify(device).noImportedVendorParameters();
         verify(device).getParameter(name);
         // check results
-        assertThat(has).isTrue();
+        assertThat(has).isFalse();
     }
 
     @Test
@@ -512,13 +512,13 @@ public class AbstractDeviceTest<H> {
         // preparing test data
 
         // acting
-        boolean has = device.hasHardwareParameters();
+        boolean has = device.noImportedVendorParameters();
 
         // check the behavior
-        verify(device).hasHardwareParameters();
+        verify(device).noImportedVendorParameters();
         verify(device, never()).getParameter(any(Device.ParameterName.class));
         // check results
-        assertThat(has).isFalse();
+        assertThat(has).isTrue();
     }
 
     @Test
@@ -527,7 +527,7 @@ public class AbstractDeviceTest<H> {
         String handle = "102";
         Device.ParameterName name = mock(Device.ParameterName.class);
         doReturn("mocked-name").when(name).value();
-        doReturn(Collections.singleton(name)).when(device).hardwareParameterNames();
+        doReturn(Collections.singleton(name)).when(device).vendorParametersNames();
         ConfigurationParameter parameter = mock(ConfigurationParameter.class);
         doReturn(Optional.of(parameter)).when(serviceProvider).findResourceParameter(handle, name);
         assertThat(device.getParameter(name)).isEmpty();
@@ -536,9 +536,9 @@ public class AbstractDeviceTest<H> {
         device.fillingDeviceSpecific(handle);
 
         // check the behavior
-        verify(device).hasHardwareParameters();
+        verify(device).noImportedVendorParameters();
         verify(device).serviceProvider();
-        verify(device, atLeastOnce()).hardwareParameterNames();
+        verify(device, atLeastOnce()).vendorParametersNames();
         verify(serviceProvider).findResourceParameter(handle, name);
         verify(device).setParameter(name, parameter);
         // check results
@@ -551,16 +551,16 @@ public class AbstractDeviceTest<H> {
         String handle = "102";
         Device.ParameterName name = mock(Device.ParameterName.class);
         doReturn("mocked-name").when(name).value();
-        doReturn(Collections.singleton(name)).when(device).hardwareParameterNames();
+        doReturn(Collections.singleton(name)).when(device).vendorParametersNames();
         assertThat(device.getParameter(name)).isEmpty();
 
         // acting
         device.fillingDeviceSpecific(handle);
 
         // check the behavior
-        verify(device).hasHardwareParameters();
+        verify(device).noImportedVendorParameters();
         verify(device).serviceProvider();
-        verify(device, atLeastOnce()).hardwareParameterNames();
+        verify(device, atLeastOnce()).vendorParametersNames();
         verify(serviceProvider).findResourceParameter(handle, name);
         verify(device, never()).setParameter(any(Device.ParameterName.class), any(ConfigurationParameter.class));
         // check results
@@ -579,9 +579,8 @@ public class AbstractDeviceTest<H> {
         device.fillingDeviceSpecific(handle);
 
         // check the behavior
-        verify(device).hasHardwareParameters();
-        verify(device).serviceProvider();
-        verify(device, atLeastOnce()).hardwareParameterNames();
+        verify(device).noImportedVendorParameters();
+        verify(device, atLeastOnce()).vendorParametersNames();
         verify(serviceProvider, never()).findResourceParameter(any(), any(Device.ParameterName.class));
         // check results
         assertThat(device.getParameter(name)).isEmpty();

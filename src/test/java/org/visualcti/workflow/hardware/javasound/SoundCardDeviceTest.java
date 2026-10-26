@@ -64,6 +64,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
+import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceActivitySession;
 import org.visualcti.core.channel.device.DeviceEvent;
@@ -329,69 +330,76 @@ public class SoundCardDeviceTest<H extends SoundCardHandle> {
     }
 
     @Test
-    public void shouldMakeCall() {
+    public void shouldMakeCall() throws IOException {
         // preparing test data
         calls.uses(device);
         PhoneCall.Number target = PhoneNumber.of(1, 2, 3, 4);
-        // TODO replace it by device's parameter
-        session.getDeviceHandle().setSourceVolume(-35);
+        device.detachAndClose(session);
+        ConfigurationParameter volume = ConfigurationParameter.of("volume", -35.0f);
+        device.setParameter(MultimediaEngine.Parameter.PLAYBACK_VOLUME, volume);
+        PhoneCallSession<H> callSession = spy(device.startSession());
 
         int timeout = 1;
 
         // acting
-        boolean success = device.makeCall(session, target, timeout);
+        boolean success = device.makeCall(callSession, target, timeout);
 
         // check the behavior
         verify(device, atLeastOnce()).isOpened();
         verify(device).canMakeCall();
-        verify(session, atLeastOnce()).isDisconnected();
+        verify(callSession, atLeastOnce()).isDisconnected();
         verify(provider).canMakeCall(device.getName());
         verify(device).getParameter(CallsPortEngine.Parameter.MAKE_CALL_ALLOWED);
         // check results
         assertThat(success).isFalse();
-        assertThat(session.isAlive()).isFalse();
-        assertThat(session.operationResult()).isSameAs(Result.CALL.Analysis.NO_ANSWER);
-        assertThat(session.getState()).isSameAs(Device.State.IDLE);
+        assertThat(callSession.isAlive()).isFalse();
+        assertThat(callSession.operationResult()).isSameAs(Result.CALL.Analysis.NO_ANSWER);
+        assertThat(callSession.getState()).isSameAs(Device.State.IDLE);
     }
 
     @Test
-    public void shouldDialNumber() {
+    public void shouldDialNumber() throws IOException {
         // preparing test data
         tones.uses(device);
         String number = "123";
-        session.alive(true);
-        // TODO replace it by device's parameter
-        session.getDeviceHandle().setSourceVolume(-50);
+        device.detachAndClose(session);
+        ConfigurationParameter volume = ConfigurationParameter.of("volume", -50.0f);
+        device.setParameter(MultimediaEngine.Parameter.PLAYBACK_VOLUME, volume);
+        PhoneCallSession<H> callSession = spy(device.startSession());
+        callSession.alive(true);
 
         // acting
-        device.dial(session, number);
+        device.dial(callSession, number);
 
         // check the behavior
-        verify(tones).dial(session, number);
+        verify(tones).dial(callSession, number);
         // check results
-        assertThat(session.getState()).isSameAs(Device.State.IDLE);
-        assertThat(session.operationResult()).isSameAs(Result.OK);
+        assertThat(callSession.getState()).isSameAs(Device.State.IDLE);
+        assertThat(callSession.operationResult()).isSameAs(Result.OK);
     }
 
     @Test
-    public void shouldPlayTone() {
+    public void shouldPlayTone() throws IOException {
         // preparing test data
         tones.uses(device);
         ToneId tone = ToneId.BEEP;
-        session.alive(true);
-        // TODO replace it by device's parameter
-        session.getDeviceHandle().setSourceVolume(-35);
+        device.detachAndClose(session);
+        ConfigurationParameter volume = ConfigurationParameter.of("volume", -35.0f);
+        device.setParameter(MultimediaEngine.Parameter.PLAYBACK_VOLUME, volume);
+        PhoneCallSession<H> callSession = spy(device.startSession());
+        callSession.alive(true);
+        reset(device);
 
         // acting
-        device.playTone(session, tone);
+        device.playTone(callSession, tone);
 
         // check the behavior
-        verify(device).playTone(session, tone, 0.5F);
+        verify(device).playTone(callSession, tone, 0.5F);
         verify(device).isOpened();
-        verify(tones).playTone(session, tone, 0.5F);
+        verify(tones).playTone(callSession, tone, 0.5F);
         // check results
-        assertThat(session.getState()).isSameAs(Device.State.IDLE);
-        assertThat(session.operationResult()).isSameAs(Result.OK);
+        assertThat(callSession.getState()).isSameAs(Device.State.IDLE);
+        assertThat(callSession.operationResult()).isSameAs(Result.OK);
     }
 
     @Test
@@ -423,24 +431,27 @@ public class SoundCardDeviceTest<H extends SoundCardHandle> {
         InputStream resource = provider.getClass().getResourceAsStream("/VM/prompts/PLAY_GREETING_PHONESOFT.WAV");
         assertThat(resource).isNotNull();
         assertThat(resource.available()).isGreaterThan(0);
-        session.alive(true);
-        // TODO replace it by device's parameter
-        session.getDeviceHandle().setSourceVolume(-10);
+        device.detachAndClose(session);
+        ConfigurationParameter volume = ConfigurationParameter.of("volume", -10.0f);
+        device.setParameter(MultimediaEngine.Parameter.PLAYBACK_VOLUME, volume);
+        PhoneCallSession<H> callSession = spy(device.startSession());
+        callSession.alive(true);
+        reset(device);
 
         // acting for negative timeout
         Future<OperationResultValue> action = shadowExecutor.submit(
-                () -> device.playbackAudio(session, resource, format, terminationSymbolsMask, negativeTimeout)
+                () -> device.playbackAudio(callSession, resource, format, terminationSymbolsMask, negativeTimeout)
         );
-        await().until(() -> session.operationIsActive());
+        await().until(callSession::operationIsActive);
         OperationResultValue result = action.get();
 
         // check the behavior
         verify(device).isOpened();
-        verify(media).playbackAudio(session, resource, format, terminationSymbolsMask, negativeTimeout);
+        verify(media).playbackAudio(callSession, resource, format, terminationSymbolsMask, negativeTimeout);
         verify(media).canPlay(format);
         // check results
         assertThat(result).isEqualTo(Result.IO.EOF);
-        assertThat(session.getState()).isEqualTo(Device.State.IDLE);
+        assertThat(callSession.getState()).isEqualTo(Device.State.IDLE);
     }
 
     @Test

@@ -156,11 +156,11 @@ public interface TelephonyDevice<H, F extends TelephonyFactory<H, ?>> extends De
      * @return stream to parameter names
      * @see ParameterName
      * @see Collection
-     * @see Device#hardwareParameterNames()
+     * @see Device#vendorParametersNames()
      * @see Arrays#asList(Object[])
      */
     @Override
-    default Collection<ParameterName> hardwareParameterNames() {
+    default Collection<ParameterName> vendorParametersNames() {
         return Arrays.asList(HARDWARE);
     }
 
@@ -470,7 +470,7 @@ public interface TelephonyDevice<H, F extends TelephonyFactory<H, ?>> extends De
      */
     @Override
     default Audio[] canPlay() {
-        return null;
+        return new Audio[0];
     }
 
     /**

@@ -42,6 +42,9 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 import org.jdom.Element;
 import org.visualcti.core.ConfigurationParameter;
@@ -78,13 +81,11 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit, XmlAware
      *
      * @return the factory-owner of the channel-device or throws DeviceMalfunction
      * @see #getFactoryOptional()
-     * @see Factory
+     * @see Optional#orElseThrow(Supplier)
      * @see DeviceMalfunction
      */
     default F getFactory() {
-        return getFactoryOptional()
-                .orElseThrow(() -> new DeviceMalfunction(this, "No Factory for the Device!"))
-                ;
+        return getFactoryOptional().orElseThrow(() -> new DeviceMalfunction(this, "No Factory for the Device!"));
     }
 
     /**
@@ -92,20 +93,24 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit, XmlAware
      * To get optional reference to the channel-devices factory, the owner of this channel-device
      *
      * @return the optional factory-owner of the channel-device
+     * @see #getFactory()
      * @see Factory
-     * @see Optional
+     * @see Optional#ofNullable(Object)
      */
     default Optional<F> getFactoryOptional() {
-        final ServerUnit owner = getOwner();
-        return Optional.ofNullable((owner instanceof Factory) ? (F) owner : null);
+        final ServerUnit deviceOwner = getOwner();
+        return Optional.ofNullable((deviceOwner instanceof Factory) ? (F) deviceOwner : null);
     }
 
     /**
      * <accessor>
-     * To get reference to the channel-devices service provider to do this channel-device low-level operations
+     * To get reference to the channel-devices vendor's service provider to do this channel-device low-level operations
      *
      * @return the service provider associated with the channel-device
      * @see ServiceProvider
+     * @see #startSession()
+     * @see #importVendorParameter(ParameterName, H)
+     * @see #detachAndClose(DeviceActivitySession)
      */
     default ServiceProvider<H> serviceProvider() {
         throw new UnsupportedOperationException("Not supported yet.");
@@ -117,6 +122,7 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit, XmlAware
      *
      * @param vendorSpecificConfigurationXml the configuration of the vendor specific device's parameters
      * @see Element
+     * @see Factory#addDevice(Device)
      */
     default Device<H, F> applyDeviceParameters(final Element vendorSpecificConfigurationXml) throws IOException {
         // doing nothing here
@@ -125,7 +131,7 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit, XmlAware
 
     /**
      * <accessor>
-     * To get access to the channel-device configured parameter value
+     * To get access to the channel-device configured parameter value by the parameter name
      *
      * @param name the name of configured parameter
      * @return the parameter value or empty
@@ -137,7 +143,7 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit, XmlAware
 
     /**
      * <mutator>
-     * To store configured parameter value to device's parameters by name
+     * To store configured parameter value to channel-device's parameters pool by the parameter name
      *
      * @param name  the name of configured parameter
      * @param value the value of configured parameter
@@ -148,47 +154,56 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit, XmlAware
 
     /**
      * <accessor>
-     * To get the hardware parameters used in the device
+     * To get the device vendor's hardware parameters names used in the channel-device
      *
-     * @return stream to parameter names
+     * @return collection of hardware parameters names
      * @see ParameterName
-     * @see Stream
-     * @see #hasHardwareParameters()
+     * @see #noImportedVendorParameters()
+     * @see #fillingDeviceSpecific(H)
      */
-    default Collection<ParameterName> hardwareParameterNames() {
+    default Collection<ParameterName> vendorParametersNames() {
         return Collections.emptySet();
     }
 
     /**
      * <accessor>
-     * To check is there any hardware parameter in device
+     * To check is there any device vendor's hardware parameter in the channel-device
      *
-     * @return true if the hardware parameters there
+     * @return true if the vendor's hardware parameters already imported to the channel-device
      */
-    default boolean hasHardwareParameters() {
-        return hardwareParameterNames().stream().map(this::getParameter).anyMatch(Optional::isPresent);
+    default boolean noImportedVendorParameters() {
+        return vendorParametersNames().stream().map(this::getParameter).noneMatch(Optional::isPresent);
     }
 
     /**
      * <builder>
-     * To create the session for the opened device resource handle
+     * To create the activities session of the channel-device for the opened device-handle
      *
-     * @param openedDeviceHandle the handle of the opened device resource
+     * @param handle the handle to the opened device resource
      * @return built device session
      * @throws IOException if device cannot create the session for device handle
      * @see DeviceActivitySession
      * @see #startSession()
      */
-    default DeviceActivitySession<H> createSessionFor(H openedDeviceHandle) throws IOException {
-        throw new IOException("Not supported yet.");
+    default DeviceActivitySession<H> createSessionFor(H handle) throws IOException {
+        throw new IOException("Not supported here. Please implement this method in the descendent.");
     }
 
     /**
      * <action>
-     * To create and start device's session
+     * To create and start the activities session of the channel-device
      *
-     * @return opened device's session
-     * @throws IOException if device cannot start the session
+     * @return the built and started session of the device
+     * @throws IOException if channel-device cannot build or start the session
+     * @see DeviceActivitySession
+     * @see Device.ServiceProvider#openResource(String)
+     * @see #isInvalidHandle(H)
+     * @see #createSessionFor(H)
+     * @see #findInitiatedSession()
+     * @see #fillingDeviceSpecific(H)
+     * @see #createSessionFor(H)
+     * @see #stateChangedFor(DeviceActivitySession)
+     * @see DeviceEvent.Listener.Hub#addDeviceEventListenerFor(String, DeviceEvent.Listener)
      */
     default <S extends DeviceActivitySession<H>> S startSession() throws IOException {
         // opening the device provider resource
@@ -218,26 +233,33 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit, XmlAware
      *
      * @param handle valid opened device handle value
      * @see #startSession()
-     * @see ServiceProvider#findResourceParameter(H, ParameterName)
-     * @see #hasHardwareParameters()
-     * @see #hardwareParameterNames()
-     * @see #setParameter(ParameterName, ConfigurationParameter)
+     * @see #noImportedVendorParameters()
+     * @see #vendorParametersNames()
+     * @see #importVendorParameter(ParameterName, H)
      */
     default void fillingDeviceSpecific(H handle) {
-        if (!this.hasHardwareParameters()) {
-            //
-            // no hardware parameters loaded from service provider
-            final ServiceProvider<H> provider = serviceProvider();
-            //
-            // iterating hardware parameters names
-            hardwareParameterNames().forEach(name ->
-                    // getting the hardware parameter by name from the device's service provider
-                    provider.findResourceParameter(handle, name).ifPresent(
-                            // storing resource's hardware parameter to the basic device parameters map
-                            parameter -> Device.this.setParameter(name, parameter)
-                    )
-            );
+        if (noImportedVendorParameters()) {
+            // no hardware parameters imported from the device vendor's service provider
+            // iterating vendor's parameters names and importing their values to the channel-device's parameters pool
+            vendorParametersNames().forEach(name -> importVendorParameter(name, handle));
         }
+    }
+
+    /**
+     * <action>
+     * Importing hardware parameter from the channel-device vendor's service provider
+     *
+     * @param name   the vendor's parameter name
+     * @param handle valid opened device handle value
+     * @see #fillingDeviceSpecific(H)
+     * @see ServiceProvider#findResourceParameter(H, ParameterName)
+     * @see #setParameter(ParameterName, ConfigurationParameter)
+     */
+    default void importVendorParameter(ParameterName name, H handle) {
+        // getting the parameter by name from the channel-device vendor service provider
+        serviceProvider().findResourceParameter(handle, name)
+                // storing resource's hardware parameter to the basic device parameters pool
+                .ifPresent(parameter -> setParameter(name, parameter));
     }
 
     /**
@@ -254,19 +276,21 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit, XmlAware
 
     /**
      * <action>
-     * To stop device's session and detach it from device events stream
+     * To stop device's session and detach it from device events stream processing
      *
      * @param session opened device's session
+     * @see #startSession()
+     * @see #close()
+     * @see #getName()
+     * @see DeviceEvent.Listener.Hub#removeDeviceEventListenerFor(String, DeviceEvent.Listener)
      * @see DeviceActivitySession#terminate()
      * @see DeviceActivitySession#close()
      * @see DeviceActivitySession#getDeviceHandle()
-     * @see ServiceProvider#closeResource(Object)
+     * @see ServiceProvider#closeResource(H)
      * @see #getFactory()
-     * @see #getName()
-     * @see Factory#getHub()
-     * @see DeviceEvent.Listener.Hub#removeDeviceEventListenerFor(String, DeviceEvent.Listener)
+     * @see #findSessionByHandle(H)
      */
-    default void detachAndClose(final DeviceActivitySession<H> session) {
+    default void detachAndClose(DeviceActivitySession<H> session) {
         // detach
         // removing the device session as an events listener from the factory
         getFactory().getHub().removeDeviceEventListenerFor(getName(), session);
@@ -293,6 +317,7 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit, XmlAware
      * To notify, about device's session state changed
      *
      * @param session the session with new value of the state
+     * @see #startSession()
      * @see DeviceActivitySession#getState()
      */
     void stateChangedFor(DeviceActivitySession<H> session);
@@ -312,13 +337,20 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit, XmlAware
      * To get the stream of active device sessions
      *
      * @return stream of active device sessions
+     * @see #isOpened()
+     * @see #findSessionByHandle(H)
+     * @see #findInitiatedSession()
+     * @see #close()
      * @see #getFactory()
+     * @see Factory#getHub()
      * @see #getName()
      * @see DeviceEvent.Listener.Hub#eventListeners(String)
      * @see DeviceActivitySession
      * @see #isOpened()
      * @see #findSessionByHandle(Object)
      * @see #close()
+     * @see Optional#filter(Predicate)
+     * @see Optional#map(Function)
      */
     default Stream<DeviceActivitySession<H>> sessions() {
         return getFactory().getHub().eventListeners(getName()).filter(DeviceActivitySession.class::isInstance)
@@ -330,30 +362,40 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit, XmlAware
      * Opening and activation of the channel-device.
      *
      * @throws IOException if channel cannot be opened or activated
+     * @see #tryToOpenTheDevice(Device)
      * @see #startSession()
+     * @see DeviceActivitySession#isOpened()
+     * @see #getFactory()
+     * @see Factory#getHub()
+     * @see #getName()
+     * @see DeviceEvent.Listener.Hub#removeDeviceEventListenerFor(String, DeviceEvent.Listener)
+     * @see Parameter#INITIATED
+     * @see DeviceActivitySession#parameter(ParameterName, Object)
      */
     default void open() throws IOException {
         // trying to start session
         final DeviceActivitySession<H> session = startSession();
-        if (!session.isOpened()) {
-            // removing the broken device session as device events listener from the factory
-            getFactory().getHub().removeDeviceEventListenerFor(getName(), session);
-            // starting is failed
-            final String message = "Device Session could not be opened!";
-            dispatchError(message);
-            throw new IOException(message);
-        } else {
+        if (session.isOpened()) {
             // marking session as 'initiated' for further detaching and close
             session.parameter(Parameter.INITIATED, true);
-            dispatchEvent("Opened device :" + getDeviceName());
+            dispatchEvent("Opened device session for " + getDeviceName());
+            return;
         }
+        // session is opened already
+        // removing the broken device session as device events listener from the factory
+        getFactory().getHub().removeDeviceEventListenerFor(getName(), session);
+        // opening is failed throwing the IOException
+        final String message = "Device Session could not be opened!";
+        dispatchError(message);
+        throw new IOException(message);
     }
 
     /**
      * <accessor>
-     * Check, is device already opened
+     * Check, is device opened successfully
      *
      * @return true if it's opened
+     * @see #repair()
      */
     default boolean isOpened() {
         return sessions().findAny().isPresent();
@@ -365,31 +407,35 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit, XmlAware
      *
      * @param deviceHandle the device handle to look for the context by
      * @return found context or empty
+     * @see #detachAndClose(DeviceActivitySession)
      * @see Optional
      * @see DeviceActivitySession
      * @see DeviceActivitySession#hasDeviceHandle(H)
      * @see #sessions()
      */
-    default Optional<DeviceActivitySession<H>> findSessionByHandle(final H deviceHandle) {
+    default Optional<DeviceActivitySession<H>> findSessionByHandle(H deviceHandle) {
         return sessions().filter(session -> session.hasDeviceHandle(deviceHandle)).findFirst();
     }
 
     /**
      * <accessor>
-     * To look for the session with created after device open operation
+     * To look for the session which created after device open operation
      *
-     * @return found context or empty
+     * @return found initiated session or empty
+     * @see #startSession()
+     * @see #sessions()
      * @see Optional
-     * @see DeviceActivitySession
+     * @see Stream#filter(Predicate)
      * @see DeviceActivitySession#parameterOrDefault(ParameterName, Object)
      * @see Parameter#INITIATED
-     * @see #sessions()
-     * @see #open()
+     * @see Stream#findFirst()
      */
     default Optional<DeviceActivitySession<H>> findInitiatedSession() {
-        return sessions().filter(session ->
-                session.parameterOrDefault(Parameter.INITIATED, false)
-        ).findFirst();
+        return sessions()
+                // session with parameter named 'Parameter.INITIATED' and value: true
+                .filter(session -> session.parameterOrDefault(Parameter.INITIATED, false))
+                // first initiated session (after device opening operation) of the channel-device
+                .findFirst();
     }
 
     /**
@@ -436,7 +482,8 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit, XmlAware
 
     /**
      * <accessor>
-     * To check is unit needs to be registered in units registry
+     * To check is unit needs to be registered in the units registry
+     * Doesn't by default
      *
      * @return true if unit needed registration
      * @see UnitRegistry#register(ServerUnit)
@@ -451,12 +498,13 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit, XmlAware
      * Try to repair device after malfunction
      *
      * @return true if device is repaired well
+     * @see DeviceMalfunction#repairMalfunction()
+     * @see org.visualcti.server.channel.ChannelTaskRunnerAdapter#accept(DeviceEvent)
      * @see #close()
-     * @see #open()
+     * @see #tryToOpenTheDevice(Device)
      * @see #isOpened()
      * @see #dispatchError(Throwable, String)
-     * @see TimeUnit#SECONDS
-     * @see TimeUnit#sleep(long)
+     * @see #sleepMilliseconds(long)
      */
     default boolean repair() {
         final int repairTryAttempts = integerValueOf(Parameter.REPAIR_ATTEMPT, 20);
@@ -489,12 +537,26 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit, XmlAware
      * To get device's parameter value as integer or value by default
      *
      * @param parameterName the name of parameter to get
-     * @param defaultValue the value if parameter isn't exist
+     * @param defaultValue  the value if parameter isn't exist
      * @return the parameter's value
+     * @see #repair()
      */
-    default int integerValueOf(final Device.Parameter parameterName, final int defaultValue) {
+    default int integerValueOf(final Device.ParameterName parameterName, final int defaultValue) {
         final ConfigurationParameter parameter = getParameter(parameterName).orElse(null);
         return parameter == null ? defaultValue : parameter.<Number>getValue().intValue();
+    }
+
+    /**
+     * <accessor>
+     * To get device's parameter value as float or value by default
+     *
+     * @param parameterName the name of parameter to get
+     * @param defaultValue  the value if parameter isn't exist
+     * @return the parameter's value
+     */
+    default float floatValueOf(final Device.ParameterName parameterName, final float defaultValue) {
+        final ConfigurationParameter parameter = getParameter(parameterName).orElse(null);
+        return parameter == null ? defaultValue : parameter.<Number>getValue().floatValue();
     }
 
     static void tryToOpenTheDevice(final Device<?, ?> device) throws IOException {
@@ -663,17 +725,6 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit, XmlAware
          */
         default Collection<String> allowedDevices() {
             return Collections.emptyList();
-        }
-
-        /**
-         * <mutator>
-         * To configure provider's parameters by the opened device's options
-         *
-         * @param device opened device
-         * @see Device
-         */
-        default void configureBy(Device<H,?> device) {
-            // doing nothing here
         }
     }
 }
