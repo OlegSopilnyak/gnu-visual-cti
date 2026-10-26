@@ -114,6 +114,7 @@ public final class CaptureUtils extends CommonUtils {
         final TargetDataLine target = AudioSystem.getTargetDataLine(audioFormat);
         // adjusting and starting the target data line channel
         target.open(audioFormat);
+        adjustRecordingVolume(handle, target);
         handle.setTargetLine(target);
         target.start();
         return target;

@@ -39,6 +39,7 @@ package org.visualcti.workflow.hardware.javasound.io.audio;
 
 import javax.sound.sampled.FloatControl;
 import javax.sound.sampled.SourceDataLine;
+import javax.sound.sampled.TargetDataLine;
 
 import java.io.IOException;
 import java.util.Map;
@@ -156,6 +157,11 @@ abstract class CommonUtils {
                 e.printStackTrace(Tools.err);
             }
         }
+    }
+
+    // adjusting recording volume value from handle
+    protected static <H extends SoundCardHandle> void adjustRecordingVolume(final H handle, final TargetDataLine line) {
+        // TODO implement it further
     }
 
     // to mark operation for handle as completed
