@@ -46,12 +46,12 @@ import java.awt.Font;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import org.jdom.DataConversionException;
+import org.visualcti.core.channel.telephony.TelephonyDevice;
 import org.visualcti.server.hardware.generalDeviceProxy;
 import org.visualcti.server.task.Environment;
 import org.visualcti.util.Tools;
@@ -60,7 +60,6 @@ import org.visualcti.workflow.hardware.javasound.SoundCardDevice;
 import org.visualcti.workflow.hardware.javasound.SoundCardDevicesFactory;
 import org.visualcti.workflow.hardware.javasound.SoundCardHandle;
 import org.visualcti.workflow.hardware.javasound.SoundCardServiceProvider;
-//import org.visualcti.server.hardware.provider.soundcard.*;
 
 /**
  * <p>Title: Visual CTI Java Telephony Server</p>
@@ -72,7 +71,10 @@ import org.visualcti.workflow.hardware.javasound.SoundCardServiceProvider;
  * @version 1.0
  */
 
-public final class telephonyPartEditor extends partEditor {
+public final class telephonyPartEditor<H extends SoundCardHandle> extends partEditor {
+
+    public static final String DEVICE_PREFIX = "telephony/";
+
     /**
      * <accessor>
      * To get the name of environment's part
@@ -102,17 +104,17 @@ public final class telephonyPartEditor extends partEditor {
             if (index != -1) selectDevice(index);
         });
         this.placeSoundCard();
-//        this.devicesPlace.setSelectedIndex(0);
+        this.devicesPlace.setSelectedIndex(0);
     }
 
     /**
      * The container of devices
      */
-    private final Map devices = new HashMap();
-    private final ArrayList tabs = new ArrayList();
+    private final Map<String, TelephonyDevice<H, ?>> devices = new HashMap<>();
+    private final ArrayList<TelephonyDevice<H, ?>> tabs = new ArrayList<>();
 
     // To attach the sound-card telephony device
-    private <H extends SoundCardHandle> void placeSoundCard() {
+    private void placeSoundCard() {
         final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(12);
         final SoundCardServiceProvider<H> provider = new SoundCardServiceProvider<>(scheduler);
         try (final SoundCardDevicesFactory<H, ?> factory = new SoundCardDevicesFactory<>(scheduler, provider)) {
@@ -121,6 +123,8 @@ public final class telephonyPartEditor extends partEditor {
             final SoundCardDevice<H, ?> device = factory.devices().findFirst()
                     .orElseThrow(() -> new NoSuchElementException("No any device in the factory."));
             device.startSession();
+            devices.put(device.getDeviceName(),device);
+            tabs.add( device );
             devicesPlace.addTab("emulator", new JScrollPane(device.getUI()));
         } catch (IOException | DataConversionException e) {
             e.printStackTrace(Tools.err);
@@ -133,14 +137,10 @@ public final class telephonyPartEditor extends partEditor {
     }
 
     public void reload() {
-        Environment env = this.getEnvironment();
+        final Environment env = this.getEnvironment();
         if (env == null) return;
-        for (Iterator i = devices.entrySet().iterator(); i.hasNext(); ) {
-            Map.Entry entry = (Map.Entry) i.next();
-            String name = "telephony/" + entry.getKey();
-            env.setPart(name, entry.getValue());
-        }
-        this.selectDevice(this.devicesPlace.getSelectedIndex());
+        devices.forEach((key, value) -> env.setPart(DEVICE_PREFIX + key, value));
+        selectDevice(devicesPlace.getSelectedIndex());
     }
 
     private Environment getEnvironment() {
@@ -157,9 +157,9 @@ public final class telephonyPartEditor extends partEditor {
         }
         Environment env = this.getEnvironment();
         if (env == null) return;
-        generalDeviceProxy device = (generalDeviceProxy) this.tabs.get(index);
+        TelephonyDevice<H, ?> device = tabs.get(index);
         if (device == null) return;
-        String name = "telephony/" + device.getDeviceName();
+        String name = DEVICE_PREFIX + device.getDeviceName();
         env.setPart(generalDeviceProxy.SELECTED_DEVICE, name);
     }
 }
