@@ -642,7 +642,7 @@ public class TasksPoolUnitAdapterTest {
         String poolFile = poolName+".tasks.pool";
         final File tasksListFile = new File(poolsManager.getRoot(), poolFile);
         assertThat(tasksListFile).exists();
-        tasksListFile.delete();
+        assertThat(tasksListFile.delete()).isTrue();
 
     }
 
@@ -1449,6 +1449,7 @@ public class TasksPoolUnitAdapterTest {
         String managerPath = "Tasks/Manager";
         String managerDirectory = "work/tasks";
         TaskPoolsManager mockedPoolsManager = mock(TaskPoolsManager.class);
+        doReturn(true).when(mockedPoolsManager).isNeedRegistration();
         doReturn(managerPath).when(mockedPoolsManager).getPath();
         doReturn(new File(managerDirectory)).when(mockedPoolsManager).getRoot();
         UnitRegistry.register(mockedPoolsManager);

@@ -46,6 +46,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import java.util.Map;
 import java.util.stream.IntStream;
 import org.junit.Before;
 import org.junit.Test;
@@ -53,7 +54,6 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceEvent;
-import org.visualcti.core.channel.device.DeviceStateValue;
 import org.visualcti.core.channel.device.Factory;
 import org.visualcti.core.executable.task.Task;
 
@@ -62,8 +62,9 @@ public class AbstractChannelTest {
     String deviceName = "device-name";
     String deviceVendor = "device-vendor";
     Factory<?, ?> factory;
+    DeviceEvent.Listener.Hub listenersHub;
     Device<?, ?> device;
-    AbstractChannel<?> channel;
+    Channel<?> channel;
 
     @Before
     public void setUp() {
@@ -71,6 +72,8 @@ public class AbstractChannelTest {
         doReturn(deviceName).when(device).getName();
         factory = mock(Factory.class);
         doReturn(deviceVendor).when(factory).getVendor();
+        listenersHub = mock(DeviceEvent.Listener.Hub.class);
+        doReturn(listenersHub).when(factory).getHub();
         channel = spy(new TestChannel<>(device));
         doReturn(factory).when(device).getFactory();
     }
@@ -101,23 +104,6 @@ public class AbstractChannelTest {
     }
 
     @Test
-    public void shouldGetChannelStatus() {
-        // preparing test data
-        String status = "status";
-        DeviceStateValue state = mock(DeviceStateValue.class);
-        doReturn(status).when(state).getValue();
-//        doReturn(state).when(device).getState();
-
-        // acting
-//        String channelStatus = channel.getStatus();
-
-        // check the behavior
-        verify(channel).getDevice();
-        // check results
-//        assertThat(channelStatus).isEqualTo(status);
-    }
-
-    @Test
     public void shouldCheckIsOpenedChannel() {
         // preparing test data
 
@@ -132,7 +118,7 @@ public class AbstractChannelTest {
     }
 
     @Test
-    public void shouldDoBeforeStart() {
+    public void shouldDoingBeforeStart() {
         // preparing test data
         String taskName = "task-name";
         Task task = mock(Task.class);
@@ -140,7 +126,7 @@ public class AbstractChannelTest {
         assertThat(channel.onlineTasksCount()).isZero();
 
         // acting
-        channel.beforeStart(task);
+        channel.beforeStarted(task);
 
         // check results
         assertThat(channel.onlineTasksCount()).isEqualTo(1);
@@ -148,17 +134,17 @@ public class AbstractChannelTest {
     }
 
     @Test
-    public void shouldDoAfterStop() {
+    public void shouldDoingAfterStop() {
         // preparing test data
         String taskName = "task-name";
         Task task = mock(Task.class);
         doReturn(taskName).when(task).getName();
-        channel.beforeStart(task);
+        channel.beforeStarted(task);
         assertThat(channel.onlineTasksCount()).isEqualTo(1);
         reset(channel);
 
         // acting
-        channel.afterStop(task);
+        channel.afterStopped(task);
 
         // check results
         assertThat(channel.onlineTasksCount()).isZero();
@@ -180,15 +166,39 @@ public class AbstractChannelTest {
                 return count % 2 == 0 ? taskName1 : taskName2;
             }
         }).when(task).getName();
+        assertThat(channel.onlineTasksCount()).isZero();
+        assertThat(channel.getOnlineTasks()).isEmpty();
+        IntStream.range(0, onlineTasksCount).forEach(i -> channel.beforeStarted(task));
         reset(channel);
 
         // acting
-        IntStream.range(0, onlineTasksCount).forEach(i -> channel.beforeStart(task));
+        Map<String, Integer> onlineTasks = channel.getOnlineTasks();
 
         // check results
-        assertThat(channel.onlineTasksCount()).isEqualTo(onlineTasksCount);
-        assertThat(channel.getOnlineTasks()).containsEntry(taskName1, onlineTasksCount / 2);
-        assertThat(channel.getOnlineTasks()).containsEntry(taskName2, onlineTasksCount / 2);
+        assertThat(onlineTasks)
+                .containsEntry(taskName1, onlineTasksCount / 2)
+                .containsEntry(taskName2, onlineTasksCount / 2);
+    }
+
+    @Test
+    public void shouldGetOnlineTasksCount() {
+        // preparing test data
+        int onlineTasksCount = 2;
+        Task task = mock(Task.class);
+        doReturn("task-name").when(task).getName();
+        assertThat(channel.onlineTasksCount()).isZero();
+        assertThat(channel.getOnlineTasks()).isEmpty();
+        IntStream.range(0, onlineTasksCount).forEach(i -> channel.beforeStarted(task));
+        reset(channel);
+
+        // acting
+        int count = channel.onlineTasksCount();
+
+        // check the behavior
+        verify(channel).getOnlineTasks();
+        // check results
+        assertThat(count).isEqualTo(onlineTasksCount);
+        assertThat(channel.getOnlineTasks()).isNotEmpty();
     }
 
     @Test
@@ -218,7 +228,7 @@ public class AbstractChannelTest {
         verify(channel, times(2)).getDevice();
         verify(device).getFactory();
         verify(factory).getHub();
-//        verify(factory).addDeviceEventListenerFor(deviceName, listener);
+        verify(listenersHub).addDeviceEventListenerFor(deviceName, listener);
     }
 
     @Test
@@ -232,7 +242,8 @@ public class AbstractChannelTest {
         // check the behavior
         verify(channel, times(2)).getDevice();
         verify(device).getFactory();
-//        verify(factory).removeDeviceEventListenerFor(deviceName, listener);
+        verify(factory).getHub();
+        verify(listenersHub).removeDeviceEventListenerFor(deviceName, listener);
     }
 
     //// inner classes

@@ -42,9 +42,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import org.visualcti.core.channel.device.Device;
-import org.visualcti.server.core.channel.ChannelTaskRunner;
-import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.executable.task.Task;
+import org.visualcti.server.core.channel.ChannelTaskRunner;
 import org.visualcti.server.core.unit.ServerUnit;
 import org.visualcti.server.unit.ServerUnitAdapter;
 
@@ -99,24 +98,12 @@ public abstract class AbstractChannel<D extends Device<?, ?>> extends ServerUnit
      * value: executing quantity
      *
      * @return the value
-     * @see #beforeStart(Task) (Task)
-     * @see #afterStop(Task) (Task)
+     * @see #beforeStarted(Task) (Task)
+     * @see #afterStopped(Task) (Task)
      */
     @Override
     public Map<String, Integer> getOnlineTasks() {
         return Collections.unmodifiableMap(executingTasks);
-    }
-
-    /**
-     * <accessor>
-     * To check is channel busy to accept incoming device event
-     *
-     * @return true if channel is busy
-     * @see org.visualcti.server.channel.ChannelTaskRunnerAdapter#accept(DeviceEvent)
-     */
-    @Override
-    public boolean isBusy() {
-        return Channel.super.isBusy();
     }
 
     /**
@@ -128,7 +115,7 @@ public abstract class AbstractChannel<D extends Device<?, ?>> extends ServerUnit
      * @see #isBusy()
      */
     @Override
-    public void beforeStart(final Task task) {
+    public void beforeStarted(final Task task) {
         // incrementing particular task counter
         executingTasks.compute(task.getName(), (name, counter) -> counter == null ? 1 : counter + 1);
     }
@@ -142,7 +129,7 @@ public abstract class AbstractChannel<D extends Device<?, ?>> extends ServerUnit
      * @see #isBusy()
      */
     @Override
-    public void afterStop(final Task task) {
+    public void afterStopped(final Task task) {
         // decrementing particular task counter
         executingTasks.compute(task.getName(), (name, counter) -> counter == null || counter <= 0 ? 0 : counter - 1);
     }

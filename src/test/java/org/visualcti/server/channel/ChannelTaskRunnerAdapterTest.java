@@ -73,7 +73,7 @@ import org.visualcti.core.executable.task.Task;
 import org.visualcti.server.core.executable.task.TasksPoolUnit;
 import org.visualcti.server.task.Environment;
 
-@SuppressWarnings("unchecked")
+@SuppressWarnings({"unchecked", "rawtypes"})
 public class ChannelTaskRunnerAdapterTest {
     ChannelTasksRuntime group;
     Executor executor;
@@ -150,11 +150,11 @@ public class ChannelTaskRunnerAdapterTest {
         verify(runner).attachTask(task);
         verify(runner).getEnvironment();
         verify(task).setEnv(environment);
-        verify(channel).beforeStart(task);
+        verify(channel).beforeStarted(task);
         verify(task).execute();
         verify(runner).detachTask(task);
         verify(task).setEnv(null);
-        verify(channel).afterStop(task);
+        verify(channel).afterStopped(task);
         // check results
         assertThat(accepted).isTrue();
     }
@@ -302,7 +302,7 @@ public class ChannelTaskRunnerAdapterTest {
         verify(runner).getExclusiveAccessLock();
         verify(runner, times(3)).getChannel();
         verify(channel, times(6)).getDevice();
-        verify(device).open();
+        verify(device).startSession();
         verify(runner).attachTask(task);
         verify(task).execute();
         verify(runner).detachTask(task);
@@ -339,7 +339,7 @@ public class ChannelTaskRunnerAdapterTest {
         verify(taskToAttach).setEnv(environment);
         verify(taskToAttach, times(2)).getName();
         verify(runner).dispatchEvent(anyString());
-        verify(channel).beforeStart(taskToAttach);
+        verify(channel).beforeStarted(taskToAttach);
         // check results
         assertThat(runner.getChannel().onlineTasksCount()).isEqualTo(1);
     }
@@ -357,7 +357,7 @@ public class ChannelTaskRunnerAdapterTest {
         // check the behavior
         verify(taskToDetach).setEnv(null);
         verify(runner).dispatchEvent(anyString());
-        verify(channel).afterStop(taskToDetach);
+        verify(channel).afterStopped(taskToDetach);
         // check results
         assertThat(runner.getChannel().onlineTasksCount()).isZero();
     }

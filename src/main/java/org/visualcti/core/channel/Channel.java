@@ -46,7 +46,7 @@ import org.visualcti.core.executable.task.Task;
 import org.visualcti.server.core.unit.ServerUnit;
 
 /**
- * The Channel: The channel through device of which task is communicating with external world
+ * The Channel: The channel through device of which the task is communicating with external world
  *
  * @param <D> the type of channel device
  * @see ServerUnit
@@ -58,9 +58,20 @@ public interface Channel<D extends Device<?, ?>> extends ServerUnit {
 
     /**
      * <accessor>
-     * To get the device of the channel
+     * To get the Type of unit as string (service, manager, subsystem, etc.)
      *
-     * @return channel-device instance associated with the channel
+     * @return the value
+     */
+    @Override
+    default String getType() {
+        return UNIT_TYPE;
+    }
+
+    /**
+     * <accessor>
+     * To get the reference to device associated with the channel
+     *
+     * @return channel-device's instance
      */
     D getDevice();
 
@@ -77,7 +88,7 @@ public interface Channel<D extends Device<?, ?>> extends ServerUnit {
 
     /**
      * <accessor>
-     * Check, is device already opened
+     * Checking is channel's device already opened
      *
      * @return true if channel is opened
      * @see Device#isOpened()
@@ -89,23 +100,23 @@ public interface Channel<D extends Device<?, ?>> extends ServerUnit {
 
     /**
      * <action>
-     * Before start task execution on the channel
+     * Doing before started task execution into the channel
      *
-     * @param task task which is going to be executed
+     * @param task the task which is going to be executed into the channel
      * @see org.visualcti.server.core.channel.ChannelTaskRunner#attachTask(Task)
      * @see #isBusy()
      */
-    void beforeStart(Task task);
+    void beforeStarted(Task task);
 
     /**
      * <action>
-     * After stop task execution on the channel
+     * Doing after stopped task execution into the channel
      *
-     * @param task task which was executed
+     * @param task the task which was executed into the channel
      * @see org.visualcti.server.core.channel.ChannelTaskRunner#detachTask(Task)
      * @see #isBusy()
      */
-    void afterStop(Task task);
+    void afterStopped(Task task);
 
     /**
      * <accessor>
@@ -130,24 +141,13 @@ public interface Channel<D extends Device<?, ?>> extends ServerUnit {
 
     /**
      * <accessor>
-     * To check is channel busy to accept incoming device event
+     * To check is the channel not busy to accept incoming channel-device's event
      *
      * @return true if channel is busy
      */
     default boolean isBusy() {
-        // by default channel support multiple usage
+        // by default channel supports multiple sessions at once usage
         return false;
-    }
-
-    /**
-     * <accessor>
-     * To get the Type of unit as string (service, manager, subsystem, etc.)
-     *
-     * @return the value
-     */
-    @Override
-    default String getType() {
-        return UNIT_TYPE;
     }
 
     /**

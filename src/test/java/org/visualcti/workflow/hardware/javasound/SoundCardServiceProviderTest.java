@@ -570,7 +570,7 @@ public class SoundCardServiceProviderTest {
     public void shouldGetEvent_FromEventsQueue() throws IOException {
         // preparing test data
         DeviceEvent<SoundCardHandle> mocked = mock(DeviceEvent.class);
-        doReturn(mocked).when(provider).allowedEvent(any(DeviceEvent.class));
+        doReturn(mocked).when(provider).allowedEvent(mocked);
         eventProcessor.Stop();
         await().until(() -> eventProcessor.isStopped());
         provider.enableEventsGetting();

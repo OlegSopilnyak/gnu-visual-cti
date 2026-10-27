@@ -295,8 +295,8 @@ public interface ChannelTaskRunner<D extends Device<?, ?>> extends RunnableServe
         task.setEnv(environment);
         // sending notification about task's attachment to the runner
         dispatchEvent(runnerTaskState.apply(task.getName()));
-        // adjust the channel's task state
-        getChannel().beforeStart(task);
+        // adjusting the channel's task state before executing one
+        getChannel().beforeStarted(task);
     }
 
     /**
@@ -310,8 +310,8 @@ public interface ChannelTaskRunner<D extends Device<?, ?>> extends RunnableServe
         task.setEnv(null);
         // sending notification about task's detachment from the runner
         dispatchEvent(runnerTaskState.apply(" "));
-        // adjust the channel's task state
-        getChannel().afterStop(task);
+        // adjusting the channel's task state after executing one
+        getChannel().afterStopped(task);
     }
 
     /**
