@@ -269,6 +269,7 @@ public class SoundCardUITest {
                     Tools.print("Recording with no mask result: " + device.recordAudio(session, out, format, "", 2,5));
                     operationResult.setText("= " + session.operationResult() + " =");
                 }
+                session.getDeviceHandle().setSourceVolume(1.0f);
                 try (InputStream in = Files.newInputStream(audioFile.toPath())) {
                     Tools.print("Playing with no mask : " + audioFile.getName());
                     device.playbackAudio(session, in, format, "", 10);
@@ -295,6 +296,7 @@ public class SoundCardUITest {
                     Tools.print("Recording with no mask result: " + device.recordAudio(session, out, format, "*", 2,5));
                     operationResult.setText("= " + session.operationResult() + " =");
                 }
+                session.getDeviceHandle().setSourceVolume(1.0f);
                 try (InputStream in = Files.newInputStream(audioFile.toPath())) {
                     Tools.print("Playing with * as mask : " + audioFile.getName());
                     device.playbackAudio(session, in, format, "", 10);
@@ -308,7 +310,7 @@ public class SoundCardUITest {
             test21.setEnabled(true);
         };
         test21.addActionListener(e -> {
-            test2.setEnabled(false);
+            test21.setEnabled(false);
             executor.submit(recordingWithMask);
         });
         //
