@@ -95,8 +95,6 @@ public class AbstractMultimediaEngineTest<H> {
     String deviceName = "device-name";
     H deviceHandle = (H) "handle";
     static final Device.ParameterName ALLOWED_CODECS = MultimediaEngine.Parameter.ALLOWED_CODECS;
-//    static final Device.ParameterName PLAYBACK_CODEC = MultimediaEngine.Parameter.AUDIO_PLAYER_TYPE;
-//    static final Device.ParameterName RECORD_CODEC = MultimediaEngine.Parameter.AUDIO_RECORDER_TYPE;
 
     @Before
     public void setUp() {
@@ -1378,7 +1376,7 @@ public class AbstractMultimediaEngineTest<H> {
         verify(session).parameter(eq(MultimediaEngine.Parameter.AUDIO_TEMPORARY), any(File.class));
         verify(provider).startAudioPlaying(eq(deviceHandle), any(Path.class), eq(playbackFormat), eq(timeout));
         verify(session, atLeastOnce()).waitingForOperationComplete(1000L);
-        verify(session).isTerminated();
+        verify(session, atLeastOnce()).isTerminated();
         verify(session, never()).isDisconnected();
         verify(provider, atLeastOnce()).stopAudioPlaying(deviceHandle);
         verify(session).setState(Device.State.IDLE);

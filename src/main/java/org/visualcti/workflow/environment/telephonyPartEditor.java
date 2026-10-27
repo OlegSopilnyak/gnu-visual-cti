@@ -37,98 +37,129 @@ Fax number: 217-356-3356
 */
 package org.visualcti.workflow.environment;
 
-import org.visualcti.workflow.*;
-import org.visualcti.workflow.facade.*;
-import java.awt.*;
-import java.util.*;
-import javax.swing.*;
-import javax.swing.event.*;
-import org.visualcti.server.task.*;
-import org.visualcti.server.hardware.*;
-import org.visualcti.server.hardware.provider.soundcard.*;
+import javax.swing.JScrollPane;
+import javax.swing.JTabbedPane;
+import javax.swing.SwingConstants;
+
+import java.awt.BorderLayout;
+import java.awt.Font;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import org.jdom.DataConversionException;
+import org.visualcti.server.hardware.generalDeviceProxy;
+import org.visualcti.server.task.Environment;
+import org.visualcti.util.Tools;
+import org.visualcti.workflow.facade.partEditor;
+import org.visualcti.workflow.hardware.javasound.SoundCardDevice;
+import org.visualcti.workflow.hardware.javasound.SoundCardDevicesFactory;
+import org.visualcti.workflow.hardware.javasound.SoundCardHandle;
+import org.visualcti.workflow.hardware.javasound.SoundCardServiceProvider;
+//import org.visualcti.server.hardware.provider.soundcard.*;
 
 /**
  * <p>Title: Visual CTI Java Telephony Server</p>
  * <p>Description: VisualCTI WorkFlow, <br></p>
  * <p>Copyright: Copyright (c) 2003 Prominic Technologies, Inc.  & Prominic Ukraine Co</p>
  * <p>Company: Prominic Ukraine Co</p>
+ *
  * @author Sopilnyak Oleg
  * @version 1.0
  */
 
-public final class telephonyPartEditor extends partEditor
-{
-  /**
-   * <accessor>
-   * To get the name of environment's part
-   * @return the name of the environment's part
-   */
-  public final String getName(){return "Telephony";}
-/**
- * The container of visul components of devices
- */
-private final JTabbedPane devicesPlace = new JTabbedPane(JTabbedPane.TOP);
-  /**
-   * <constructor>
-   * Making the editor of telephony device
-   */
-  public telephonyPartEditor()
-  {
-    super.setLayout(new BorderLayout(0,0));super.setDoubleBuffered(false);
-    super.add(this.devicesPlace,BorderLayout.CENTER);
-    this.devicesPlace.setFont(new Font("dialog",Font.BOLD,10));
-    this.devicesPlace.getModel().addChangeListener(new ChangeListener(){
-      public final void stateChanged(ChangeEvent e) {
-        int index = devicesPlace.getSelectedIndex();
-        if (index != -1) selectDevice( index );
-      }
-    });
-    this.placeSoundCard();
-    this.devicesPlace.setSelectedIndex( 0 );
-  }
-/**
- * The container of devices
- */
-private final Map devices = new HashMap();
-private final ArrayList tabs = new ArrayList();
-/**
- * To attach soundcard telephony device
- */
-  private final void placeSoundCard(){
-    soundDeviceFactory factory = new soundDeviceFactory();
-    generalDeviceProxy[] proxy = factory.devices();
-    if ( proxy.length == 0 ) return;
-    soundDevice device = (soundDevice)proxy[0];
-    this.devices.put(device.getDeviceName(),device);
-    this.tabs.add( device );
-    try{device.open();}catch(Exception e){}
-    devicesPlace.addTab("emulator", new JScrollPane(device.getUI()) );
-  }
-  public final void clean(){}
-  public final void reload()
-  {
-    Environment env = this.getEnvironment();
-    if ( env == null ) return;
-    for(Iterator i=devices.entrySet().iterator();i.hasNext();){
-      Map.Entry entry = (Map.Entry)i.next();
-      String name = "telephony/"+entry.getKey();
-      env.setPart( name, entry.getValue() );
+public final class telephonyPartEditor extends partEditor {
+    /**
+     * <accessor>
+     * To get the name of environment's part
+     *
+     * @return the name of the environment's part
+     */
+    public String getName() {
+        return "Telephony";
     }
-    this.selectDevice( this.devicesPlace.getSelectedIndex() );
-  }
-  private final Environment getEnvironment(){
-    try{
-      return super.owner.getFacade().getEnvironment();
-    }catch(NullPointerException e){
-      return null;
+
+    /**
+     * The container of visual components of devices
+     */
+    private final JTabbedPane devicesPlace = new JTabbedPane(SwingConstants.TOP);
+
+    /**
+     * <constructor>
+     * Making the editor of telephony device
+     */
+    public telephonyPartEditor() {
+        setLayout(new BorderLayout(0, 0));
+        setDoubleBuffered(false);
+        add(this.devicesPlace, BorderLayout.CENTER);
+        this.devicesPlace.setFont(new Font("dialog", Font.BOLD, 10));
+        this.devicesPlace.getModel().addChangeListener(e -> {
+            final int index = devicesPlace.getSelectedIndex();
+            if (index != -1) selectDevice(index);
+        });
+        this.placeSoundCard();
+//        this.devicesPlace.setSelectedIndex(0);
     }
-  }
-  private final void selectDevice(int index){
-    Environment env = this.getEnvironment();
-    if ( env == null ) return;
-    generalDeviceProxy device = (generalDeviceProxy)this.tabs.get(index);
-    if ( device == null ) return;
-    String name = "telephony/" + device.getDeviceName();
-    env.setPart( generalDeviceProxy.SELECTED_DEVICE, name );
-  }
+
+    /**
+     * The container of devices
+     */
+    private final Map devices = new HashMap();
+    private final ArrayList tabs = new ArrayList();
+
+    // To attach the sound-card telephony device
+    private <H extends SoundCardHandle> void placeSoundCard() {
+        final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(12);
+        final SoundCardServiceProvider<H> provider = new SoundCardServiceProvider<>(scheduler);
+        try (final SoundCardDevicesFactory<H, ?> factory = new SoundCardDevicesFactory<>(scheduler, provider)) {
+            factory.open();
+            factory.Start();
+            final SoundCardDevice<H, ?> device = factory.devices().findFirst()
+                    .orElseThrow(() -> new NoSuchElementException("No any device in the factory."));
+            device.startSession();
+            devicesPlace.addTab("emulator", new JScrollPane(device.getUI()));
+        } catch (IOException | DataConversionException e) {
+            e.printStackTrace(Tools.err);
+            throw new RuntimeException(e);
+        }
+    }
+
+    public void clean() {
+        // doing nothing here
+    }
+
+    public void reload() {
+        Environment env = this.getEnvironment();
+        if (env == null) return;
+        for (Iterator i = devices.entrySet().iterator(); i.hasNext(); ) {
+            Map.Entry entry = (Map.Entry) i.next();
+            String name = "telephony/" + entry.getKey();
+            env.setPart(name, entry.getValue());
+        }
+        this.selectDevice(this.devicesPlace.getSelectedIndex());
+    }
+
+    private Environment getEnvironment() {
+        try {
+            return super.owner.getFacade().getEnvironment();
+        } catch (NullPointerException e) {
+            return null;
+        }
+    }
+
+    private void selectDevice(int index) {
+        if (this.tabs.isEmpty()) {
+            return;
+        }
+        Environment env = this.getEnvironment();
+        if (env == null) return;
+        generalDeviceProxy device = (generalDeviceProxy) this.tabs.get(index);
+        if (device == null) return;
+        String name = "telephony/" + device.getDeviceName();
+        env.setPart(generalDeviceProxy.SELECTED_DEVICE, name);
+    }
 }
