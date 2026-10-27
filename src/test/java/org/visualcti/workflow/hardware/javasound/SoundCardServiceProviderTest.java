@@ -1456,7 +1456,7 @@ public class SoundCardServiceProviderTest {
 
         @Override
         public String getName() {
-            return "TestEeventsProcessor";
+            return "TestEventsProcessor";
         }
     }
 }
