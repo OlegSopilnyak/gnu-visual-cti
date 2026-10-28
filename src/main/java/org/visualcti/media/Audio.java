@@ -37,8 +37,7 @@ Fax number: 217-356-3356
 */
 package org.visualcti.media;
 
-import javax.media.format.AudioFormat;
-import javax.media.format.UnsupportedFormatException;
+import javax.sound.sampled.AudioFormat;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -68,45 +67,14 @@ public enum Audio implements AudioMedia {
     ADPCM_8(_Dialogic_ALG, 8000);
 
     /**
-     * <accessor>
-     * To get the Audio from AudioFormat
+     * <finder>
+     * To find the Audio instance by the AudioFormat
      *
+     * @param format the audio format correlated with the Audio
+     * @return found Audio or null
      * @see AudioFormat
-     * @deprecated
      */
-    @Deprecated
-    public static Audio from(final AudioFormat format) throws UnsupportedFormatException {
-        final double sampleRate = format.getSampleRate();
-        try {
-            AudioMedia.checkSampleRate((double) sampleRate);
-        } catch (IOException e) {
-            throw new UnsupportedFormatException(format);
-        }
-        final String algorithmName;
-        final String formatEncodingName = format.getEncoding();
-        switch (formatEncodingName) {
-            case AudioFormat.ALAW:
-                algorithmName = Audio._Alaw_ALG;
-                break;
-            case AudioFormat.ULAW:
-                algorithmName = Audio._Ulaw_ALG;
-                break;
-            case AudioFormat.LINEAR:
-                algorithmName = Audio._Linear8_ALG;
-                break;
-            default:
-                throw new UnsupportedFormatException(format);
-        }
-        return of(algorithmName + "/" + sampleRate);
-    }
-
-    /**
-     * <accessor>
-     * To get the Audio from AudioFormat
-     *
-     * @see javax.sound.sampled.AudioFormat
-     */
-    public static Audio of(final javax.sound.sampled.AudioFormat format) {
+    public static Audio of(final AudioFormat format) {
         // dealing with format's sample rate
         final float sampleRate = format.getSampleRate();
         try {
@@ -116,73 +84,64 @@ public enum Audio implements AudioMedia {
             return null;
         }
         // dealing with format's encoding
-        final javax.sound.sampled.AudioFormat.Encoding encoding = format.getEncoding();
-        if (javax.sound.sampled.AudioFormat.Encoding.ALAW.equals(encoding)) {
-            return of(Audio._Alaw_ALG + "/" + sampleRate);
-        } else if (javax.sound.sampled.AudioFormat.Encoding.ULAW.equals(encoding)) {
-            return of(Audio._Ulaw_ALG + "/" + sampleRate);
-        } else if (javax.sound.sampled.AudioFormat.Encoding.PCM_SIGNED.equals(encoding)) {
-            return of(Audio._Linear8_ALG + "/" + sampleRate);
+        final AudioFormat.Encoding encoding = format.getEncoding();
+        if (AudioFormat.Encoding.ALAW.equals(encoding)) {
+            return of(AudioMedia._Alaw_ALG + "/" + sampleRate);
+        } else if (AudioFormat.Encoding.ULAW.equals(encoding)) {
+            return of(AudioMedia._Ulaw_ALG + "/" + sampleRate);
+        } else if (AudioFormat.Encoding.PCM_SIGNED.equals(encoding)) {
+            return of(AudioMedia._Linear8_ALG + "/" + sampleRate);
         }
-        Tools.error("Not supported encoding :" + encoding);
+        // Not supported encoding algorithm
         return null;
     }
 
     /**
-     * <accessor>
-     * To get access to the audio as AudioFormat
+     * <finder>
+     * to find the Audio instance by the String
      *
-     * @return the format or null if invalid
-     * @see AudioFormat
-     * @deprecated
+     * @param audioAsString the Audio as String presentation
+     * @return found Audio or null
      */
-    @Deprecated
-    public AudioFormat toAudioFormat() {
-        return new AudioFormat(codec, sampleRate, 8, 1);
-    }
-
-    /**
-     * <accessor>
-     * To get access to the audio as AudioFormat
-     *
-     * @return the format or null if invalid
-     * @see javax.sound.sampled.AudioFormat
-     */
-    public javax.sound.sampled.AudioFormat toFormat() {
-        switch (codec) {
-            case _Linear_ALG:
-            case _Linear8_ALG:
-                return new javax.sound.sampled.AudioFormat(javax.sound.sampled.AudioFormat.Encoding.PCM_UNSIGNED,
-                        sampleRate, 8, 1, 1, sampleRate, false);
-            case _Linear16_ALG:
-                return new javax.sound.sampled.AudioFormat(javax.sound.sampled.AudioFormat.Encoding.PCM_UNSIGNED,
-                        sampleRate, 16, 1, 1, sampleRate, false);
-            case _Alaw_ALG:
-                return new javax.sound.sampled.AudioFormat(javax.sound.sampled.AudioFormat.Encoding.ALAW,
-                        sampleRate, 8, 1, 1, sampleRate, false);
-            case _Ulaw_ALG:
-                return new javax.sound.sampled.AudioFormat(javax.sound.sampled.AudioFormat.Encoding.ULAW,
-                        sampleRate, 8, 1, 1, sampleRate, false);
-            default:
-//                Tools.error("Unknown codec :" + codec);
-                return null;
-        }
-    }
-
-    /**
-     * <accessor>
-     * to restore the Audio instance from string
-     */
-    public static Audio of(final String mediaFormatValue) {
+    public static Audio of(final String audioAsString) {
         try {
-            final String[] split = mediaFormatValue.split("/");
+            final String[] split = audioAsString.split("/");
             final String algorithmName = split[0].trim();
             final short sampleRate = Short.parseShort(split[1].trim());
             return Arrays.stream(values()).filter(format ->
                     format.codec.equalsIgnoreCase(algorithmName) && format.sampleRate == sampleRate
             ).findFirst().orElse(null);
         } catch (NullPointerException | NumberFormatException | ArrayIndexOutOfBoundsException e) {
+            // Something went wrong during audio as string parsing
             return null;
+        }
+    }
+
+    /**
+     * <converter>
+     * To convert the Audio to the AudioFormat
+     *
+     * @return the format or null if invalid
+     * @see AudioFormat
+     */
+    public AudioFormat toFormat() {
+        switch (codec) {
+            case _Linear_ALG:
+            case _Linear8_ALG:
+                return new AudioFormat(AudioFormat.Encoding.PCM_UNSIGNED,
+                        sampleRate, 8, 1, 1, sampleRate, false);
+            case _Linear16_ALG:
+                return new AudioFormat(AudioFormat.Encoding.PCM_UNSIGNED,
+                        sampleRate, 16, 1, 1, sampleRate, false);
+            case _Alaw_ALG:
+                return new AudioFormat(AudioFormat.Encoding.ALAW,
+                        sampleRate, 8, 1, 1, sampleRate, false);
+            case _Ulaw_ALG:
+                return new AudioFormat(AudioFormat.Encoding.ULAW,
+                        sampleRate, 8, 1, 1, sampleRate, false);
+            default:
+                // Unknown codec type
+                return null;
         }
     }
 
@@ -192,24 +151,29 @@ public enum Audio implements AudioMedia {
     private final short sampleRate;
 
     /**
-     * <accessor>
-     * get sample rate of audio data
-     */
-    public final short getSampleRate() {
-        return this.sampleRate;
-    }
-
-    /**
      * <constructor>
-     * For internal use only!
+     * For internal usage only!
+     *
+     * @param codec name of the audio codec algorithm
+     * @param sampleRate sample rate of the audio stream data
      */
     Audio(String codec, int sampleRate) {
         this.codec = codec;
         this.sampleRate = (short) sampleRate;
     }
 
+    /**
+     * <accessor>
+     * get sample rate of audio data
+     *
+     * @return the value
+     */
+    public final short getSampleRate() {
+        return sampleRate;
+    }
+
     @Override
     public String toString() {
-        return this.codec + "/" + this.sampleRate;
+        return codec + "/" + sampleRate;
     }
 }

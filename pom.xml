@@ -88,7 +88,6 @@ Fax number: 217-356-3356
     <properties>
         <jdom.version>0.7</jdom.version>
         <xerces.version>2.12.2</xerces.version>
-        <javax.media.jmf.version>2.1.1e</javax.media.jmf.version>
         <javax.jms.version>2.0.1</javax.jms.version>
         <javax.mail.version>1.4.7</javax.mail.version>
         <soap.version>2.3.1</soap.version>
@@ -112,12 +111,6 @@ Fax number: 217-356-3356
             <groupId>xerces</groupId>
             <artifactId>xercesImpl</artifactId>
             <version>${xerces.version}</version>
-        </dependency>
-        <!-- Source: https://mvnrepository.com/artifact/javax.media/jmf -->
-        <dependency>
-            <groupId>javax.media</groupId>
-            <artifactId>jmf</artifactId>
-            <version>${javax.media.jmf.version}</version>
         </dependency>
         <!-- Source: https://mvnrepository.com/artifact/javax.jms/javax.jms-api -->
         <dependency>
