@@ -487,7 +487,7 @@ static
         /*<native> to start make outgoing call */
         static native int call(int handle, String number, int timeout);
         /*<native> method to open dialogic channel by name */
-        private static native int open(String name);
+        static native int open(String name);
         /*<native> method to open dialogic fax channel by name */
         private static native int openFax(String name);
         /*<native> method to close dialogic channel by handle */

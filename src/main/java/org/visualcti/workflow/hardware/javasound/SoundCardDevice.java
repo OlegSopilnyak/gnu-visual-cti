@@ -57,7 +57,6 @@ import org.visualcti.core.channel.device.adapter.AbstractDeviceSession;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.TelephonyDevice;
 import org.visualcti.core.channel.telephony.adapter.AbstractTelephonyDevice;
-import org.visualcti.core.channel.telephony.adapter.AbstractTelephonyFactory;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
 import org.visualcti.core.channel.telephony.operation.Result;
 import org.visualcti.core.channel.telephony.operation.ToneId;
@@ -74,7 +73,6 @@ import org.visualcti.media.Audio;
 import org.visualcti.util.Tools;
 import org.visualcti.workflow.hardware.javasound.ui.SoundCardUI;
 
-
 /**
  * <p>Title: Visual CTI Java Telephony Server</p>
  * <p>Description: VisualCTI WorkFlow, <br>
@@ -86,7 +84,7 @@ import org.visualcti.workflow.hardware.javasound.ui.SoundCardUI;
  * @see AbstractTelephonyDevice
  */
 @SuppressWarnings("unchecked")
-public class SoundCardDevice<H extends SoundCardHandle, F extends AbstractTelephonyFactory<H, ?>>
+public class SoundCardDevice<H extends SoundCardHandle, F extends SoundCardDevicesFactory<H, ?>>
         extends AbstractTelephonyDevice<H, F> {
     private final AtomicReference<SoundCardUI<H>> uiHolder = new AtomicReference<>(null);
     // to test the value of make call operation result

@@ -416,9 +416,9 @@ final class VOX
     }
 //********** NATIVES ***********/
         /*<native> to check is handle to VOX's device */
-        private static native boolean isSupport(int handle);
+        static native boolean isSupport(int handle);
         /*<native> to get access to device's codecs list */
-        private static native String getCodecsList(int handle);
+        static native String getCodecsList(int handle);
         /*<native> to start the record voice */
         private static native int startRecord
                     (
