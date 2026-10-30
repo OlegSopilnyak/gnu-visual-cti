@@ -161,7 +161,7 @@ private static boolean ERROR = true;
         /**
          * <notify>
          * to notify suspended thread (during event processing)
-         * @param owner who is wait a notify
+         * @param owner who is wait for a notification
          */
         private final static void wakeup(Object owner){
             synchronized(owner){owner.notify();}/* wake up owner */
@@ -331,7 +331,7 @@ private static final class eventsProcessor extends Thread
 */
 static
 {
-    System.out.print("Starting Dialogic's hadware support");
+    System.out.print("Starting Dialogic's hardware support");
     // to start & init hardware systems
     try {
       // try to load native library
@@ -493,7 +493,7 @@ static
         /*<native> method to close dialogic channel by handle */
         private static native void close(int handle);
         /*<native> method to accept a dialogic's event */
-        private static native dialogicEvent getEvent();
+        static native dialogicEvent getEvent();
         /*<native> method to start change hook state */
         static native int setHook(int handle, int state);
         /*<native> method for stop all device's I/O activity */

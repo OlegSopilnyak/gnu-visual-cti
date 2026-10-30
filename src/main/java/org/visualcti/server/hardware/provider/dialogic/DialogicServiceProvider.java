@@ -42,10 +42,14 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.StringTokenizer;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.core.channel.device.Device;
+import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.telephony.adapter.AbstractTelephonyServiceProvider;
+import org.visualcti.core.channel.telephony.operation.PhoneCall;
 import org.visualcti.core.channel.telephony.part.MultimediaEngine;
 import org.visualcti.media.Audio;
 
@@ -60,6 +64,11 @@ import org.visualcti.media.Audio;
  */
 @SuppressWarnings("unchecked")
 public class DialogicServiceProvider<H extends Integer> extends AbstractTelephonyServiceProvider<H> {
+    // the state of handset true = handset is off false = handset is on
+    private final AtomicBoolean handsetOff = new AtomicBoolean(true);
+    // reference to the sound-card phone number as singleton
+    private final AtomicReference<PhoneCall.Number> callerId = new AtomicReference<>(PhoneCall.Number.EMPTY);
+
     @Override
     protected boolean isValid(H handle) {
         return handle != null && handle.intValue() > 0;
@@ -96,6 +105,52 @@ public class DialogicServiceProvider<H extends Integer> extends AbstractTelephon
     @Override
     protected void nativeResourceClose(H handle) {
         Hardware.closeChannel(handle);
+    }
+
+    @Override
+    protected boolean isHandsetOff(H handle) {
+        return super.isHandsetOff(handle) && handsetOff.get();
+    }
+
+    @Override
+    protected boolean nativeHandsetOff(H handle) {
+        handsetOff.getAndSet(true);
+        CCM.setHookState(handle, Hardware.DX_ONHOOK);
+        return true;
+    }
+
+    @Override
+    protected boolean nativeAnswerCall(H handle) {
+        if (handsetOff.get()) {
+            // the phone handset is in the off state changing it to on
+            handsetOff.getAndSet(false);
+            CCM.setHookState(handle, Hardware.DX_OFFHOOK);
+        }
+        return true;
+    }
+
+    @Override
+    protected PhoneCall.Number nativeCallerID(H handle) {
+        return isOpened(handle) ? callerId.get() : PhoneCall.Number.EMPTY;
+    }
+
+    @Override
+    protected boolean nativeStartCalling(H handle, PhoneCall.Number number, int timeout) {
+        return Hardware.call(handle, number.toString(), timeout) != Hardware.DX_ERROR;
+    }
+
+    /**
+     * <native-call>
+     * To get the device event from the events provider during a particular timeframe
+     *
+     * @param during time-frame for event's getting (milliseconds)
+     * @return detected event or empty
+     * @see DeviceEvent
+     * @see #getEvent(long)
+     */
+    @Override
+    protected DeviceEvent<H> nativeGetEvent(long during) {
+        return super.nativeGetEvent(during);
     }
 
     /// private methods

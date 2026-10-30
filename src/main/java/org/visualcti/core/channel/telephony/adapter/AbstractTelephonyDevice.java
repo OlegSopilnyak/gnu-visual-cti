@@ -312,6 +312,8 @@ public abstract class AbstractTelephonyDevice<H, T extends TelephonyFactory<H, ?
                 // sharing the device's session for connection forever
                 getFactory().shareDevice(handle);
             }
+            // to hang up the handset
+            provider.handsetOff(handle);
         }
         return (S) session;
     }

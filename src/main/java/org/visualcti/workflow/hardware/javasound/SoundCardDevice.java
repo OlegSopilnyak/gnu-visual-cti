@@ -507,7 +507,7 @@ public class SoundCardDevice<H extends SoundCardHandle, F extends SoundCardDevic
         // playing dtmf tone of the character
         dial(activePhoneCallSession, inputCharacter);
         // sending DTMF device event
-        ((SoundCardServiceProvider<H>) getProvider()).putEvent(AbstractDeviceEvent.<H>of(DeviceEvent.Type.DEVICE_SPECIFIC)
+        getProvider().putEvent(AbstractDeviceEvent.<H>of(DeviceEvent.Type.DEVICE_SPECIFIC)
                 .deviceHandle(activePhoneCallSession.getDeviceHandle()).description("User Input")
                 .deviceName(SoundCardServiceProvider.SOUND_DEVICE).vendor(SoundCardServiceProvider.DEVICE_FACTORY_VENDOR)
                 .option(DeviceEvent.Option.REASON, Result.IO.DTMF).option(DeviceEvent.Option.INPUT, inputCharacter)

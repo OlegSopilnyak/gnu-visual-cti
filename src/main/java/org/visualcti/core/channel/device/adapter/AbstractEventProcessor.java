@@ -257,9 +257,12 @@ public abstract class AbstractEventProcessor<H> extends RunnableUnitAdapter impl
         }
     }
 
-    /// private methods
-    // starting the events processing
-    private void startingDeviceEventProcessing() {
+
+    /**
+     * <action>
+     * To start factory's devices events processing
+     */
+    protected void startingDeviceEventProcessing() {
         // to enable device's events getting
         eventsProvider.enableEventsGetting();
         // adjusting how long wait for device event occurrence parameter
@@ -294,9 +297,11 @@ public abstract class AbstractEventProcessor<H> extends RunnableUnitAdapter impl
         }
     }
 
-    // stopping the events processing
-    @SuppressWarnings("unchecked")
-    private void stoppingDeviceEventProcessing() {
+    /**
+     * <action>
+     * To stop factory's devices events processing
+     */
+    protected void stoppingDeviceEventProcessing() {
         // to disable device's events getting
         eventsProvider.disableEventsGetting();
         // putting end of queue marker

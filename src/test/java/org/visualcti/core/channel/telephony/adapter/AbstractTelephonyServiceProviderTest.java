@@ -156,7 +156,6 @@ public class AbstractTelephonyServiceProviderTest<H> {
         String resourceName = "resource-name";
         doReturn("resource-handle").when(provider).nativeResourceOpen(resourceName);
         H resourceHandle = provider.openResource(resourceName);
-        doReturn(resourceHandle).when(provider).nativeResourceOpen(resourceName);
 
         // acting
         Optional<H> handle = provider.openedHandleByName(resourceName);
@@ -171,8 +170,7 @@ public class AbstractTelephonyServiceProviderTest<H> {
         // preparing test data
         String resourceName = "resource-name";
         doReturn("resource-handle").when(provider).nativeResourceOpen(resourceName);
-        H resourceHandle = provider.openResource(resourceName);
-        doReturn(resourceHandle).when(provider).nativeResourceOpen(resourceName);
+        provider.openResource(resourceName);
 
         // acting
         Optional<H> handle = provider.openedHandleByName("resourceName");
@@ -180,6 +178,21 @@ public class AbstractTelephonyServiceProviderTest<H> {
         // check the behavior
         // check results
         assertThat(handle).isEmpty();
+    }
+
+    @Test
+    public void shouldGetNameByHandle() throws IOException {
+        // preparing test data
+        String resourceName = "resource-name";
+        doReturn("resource-handle").when(provider).nativeResourceOpen(resourceName);
+        H resourceHandle = provider.openResource(resourceName);
+
+        // acting
+        Optional<String> handle = provider.openedNameByHandle(resourceHandle);
+
+        // check the behavior
+        // check results
+        assertThat(handle).isPresent().contains(resourceName);
     }
 
     @Test

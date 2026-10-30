@@ -709,9 +709,21 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit, XmlAware
          * @return handle to opened resource or empty
          * @see Optional
          * @see #openResource(String)
-         * @see #open()
          */
         default Optional<H> openedHandleByName(String name) {
+            return Optional.empty();
+        }
+
+        /**
+         * <acessor>
+         * To find the name of the opened resource by handle
+         *
+         * @param handle the handle to the opened resource
+         * @return  the name of the opened resource or empty
+         * @see Optional
+         * @see #openResource(String)
+         */
+        default Optional<String> openedNameByHandle(H handle) {
             return Optional.empty();
         }
 

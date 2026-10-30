@@ -261,6 +261,17 @@ public interface DeviceEvent<H> {
 
         /**
          * <action>
+         * To put the synthetic (from the native event) device event for further processing
+         *
+         * @param deviceEvent the event for further processing
+         * @return true if it put successfully
+         * @see DeviceEvent
+         * @see #getEvent(long)
+         */
+        boolean putEvent(final DeviceEvent<H> deviceEvent);
+
+        /**
+         * <action>
          * To send timeout device event after the duration for getting further
          *
          * @param deviceHandle device handle of the device for which events producing is enabled

@@ -203,6 +203,22 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
     }
 
     /**
+     * <acessor>
+     * To find the name of the opened resource by handle
+     *
+     * @param handle the handle to the opened resource
+     * @return the name of the opened resource or empty
+     * @see Optional
+     * @see #openResource(String)
+     */
+    @Override
+    public Optional<String> openedNameByHandle(H handle) {
+        return openedResources.entrySet().stream()
+                .filter(entry -> entry.getValue().contains(handle))
+                .map(Map.Entry::getKey).findFirst();
+    }
+
+    /**
      * <finder>
      * To look for the resource-specific device parameter value by it name
      *
@@ -335,8 +351,8 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * @see #handsetOff(H)
      */
     protected boolean isHandsetOff(H handle) {
-        // doing nothing here
-        return true;
+        // doing nothing here just checking the opening device for the handle
+        return isOpened(handle);
     }
 
     /**

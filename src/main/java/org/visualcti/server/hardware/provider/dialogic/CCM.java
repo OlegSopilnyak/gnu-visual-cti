@@ -119,8 +119,8 @@ class CCM
      * <action>
      * to make outgoing telephony call
      * @param handle device's handle
-     * @param number desination's number
-     * @param timeout maxtime to answer
+     * @param number destination's number
+     * @param timeout max time to answer
      * @return termination's reason
      */
     final static String makeCall(int handle, String number, int timeout)
