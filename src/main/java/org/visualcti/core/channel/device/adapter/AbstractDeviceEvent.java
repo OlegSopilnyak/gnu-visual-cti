@@ -57,7 +57,7 @@ import org.visualcti.core.channel.device.Factory;
  */
 @SuppressWarnings({"unchecked", "rawtypes"})
 public abstract class AbstractDeviceEvent<H> implements DeviceEvent<H> {
-    private final Type eventType;
+    private Type eventType;
     private H deviceHandle;
     private String deviceName;
     private String vendor;
@@ -164,6 +164,11 @@ public abstract class AbstractDeviceEvent<H> implements DeviceEvent<H> {
 
     public AbstractDeviceEvent<H> deviceHandle(H deviceHandle) {
         this.deviceHandle = deviceHandle;
+        return this;
+    }
+
+    public AbstractDeviceEvent<H> eventType(Type eventType) {
+        this.eventType = eventType;
         return this;
     }
 

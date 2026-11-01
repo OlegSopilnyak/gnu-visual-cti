@@ -37,6 +37,21 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.hardware.provider.dialogic;
 
+import static org.visualcti.server.hardware.provider.dialogic.HardwareConst.DTEV_SIG;
+import static org.visualcti.server.hardware.provider.dialogic.HardwareConst.TDX_CALLP;
+import static org.visualcti.server.hardware.provider.dialogic.HardwareConst.TDX_CST;
+import static org.visualcti.server.hardware.provider.dialogic.HardwareConst.TDX_DIAL;
+import static org.visualcti.server.hardware.provider.dialogic.HardwareConst.TDX_ERROR;
+import static org.visualcti.server.hardware.provider.dialogic.HardwareConst.TDX_GETDIG;
+import static org.visualcti.server.hardware.provider.dialogic.HardwareConst.TDX_PLAY;
+import static org.visualcti.server.hardware.provider.dialogic.HardwareConst.TDX_PLAYTONE;
+import static org.visualcti.server.hardware.provider.dialogic.HardwareConst.TDX_RECORD;
+import static org.visualcti.server.hardware.provider.dialogic.HardwareConst.TDX_SETHOOK;
+import static org.visualcti.server.hardware.provider.dialogic.HardwareConst.TFX_FAXERROR;
+import static org.visualcti.server.hardware.provider.dialogic.HardwareConst.TFX_FAXRECV;
+import static org.visualcti.server.hardware.provider.dialogic.HardwareConst.TFX_FAXSEND;
+
+import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
@@ -49,6 +64,7 @@ import org.visualcti.core.channel.device.adapter.AbstractDeviceEvent;
 import org.visualcti.core.channel.telephony.TelephonyChannel;
 import org.visualcti.core.channel.telephony.TelephonyServiceProvider;
 import org.visualcti.core.channel.telephony.adapter.AbstractTelephonyFactory;
+import org.visualcti.core.channel.telephony.operation.Result;
 import org.visualcti.util.Tools;
 
 /**
@@ -120,10 +136,6 @@ public class AbstractDialogicDeviceFactory<H extends Integer, D extends Dialogic
         }
     }
 
-    public boolean isDialogicEventProcessingStarted() {
-        return workingThreadHolder.get() != null;
-    }
-
     /// private methods
     // to get and process Dialogic's events
     private void dialogicEventProcessing(CountDownLatch processingStarted) {
@@ -133,10 +145,13 @@ public class AbstractDialogicDeviceFactory<H extends Integer, D extends Dialogic
             final TelephonyServiceProvider<H> provider = getProvider();
             while (isStarted()) {
                 final dialogicEvent event = Hardware.getEvent();
-                provider.putEvent(toDeviceEvent(event, provider));
+                dispatchEvent("Got Dialogic Hardware Event: " + event);
+                if (event != null) {
+                    provider.putEvent(toDeviceEvent(event, provider));
+                }
             }
-        }catch (ThreadDeath death) {
-            // The working tread is stopped outside by Thread.stop()
+        } catch (ThreadDeath death) {
+            // The working tread is stopped outside by Thread.stop() method
         } finally {
             workingThreadHolder.getAndSet(null);
         }
@@ -144,14 +159,195 @@ public class AbstractDialogicDeviceFactory<H extends Integer, D extends Dialogic
 
     // transforming Dialogic event to the DeviceEvent to put the event
     private DeviceEvent<H> toDeviceEvent(dialogicEvent event, TelephonyServiceProvider<H> provider) {
-        final AbstractDeviceEvent<H> deviceEvent = AbstractDeviceEvent.of(DeviceEvent.Type.DEVICE_SPECIFIC);
+        final AbstractDeviceEvent<H> dialogicDeviceEvent = AbstractDeviceEvent.of(DeviceEvent.Type.DEVICE_SPECIFIC);
         final H deviceHandle = (H) Integer.valueOf(event.getHandle());
-        deviceEvent.deviceHandle(deviceHandle)
+        dialogicDeviceEvent.deviceHandle(deviceHandle)
                 .deviceName(provider.openedNameByHandle(deviceHandle).orElse("unknown"))
-                .description("Dialogic device event").vendor(vendorName)
-                .option(DeviceEvent.Option.REASON, event.getReason());
-        // todo make reason by event.getReasonID()
-        return deviceEvent;
+                .description("Dialogic device event").vendor(vendorName);
+        // Switch according to the event received.
+        switch (event.getEventID()) {
+            case TDX_CST:               /* Call Status Transition */
+                callStatusTransition(event, dialogicDeviceEvent);
+                break;
+
+            case TDX_PLAY:               /* Play Completed       */
+            case TDX_RECORD:             /* Record Completed     */
+                voiceTransitionCompleted(event, dialogicDeviceEvent);
+                break;
+
+            case TDX_GETDIG:             /* Get Digits Completed */
+                gettingDigitsCompleted(event, dialogicDeviceEvent);
+                break;
+
+            case TDX_CALLP:        /* Make call complete */
+                makeCallCompleted(event, dialogicDeviceEvent);
+                break;
+
+            case TDX_PLAYTONE:            /* Play tone complete */
+            case TDX_DIAL:                /* Dial without Call Analysis complete */
+                dialogicDeviceEvent.option(DeviceEvent.Option.REASON, Result.OK);
+                break;
+
+            case TDX_SETHOOK:            /* Set-Hook Complete    */
+                // doing nothing here
+                break;
+
+            case TFX_FAXRECV:  /* The document has been successfully received. */
+            case TFX_FAXSEND:    // Fax sending done
+                transmittingFaxCompleted(event, dialogicDeviceEvent);
+                break;
+
+            case TFX_FAXERROR:/* Error during the fax session. */
+                transmittingFaxMalfunction(event, dialogicDeviceEvent);
+                break;
+
+            case DTEV_SIG:               /* DTI signaling event */
+                // not implemented yet
+                dialogicDeviceEvent.option(DeviceEvent.Option.REASON, Result.ERROR)
+                        .eventType(DeviceEvent.Type.MALFUNCTION);
+                break;
+
+            case TDX_ERROR:                // Error detected
+                dialogicDeviceEvent.option(DeviceEvent.Option.REASON, Result.ERROR)
+                        .eventType(DeviceEvent.Type.MALFUNCTION)
+                        .description(event.getReason());
+                break;
+
+            default:
+                // nothing
+        }
+        return dialogicDeviceEvent;
+    }
+
+    private static <H extends Integer> void transmittingFaxMalfunction(
+            dialogicEvent event, AbstractDeviceEvent<H> dialogicDeviceEvent
+    ) {
+        if (Objects.equals(Result.ERROR.getValue(), event.getReason())) {
+            // error
+            dialogicDeviceEvent.option(DeviceEvent.Option.REASON, Result.ERROR);
+            dialogicDeviceEvent.eventType(DeviceEvent.Type.MALFUNCTION);
+        } else if (Objects.equals(Result.FAX.COMPATIBILITY.getValue(), event.getReason())) {
+            dialogicDeviceEvent.option(DeviceEvent.Option.REASON, Result.FAX.COMPATIBILITY);
+        } else if (Objects.equals(Result.FAX.COMMUNICATION_ERROR.getValue(), event.getReason())) {
+            dialogicDeviceEvent.option(DeviceEvent.Option.REASON, Result.FAX.COMMUNICATION_ERROR);
+        } else if (Objects.equals(Result.FAX.NO_POLL.getValue(), event.getReason())) {
+            dialogicDeviceEvent.option(DeviceEvent.Option.REASON, Result.FAX.NO_POLL);
+        } else if (Objects.equals(Result.FAX.USER_STOP.getValue(), event.getReason())) {
+            dialogicDeviceEvent.option(DeviceEvent.Option.REASON, Result.FAX.USER_STOP);
+        }
+    }
+
+    private static <H extends Integer> void transmittingFaxCompleted(
+            dialogicEvent event, AbstractDeviceEvent<H> dialogicDeviceEvent) {
+        if (Objects.equals(Result.ERROR.getValue(), event.getReason())) {
+            // error
+            dialogicDeviceEvent.option(DeviceEvent.Option.REASON, Result.ERROR);
+            dialogicDeviceEvent.eventType(DeviceEvent.Type.MALFUNCTION);
+        } else if (Objects.equals(Result.IO.EOF.getValue(), event.getReason())) {
+            // The document has been successfully received
+            dialogicDeviceEvent.option(DeviceEvent.Option.REASON, Result.IO.EOF);
+        }
+    }
+
+    private static <H extends Integer> void makeCallCompleted(
+            dialogicEvent event, AbstractDeviceEvent<H> dialogicDeviceEvent
+    ) {
+        if (Objects.equals(Result.ERROR.getValue(), event.getReason())) {
+            // default (Call Analyze Error)
+            dialogicDeviceEvent.option(DeviceEvent.Option.REASON, Result.ERROR);
+            dialogicDeviceEvent.eventType(DeviceEvent.Type.MALFUNCTION);
+        } else if (Objects.equals(Result.CALL.Analysis.VOICE.getValue(), event.getReason())) {
+            // connected
+            dialogicDeviceEvent.option(DeviceEvent.Option.REASON, Result.CALL.Analysis.VOICE);
+        } else if (Objects.equals(Result.CALL.Analysis.FAX.getValue(), event.getReason())) {
+            // fax tone detected
+            dialogicDeviceEvent.option(DeviceEvent.Option.REASON, Result.CALL.Analysis.FAX);
+        } else if (Objects.equals(Result.CALL.Analysis.BUSY.getValue(), event.getReason())) {
+            // busy signal detected
+            dialogicDeviceEvent.option(DeviceEvent.Option.REASON, Result.CALL.Analysis.BUSY);
+        } else if (Objects.equals(Result.CALL.Analysis.NO_ANSWER.getValue(), event.getReason())) {
+            // no answer detected
+            dialogicDeviceEvent.option(DeviceEvent.Option.REASON, Result.CALL.Analysis.NO_ANSWER);
+        } else if (Objects.equals(Result.CALL.Analysis.NO_RESPONDING.getValue(), event.getReason())) {
+            // no ringback
+            dialogicDeviceEvent.option(DeviceEvent.Option.REASON, Result.CALL.Analysis.NO_RESPONDING);
+        } else if (Objects.equals(Result.CALL.Analysis.NO_DIAL_TONE.getValue(), event.getReason())) {
+            // no dial tone
+            dialogicDeviceEvent.option(DeviceEvent.Option.REASON, Result.CALL.Analysis.NO_DIAL_TONE);
+        } else if (Objects.equals(Result.TERMINATED.getValue(), event.getReason())) {
+            // user stop ( dx_stopch(handle) )
+            dialogicDeviceEvent.option(DeviceEvent.Option.REASON, Result.TERMINATED);
+        }
+    }
+
+    private static <H extends Integer> void gettingDigitsCompleted(
+            dialogicEvent event, AbstractDeviceEvent<H> dialogicDeviceEvent
+    ) {
+        if (Objects.equals(Result.ERROR.getValue(), event.getReason())) {
+            // error when resolve reason mask
+            dialogicDeviceEvent.option(DeviceEvent.Option.REASON, Result.ERROR);
+            dialogicDeviceEvent.eventType(DeviceEvent.Type.MALFUNCTION);
+        } else if (Objects.equals(Result.CALL.DISCONNECT.getValue(), event.getReason())) {
+            // disconnect detected
+            dialogicDeviceEvent.option(DeviceEvent.Option.REASON, Result.CALL.DISCONNECT);
+        } else if (Objects.equals(Result.CALL.Analysis.FAX.getValue(), event.getReason())) {
+            // fax signal detected
+            dialogicDeviceEvent.option(DeviceEvent.Option.REASON, Result.CALL.Analysis.FAX);
+        } else if (Objects.equals(Result.TIMEOUT.getValue(), event.getReason())) {
+            // timeout
+            dialogicDeviceEvent.option(DeviceEvent.Option.REASON, Result.TIMEOUT);
+        } else if (Objects.equals(Result.IO.DTMF.getValue(), event.getReason())) {
+            // terminated by the DTMF symbol (defined in mask)
+            dialogicDeviceEvent.option(DeviceEvent.Option.REASON, Result.IO.DTMF);
+            dialogicDeviceEvent.option(DeviceEvent.Option.INPUT, VOX.digitsBuffer(event.getHandle()));
+        } else if (Objects.equals(Result.TERMINATED.getValue(), event.getReason())) {
+            // user stop operation (dx_stopch)
+            dialogicDeviceEvent.option(DeviceEvent.Option.REASON, Result.TERMINATED);
+        }
+    }
+
+    private static <H extends Integer> void voiceTransitionCompleted(
+            dialogicEvent event, AbstractDeviceEvent<H> dialogicDeviceEvent
+    ) {
+        if (Objects.equals(Result.IO.EOF.getValue(), event.getReason())) {
+            // operation finished normally or end of data
+            dialogicDeviceEvent.option(DeviceEvent.Option.REASON, Result.IO.EOF);
+        } else if (Objects.equals(Result.IO.DTMF.getValue(), event.getReason())) {
+            // terminated by the DTMF symbol (defined in mask)
+            dialogicDeviceEvent.option(DeviceEvent.Option.REASON, Result.IO.DTMF);
+            dialogicDeviceEvent.option(DeviceEvent.Option.INPUT, VOX.digitsBuffer(event.getHandle()));
+        } else if (Objects.equals(Result.TIMEOUT.getValue(), event.getReason())) {
+            // terminate by timeout (for record)
+            dialogicDeviceEvent.option(DeviceEvent.Option.REASON, Result.TIMEOUT);
+        } else if (Objects.equals(Result.IO.SILENCE.getValue(), event.getReason())) {
+            // finished by silence detection (for record)
+            dialogicDeviceEvent.option(DeviceEvent.Option.REASON, Result.IO.SILENCE);
+        } else if (Objects.equals(Result.TERMINATED.getValue(), event.getReason())) {
+            // user stop operation (dx_stopch)
+            dialogicDeviceEvent.option(DeviceEvent.Option.REASON, Result.TERMINATED);
+        } else if (Objects.equals(Result.CALL.Analysis.FAX.getValue(), event.getReason())) {
+            // fax tone detected
+            dialogicDeviceEvent.option(DeviceEvent.Option.REASON, Result.CALL.Analysis.FAX);
+        } else if (Objects.equals(Result.CALL.DISCONNECT.getValue(), event.getReason())) {
+            // disconnect detected
+            dialogicDeviceEvent.option(DeviceEvent.Option.REASON, Result.CALL.DISCONNECT);
+        } else if (Objects.equals(Result.ERROR.getValue(), event.getReason())) {
+            // unknown reason
+            dialogicDeviceEvent.option(DeviceEvent.Option.REASON, Result.ERROR);
+            dialogicDeviceEvent.eventType(DeviceEvent.Type.MALFUNCTION);
+        }
+    }
+
+    private static <H extends Integer> void callStatusTransition(
+            dialogicEvent event, AbstractDeviceEvent<H> dialogicDeviceEvent
+    ) {
+        if (Objects.equals(Result.CALL.RINGS.getValue(), event.getReason())) {
+            // Rings Received (Incoming Call)
+            dialogicDeviceEvent.option(DeviceEvent.Option.REASON, Result.CALL.RINGS);
+        } else if (Objects.equals(Result.CALL.DISCONNECT.getValue(), event.getReason())) {
+            // disconnect detected
+            dialogicDeviceEvent.option(DeviceEvent.Option.REASON, Result.CALL.DISCONNECT);
+        }
     }
 
     // waiting for condition is true
