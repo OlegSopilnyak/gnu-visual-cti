@@ -63,7 +63,41 @@ import org.visualcti.media.Sound;
  * @param <H> the type of the telephony device's low-level operations handle
  * @see Device.ServiceProvider
  */
+@SuppressWarnings("unchecked")
 public interface TelephonyServiceProvider<H> extends Device.ServiceProvider<H> {
+    // thread-local phone call session
+    ThreadLocal<PhoneCallSession<?>> localPhoneCallContext = ThreadLocal.withInitial(() -> null);
+
+    /**
+     * <action>
+     * To store in thread the session's value
+     *
+     * @param phoneCallSession session to store
+     */
+    default void storeSession(PhoneCallSession<H> phoneCallSession) {
+        localPhoneCallContext.set(phoneCallSession);
+    }
+
+    /**
+     * <accessor>
+     * To get the stored phone call session
+     *
+     * @return the instance of session or null if isn't stored one
+     */
+    default PhoneCallSession<H> getSession() {
+        return (PhoneCallSession<H>) localPhoneCallContext.get();
+    }
+
+    /**
+     * <action>
+     * To clear thread-local the phone call session's value
+     *
+     * @see #storeSession(PhoneCallSession)
+     */
+    default void clearSession() {
+        localPhoneCallContext.remove();
+    }
+
     /**
      * <action>
      * To open the device-related resource (device's implementation)
@@ -406,7 +440,7 @@ public interface TelephonyServiceProvider<H> extends Device.ServiceProvider<H> {
      * To start sending the tone to the connected phone line
      *
      * @param handle the telephony device handle
-     * @param tone the tone to send
+     * @param tone   the tone to send
      * @return true if the operation started successfully
      * @see TonesEngine#playTone(PhoneCallSession, ToneId, float)
      */
@@ -442,7 +476,7 @@ public interface TelephonyServiceProvider<H> extends Device.ServiceProvider<H> {
      * To register the tone for the device using the device handle
      *
      * @param handle the telephony device handle
-     * @param tone the tone to register
+     * @param tone   the tone to register
      * @see #beginToneRegistering(H)
      * @see #commitToneRegistering(H)
      */

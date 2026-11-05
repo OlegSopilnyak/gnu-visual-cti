@@ -37,6 +37,7 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.hardware.provider.dialogic;
 
+import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -48,10 +49,12 @@ import java.util.stream.Collectors;
 import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceEvent;
+import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.adapter.AbstractTelephonyServiceProvider;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
 import org.visualcti.core.channel.telephony.part.MultimediaEngine;
 import org.visualcti.media.Audio;
+import org.visualcti.util.Tools;
 
 /**
  * <p>Title: Visual CTI Java Telephony Server</p>
@@ -98,12 +101,18 @@ public class DialogicServiceProvider<H extends Integer> extends AbstractTelephon
         if (isValid(resourceHandle)) {
             // registering the available codecs for the opened resource by the resource's handle
             registeringAvailableMediaFormats(resourceHandle);
+            // making the context for the resource's handle
+            makingResourceHandleContext(resourceHandle, name);
         }
-        return resourceHandle;
+        return withContext(resourceHandle);
     }
 
     @Override
     protected void nativeResourceClose(H handle) {
+        if (Context.get(handle) != null) {
+            // freeing context for the handle if any
+            Context.free(handle);
+        }
         Hardware.closeChannel(handle);
     }
 
@@ -139,21 +148,117 @@ public class DialogicServiceProvider<H extends Integer> extends AbstractTelephon
         return Hardware.call(handle, number.toString(), timeout) != Hardware.DX_ERROR;
     }
 
-    /**
-     * <native-call>
-     * To get the device event from the events provider during a particular timeframe
-     *
-     * @param during time-frame for event's getting (milliseconds)
-     * @return detected event or empty
-     * @see DeviceEvent
-     * @see #getEvent(long)
-     */
     @Override
     protected DeviceEvent<H> nativeGetEvent(long during) {
-        return super.nativeGetEvent(during);
+        // not implemented for current version of Dialogic's natives
+        return null;
     }
 
+    @Override
+    protected void nativeEnableEvents(H deviceHandle, String eventType) {
+        Hardware.enableEvents(deviceHandle, eventType);
+    }
+
+    @Override
+    protected void nativeDisableEvents(H deviceHandle, String eventType) {
+        // disabling ALL events for the handle (implementation specific)
+        Hardware.disableEvt(deviceHandle);
+        // enabling rest event types for the handle except disabled one
+        enabledEventTypes(deviceHandle).stream().map(OperationResultValue::getValue)
+                // skipping disabled device event type (exclude it)
+                .filter(enabledEventType -> !Objects.equals(enabledEventType, eventType))
+                // enabling the rest event types
+                .forEach(enabledEventType -> Hardware.enableEvt(deviceHandle, enabledEventType));
+    }
+
+    @Override
+    protected H nativeFaxResourceOpen(String name) throws IOException {
+        final H resourceHandle = (H) Integer.valueOf(Hardware.openFax(name));
+        //
+        // post-processing after resource handle's getting
+        if (isValid(resourceHandle)) {
+            // making the context for the resource's handle
+            makingResourceHandleContext(resourceHandle, name);
+        }
+        return withContext(resourceHandle);
+    }
+
+    @Override
+    protected void nativeFaxResourceClose(H handle) {
+        // uses the same close as for regular evice handle
+        nativeResourceClose(handle);
+    }
+
+    @Override
+    protected boolean nativeStartFaxReceiving(H handle, String filePath, boolean issueVoiceRequest) {
+        return super.nativeStartFaxReceiving(handle, filePath, issueVoiceRequest)
+                // checking is the handle of valid opened fax's resource
+                && FAX.isResource_FAX(handle)
+                // starting the native fax-receiving function
+                && FAX.StartReceive(handle, filePath, issueVoiceRequest) != Hardware.DX_ERROR;
+    }
+
+    @Override
+    protected void nativeStopFaxReceiving(H handle) {
+        stopTransmission(handle);
+    }
+
+    @Override
+    protected boolean nativeStartFaxTransmitting(
+            H handle, String filePath, boolean issueVoiceRequest, boolean isTiff,
+            boolean isHighResolution, int firstPageNumber, int totalPages
+    ) {
+        return super.nativeStartFaxTransmitting(handle, filePath, issueVoiceRequest, isTiff,
+                isHighResolution, firstPageNumber, totalPages)
+                // checking is the handle of valid opened fax's resource
+                && FAX.isResource_FAX(handle)
+                // starting the native fax-sending function
+                && FAX.StartSend(handle, isTiff, filePath, isHighResolution, issueVoiceRequest,
+                firstPageNumber, totalPages) != Hardware.DX_ERROR;
+    }
+
+    @Override
+    protected void nativeStopFaxTransmitting(H handle) {
+        stopTransmission(handle);
+    }
+
+    @Override
+    protected boolean isReadyToPlay(H handle) {
+        return VOX.isResource_VOX(handle);
+    }
+
+    ///
     /// private methods
+    // to initialize the Dialogic's activities context for the valid resource handle
+    private void makingResourceHandleContext(H resourceHandle, String resourceName) {
+        final Object monitor = new Object();
+        try {
+            Context.init(resourceHandle, monitor, resourceName);
+        } catch (Exception e) {
+            Tools.error("openResource:Can't make context for " + resourceHandle);
+            e.printStackTrace(Tools.err);
+            // closing
+            nativeResourceClose(resourceHandle);
+        }
+    }
+
+    // to check opened device's handle (with context) and return valid value
+    private H withContext(H handle) {
+        if (Context.get(handle) == null) {
+            // no available any context for the device's handle
+            nativeResourceClose(handle);
+            return (H) Integer.valueOf(Hardware.DX_ERROR);
+        }
+        return handle;
+    }
+
+    //
+    // stopping all device's I/O activity
+    private void stopTransmission(H handle) {
+        // method to stop all device's I/O (vox/fax) activity
+        Hardware.stopAll(handle);
+    }
+
     // registering the available codecs for the opened resource by the resource's handle
     private void registeringAvailableMediaFormats(H handle) {
         final Device.ParameterName name = MultimediaEngine.Parameter.ALLOWED_CODECS;

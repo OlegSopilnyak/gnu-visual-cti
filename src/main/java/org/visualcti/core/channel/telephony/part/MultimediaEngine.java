@@ -75,6 +75,8 @@ public interface MultimediaEngine<H> extends TelephonyDevicePart<H> {
         ALLOWED_CODECS("ALLOWED-CODECS-LIST"),
         // the temporary file that is using for media transmitting operations (for tests purposes)
         AUDIO_TEMPORARY("AUDIO-TEMP-FILE"),
+        // The termination of voice operation's symbols mask
+        VOICE_TERM_MASK("VOICE-IO-TERMINATION-MASK")
         ;
 
         private final String name;

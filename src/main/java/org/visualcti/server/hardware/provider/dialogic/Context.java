@@ -59,7 +59,7 @@ final class Context
  * The array of contexts
  * array's index = channel's handle
  */
-private static Context entry[] = new Context[0];
+private static Context[] entry = new Context[0];
     /**
      * <accessor>
      * To get access to the context by handle
@@ -96,9 +96,11 @@ private static Context entry[] = new Context[0];
      * Close entry and clear the reference to it
      * @param handle channel's handle
      */
-    static final void free(int handle){
+    static void free(int handle){
       try {entry[ handle ].close(); entry[ handle ] = null;
-      }catch(ArrayIndexOutOfBoundsException e){}
+      }catch(ArrayIndexOutOfBoundsException e){
+          Hardware.error(e.getMessage());
+      }
     }
     /**
      * <producer>
@@ -109,9 +111,9 @@ private static Context entry[] = new Context[0];
      * @return the context
      * @throws Exception if invalid parameters
      */
-    static final Context init(int handle,Object owner,String name) throws Exception {
-      if (handle <= 0 || owner == null) throw new Exception("Invaid parameters!");
-      if (Context.get( handle ) != null) throw new Exception("handle for Context in use!");
+    static Context init(int handle,Object owner,String name) throws Exception {
+      if (handle <= 0 || owner == null) throw new Exception("Invalid parameters!");
+      if (Context.get( handle ) != null) throw new Exception("The handle for the new Context is in use!");
       // to check entries size
       Context.checkEntrySize( handle );
       // make new entry for handle and put it to entries array
@@ -412,7 +414,7 @@ private final StringBuffer userInput = new StringBuffer();
 
     public String getDigitsBuffer()
     {
-        String result = "";
+        String result;
         synchronized ( this.userInput )
         {
             result = this.userInput.toString();// copy internal buffer for result

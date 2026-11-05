@@ -100,6 +100,8 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
     private final Map<String, List<H>> openedResources = new ConcurrentHashMap<>();
     // holder of the opened resource parameters by resource handle
     protected final Map<H, Map<Device.ParameterName, ConfigurationParameter>> resourceParameters = new ConcurrentHashMap<>();
+    // flag to enable the device events getting
+    private final AtomicBoolean gettingEnabled = new AtomicBoolean(false);
     // holder of the enabled event-types by opened resource handlers
     private final Map<H, Set<OperationResultValue>> resourceEventTypes = new ConcurrentHashMap<>();
     // native events access lock
@@ -457,8 +459,6 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
         // doing nothing here
         return false;
     }
-
-    private final AtomicBoolean gettingEnabled = new AtomicBoolean(false);
 
     /**
      * <action>

@@ -83,7 +83,7 @@ import org.visualcti.util.Tools;
 public class AbstractDialogicDeviceFactory<H extends Integer, D extends DialogicDevice<H, ?>>
         extends AbstractTelephonyFactory<H, D> {
     // the thread where events provider is running
-    protected final AtomicReference<Thread> workingThreadHolder = new AtomicReference<>(null);
+    protected final AtomicReference<Thread> dialogicWorkingThreadHolder = new AtomicReference<>(null);
 
     protected AbstractDialogicDeviceFactory(Executor deviceEventsExecutor, DialogicServiceProvider<H> provider) {
         super(deviceEventsExecutor, provider);
@@ -128,32 +128,32 @@ public class AbstractDialogicDeviceFactory<H extends Integer, D extends Dialogic
         // stopping general factory's device events processing
         super.stoppingDeviceEventProcessing();
         // stopping Dialogic event processing thread
-        final Thread workingThread = workingThreadHolder.get();
+        final Thread workingThread = dialogicWorkingThreadHolder.get();
         if (workingThread != null) {
             workingThread.stop();
             // waiting for working thread has been stopped
-            waitFor(() -> workingThreadHolder.get() != null);
+            waitFor(() -> dialogicWorkingThreadHolder.get() != null);
         }
     }
 
     /// private methods
     // to get and process Dialogic's events
     private void dialogicEventProcessing(CountDownLatch processingStarted) {
-        workingThreadHolder.getAndSet(Thread.currentThread());
+        dialogicWorkingThreadHolder.getAndSet(Thread.currentThread());
         processingStarted.countDown();
         try {
             final TelephonyServiceProvider<H> provider = getProvider();
             while (isStarted()) {
                 final dialogicEvent event = Hardware.getEvent();
-                dispatchEvent("Got Dialogic Hardware Event: " + event);
                 if (event != null) {
+                    dispatchEvent("Got Dialogic Hardware Event: " + event);
                     provider.putEvent(toDeviceEvent(event, provider));
                 }
             }
         } catch (ThreadDeath death) {
             // The working tread is stopped outside by Thread.stop() method
         } finally {
-            workingThreadHolder.getAndSet(null);
+            dialogicWorkingThreadHolder.getAndSet(null);
         }
     }
 
@@ -172,7 +172,7 @@ public class AbstractDialogicDeviceFactory<H extends Integer, D extends Dialogic
 
             case TDX_PLAY:               /* Play Completed       */
             case TDX_RECORD:             /* Record Completed     */
-                voiceTransitionCompleted(event, dialogicDeviceEvent);
+                voiceTransmissionCompleted(event, dialogicDeviceEvent);
                 break;
 
             case TDX_GETDIG:             /* Get Digits Completed */
@@ -219,6 +219,7 @@ public class AbstractDialogicDeviceFactory<H extends Integer, D extends Dialogic
         return dialogicDeviceEvent;
     }
 
+    // transforming Dialogic event for fax transmission malfunction
     private static <H extends Integer> void transmittingFaxMalfunction(
             dialogicEvent event, AbstractDeviceEvent<H> dialogicDeviceEvent
     ) {
@@ -237,8 +238,10 @@ public class AbstractDialogicDeviceFactory<H extends Integer, D extends Dialogic
         }
     }
 
+    // transforming Dialogic event for fax transmission completed
     private static <H extends Integer> void transmittingFaxCompleted(
-            dialogicEvent event, AbstractDeviceEvent<H> dialogicDeviceEvent) {
+            dialogicEvent event, AbstractDeviceEvent<H> dialogicDeviceEvent
+    ) {
         if (Objects.equals(Result.ERROR.getValue(), event.getReason())) {
             // error
             dialogicDeviceEvent.option(DeviceEvent.Option.REASON, Result.ERROR);
@@ -249,6 +252,7 @@ public class AbstractDialogicDeviceFactory<H extends Integer, D extends Dialogic
         }
     }
 
+    // transforming Dialogic event for make call completed
     private static <H extends Integer> void makeCallCompleted(
             dialogicEvent event, AbstractDeviceEvent<H> dialogicDeviceEvent
     ) {
@@ -280,6 +284,7 @@ public class AbstractDialogicDeviceFactory<H extends Integer, D extends Dialogic
         }
     }
 
+    // transforming Dialogic event for getting user input completed
     private static <H extends Integer> void gettingDigitsCompleted(
             dialogicEvent event, AbstractDeviceEvent<H> dialogicDeviceEvent
     ) {
@@ -306,7 +311,8 @@ public class AbstractDialogicDeviceFactory<H extends Integer, D extends Dialogic
         }
     }
 
-    private static <H extends Integer> void voiceTransitionCompleted(
+    // transforming Dialogic event for sound transmission completed
+    private static <H extends Integer> void voiceTransmissionCompleted(
             dialogicEvent event, AbstractDeviceEvent<H> dialogicDeviceEvent
     ) {
         if (Objects.equals(Result.IO.EOF.getValue(), event.getReason())) {
@@ -338,6 +344,7 @@ public class AbstractDialogicDeviceFactory<H extends Integer, D extends Dialogic
         }
     }
 
+    // transforming Dialogic event for phone call status changed
     private static <H extends Integer> void callStatusTransition(
             dialogicEvent event, AbstractDeviceEvent<H> dialogicDeviceEvent
     ) {

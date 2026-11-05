@@ -204,7 +204,7 @@ public static final int     DF_TX       =1;      /* Transmitter */
      */
     final static int startRecieve(int handle, String file, boolean issvrq)
     {
-      return !valid(handle) ? Hardware.DX_ERROR:FAX.StartRecieve( handle, file, issvrq );// (native)
+      return !valid(handle) ? Hardware.DX_ERROR:FAX.StartReceive( handle, file, issvrq );// (native)
     }
     /**
      * <action>
@@ -302,8 +302,8 @@ public static final int     DF_TX       =1;      /* Transmitter */
         private static native int SetStartPage(int handle,int page);
         private static native int InitRecieveState(int handle);
         private static native int InitTransmitState(int handle);
-        private static native int StartRecieve(int handle, String file, boolean issvrq);
-        private static native int StartSend
+        static native int StartReceive(int handle, String file, boolean issvrq);
+        static native int StartSend
 		                                (
 		                                int handle,		 // handle to fax resource
 		                                boolean isTIFF,  // fax file is TIFF

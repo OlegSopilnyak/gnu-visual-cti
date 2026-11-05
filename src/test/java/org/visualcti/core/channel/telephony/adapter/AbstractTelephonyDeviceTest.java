@@ -340,6 +340,7 @@ public class AbstractTelephonyDeviceTest<H> {
     public void shouldDropCall_Regular() throws IOException {
         // preparing test data
         session.alive(true);
+        reset(provider);
         doReturn(true).when(provider).handsetOff(deviceHandle);
 
         // acting
@@ -363,6 +364,7 @@ public class AbstractTelephonyDeviceTest<H> {
     public void shouldNotDropCall_Regular_ProviderDidNotHandsetOff() throws IOException {
         // preparing test data
         session.alive(true);
+        reset(provider);
         doReturn(false).when((TestTelephonyProvider) provider).isHandsetOff(deviceHandle);
 
         // acting

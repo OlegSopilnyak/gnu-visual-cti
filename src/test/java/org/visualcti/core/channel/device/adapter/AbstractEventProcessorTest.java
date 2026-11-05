@@ -107,14 +107,14 @@ public class AbstractEventProcessorTest {
     public void shouldSetupEventsGrabberThread() {
         // preparing test data
         Thread thread = mock(Thread.class);
-        assertThat(processor.providerEventsThread.get()).isNull();
+        assertThat(processor.workingThreadHolder.get()).isNull();
 
         // acting
         processor.eventsGrabberThread(thread);
 
         // check the behavior
         // check results
-        assertThat(processor.providerEventsThread.get()).isSameAs(thread);
+        assertThat(processor.workingThreadHolder.get()).isSameAs(thread);
     }
 
     @Test
@@ -389,7 +389,7 @@ public class AbstractEventProcessorTest {
         testProcessor.currentUnitState(RunnableServerUnit.UnitState.ACTIVE);
         Thread.sleep(50);
         // check results
-        assertThat(testProcessor.providerEventsThread.get()).isNotNull();
+        assertThat(testProcessor.workingThreadHolder.get()).isNotNull();
         testProcessor.currentUnitState(RunnableServerUnit.UnitState.PASSIVE);
 
         // check the behavior
@@ -435,7 +435,7 @@ public class AbstractEventProcessorTest {
         doReturn(Optional.of(deviceEvent)).when(eventsProvider).getEvent(anyLong());
         testProcessor.currentUnitState(RunnableServerUnit.UnitState.ACTIVE);
         Thread.sleep(50);
-        assertThat(testProcessor.providerEventsThread.get()).isNotNull();
+        assertThat(testProcessor.workingThreadHolder.get()).isNotNull();
         reset(testProcessor);
 
         // acting
@@ -445,6 +445,6 @@ public class AbstractEventProcessorTest {
         verify(testProcessor, atLeastOnce()).isStarted();
         verify(testProcessor).eventsGrabberThread(null);
         // check results
-        assertThat(testProcessor.providerEventsThread.get()).isNull();
+        assertThat(testProcessor.workingThreadHolder.get()).isNull();
     }
 }

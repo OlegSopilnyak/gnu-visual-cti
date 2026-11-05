@@ -60,7 +60,7 @@ public abstract class AbstractEventProcessor<H> extends RunnableUnitAdapter impl
     // the queue of device events from the events provider
     private final BlockingQueue<DeviceEvent<H>> deviceEvents = new LinkedBlockingQueue<>();
     // the thread where events provider is running
-    protected final AtomicReference<Thread> providerEventsThread = new AtomicReference<>(null);
+    protected final AtomicReference<Thread> workingThreadHolder = new AtomicReference<>(null);
     // how long system will wait for device event appearance (milliseconds)
     protected transient long howLongWaitForDeviceEvent = -1L;
     // the executor for device events processing threads
@@ -145,12 +145,12 @@ public abstract class AbstractEventProcessor<H> extends RunnableUnitAdapter impl
      */
     @Override
     public void eventsGrabberThread(final Thread eventsGrabberThread) {
-        final Thread currentProviderEventsThread = providerEventsThread.get();
+        final Thread currentProviderEventsThread = workingThreadHolder.get();
         if (eventsGrabberThread == null && currentProviderEventsThread != null) {
             // interrupting the working thread, maybe it in the native call
             currentProviderEventsThread.interrupt();
         }
-        providerEventsThread.getAndSet(eventsGrabberThread);
+        workingThreadHolder.getAndSet(eventsGrabberThread);
     }
 
     /**
