@@ -597,12 +597,18 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
     (GC context) {
         final PhoneCallSession<H> session = context.session;
         if (context.hasTerminationMask()) {
+            // enabling device's DTMF events producing for particular device handle
             context.serviceProvider.enableEvents(context.deviceHandle, Result.IO.DTMF);
+            // setting up the termination mask field to the phone call session
             session.parameter(Parameter.VOICE_TERM_MASK, context.termMask);
         } else {
+            // disabling device's DTMF events producing for particular device handle
             context.serviceProvider.disableEvents(context.deviceHandle, Result.IO.DTMF);
+            // removing termination mask field from the phone call session
             session.remove(Parameter.VOICE_TERM_MASK);
         }
+        // setting up the voice operation timeout's field to the phone call session
+        session.parameter(Parameter.VOICE_OPER_TIMEOUT, context.timeout);
     }
 
     // completing voice operation
@@ -617,6 +623,8 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
         context.serviceProvider.clearSession();
         // removing termination mask field from the phone call session
         context.session.remove(Parameter.VOICE_TERM_MASK);
+        // removing operation timeout's field from the phone call session
+        context.session.remove(Parameter.VOICE_OPER_TIMEOUT);
     }
 
     // copying recorded audio data from temporary file to the target output stream
@@ -638,20 +646,6 @@ public abstract class AbstractMultimediaEngine<H> extends AbstractDevicePart<H> 
         } else {
             // throwing DeviceMalfunction error here
             onDeviceError(context.session, reason);
-        }
-        return Result.ERROR;
-    }
-
-    private Result playbackAudioError1(H deviceHandle, File tempFile, PhoneCallSession<H> session, String reason) {
-        // stopping audio data transmitting by service provider
-//        stopAudioPlaying(deviceCore.getProvider(), deviceHandle);
-        // deleting temporary file
-        if (!tempFile.delete()) {
-            // session is broken
-            session.setState(Device.State.ERROR);
-        } else {
-            // throwing DeviceMalfunction error here
-            onDeviceError(session, reason);
         }
         return Result.ERROR;
     }

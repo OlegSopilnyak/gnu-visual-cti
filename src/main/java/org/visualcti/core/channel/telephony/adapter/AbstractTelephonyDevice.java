@@ -305,7 +305,7 @@ public abstract class AbstractTelephonyDevice<H, T extends TelephonyFactory<H, ?
             if (faxes.isOpened(session)) {
                 dispatchError("Fax Machine features aren't supported...");
             }
-            // enabling device's incoming call events producing for particular device andle
+            // enabling device's incoming call events producing for particular device handle
             provider.enableEvents(handle, Result.CALL.RINGS);
             // sharing started session if it's possible
             if (canBeConnected()) {

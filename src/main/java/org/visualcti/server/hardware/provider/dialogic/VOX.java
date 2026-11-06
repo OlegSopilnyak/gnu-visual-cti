@@ -420,7 +420,7 @@ final class VOX
         /*<native> to get access to device's codecs list */
         static native String getCodecsList(int handle);
         /*<native> to start the record voice */
-        private static native int startRecord
+        static native int startRecord
                     (
                     int handle,
                     String mask,
@@ -429,7 +429,7 @@ final class VOX
                     String codec
                     );
         /*<native> to start the playback */
-        private static native int startPlay
+        static native int startPlay
                     (
                     int handle,
                     String mask,

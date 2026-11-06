@@ -37,7 +37,15 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.hardware.provider.dialogic;
 
+import javax.sound.sampled.AudioInputStream;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.UnsupportedAudioFileException;
+
+import java.io.File;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -52,6 +60,7 @@ import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.adapter.AbstractTelephonyServiceProvider;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
+import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.core.channel.telephony.part.MultimediaEngine;
 import org.visualcti.media.Audio;
 import org.visualcti.util.Tools;
@@ -71,6 +80,11 @@ public class DialogicServiceProvider<H extends Integer> extends AbstractTelephon
     private final AtomicBoolean handsetOff = new AtomicBoolean(true);
     // reference to the sound-card phone number as singleton
     private final AtomicReference<PhoneCall.Number> callerId = new AtomicReference<>(PhoneCall.Number.EMPTY);
+    // raw audio input stream holder
+    private final AtomicReference<AudioInputStream> playbackStreamHolder = new AtomicReference<>(null);
+    // raw audio output stream holder
+    private final AtomicReference<OutputStream> recordStreamHolder = new AtomicReference<>(null);
+
 
     @Override
     protected boolean isValid(H handle) {
@@ -225,6 +239,118 @@ public class DialogicServiceProvider<H extends Integer> extends AbstractTelephon
     @Override
     protected boolean isReadyToPlay(H handle) {
         return VOX.isResource_VOX(handle);
+    }
+
+    @Override
+    protected boolean asyncAudioFilePlaying(File audioFile, Audio format, H handle) {
+        final PhoneCallSession<H> session = getSession();
+        if (session == null) {
+            // session is not in the current thread
+            return false;
+        }
+        final Context context = Context.get(handle);
+        if (context == null) {
+            // operation context is not initialized
+            return false;
+        }
+        // starting audio playing back
+        try {
+            playbackStreamHolder.getAndSet(AudioSystem.getAudioInputStream(Files.newInputStream(audioFile.toPath())));
+            // assigning the audio stream to the operation's context
+            context.setInputStream(playbackStreamHolder.get());
+            // starting audio playing back in the asynchronous way
+            return VOX.startPlay(handle,
+                    session.parameterOrDefault(MultimediaEngine.Parameter.VOICE_TERM_MASK, ""),
+                    session.parameterOrDefault(MultimediaEngine.Parameter.VOICE_OPER_TIMEOUT, -1),
+                    format.toString()
+            ) != Hardware.DX_ERROR;
+        } catch (IOException | UnsupportedAudioFileException e) {
+            Tools.error("Cannot start playing back for file: " + audioFile.getName());
+            e.printStackTrace(Tools.err);
+        }
+        return false;
+    }
+
+    @Override
+    protected void nativeStopAudioFilePlaying(H handle) {
+        final Context context = Context.get(handle);
+        if (context == null) {
+            // operation context is not initialized
+            return;
+        }
+        // native stopping active voice operation
+        stopTransmission(handle);
+        // closing opened raw audio input stream
+        final AudioInputStream audioIn = playbackStreamHolder.get();
+        if (audioIn != null) {
+            try {
+                audioIn.close();
+            } catch (IOException e) {
+                Tools.error("Cannot close the raw audio input stream");
+                e.printStackTrace(Tools.err);
+            }
+        }
+        context.setInputStream(null);
+        playbackStreamHolder.getAndSet(null);
+    }
+
+    @Override
+    protected boolean isReadyToRecord(H handle) {
+        return VOX.isResource_VOX(handle);
+    }
+
+    @Override
+    protected boolean asyncAudioFileRecording(Path targetFilePath, Audio format, H handle, int silence) {
+        final PhoneCallSession<H> session = getSession();
+        if (session == null) {
+            // session is not in the current thread
+            return false;
+        }
+        final Context context = Context.get(handle);
+        if (context == null) {
+            // operation context is not initialized
+            return false;
+        }
+        // starting voice recording
+        try {
+            recordStreamHolder.getAndSet(Files.newOutputStream(targetFilePath));
+            // assigning the raw audio stream to the operation's context
+            context.setOutputStream(recordStreamHolder.get());
+            // starting raw audio recording in the asynchronous way
+            return VOX.startRecord(handle,
+                    session.parameterOrDefault(MultimediaEngine.Parameter.VOICE_TERM_MASK, ""),
+                    silence,
+                    session.parameterOrDefault(MultimediaEngine.Parameter.VOICE_OPER_TIMEOUT, -1),
+                    format.toString()
+            ) != Hardware.DX_ERROR;
+        } catch (IOException e) {
+            Tools.error("Cannot start recording for file: " + targetFilePath);
+            e.printStackTrace(Tools.err);
+        }
+        return false;
+    }
+
+    @Override
+    protected void nativeStopAudioFileRecording(H handle) {
+        final Context context = Context.get(handle);
+        if (context == null) {
+            // operation context is not initialized
+            return;
+        }
+        // native stopping active voice operation
+        stopTransmission(handle);
+        // closing opened raw audio output stream
+        final OutputStream audioOut = recordStreamHolder.get();
+        if (audioOut != null) {
+            try {
+                audioOut.close();
+            } catch (IOException e) {
+                Tools.error("Cannot close the raw audio output stream");
+                e.printStackTrace(Tools.err);
+            }
+        }
+        context.setOutputStream(null);
+        recordStreamHolder.getAndSet(null);
     }
 
     ///
