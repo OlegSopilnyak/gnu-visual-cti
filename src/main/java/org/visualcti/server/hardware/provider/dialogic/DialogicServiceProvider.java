@@ -104,8 +104,14 @@ public class DialogicServiceProvider<H extends Integer> extends AbstractTelephon
 
     @Override
     protected Collection<String> nativeAllowedDevices() {
-        return Collections.list(new StringTokenizer(Hardware.getNamesList(), "\n ")).stream()
-                .map(String.class::cast).collect(Collectors.toSet());
+        try{
+            return Collections.list(new StringTokenizer(Hardware.getNamesList(), "\n ")).stream()
+                    .map(String.class::cast).collect(Collectors.toSet());
+        } catch (UnsatisfiedLinkError e) {
+            Tools.error("==Native== Cannot get Dialogic's device names list");
+            e.printStackTrace(Tools.err);
+        }
+        return Collections.emptySet();
     }
 
     @Override
@@ -362,7 +368,7 @@ public class DialogicServiceProvider<H extends Integer> extends AbstractTelephon
     @Override
     protected boolean nativeStartToneSending(H handle, TelephonyTone tone) {
         return VOX.generateTone(handle, tone.getPrimary().getFrequencyHz(), tone.getSecondary().getFrequencyHz(),
-                1000) != Hardware.DX_ERROR;
+                10_000) != Hardware.DX_ERROR;
     }
 
     @Override

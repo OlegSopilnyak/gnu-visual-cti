@@ -81,7 +81,8 @@ class Hardware implements HardwareConst {
     #
     */
     static {
-        System.out.print("Starting Dialogic's hardware support");
+        System.out.print("Starting Dialogic's hardware support..");
+        System.out.flush();
         // to start & init hardware systems
         try {
             // try to load native library
@@ -96,10 +97,10 @@ class Hardware implements HardwareConst {
             CCM.init();
             System.out.print("..");
             System.out.flush();
+            System.out.print(" Successfully.");
         } catch (Throwable t) {
-            Hardware.error(t);
-            Hardware.error("cannot start because of " + t.getMessage());
-            System.exit(1);
+            Tools.error("Can't start hardware support because of: " + t.getMessage());
+            System.out.print(".. Not Successfully.");
         }
         System.out.println(" Done.");
     }

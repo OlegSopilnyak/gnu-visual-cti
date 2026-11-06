@@ -103,6 +103,11 @@ public class AbstractDialogicDeviceFactory<H extends Integer, D extends Dialogic
     protected void startingDeviceEventProcessing() {
         // starting general factory's device events processing
         super.startingDeviceEventProcessing();
+        // check the factory's devices
+        if (!devices().findAny().isPresent()) {
+            // no available devices inside the factory
+            return;
+        }
         // starting Dialogic factory's device events processing
         final CountDownLatch processingStarted = new CountDownLatch(1);
         new Thread(() -> dialogicEventProcessing(processingStarted), "Dialogic events processing Thread").start();
@@ -150,6 +155,10 @@ public class AbstractDialogicDeviceFactory<H extends Integer, D extends Dialogic
                     provider.putEvent(toDeviceEvent(event, provider));
                 }
             }
+        } catch (UnsatisfiedLinkError e) {
+            Tools.error("Thread name:" + Thread.currentThread().getName());
+            Tools.error("==Native== Cannot get Dialogic's device event. Stopping the events processing Thread.");
+            e.printStackTrace(Tools.err);
         } catch (ThreadDeath death) {
             // The working tread is stopped outside by Thread.stop() method
         } finally {
