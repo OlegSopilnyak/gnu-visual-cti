@@ -61,6 +61,7 @@ import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.adapter.AbstractTelephonyServiceProvider;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
+import org.visualcti.core.channel.telephony.operation.adapter.TelephonyTone;
 import org.visualcti.core.channel.telephony.part.MultimediaEngine;
 import org.visualcti.media.Audio;
 import org.visualcti.util.Tools;
@@ -351,6 +352,38 @@ public class DialogicServiceProvider<H extends Integer> extends AbstractTelephon
         }
         context.setOutputStream(null);
         recordStreamHolder.getAndSet(null);
+    }
+
+    @Override
+    protected void nativeDialingDtmf(H handle, String toDial) {
+        VOX.dial(handle, toDial);
+    }
+
+    @Override
+    protected boolean nativeStartToneSending(H handle, TelephonyTone tone) {
+        return VOX.generateTone(handle, tone.getPrimary().getFrequencyHz(), tone.getSecondary().getFrequencyHz(),
+                1000) != Hardware.DX_ERROR;
+    }
+
+    @Override
+    protected void nativeStopToneSending(H handle) {
+        // native stopping active voice operation
+        stopTransmission(handle);
+    }
+
+    @Override
+    protected void nativeBeginToneRegistering(H handle) {
+        VOX.clearTones(handle); // (native)
+    }
+
+    @Override
+    protected void nativeRegisterTone(H handle, TelephonyTone tone) {
+        VOX.setTone(handle, tone.toString()); // (native)
+    }
+
+    @Override
+    protected void nativeCommitToneRegistering(H handle) {
+        VOX.fixTones(handle); // (native)
     }
 
     ///

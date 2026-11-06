@@ -437,9 +437,9 @@ final class VOX
                     String codec
                     );
         /*<native> to start the dial number */
-        private static native int dial(int handle,String number);
+        static native int dial(int handle,String number);
         /*<native> to start Tone's playing */
-        private static native int generateTone
+        static native int generateTone
                     (
                     int handle,
                     int freq1,
@@ -451,11 +451,11 @@ final class VOX
         /*<native> to start getting one symbol of user input */
         private static native int getDigit(int handle,int timeout);
         /*<native> To clear tones table for handle */
-        private static native int clearTones(int handle);
+        static native int clearTones(int handle);
         /*<native> To update tone in global table */
-        private static native int setTone(int handle,String descriptor);
+        static native int setTone(int handle,String descriptor);
         /*<native> To store tones table for handle */
-        private static native int fixTones(int handle);
+        static native int fixTones(int handle);
         /*<native> to enable/disable detect tone */
         private static native int toneDetect(int handle,String name,boolean enable);
 }
