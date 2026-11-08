@@ -55,9 +55,10 @@ import org.visualcti.util.*;
  * <p>Company: Prominic Ukraine Co.</p>
  * @author Sopilnyak Oleg
  * @version 3.01
+ * @deprecated
  */
-
-public final class Factory extends stubDeviceFactory
+@Deprecated
+public final class FormerFactory extends stubDeviceFactory
 {
 public static final String VENDOR = "Dialogic";
 public static final String VERSION= "Prominic ver. 3.01(alfa)";
@@ -66,7 +67,7 @@ public final static String defaultURL = "file:./dialogic.configuration.xml";
  * <attribute>
  * The URL to factory's configuration
  */
-private String configurationURL = Factory.defaultURL;
+private String configurationURL = FormerFactory.defaultURL;
 /**
  * <attribute>
  * The container of factory's properties
@@ -84,11 +85,11 @@ final devParams properties = new devParams();
 private volatile boolean isSave = false;
   /**
    * <constructor>
-   * Factory's constructor
+   * FormerFactory's constructor
    */
-  public Factory()
+  public FormerFactory()
   {
-    for(Iterator i=Factory.factoryNames.iterator();i.hasNext();)
+    for(Iterator i = FormerFactory.factoryNames.iterator(); i.hasNext();)
     {
       // to make & register the Dialogic's device
       super.appendDevice( new Device((String)i.next(),this) );
@@ -108,13 +109,13 @@ private volatile boolean isSave = false;
     // to solve xml's parameters
     try{ this.solveParameters(xml); }catch(Exception e){}
     if (
-        !Factory.VENDOR.equalsIgnoreCase( this.vendor ) ||
+        !FormerFactory.VENDOR.equalsIgnoreCase( this.vendor ) ||
         this.configurationURL == null ||
         (this.configurationXML=Tools.xmlLoad(this.configurationURL)) == Tools.emptyXML
         ) return;
     // to prepare devices iterations
     xml = this.configurationXML;this.isSave = false;
-    // to restore Factory device's default properties
+    // to restore FormerFactory device's default properties
     this.properties.restore( xml.getChild("default") );
     // to make the devices & configure it
     for(Iterator i=xml.getChildren(deviceProxy.ELEMENT).iterator();i.hasNext();){
@@ -130,7 +131,7 @@ private volatile boolean isSave = false;
     /* to init the factory, close all devices */
     private final void initFactory(){
       //super.init();
-      configurationURL=Factory.defaultURL;
+      configurationURL= FormerFactory.defaultURL;
       configurationXML=null;
       this.properties.restore( null );
     }
@@ -138,7 +139,7 @@ private volatile boolean isSave = false;
  * <attribute>
  * Temporary attribut for solve the vendor
  */
-private String vendor = Factory.VENDOR;
+private String vendor = FormerFactory.VENDOR;
     /* to solve the factory's parameters */
     private final void solveParameters(Element xml) throws Exception{
       for(Iterator i=xml.getChildren(Parameter.ELEMENT).iterator();i.hasNext();){
@@ -156,16 +157,16 @@ private String vendor = Factory.VENDOR;
     }
   /**
    * <accessor>
-   * To get access to Factory's vendor name
+   * To get access to FormerFactory's vendor name
    * @return the vendor's name
    */
-  public final String getVendor(){return Factory.VENDOR;}
+  public final String getVendor(){return FormerFactory.VENDOR;}
   /**
    * <accessor>
-   * To get access to Factory's version
+   * To get access to FormerFactory's version
    * @return the version
    */
-  public final String getVersion(){return Factory.VERSION;}
+  public final String getVersion(){return FormerFactory.VERSION;}
   /**
    * To start the factory
    * @throws IOException if can't start
@@ -204,12 +205,12 @@ static Map defaultTones=new HashMap();
     ArrayList list = new ArrayList();
     StringTokenizer st = new StringTokenizer(Names,"\n ");
     while( st.hasMoreTokens() ) list.add(st.nextToken());
-    Factory.factoryNames = Collections.unmodifiableList(list);
+    FormerFactory.factoryNames = Collections.unmodifiableList(list);
     // to make default signals table
-    Factory.defaultTones.put("dial","250,400,125,400,125,0,0,0,0,0");
-    Factory.defaultTones.put("busy","253,500,200,0,0,55,40,55,40,4");
-    Factory.defaultTones.put("ringback","254,450,150,0,0,150,100,550,400,0");
-    Factory.defaultTones.put("disconnect","257,900,700,0,0,90,70,90,70,2");
+    FormerFactory.defaultTones.put("dial","250,400,125,400,125,0,0,0,0,0");
+    FormerFactory.defaultTones.put("busy","253,500,200,0,0,55,40,55,40,4");
+    FormerFactory.defaultTones.put("ringback","254,450,150,0,0,150,100,550,400,0");
+    FormerFactory.defaultTones.put("disconnect","257,900,700,0,0,90,70,90,70,2");
   }
   /**
    * Class-store of Dialogic's device properties
@@ -289,7 +290,7 @@ static Map defaultTones=new HashMap();
     public final void restore(Element xml)
     {
       this.tones.clear();this.formats.clear();this.network.clear();
-      this.tones.putAll(Factory.defaultTones);
+      this.tones.putAll(FormerFactory.defaultTones);
       formats.put("record", Audio.ADPCM_6);
       this.network.put("IN",Boolean.TRUE);
       this.network.put("OUT",Boolean.TRUE);
@@ -360,13 +361,14 @@ static Map defaultTones=new HashMap();
      * <action>
      * The request to save configuration
      */
-    protected final void save(){Factory.this.isSave = true;}
+    protected final void save(){
+        FormerFactory.this.isSave = true;}
     /**
      * <constructor>
      * @param name the channel's name
      * @param owner the factory
      */
-    public Device( String name, Factory owner){
+    public Device( String name, FormerFactory owner){
       super( name, owner );
       this.handle = Hardware.openChannel(name,this);
     }
@@ -431,7 +433,7 @@ static Map defaultTones=new HashMap();
     {
       this.type = xml.getAttributeValue("type");
       Element defaultXML = new Element("default");
-      Factory.this.properties.store(defaultXML);
+      FormerFactory.this.properties.store(defaultXML);
       this.properties.restore( defaultXML );
       this.properties.restore( xml );
       super.processConfiguration(xml);
