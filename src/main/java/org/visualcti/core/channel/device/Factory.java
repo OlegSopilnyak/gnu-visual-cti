@@ -55,7 +55,7 @@ import org.visualcti.server.core.unit.RunnableServerUnit;
 import org.visualcti.server.core.unit.ServerUnit;
 
 /**
- * The Factory of the Devices: The factory of the channel-devices
+ * The FormerFactory of the Devices: The factory of the channel-devices
  *
  * @param <H> the type of device's handle (for low-level operations)
  * @param <D> the type of factory's devices

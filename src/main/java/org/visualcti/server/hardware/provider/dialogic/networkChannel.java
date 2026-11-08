@@ -176,7 +176,7 @@ private final static String ELEMENT = "network";
    * To get access to device's properties
    * @return device's parameters
    */
-  abstract Factory.devParams getDeviceProperties();
+  abstract FormerFactory.devParams getDeviceProperties();
   /**
    * <action>
    * The request to save the configuration's changes
@@ -188,7 +188,7 @@ private final static String ELEMENT = "network";
    * @param name device's name
    * @param owner device's factory
    */
-  networkChannel(String name, Factory owner)
+  networkChannel(String name, FormerFactory owner)
   {
     super(name, owner);
   }
@@ -202,7 +202,7 @@ private final static String ELEMENT = "network";
     // to init the parameters
     this.initParameters();
     // to check XML
-    Factory.devParams params = this.getDeviceProperties();
+    FormerFactory.devParams params = this.getDeviceProperties();
     Map network = params.getNetwork();
 
     if ( xml == null || (xml=xml.getChild(ELEMENT)) == null ) return;

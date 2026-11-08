@@ -52,7 +52,7 @@ import org.visualcti.server.hardware.*;
 abstract class genericChannel extends faxChannel implements generalDeviceProxy
 {
   /* constructor */
-  genericChannel(String name, Factory owner){super(name,owner);}
+  genericChannel(String name, FormerFactory owner){super(name,owner);}
   /* to get access to device's current status */
   public final String getStatus() {return super.getStatus();}
   /* to get access to device's name */
@@ -60,5 +60,5 @@ abstract class genericChannel extends faxChannel implements generalDeviceProxy
   /* to terminate current operation */
   public final void terminate() throws java.io.IOException {super.terminate();}
   /* to get access to device's factory */
-  public final deviceFactory getFactory() {return (Factory)super.getOwner();}
+  public final deviceFactory getFactory() {return (FormerFactory)super.getOwner();}
 }

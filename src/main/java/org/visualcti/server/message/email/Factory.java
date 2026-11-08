@@ -50,7 +50,7 @@ import java.util.Enumeration;
 import java.util.Vector;
 
 /**
-Factory realize the e-mail messages processing
+FormerFactory realize the e-mail messages processing
 */
 public class Factory extends ExternalMessageFactory implements MessageFactory {
    /**

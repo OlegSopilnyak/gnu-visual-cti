@@ -85,7 +85,7 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit, XmlAware
      * @see DeviceMalfunction
      */
     default F getFactory() {
-        return getFactoryOptional().orElseThrow(() -> new DeviceMalfunction(this, "No Factory for the Device!"));
+        return getFactoryOptional().orElseThrow(() -> new DeviceMalfunction(this, "No FormerFactory for the Device!"));
     }
 
     /**

@@ -212,11 +212,11 @@ private Audio playFormat = Audio.ADPCM_6;
     super.processConfiguration( xml );
     // to init the parameters
     this.Tones.clear();
-    this.Tones.putAll(Factory.defaultTones);
+    this.Tones.putAll(FormerFactory.defaultTones);
     this.recFormat = Audio.ADPCM_6;
     this.playFormat = Audio.ADPCM_6;
     // to check device's parameters
-    Factory.devParams pars = this.getDeviceProperties();
+    FormerFactory.devParams pars = this.getDeviceProperties();
     this.Tones.putAll( pars.getTones() );
     Audio
     format = (Audio)pars.getFormats().get( "record" );
@@ -236,7 +236,7 @@ private Audio playFormat = Audio.ADPCM_6;
    * @param name device's name
    * @param owner device's factory
    */
-  voxChannel(String name, Factory owner){super(name, owner);}
+  voxChannel(String name, FormerFactory owner){super(name, owner);}
   /**
    * <accessor>
    * to return the array of formats to play

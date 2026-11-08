@@ -54,15 +54,20 @@ import org.jdom.DataConversionException;
 import org.junit.Before;
 import org.junit.Test;
 import org.visualcti.core.channel.device.Device;
+import org.visualcti.server.core.unit.EngineUnitBuilder;
+import org.visualcti.server.core.unit.ServerUnit;
 
 @SuppressWarnings("unchecked")
-public class AbstractDialogicDeviceFactoryTest<H extends Integer> {
+public class DialogicDeviceFactoryTest<H extends Integer> {
     String configurationXml =
-            "<factory package=\"org.visualcti.server.hardware.provider.dialogic\" class=\"Factory\" extends=\"org.visualcti.server.hardware.deviceFactory\">\n" +
-            "  <parameter name=\"vendor\" type=\"string\" value=\"Dialogic\" />\n" +
-            "  <parameter name=\"url\" type=\"string\" value=\"file:./conf/dialogic.configuration.xml\" />\n" +
-            "</factory>\n";
-    AbstractDialogicDeviceFactory<H, ?> factory;
+            "          <factory package=\"org.visualcti.server.hardware.provider.dialogic\" class=\"FactoryImpl\" extends=\"org.visualcti.core.channel.telephony.TelephonyFactory\">\n" +
+                    "              <parent package=\"org.visualcti.server.hardware.provider.dialogic\" class=\"FactoryImpl\" method=\"getInstance\">\n" +
+                    "                  The implementation of Dialogic telephony hardware factory features\n" +
+                    "              </parent>\n" +
+                    "              <parameter name=\"vendor\" type=\"string\" value=\"Dialogic\"/>\n" +
+                    "              <parameter name=\"url\" type=\"string\" value=\"file:./conf/dialogic.configuration.xml\"/>\n" +
+                    "          </factory>\n";
+    FactoryImpl<H, ?> factory;
     DialogicServiceProvider<H> provider;
     Executor executor;
 
@@ -70,7 +75,20 @@ public class AbstractDialogicDeviceFactoryTest<H extends Integer> {
     public void setUp() throws Exception {
         executor = Executors.newSingleThreadExecutor();
         provider = spy(new DialogicServiceProvider<>());
-        factory = spy(new AbstractDialogicDeviceFactory<>(executor, provider));
+        factory = spy(new FactoryImpl<>(executor, provider));
+    }
+
+    @Test
+    public void shouldBuildFactoryByBuilder() throws IOException, DataConversionException {
+        // preparing test data
+        EngineUnitBuilder builder = EngineUnitBuilder.getInstance();
+
+        // acting
+        ServerUnit unit = spy(builder.build(factory.load(new ByteArrayInputStream(configurationXml.getBytes()))));
+
+        // check results
+        assertThat(unit).isNotNull().isInstanceOf(FactoryImpl.class);
+        assertThat(((FactoryImpl<?, ?>)unit).devices().count()).isZero();
     }
 
     @Test

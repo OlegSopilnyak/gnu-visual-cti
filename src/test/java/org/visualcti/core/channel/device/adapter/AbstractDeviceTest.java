@@ -179,7 +179,7 @@ public class AbstractDeviceTest<H> {
         verify(device).startSession();
         // check results
         assertThat(e).isInstanceOf(DeviceMalfunction.class);
-        assertThat(e.getMessage()).contains(deviceName).endsWith("No Factory for the Device!");
+        assertThat(e.getMessage()).contains(deviceName).endsWith("No FormerFactory for the Device!");
     }
 
     @Test

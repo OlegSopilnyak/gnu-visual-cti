@@ -61,7 +61,7 @@ import org.visualcti.server.unit.ServerUnitAdapter;
 import org.visualcti.util.Tools;
 
 /**
- * Basic: The Factory of the Devices: The abstract general channel-devices factory
+ * Basic: The FormerFactory of the Devices: The abstract general channel-devices factory
  * <p>
  * The parent factory of any type of the devices factory.
  * <p>

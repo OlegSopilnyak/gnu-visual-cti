@@ -134,7 +134,7 @@ private static int counter = 1;
  * The soft input stream, for detect the socket's disconnect
  */
 private final class inputStream extends SoftInputStream {
-  String name = "Factory's SoftInputStream ";
+  String name = "FormerFactory's SoftInputStream ";
   private inputStream(InputStream in){super(in);
     synchronized(SocketLinkFactory.class){this.name += counter; counter++;}
     super.start();

@@ -70,7 +70,7 @@ private Engine.State state = Engine.State.OUT_OF_SERVICE;
     if ( this.isStarted() ) return;
     // to open all devices
     this.openAll();
-    // to change the Factory
+    // to change the FormerFactory
     this.state = Engine.State.IN_SERVICE;
     // dispatch success start event
     this.dispatch( new unitEvent(this,unitAction.START_ID) );
@@ -217,13 +217,13 @@ private final ArrayList devices = new ArrayList(100);
   }
   /**
    * <accessor>
-   * To get access to Factory's vendor name
+   * To get access to FormerFactory's vendor name
    * @return the vendor's name
    */
   public String getVendor(){return "VisualCTI";}
   /**
    * <accessor>
-   * To get access to Factory's version
+   * To get access to FormerFactory's version
    * @return the version
    */
   public String getVersion(){return "3.0 alfa";}

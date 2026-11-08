@@ -55,6 +55,7 @@ import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.visualcti.core.channel.AbstractTelephonyChannel;
@@ -68,6 +69,7 @@ import org.visualcti.core.channel.telephony.operation.Result;
 import org.visualcti.util.Tools;
 
 /**
+ * <singleton>
  * <p>Title: Visual CTI Java Telephony Server</p>
  * <p>Description: VisualCTI Applications Server,<br>
  * The factory for a Dialogic's devices</p>
@@ -80,15 +82,33 @@ import org.visualcti.util.Tools;
  * @see AbstractTelephonyFactory
  */
 @SuppressWarnings("unchecked")
-public class AbstractDialogicDeviceFactory<H extends Integer, D extends DialogicDevice<H, ?>>
-        extends AbstractTelephonyFactory<H, D> {
-    // the thread where events provider is running
+public class FactoryImpl<H extends Integer, D extends DialogicDevice<H, ?>> extends AbstractTelephonyFactory<H, D> {
+    // the instance of the factory (singleton)
+    private static FactoryImpl<?, ?> instance = null;
+    // the thread where Dialogic's events provider is running
     protected final AtomicReference<Thread> dialogicWorkingThreadHolder = new AtomicReference<>(null);
 
-    protected AbstractDialogicDeviceFactory(Executor deviceEventsExecutor, DialogicServiceProvider<H> provider) {
+    protected FactoryImpl(Executor deviceEventsExecutor, DialogicServiceProvider<H> provider) {
         super(deviceEventsExecutor, provider);
     }
 
+    /**
+     <producer>
+     To get access to FactoryImpl instance
+     */
+    public static FactoryImpl<?, ?> getInstance() {
+        if (instance == null) {
+            synchronized (FactoryImpl.class) {
+                if (instance == null) {
+                    instance = new FactoryImpl<>(
+                            Executors.newScheduledThreadPool(2),
+                            new DialogicServiceProvider<>()
+                    );
+                }
+            }
+        }
+        return instance;
+    }
 
     @Override
     protected TelephonyChannel<D> makeChannelFor(Device<?, ?> device) {

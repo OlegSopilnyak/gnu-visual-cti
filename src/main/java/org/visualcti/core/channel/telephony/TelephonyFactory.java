@@ -49,7 +49,7 @@ import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.media.Sound;
 
 /**
- * The Factory of the Devices: The factory of the telephony channel-devices
+ * The FormerFactory of the Devices: The factory of the telephony channel-devices
  *
  * @param <H> the type of the telephony device's low-level operations' handle
  * @param <TD> the type of factory's telephony device

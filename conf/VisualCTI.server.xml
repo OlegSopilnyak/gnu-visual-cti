@@ -68,7 +68,7 @@ Fax number: 217-356-3356
         <service>
           <Connector package="org.visualcti.server.connector" class="Manager" extends="org.visualcti.server.service.MasterService">
             <parent package="org.visualcti.server.connector" class="Manager">Connectors manager of Server, it will create the Manager's instance</parent>
-            <!--Factory for control the server via system's console-->
+            <!--FormerFactory for control the server via system's console-->
             <factory name="Console" package="org.visualcti.server.connector.streams" class="ConsoleFactory" extends="org.visualcti.server.connector.LinkFactory">System console connector</factory>
             <factory port="1888" name="Socket" package="org.visualcti.server.connector.control" class="SocketLinkFactory" extends="org.visualcti.server.connector.LinkFactory">Network Sockets connector</factory>
           </Connector>
@@ -103,7 +103,7 @@ Fax number: 217-356-3356
               <!--The abstract unified message header-->
               <MessageHeader package="org.visualcti.server.message" extends="javax.jms.Message">MessageHeader</MessageHeader>
             </message>
-            <!--Factory for make, send, receive e-mail messages-->
+            <!--FormerFactory for make, send, receive e-mail messages-->
             <factory name="EMAIL" package="org.visualcti.server.message.email" class="Factory" extends="org.visualcti.server.message.MessageFactory" persistent="work/persistent.messages">
               E-Mail
               <!-- Define protocols for factory -->
@@ -123,14 +123,16 @@ Fax number: 217-356-3356
         <Manager package="org.visualcti.server.hardware" class="Manager" extends="org.visualcti.server.core.executable.Engine">
           <parent package="org.visualcti.server.hardware" class="HardwareManager" method="getManager">The implementation of hardware manager's features</parent>
         </Manager>
-        <factory package="org.visualcti.server.hardware.provider" class="stubDeviceFactory" extends="org.visualcti.server.hardware.deviceFactory">
-          <parameter name="device count" type="number" value="4" />
-          <parameter name="device prefix" type="string" value="stub_" />
+        <!--          <factory package="org.visualcti.server.hardware.provider" class="stubDeviceFactory"-->
+        <!--                   extends="org.visualcti.server.hardware.deviceFactory">-->
+        <!--              <parameter name="device count" type="number" value="4"/>-->
+        <!--              <parameter name="device prefix" type="string" value="stub_"/>-->
+        <!--          </factory>-->
+        <factory package="org.visualcti.server.hardware.provider.dialogic" class="FactoryImpl" extends="org.visualcti.core.channel.telephony.TelephonyFactory">
+          <parent package="org.visualcti.server.hardware.provider.dialogic" class="FactoryImpl" method="getInstance">The implementation of Dialogic telephony hardware factory features</parent>
+          <parameter name="vendor" type="string" value="Dialogic" />
+          <parameter name="url" type="string" value="file:./conf/dialogic.configuration.xml" />
         </factory>
-        <!--        <factory package="org.visualcti.server.hardware.provider.dialogic" class="Factory" extends="org.visualcti.server.hardware.deviceFactory">-->
-        <!--          <parameter name="vendor" type="string" value="Dialogic" />-->
-        <!--          <parameter name="url" type="string" value="file:./conf/dialogic.configuration.xml" />-->
-        <!--        </factory>-->
       </Hardware>
     </system>
     <system>

@@ -47,28 +47,28 @@ import org.jdom.Element;
  * @see ServerUnit.Builder#build(Element, Class)
  * @see org.visualcti.core.XmlAware#setXML(Element)
  */
-public final class ServerUnitBuilder implements ServerUnit.Builder<ServerUnit> {
+public final class EngineUnitBuilder implements ServerUnit.Builder<ServerUnit> {
     // one instance of builder in the class-loader
-    private static volatile ServerUnitBuilder instance;
+    private static volatile EngineUnitBuilder instance;
 
     /**
      * <accessor>
-     * To get the instance of server unit builder
+     * To get the instance of server unit builder (lazy strategy)
      *
      * @return the instance
      */
-    public static ServerUnitBuilder getInstance() {
+    public static EngineUnitBuilder getInstance() {
         if (instance != null) {
             return instance;
         }
-        synchronized (ServerUnitBuilder.class) {
+        synchronized (EngineUnitBuilder.class) {
             if (instance == null) {
-                instance = new ServerUnitBuilder();
+                instance = new EngineUnitBuilder();
             }
         }
         return instance;
     }
 
-    private ServerUnitBuilder() {
+    private EngineUnitBuilder() {
     }
 }

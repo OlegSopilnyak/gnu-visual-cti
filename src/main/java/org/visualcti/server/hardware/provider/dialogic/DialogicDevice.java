@@ -54,11 +54,11 @@ import org.visualcti.core.channel.telephony.part.TonesEngine;
  * <p>Company: Prominic Ukraine Co.</p>
  * @author Sopilnyak Oleg
  * @version 3.2
- * @see AbstractDialogicDeviceFactory
+ * @see FactoryImpl
  * @see AbstractTelephonyDevice
  */
 @SuppressWarnings("unchecked")
-public class DialogicDevice<H extends Integer, F extends AbstractDialogicDeviceFactory<H, ?>>
+public class DialogicDevice<H extends Integer, F extends FactoryImpl<H, ?>>
         extends AbstractTelephonyDevice<H, F> {
 
     public DialogicDevice(String name, DialogicServiceProvider<H> provider) {

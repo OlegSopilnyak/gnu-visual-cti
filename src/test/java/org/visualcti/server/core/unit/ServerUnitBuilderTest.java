@@ -48,12 +48,12 @@ import org.visualcti.server.unit.ServerUnitAdapter;
 
 public class ServerUnitBuilderTest {
 
-    ServerUnitBuilder serverUnitBuilder = ServerUnitBuilder.getInstance();
+    EngineUnitBuilder serverUnitBuilder = EngineUnitBuilder.getInstance();
     final String currentPackage = ServerUnitBuilderTest.class.getPackage().getName();
 
     @Test
     public void shouldGetInstance() {
-        assertThat(ServerUnitBuilder.getInstance()).isSameAs(serverUnitBuilder);
+        assertThat(EngineUnitBuilder.getInstance()).isSameAs(serverUnitBuilder);
     }
 
     @Test

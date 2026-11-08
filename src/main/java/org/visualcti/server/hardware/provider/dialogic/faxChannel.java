@@ -68,7 +68,7 @@ private int handle = Hardware.DX_ERROR;
    * @param name the name of device
    * @param owner the factory of the device
    */
-  faxChannel(String name, Factory owner)
+  faxChannel(String name, FormerFactory owner)
   {
     super(name,owner);
   }

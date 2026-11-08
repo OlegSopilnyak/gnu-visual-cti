@@ -72,7 +72,7 @@ import org.visualcti.server.unit.ServerUnitAdapter;
 
 
 /**
- * Basic: The Factory of the Devices: The abstract telephony channel-devices factory
+ * Basic: The FormerFactory of the Devices: The abstract telephony channel-devices factory
  * <p>
  * The parent factory of any type of telephony devices factory.
  * <p>
