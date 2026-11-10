@@ -54,8 +54,6 @@ import static org.visualcti.server.hardware.provider.dialogic.HardwareConst.TFX_
 import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.visualcti.core.channel.AbstractTelephonyChannel;
@@ -88,8 +86,8 @@ public class FactoryImpl<H extends Integer, D extends DialogicDevice<H, ?>> exte
     // the thread where Dialogic's events provider is running
     protected final AtomicReference<Thread> dialogicWorkingThreadHolder = new AtomicReference<>(null);
 
-    protected FactoryImpl(Executor deviceEventsExecutor, DialogicServiceProvider<H> provider) {
-        super(deviceEventsExecutor, provider);
+    protected FactoryImpl(DialogicServiceProvider<H> provider) {
+        super(provider);
     }
 
     /**
@@ -100,10 +98,7 @@ public class FactoryImpl<H extends Integer, D extends DialogicDevice<H, ?>> exte
         if (instance == null) {
             synchronized (FactoryImpl.class) {
                 if (instance == null) {
-                    instance = new FactoryImpl<>(
-                            Executors.newScheduledThreadPool(2),
-                            new DialogicServiceProvider<>()
-                    );
+                    instance = new FactoryImpl<>(new DialogicServiceProvider<>());
                 }
             }
         }

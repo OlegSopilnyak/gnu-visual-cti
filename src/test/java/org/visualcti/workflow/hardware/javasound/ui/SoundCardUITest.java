@@ -70,7 +70,7 @@ import org.visualcti.core.channel.telephony.operation.adapter.PhoneNumber;
 import org.visualcti.media.Audio;
 import org.visualcti.util.Tools;
 import org.visualcti.workflow.hardware.javasound.SoundCardDevice;
-import org.visualcti.workflow.hardware.javasound.SoundCardDevicesFactory;
+import org.visualcti.workflow.hardware.javasound.SoundCardDeviceFactory;
 import org.visualcti.workflow.hardware.javasound.SoundCardHandle;
 import org.visualcti.workflow.hardware.javasound.SoundCardServiceProvider;
 
@@ -78,7 +78,7 @@ public class SoundCardUITest {
     public static <H extends SoundCardHandle> void main(String[] args) throws IOException, DataConversionException {
         ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(12);
         SoundCardServiceProvider<H> provider = new SoundCardServiceProvider<>(scheduler);
-        try (SoundCardDevicesFactory<H, ?> factory = new SoundCardDevicesFactory<>(scheduler, provider)) {
+        try (SoundCardDeviceFactory<H, ?> factory = new SoundCardDeviceFactory<>(provider)) {
             factory.open();
             factory.Start();
             SoundCardDevice<H, ?> device = factory.devices().findFirst()

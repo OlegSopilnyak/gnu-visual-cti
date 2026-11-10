@@ -41,52 +41,68 @@ package org.visualcti.core.channel.device;
 import java.util.concurrent.Executor;
 import java.util.stream.Stream;
 import org.visualcti.server.core.unit.RunnableServerUnit;
+import org.visualcti.server.core.unit.ServerUnit;
 import org.visualcti.server.unit.RunnableUnitAdapter;
 
 /**
- * Manager: The facade to deal with server devices, registered in server kernel
+ * Manager: The facade to manage server's channel devices.
+ * The manager is registered in the units registry and owns the Server.
  *
  * @see Device
+ * @see Device#getFactory()
  * @see Factory
  * @see RunnableUnitAdapter
  */
-public interface DeviceManager extends RunnableServerUnit {
+@SuppressWarnings("unchecked")
+public interface DevicesManager extends RunnableServerUnit {
     /**
-     * <aceessor>
-     * The stream to factories managed by the manager
+     * <accessor>
+     * To get access to the managed devices factories Stream
      *
-     * @return factories stream
+     * @see Stream
      * @see Factory
+     * @see RunnableServerUnit#children()
      */
-    Stream<Factory<?, ?>> factories();
+    default Stream<Factory<?, ?>> factories() {
+        return children().filter(Factory.class::isInstance).map(Factory.class::cast);
+    }
 
     /**
-     * <aceessor>
-     * The stream to devices managed by the manager's factories
+     * <accessor>
+     * To get access to the managed devices Stream
      *
-     * @return devices stream
-     * @see Factory#devices()
+     * @see Stream
      * @see Device
+     * @see Factory#devices()
      */
-    Stream<Device<?, ?>> devices();
+    default Stream<Device<?, ?>> devices() {
+        return factories().flatMap(Factory::devices);
+    }
 
     /**
      * <mutator>
-     * to add devices factory for management
+     * to add the devices factory to manage it further
      *
-     * @param factory the instance to add for management
      * @see Factory
+     * @see RunnableServerUnit#add(ServerUnit)
+     * @see #factories()
      */
-    void addFactory(Factory<?, ?> factory);
+    default void addDeviceFactory(Factory<?, ?> factory) {
+        add(factory);
+    }
 
     /**
      * <mutator>
      * to remove devices factory from the manager
      *
      * @param factory the instance to add for management
+     * @see RunnableServerUnit#remove(ServerUnit)
      * @see Factory
+     * @see #addDeviceFactory(Factory)
      */
-    void removeFactory(Factory<?, ?> factory);
+    default void removeDeviceFactory(Factory<?, ?> factory) {
+        remove(factory);
+    }
 
     /**
      * <aceessor>

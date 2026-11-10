@@ -60,7 +60,7 @@ import org.visualcti.util.Tools;
  *
  * @see TaskPoolsManager
  */
-public abstract class TaskPoolsManagerAdapter extends RunnableUnitAdapter implements TaskPoolsManager {
+public abstract class AbstractTaskPoolsManager extends RunnableUnitAdapter implements TaskPoolsManager {
     // the name of tasks' parameter
     private static final String TASKS_DIRECTORY_PARAMETER = "directory";
     // testing is parameter unit's icon
@@ -260,7 +260,6 @@ public abstract class TaskPoolsManagerAdapter extends RunnableUnitAdapter implem
         return "[manager]";
     }
 
-
     /**
      * <checker>
      * To check is unit can start according the internal state
@@ -276,7 +275,7 @@ public abstract class TaskPoolsManagerAdapter extends RunnableUnitAdapter implem
     @Override
     public boolean equals(Object o) {
         return super.equals(o) &&
-                Objects.equals(rootDirectoryName, ((TaskPoolsManagerAdapter)o).rootDirectoryName);
+                Objects.equals(rootDirectoryName, ((AbstractTaskPoolsManager)o).rootDirectoryName);
     }
 
     @Override

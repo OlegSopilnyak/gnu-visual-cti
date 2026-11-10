@@ -100,7 +100,7 @@ public class SoundCardServiceProviderTest {
     public void setUp() throws IOException {
         provider = spy(new SoundCardServiceProvider<>(scheduler));
         shadowScheduler = Executors.newScheduledThreadPool(10);
-        eventProcessor = new EventsProcessor(shadowScheduler, provider);
+        eventProcessor = new EventsProcessor(provider);
         eventProcessor.Start();
     }
 
@@ -1445,9 +1445,9 @@ public class SoundCardServiceProviderTest {
     }
 
     /// inner classes
-    private static class EventsProcessor extends AbstractEventProcessor<SoundCardHandle> {
-        protected EventsProcessor(Executor deviceEventExecutor, DeviceEvent.Provider<SoundCardHandle> eventsProvider) {
-            super(deviceEventExecutor, eventsProvider, new AbstractEventListenersHub() {
+    private class EventsProcessor extends AbstractEventProcessor<SoundCardHandle> {
+        protected EventsProcessor(DeviceEvent.Provider<SoundCardHandle> eventsProvider) {
+            super(eventsProvider, new AbstractEventListenersHub() {
             });
         }
 
@@ -1459,6 +1459,11 @@ public class SoundCardServiceProviderTest {
         @Override
         public String getName() {
             return "TestEventsProcessor";
+        }
+
+        @Override
+        protected Optional<Executor> eventsProcessingExecutor() {
+            return Optional.of(shadowScheduler);
         }
     }
 }

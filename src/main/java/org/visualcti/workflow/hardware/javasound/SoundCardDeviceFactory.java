@@ -40,7 +40,10 @@ package org.visualcti.workflow.hardware.javasound;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.util.Optional;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import org.jdom.DataConversionException;
 import org.jdom.Element;
 import org.visualcti.core.ConfigurationParameter;
@@ -62,7 +65,7 @@ import org.visualcti.util.Tools;
  * @version 3.2
  */
 @SuppressWarnings("unchecked")
-public class SoundCardDevicesFactory<H extends SoundCardHandle, D extends SoundCardDevice<H, ?>>
+public class SoundCardDeviceFactory<H extends SoundCardHandle, D extends SoundCardDevice<H, ?>>
         extends AbstractTelephonyFactory<H, D> {
     // The configuration of the factory as XML
     public static final String CONFIGURATION_XML = "<factory package=\"org.visualcti.workflow.hardware.javasound\" " +
@@ -74,9 +77,11 @@ public class SoundCardDevicesFactory<H extends SoundCardHandle, D extends SoundC
             "</factory>\n";
     // the value of type of the factory as a server unit
     public static final String DEVICES_FACTORY_UNIT_TYPE = "[SoundCard:telephony-channel-devices-board]";
+    // sound card events processing threads pool
+    private volatile ExecutorService eventsProcessingExecuterService = null;
 
-    public SoundCardDevicesFactory(Executor deviceEventsExecutor, TelephonyServiceProvider<H> provider) {
-        super(deviceEventsExecutor, provider);
+    public SoundCardDeviceFactory(TelephonyServiceProvider<H> provider) {
+        super(provider);
     }
 
     /**
@@ -89,6 +94,33 @@ public class SoundCardDevicesFactory<H extends SoundCardHandle, D extends SoundC
         final Element factoryXml = load(new ByteArrayInputStream(CONFIGURATION_XML.getBytes()));
         Tools.print("=== Configuring devices factory by ===\n" + CONFIGURATION_XML);
         configure(factoryXml);
+    }
+
+    @Override
+    public void startUnitRunnable() throws IOException {
+        super.startUnitRunnable();
+        // make and init the events processing threads pool
+        eventsProcessingExecuterService = Executors.newScheduledThreadPool(2);
+    }
+
+    @Override
+    public void stopUnitRunnable() throws IOException {
+        super.stopUnitRunnable();
+        if (eventsProcessingExecuterService != null) {
+            // stop and clean the events processing threads pool
+            eventsProcessingExecuterService.shutdown();
+            eventsProcessingExecuterService = null;
+        }
+    }
+
+    @Override
+    public boolean isNeedRegistration() {
+        return false;
+    }
+
+    @Override
+    protected Optional<Executor> eventsProcessingExecutor() {
+        return Optional.ofNullable(eventsProcessingExecuterService);
     }
 
     @Override
@@ -108,17 +140,12 @@ public class SoundCardDevicesFactory<H extends SoundCardHandle, D extends SoundC
 
     @Override
     public Class<? extends ServerUnit> getUnitClass() {
-        return SoundCardDevicesFactory.class;
+        return SoundCardDeviceFactory.class;
     }
 
     @Override
     public Class<?> getUnitBuilderClass() {
         return null;
-    }
-
-    @Override
-    public boolean isNeedRegistration() {
-        return false;
     }
 
     @Deprecated

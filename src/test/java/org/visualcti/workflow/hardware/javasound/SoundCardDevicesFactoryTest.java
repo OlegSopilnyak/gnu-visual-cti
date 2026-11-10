@@ -74,7 +74,7 @@ import org.visualcti.server.core.unit.exception.NoSuchUnitException;
 @SuppressWarnings({"unchecked", "rawtypes"})
 public class SoundCardDevicesFactoryTest<H extends SoundCardHandle> {
 
-    SoundCardDevicesFactory<H, ?> factory;
+    SoundCardDeviceFactory<H, ?> factory;
     Executor deviceEventExecutor;
     ScheduledExecutorService shadowExecutor;
     SoundCardServiceProvider<H> serviceProvider;
@@ -88,7 +88,7 @@ public class SoundCardDevicesFactoryTest<H extends SoundCardHandle> {
             return null;
         }).when(deviceEventExecutor).execute(any(Runnable.class));
         serviceProvider = spy(new SoundCardServiceProvider<>(shadowExecutor));
-        factory = spy(new SoundCardDevicesFactory(deviceEventExecutor, serviceProvider) {
+        factory = spy(new SoundCardDeviceFactory(serviceProvider) {
             @Override
             public Device buildDevice(String deviceName, Device.ServiceProvider serviceProvider) {
                 return spy(super.buildDevice(deviceName, serviceProvider));
@@ -259,7 +259,7 @@ public class SoundCardDevicesFactoryTest<H extends SoundCardHandle> {
         assertThat(factory.getVersion()).isEqualTo("3.2");
         assertThat(device.getName()).isEqualTo("SoundCard");
         assertThat(device.isOpened()).isFalse();
-        Exception e = assertThrows(Exception.class, () -> UnitRegistry.lookup(SoundCardDevicesFactory.class));
+        Exception e = assertThrows(Exception.class, () -> UnitRegistry.lookup(SoundCardDeviceFactory.class));
         assertThat(e).isInstanceOf(NoSuchUnitException.class);
     }
 

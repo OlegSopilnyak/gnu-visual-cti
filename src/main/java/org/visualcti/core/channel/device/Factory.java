@@ -68,12 +68,24 @@ public interface Factory<H, D extends Device<?, ?>> extends RunnableServerUnit, 
     String XML_ROOT_NAME = "factory";
     // the value of type the server unit
     String UNIT_TYPE = "[channel-devices-board]";
-    // the suffix of factory vendor's configuration file
+    // the suffix of the devices vendor's configuration file
     String CONFIG_FILE_SUFFIX = ".configuration.xml";
     String VENDOR_PARAMETER_NAME = "vendor";
     String VENDOR_FACTORY_VERSION_PARAMETER_NAME = "version";
     String VENDOR_FACTORY_DEFAULT_VERSION = "0.0.0";
     String CONFIGURATION_URL_PARAMETER_NAME = "url";
+
+    /**
+     * <accessor>
+     * To get the reference to the manager of the channel-devices
+     *
+     * @return the instance of manager of empty
+     * @see Optional
+     * @see DevicesManager
+     */
+    default Optional<DevicesManager> manager() {
+        return Optional.ofNullable(getOwner()).filter(DevicesManager.class::isInstance).map(DevicesManager.class::cast);
+    }
 
     /**
      * <accessor>

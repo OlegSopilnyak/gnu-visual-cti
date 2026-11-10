@@ -84,7 +84,7 @@ import org.visualcti.workflow.hardware.javasound.ui.SoundCardUI;
  * @see AbstractTelephonyDevice
  */
 @SuppressWarnings("unchecked")
-public class SoundCardDevice<H extends SoundCardHandle, F extends SoundCardDevicesFactory<H, ?>>
+public class SoundCardDevice<H extends SoundCardHandle, F extends SoundCardDeviceFactory<H, ?>>
         extends AbstractTelephonyDevice<H, F> {
     private final AtomicReference<SoundCardUI<H>> uiHolder = new AtomicReference<>(null);
     // to test the value of make call operation result

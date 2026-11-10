@@ -94,7 +94,7 @@ public class AbstractFactoryTest<H> {
             return null;
         }).when(deviceEventExecutor).execute(any(Runnable.class));
         serviceProvider = mock(Device.ServiceProvider.class);
-        factory = spy(new TestFactory(deviceEventExecutor, serviceProvider));
+        factory = spy(new TestFactory(serviceProvider));
     }
 
     @After
@@ -385,9 +385,9 @@ public class AbstractFactoryTest<H> {
     }
 
     /// / inner classes
-    private static class TestFactory<H, D extends Device<?, ?>> extends AbstractGeneralFactory<H, D> {
-        public TestFactory(Executor deviceEventExecutor, Device.ServiceProvider<H> serviceProvider) {
-            super(deviceEventExecutor, serviceProvider);
+    private class TestFactory<D extends Device<?, ?>> extends AbstractGeneralFactory<H, D> {
+        public TestFactory(Device.ServiceProvider<H> serviceProvider) {
+            super(serviceProvider);
         }
 
         @Override
@@ -418,6 +418,11 @@ public class AbstractFactoryTest<H> {
         protected Channel<D> makeChannelFor(Device<?, ?> device) {
             return new AbstractChannel(device) {
             };
+        }
+
+        @Override
+        protected Optional<Executor> eventsProcessingExecutor() {
+            return Optional.of(deviceEventExecutor);
         }
     }
 }

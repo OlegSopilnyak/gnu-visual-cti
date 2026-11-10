@@ -86,13 +86,13 @@ import org.visualcti.util.Tools;
 
 @SuppressWarnings("unchecked")
 public class TasksPoolUnitAdapterTest {
-    TasksPoolUnitAdapter tasksPool;
+    AbstractTasksPool tasksPool;
     TaskPoolsManager poolsManager;
 
     @Before
     public void setUp() throws Exception {
         poolsManager = createTaskPoolsManager();
-        tasksPool = spy(new TasksPoolUnitAdapter(){});
+        tasksPool = spy(new AbstractTasksPool(){});
     }
 
     @After
@@ -1077,7 +1077,7 @@ public class TasksPoolUnitAdapterTest {
                 .setParameter(Parameter.of("type", modifyType).input())
                 .setParameter(Parameter.of("task", taskName).input())
         ;
-        TasksPoolUnit publicPool = spy(new TasksPoolUnitAdapter(){});
+        TasksPoolUnit publicPool = spy(new AbstractTasksPool(){});
         publicPool.addTask(task, false);
         TaskPoolsManager manager = mock(TaskPoolsManager.class);
         doReturn(publicPool).when(manager).publicTaskPool();
@@ -1125,7 +1125,7 @@ public class TasksPoolUnitAdapterTest {
                 .setParameter(Parameter.of("type", modifyType).input())
                 .setParameter(Parameter.of("task", taskName).input())
         ;
-        TasksPoolUnit publicPool = spy(new TasksPoolUnitAdapter(){});
+        TasksPoolUnit publicPool = spy(new AbstractTasksPool(){});
         publicPool.addTask(task, false);
         TaskPoolsManager manager = mock(TaskPoolsManager.class);
         doReturn(publicPool).when(manager).publicTaskPool();

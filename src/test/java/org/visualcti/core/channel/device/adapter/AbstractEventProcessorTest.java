@@ -86,19 +86,9 @@ public class AbstractEventProcessorTest {
         eventsProvider = mock(DeviceEvent.Provider.class);
         eventListenersHub = spy(new AbstractEventListenersHub() {
         });
-        processor = spy(new AbstractEventProcessor(deviceEventExecutor, eventsProvider, eventListenersHub) {
+        processor = spy(new TestEventsProcessor(eventsProvider, eventListenersHub) {
             {
                 unitState.getAndSet(UnitState.ACTIVE);
-            }
-
-            @Override
-            public String getName() {
-                return processorName;
-            }
-
-            @Override
-            public String getType() {
-                return processorType;
             }
         });
     }
@@ -364,19 +354,7 @@ public class AbstractEventProcessorTest {
     @Test
     public void shouldSetupActiveCurrentUnitState() throws InterruptedException {
         // preparing test data
-        AbstractEventProcessor testProcessor = spy(
-                new AbstractEventProcessor(deviceEventExecutor, eventsProvider, eventListenersHub) {
-                    @Override
-                    public String getName() {
-                        return processorName;
-                    }
-
-                    @Override
-                    public String getType() {
-                        return processorType;
-                    }
-                }
-        );
+        AbstractEventProcessor testProcessor = spy(new TestEventsProcessor(eventsProvider, eventListenersHub));
         String deviceName = "device-name";
         DeviceEvent deviceEvent = mock(DeviceEvent.class);
         doReturn(deviceName).when(deviceEvent).getDeviceName();
@@ -413,19 +391,7 @@ public class AbstractEventProcessorTest {
     @Test
     public void shouldSetupPassiveCurrentUnitState() throws InterruptedException {
         // preparing test data
-        AbstractEventProcessor testProcessor = spy(
-                new AbstractEventProcessor(deviceEventExecutor, eventsProvider, eventListenersHub) {
-                    @Override
-                    public String getName() {
-                        return processorName;
-                    }
-
-                    @Override
-                    public String getType() {
-                        return processorType;
-                    }
-                }
-        );
+        AbstractEventProcessor testProcessor = spy(new TestEventsProcessor(eventsProvider, eventListenersHub));
         String deviceName = "device-name";
         DeviceEvent deviceEvent = mock(DeviceEvent.class);
         doReturn(deviceName).when(deviceEvent).getDeviceName();
@@ -446,5 +412,29 @@ public class AbstractEventProcessorTest {
         verify(testProcessor).eventsGrabberThread(null);
         // check results
         assertThat(testProcessor.workingThreadHolder.get()).isNull();
+    }
+
+    /// inner classes
+
+    // configured events processor fot the tests
+    private class TestEventsProcessor extends AbstractEventProcessor {
+        protected TestEventsProcessor(DeviceEvent.Provider eventsProvider, DeviceEvent.Listener.Hub eventListenersHub) {
+            super(eventsProvider, eventListenersHub);
+        }
+
+        @Override
+        protected Optional<Executor> eventsProcessingExecutor() {
+            return Optional.of(deviceEventExecutor);
+        }
+
+        @Override
+        public String getName() {
+            return processorName;
+        }
+
+        @Override
+        public String getType() {
+            return processorType;
+        }
     }
 }

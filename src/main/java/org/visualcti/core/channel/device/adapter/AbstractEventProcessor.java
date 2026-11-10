@@ -46,6 +46,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.visualcti.core.channel.device.DeviceEvent;
 import org.visualcti.core.channel.device.DeviceEventsProcessor;
+import org.visualcti.core.channel.device.DevicesManager;
 import org.visualcti.server.unit.RunnableUnitAdapter;
 import org.visualcti.util.Tools;
 
@@ -64,16 +65,15 @@ public abstract class AbstractEventProcessor<H> extends RunnableUnitAdapter impl
     // how long system will wait for device event appearance (milliseconds)
     protected transient long howLongWaitForDeviceEvent = -1L;
     // the executor for device events processing threads
-    protected final transient Executor deviceEventExecutor;
+//    protected final transient Executor deviceEventExecutor;
     // the provider of device events
     protected final transient DeviceEvent.Provider<H> eventsProvider;
     // the provider of device events
     protected final transient DeviceEvent.Listener.Hub eventListenersHub;
 
-    protected AbstractEventProcessor(final Executor deviceEventExecutor,
-                                     final DeviceEvent.Provider<H> eventsProvider,
+    protected AbstractEventProcessor(final DeviceEvent.Provider<H> eventsProvider,
                                      final DeviceEvent.Listener.Hub eventListenersHub) {
-        this.deviceEventExecutor = deviceEventExecutor;
+//        this.deviceEventExecutor = deviceEventExecutor;
         this.eventsProvider = eventsProvider;
         this.eventListenersHub = eventListenersHub;
     }
@@ -257,6 +257,16 @@ public abstract class AbstractEventProcessor<H> extends RunnableUnitAdapter impl
         }
     }
 
+    /**
+     * <accessor>
+     * To get channel-device events processing executor
+     *
+     * @return executor declared in devices manager
+     * @see DevicesManager#deviceEventExecutor()
+     * @see Optional
+     * @see Executor
+     */
+    protected abstract Optional<Executor> eventsProcessingExecutor();
 
     /**
      * <action>
@@ -265,6 +275,11 @@ public abstract class AbstractEventProcessor<H> extends RunnableUnitAdapter impl
     protected void startingDeviceEventProcessing() {
         // to enable device's events getting
         eventsProvider.enableEventsGetting();
+        final Optional<Executor> deviceEventExecutor = this.eventsProcessingExecutor();
+        if (!deviceEventExecutor.isPresent()) {
+            // not attached the events processing executor
+            return;
+        }
         // adjusting how long wait for device event occurrence parameter
         this.howLongWaitForDeviceEvent = this.<Long>getOption(Option.WAIT_EVENT_TIMEOUT).orElseGet(() -> {
             setOption(Option.WAIT_EVENT_TIMEOUT, DEFAULT_WAIT_EVENT_TIMEOUT);
@@ -273,7 +288,7 @@ public abstract class AbstractEventProcessor<H> extends RunnableUnitAdapter impl
         //
         final CountDownLatch eventsQueueLatch = new CountDownLatch(1);
         // launching grabbed device events processing thread
-        deviceEventExecutor.execute(() -> {
+        deviceEventExecutor.get().execute(() -> {
             // clearing the queue
             deviceEvents.clear();
             eventsQueueLatch.countDown();
@@ -284,7 +299,7 @@ public abstract class AbstractEventProcessor<H> extends RunnableUnitAdapter impl
             if (eventsQueueLatch.await(howLongWaitForDeviceEvent, TimeUnit.MILLISECONDS)) {
                 // the grabbed device events processing thread is started
                 // launching device provider's events grabbing and processing thread
-                deviceEventExecutor.execute(this::grabProviderEvents);
+                deviceEventExecutor.get().execute(this::grabProviderEvents);
             } else {
                 dispatchError("Cannot launch provider's events grabbing");
                 super.currentUnitState(UnitState.BROKEN);

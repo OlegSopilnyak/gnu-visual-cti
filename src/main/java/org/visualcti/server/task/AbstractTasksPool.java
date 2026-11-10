@@ -75,7 +75,7 @@ import org.visualcti.util.Tools;
  * @see Task
  * @see TasksPoolUnit
  */
-public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implements TasksPoolUnit {
+public abstract class AbstractTasksPool extends RunnableUnitAdapter implements TasksPoolUnit {
     // The list of tasks in the pool
     private transient volatile List<Task> tasksPool = Collections.emptyList();
     // XML-Document of the list of tasks in the pool
@@ -399,7 +399,7 @@ public abstract class TasksPoolUnitAdapter extends RunnableUnitAdapter implement
      * @param xml the XML Element of the unit
      * @see Element
      * @see org.visualcti.server.unit.ServerUnitAdapter#settingUpBasePart(Element)
-     * @see TaskPoolsManagerAdapter#createTaskPool(String, String)
+     * @see AbstractTaskPoolsManager#createTaskPool(String, String)
      */
     @Override
     protected void settingUpBasePart(Element xml) {

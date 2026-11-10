@@ -67,8 +67,9 @@ import org.visualcti.server.core.executable.task.TaskPoolsManager;
 import org.visualcti.server.core.executable.task.TasksPoolUnit;
 import org.visualcti.server.core.unit.ServerUnit;
 import org.visualcti.server.core.unit.exception.NoSuchUnitException;
-import org.visualcti.server.task.TaskPoolsManagerAdapter;
+import org.visualcti.server.task.AbstractTaskPoolsManager;
 
+@SuppressWarnings({"rawtypes"})
 public class ServerTaskRuntimeAdapterTest {
     ChannelTasksRuntimeAdapter runtime;
     Executor executor;
@@ -95,7 +96,7 @@ public class ServerTaskRuntimeAdapterTest {
         String deviceVendor = "testDeviceVendor";
         String managerUnitPath = "manager";
         TasksPoolUnit tasksPool = mock(TasksPoolUnit.class);
-        TaskPoolsManager manager = spy(new TaskPoolsManagerAdapter() {
+        TaskPoolsManager manager = spy(new AbstractTaskPoolsManager() {
             @Override
             public TasksPoolUnit createTaskPool(String name, String factory) {
                 return tasksPool;
@@ -170,7 +171,7 @@ public class ServerTaskRuntimeAdapterTest {
         String deviceVendor = "testDeviceVendor";
         String managerUnitPath = "manager";
         TasksPoolUnit tasksPool = mock(TasksPoolUnit.class);
-        TaskPoolsManager manager = spy(new TaskPoolsManagerAdapter() {
+        TaskPoolsManager manager = spy(new AbstractTaskPoolsManager() {
             @Override
             public TasksPoolUnit createTaskPool(String name, String factory) {
                 return tasksPool;
@@ -234,7 +235,7 @@ public class ServerTaskRuntimeAdapterTest {
         String deviceVendor = "testDeviceVendor";
         String managerUnitPath = "manager";
         TasksPoolUnit tasksPool = mock(TasksPoolUnit.class);
-        TaskPoolsManager manager = spy(new TaskPoolsManagerAdapter() {
+        TaskPoolsManager manager = spy(new AbstractTaskPoolsManager() {
             @Override
             public TasksPoolUnit createTaskPool(String name, String factory) {
                 return tasksPool;

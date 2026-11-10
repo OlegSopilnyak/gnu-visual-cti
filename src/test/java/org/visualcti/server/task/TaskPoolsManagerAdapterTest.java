@@ -75,7 +75,7 @@ import org.visualcti.server.core.unit.message.command.ServerCommandResponse;
 
 @SuppressWarnings("unchecked")
 public class TaskPoolsManagerAdapterTest {
-    TaskPoolsManagerAdapter manager;
+    AbstractTaskPoolsManager manager;
 
     @Before
     public void setUp() throws IOException {
@@ -179,7 +179,7 @@ public class TaskPoolsManagerAdapterTest {
         // preparing test data
         String poolName = "pool5";
         String poolGroup = "poolGroup5";
-        TasksPoolUnitAdapter poolUnit = (TasksPoolUnitAdapter) manager.createTaskPool("poolName", "poolGroup");
+        AbstractTasksPool poolUnit = (AbstractTasksPool) manager.createTaskPool("poolName", "poolGroup");
         checkTasksListFileFor("poolName");
         poolUnit.applyPoolNameFor(poolName, poolGroup, TasksPoolUnit.PoolType.PUBLIC);
         manager.add(poolUnit);
@@ -276,7 +276,7 @@ public class TaskPoolsManagerAdapterTest {
         String poolGroup = "poolGroup9";
 
         // acting
-        TasksPoolUnitAdapter taskPool = (TasksPoolUnitAdapter) manager.createTaskPool(poolName, poolGroup);
+        AbstractTasksPool taskPool = (AbstractTasksPool) manager.createTaskPool(poolName, poolGroup);
 
         // check the behavior
         verify(taskPool).applyPoolNameFor(poolName, poolGroup, TasksPoolUnit.PoolType.LOCAL);
@@ -303,7 +303,7 @@ public class TaskPoolsManagerAdapterTest {
         reset(manager);
 
         // acting
-        TasksPoolUnitAdapter taskPool = (TasksPoolUnitAdapter) manager.createTaskPool(poolName, poolGroup);
+        AbstractTasksPool taskPool = (AbstractTasksPool) manager.createTaskPool(poolName, poolGroup);
 
         // check the behavior
         verify(taskPool).applyPoolNameFor(poolName, poolGroup, TasksPoolUnit.PoolType.LOCAL);
@@ -703,14 +703,14 @@ public class TaskPoolsManagerAdapterTest {
     }
 
     // inner classes
-    private static class TheManager extends TaskPoolsManagerAdapter {
+    private static class TheManager extends AbstractTaskPoolsManager {
         public TheManager() {
             this.unitPath = "Manager";
         }
 
         @Override
         public TasksPoolUnit createTaskPool(String name, String factory) {
-            TasksPoolUnitAdapter pool = spy(new TasksPoolUnitAdapter() {
+            AbstractTasksPool pool = spy(new AbstractTasksPool() {
             });
             pool.localPoolFor(name, factory);
             try {

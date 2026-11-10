@@ -45,6 +45,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -55,6 +56,7 @@ import org.jdom.Element;
 import org.visualcti.core.channel.Channel;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DeviceEvent;
+import org.visualcti.core.channel.device.DevicesManager;
 import org.visualcti.core.channel.device.Factory;
 import org.visualcti.server.core.unit.ServerUnit;
 import org.visualcti.server.unit.ServerUnitAdapter;
@@ -88,12 +90,12 @@ public abstract class AbstractGeneralFactory<H, D extends Device<?, ?>>
             new Element(getVendor()).addContent(defaultDeviceXml())
     ));
 
-    public AbstractGeneralFactory(Executor deviceEventExecutor, Device.ServiceProvider<H> serviceProvider) {
-        this(deviceEventExecutor, serviceProvider, new DefaultDeviceEventListenersHub());
+    public AbstractGeneralFactory(Device.ServiceProvider<H> serviceProvider) {
+        this(serviceProvider, new DefaultDeviceEventListenersHub());
     }
 
-    protected AbstractGeneralFactory(Executor deviceEventExecutor, Device.ServiceProvider<H> serviceProvider, DeviceEvent.Listener.Hub eventListenersHub) {
-        super(deviceEventExecutor, serviceProvider, eventListenersHub);
+    protected AbstractGeneralFactory(Device.ServiceProvider<H> serviceProvider, DeviceEvent.Listener.Hub eventListenersHub) {
+        super(serviceProvider, eventListenersHub);
     }
 
     @Override
@@ -111,6 +113,20 @@ public abstract class AbstractGeneralFactory<H, D extends Device<?, ?>>
     @Override
     public int hashCode() {
         return Objects.hash(vendorName, vendorVersion, configurationFileName, super.hashCode());
+    }
+
+    /**
+     * <accessor>
+     * To get channel-device events processing executor
+     *
+     * @return executor declared in devices manager
+     * @see DevicesManager#deviceEventExecutor()
+     * @see Optional
+     * @see Executor
+     */
+    @Override
+    protected Optional<Executor> eventsProcessingExecutor() {
+        return manager().map(DevicesManager::deviceEventExecutor);
     }
 
     /**

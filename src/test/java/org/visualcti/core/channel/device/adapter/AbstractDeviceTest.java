@@ -84,7 +84,7 @@ public class AbstractDeviceTest<H> {
         deviceEventExecutor = mock(Executor.class);
         serviceProvider = mock(Device.ServiceProvider.class);
         hub = spy(new AbstractGeneralFactory.DefaultDeviceEventListenersHub());
-        factory = spy(new AbstractGeneralFactory(deviceEventExecutor, serviceProvider, hub) {
+        factory = spy(new AbstractGeneralFactory(serviceProvider, hub) {
             @Override
             public String getVendor() {
                 return deviceVendor;

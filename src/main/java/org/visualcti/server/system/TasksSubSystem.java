@@ -49,15 +49,17 @@ import org.visualcti.server.UnitRegistry;
 import org.visualcti.server.core.executable.task.TasksPoolUnit;
 import org.visualcti.server.core.system.SubSystem;
 import org.visualcti.server.core.ApplicationServer;
-import org.visualcti.server.task.TaskPoolsManagerAdapter;
-import org.visualcti.server.task.TasksPoolUnitAdapter;
+import org.visualcti.server.task.AbstractTaskPoolsManager;
+import org.visualcti.server.task.AbstractTasksPool;
 import org.visualcti.util.Tools;
 
 /**
  * <SubSystem>
- * The sub-system of the application server which in charge with application tasks
+ * The sub-system of the application server which is in charge with application tasks
  *
  * @see SubSystem
+ * @see AbstractTasksPool
+ * @see AbstractTaskPoolsManager
  */
 public class TasksSubSystem implements SubSystem {
     private static final String TASKS_MANAGER_ROOT_ELEMENT_NAME = "Manager";
@@ -72,7 +74,7 @@ public class TasksSubSystem implements SubSystem {
      * @see Manager
      */
     @Override
-    public Manager getSystemManager() {
+    public SubSystem.Manager getSystemManager() {
         return manager;
     }
 
@@ -164,7 +166,7 @@ public class TasksSubSystem implements SubSystem {
 
     // inner classes
     // implementation of sub-system's tasks manager, builder feature of server unit isn't used
-    private static class MainTaskManager extends TaskPoolsManagerAdapter implements Manager {
+    private static class MainTaskManager extends AbstractTaskPoolsManager implements SubSystem.Manager {
         @Override
         public String getName() {
             return TASKS_MANAGER_UNIT_NAME;
@@ -233,7 +235,7 @@ public class TasksSubSystem implements SubSystem {
     }
 
     // implementation of sub-system's tasks pool, builder feature of server unit isn't used
-    private static class PoolServerUnit extends TasksPoolUnitAdapter {
+    private static class PoolServerUnit extends AbstractTasksPool {
         @Override
         protected void settingUpBasePart(Element xml) {
             // doing nothing, keeps original XML

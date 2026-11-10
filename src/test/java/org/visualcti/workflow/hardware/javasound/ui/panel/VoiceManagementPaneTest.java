@@ -56,7 +56,7 @@ import org.jdom.DataConversionException;
 import org.junit.Test;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
 import org.visualcti.workflow.hardware.javasound.SoundCardDevice;
-import org.visualcti.workflow.hardware.javasound.SoundCardDevicesFactory;
+import org.visualcti.workflow.hardware.javasound.SoundCardDeviceFactory;
 import org.visualcti.workflow.hardware.javasound.SoundCardHandle;
 import org.visualcti.workflow.hardware.javasound.SoundCardServiceProvider;
 import org.visualcti.workflow.hardware.javasound.ui.SoundCardUI;
@@ -68,7 +68,7 @@ public class VoiceManagementPaneTest {
     ) throws IOException, DataConversionException {
         ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(10);
         SoundCardServiceProvider<H> provider = new SoundCardServiceProvider<>(scheduler);
-        try (SoundCardDevicesFactory<H, ?> factory = new SoundCardDevicesFactory<>(scheduler, provider)) {
+        try (SoundCardDeviceFactory<H, ?> factory = new SoundCardDeviceFactory<>(provider)) {
             factory.open();
             SoundCardDevice<H, ?> device = factory.devices().findFirst()
                     .orElseThrow(() -> new NoSuchElementException("No any device in the factory."));

@@ -75,11 +75,11 @@ public class DialogicDeviceFactoryTest<H extends Integer> {
     public void setUp() throws Exception {
         executor = Executors.newSingleThreadExecutor();
         provider = spy(new DialogicServiceProvider<>());
-        factory = spy(new FactoryImpl<>(executor, provider));
+        factory = spy(new FactoryImpl<>(provider));
     }
 
     @Test
-    public void shouldBuildFactoryByBuilder() throws IOException, DataConversionException {
+    public void shouldBuildFactoryByBuilder() throws IOException {
         // preparing test data
         EngineUnitBuilder builder = EngineUnitBuilder.getInstance();
 

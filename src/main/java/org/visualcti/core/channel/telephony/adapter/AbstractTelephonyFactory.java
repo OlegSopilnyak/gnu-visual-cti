@@ -43,7 +43,6 @@ import java.util.LinkedHashSet;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.Executor;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Predicate;
@@ -89,8 +88,8 @@ public abstract class AbstractTelephonyFactory<H, T extends TelephonyDevice<H, ?
     // to safeguard the access to the shared device sessions set
     private final Lock sessionsLock = new ReentrantLock();
 
-    protected AbstractTelephonyFactory(final Executor deviceEventsExecutor, final TelephonyServiceProvider<H> provider) {
-        super(deviceEventsExecutor, provider);
+    protected AbstractTelephonyFactory(final TelephonyServiceProvider<H> provider) {
+        super(provider);
     }
 
     /**

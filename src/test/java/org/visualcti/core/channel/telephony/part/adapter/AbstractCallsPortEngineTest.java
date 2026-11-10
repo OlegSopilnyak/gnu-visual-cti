@@ -103,7 +103,7 @@ public class AbstractCallsPortEngineTest<H> {
         });
         executor = Executors.newSingleThreadScheduledExecutor();
         deviceEventExecutor = mock(ExecutorService.class);
-        factory = spy(new AbstractTelephonyFactory(deviceEventExecutor, provider) {
+        factory = spy(new AbstractTelephonyFactory(provider) {
             @Override
             public String getVendor() {
                 return deviceName + "-factory";

@@ -47,7 +47,7 @@ import org.visualcti.server.core.unit.message.command.UnknownCommandException;
 <manager>
 Manager of all hardware factories
 */
-public final class HardwareManager
+public final class ExHardwareManager
                         extends org.visualcti.server.groupUnitAdapter
                         implements Manager
 {
@@ -56,7 +56,7 @@ public final class HardwareManager
     for internal use only (private)
     to unregister himself in UnitRegistry
     */
-    private HardwareManager(){this.setOwner(null);}
+    private ExHardwareManager(){this.setOwner(null);}
 /**
 Reference to Manager (for realize Singleton concept)
 */
@@ -69,12 +69,12 @@ private static Manager instance = null;
     {
         if (instance == null)
         {
-            synchronized(HardwareManager.class)
+            synchronized(ExHardwareManager.class)
             {
-                if (instance == null) instance = new HardwareManager();
+                if (instance == null) instance = new ExHardwareManager();
             }
         }
-        return HardwareManager.instance;
+        return ExHardwareManager.instance;
     }
     /**
     <mutator>

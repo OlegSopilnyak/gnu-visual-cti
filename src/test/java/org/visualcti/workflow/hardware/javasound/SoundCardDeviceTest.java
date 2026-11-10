@@ -96,7 +96,7 @@ public class SoundCardDeviceTest<H extends SoundCardHandle> {
     ScheduledExecutorService shadowExecutor;
     H deviceHandle;
     SoundCardServiceProvider<H> provider;
-    SoundCardDevicesFactory<H, ?> factory;
+    SoundCardDeviceFactory<H, ?> factory;
     SoundCardDevice<H, ?> device;
     PhoneCallSession<H> session;
 
@@ -118,7 +118,7 @@ public class SoundCardDeviceTest<H extends SoundCardHandle> {
         faxes = spy(new AbstractFaxMachineEngine() {
         });
         device = spy(new SoundCardDevice<>(SoundCardServiceProvider.SOUND_DEVICE, provider, calls, tones, media, faxes));
-        factory = spy(new SoundCardDevicesFactory(deviceEventExecutor, provider) {
+        factory = spy(new SoundCardDeviceFactory(provider) {
             @Override
             public Device buildDevice(String deviceName, Device.ServiceProvider serviceProvider) {
                 return device;

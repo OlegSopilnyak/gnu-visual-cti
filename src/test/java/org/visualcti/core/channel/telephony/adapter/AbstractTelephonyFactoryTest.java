@@ -82,7 +82,7 @@ public class AbstractTelephonyFactoryTest<H> {
     public void setUp() {
         deviceEventExecutor = mock(Executor.class);
         serviceProvider = mock(TelephonyServiceProvider.class);
-        factory = spy(new TestFactory<>(deviceEventExecutor, serviceProvider));
+        factory = spy(new TestFactory<>(serviceProvider));
     }
 
     @Test
@@ -249,8 +249,8 @@ public class AbstractTelephonyFactoryTest<H> {
 
     /// / inner classes
     private static class TestFactory<H, T extends TelephonyDevice<H, ?>> extends AbstractTelephonyFactory<H, T> {
-        public TestFactory(Executor deviceEventExecutor, TelephonyServiceProvider<H> serviceProvider) {
-            super(deviceEventExecutor, serviceProvider);
+        public TestFactory(TelephonyServiceProvider<H> serviceProvider) {
+            super(serviceProvider);
         }
 
         @Override

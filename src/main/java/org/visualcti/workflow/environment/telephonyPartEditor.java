@@ -57,7 +57,7 @@ import org.visualcti.server.task.Environment;
 import org.visualcti.util.Tools;
 import org.visualcti.workflow.facade.partEditor;
 import org.visualcti.workflow.hardware.javasound.SoundCardDevice;
-import org.visualcti.workflow.hardware.javasound.SoundCardDevicesFactory;
+import org.visualcti.workflow.hardware.javasound.SoundCardDeviceFactory;
 import org.visualcti.workflow.hardware.javasound.SoundCardHandle;
 import org.visualcti.workflow.hardware.javasound.SoundCardServiceProvider;
 
@@ -117,7 +117,7 @@ public final class telephonyPartEditor<H extends SoundCardHandle> extends partEd
     private void placeSoundCard() {
         final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(12);
         final SoundCardServiceProvider<H> provider = new SoundCardServiceProvider<>(scheduler);
-        try (final SoundCardDevicesFactory<H, ?> factory = new SoundCardDevicesFactory<>(scheduler, provider)) {
+        try (final SoundCardDeviceFactory<H, ?> factory = new SoundCardDeviceFactory<>(provider)) {
             factory.open();
             factory.Start();
             final SoundCardDevice<H, ?> device = factory.devices().findFirst()

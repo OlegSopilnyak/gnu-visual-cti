@@ -47,7 +47,9 @@ import org.visualcti.server.hardware.deviceFactory;
 import org.visualcti.server.hardware.Manager;
 /**
 Class for made the Hardware system
+ @deprecated
 */
+@Deprecated
 public final class Hardware
 {
     /**

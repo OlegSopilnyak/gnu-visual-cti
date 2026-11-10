@@ -49,7 +49,7 @@ import org.visualcti.server.UnitRegistry;
 import org.visualcti.server.core.executable.task.TaskPoolsManager;
 import org.visualcti.server.core.system.SubSystem;
 import org.visualcti.server.core.unit.exception.ServerUnitException;
-import org.visualcti.server.task.TaskPoolsManagerAdapter;
+import org.visualcti.server.task.AbstractTaskPoolsManager;
 
 public class TasksSubSystemTest {
 
@@ -59,8 +59,8 @@ public class TasksSubSystemTest {
     public void shouldGetTasksSubSystemXML() {
         // preparing test data
         String managerRootDirectoryName = "root-directory";
-        assertThat(system.getSystemManager()).isInstanceOf(TaskPoolsManagerAdapter.class);
-        ((TaskPoolsManagerAdapter)system.getSystemManager()).setRootDirectoryName(managerRootDirectoryName);
+        assertThat(system.getSystemManager()).isInstanceOf(AbstractTaskPoolsManager.class);
+        ((AbstractTaskPoolsManager)system.getSystemManager()).setRootDirectoryName(managerRootDirectoryName);
 
         // acting
         Element xml = system.getXML();

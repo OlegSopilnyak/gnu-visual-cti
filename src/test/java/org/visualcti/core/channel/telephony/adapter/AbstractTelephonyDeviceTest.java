@@ -221,7 +221,7 @@ public class AbstractTelephonyDeviceTest<H> {
             shadowExecutor.execute(invocation.getArgument(0, Runnable.class));
             return null;
         }).when(deviceEventExecutor).execute(any(Runnable.class));
-        factory = spy(new TestFactory<>(deviceEventExecutor, provider));
+        factory = spy(new TestFactory<>(provider));
         factory.addDevice(device);
         device.setXML(new Element(deviceVendor));
         factory.addDevice(mockedDevice);
@@ -2963,8 +2963,8 @@ public class AbstractTelephonyDeviceTest<H> {
 
     /// inner classes
     private static class TestFactory<H, T extends TelephonyDevice<H, ?>> extends AbstractTelephonyFactory<H, T> {
-        public TestFactory(Executor deviceEventExecutor, TelephonyServiceProvider<H> eventsProvider) {
-            super(deviceEventExecutor, eventsProvider);
+        public TestFactory(TelephonyServiceProvider<H> eventsProvider) {
+            super(eventsProvider);
         }
 
         @Override
