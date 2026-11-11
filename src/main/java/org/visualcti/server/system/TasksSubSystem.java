@@ -45,10 +45,8 @@ import org.jdom.Comment;
 import org.jdom.DataConversionException;
 import org.jdom.Element;
 import org.visualcti.core.XmlAware;
-import org.visualcti.server.UnitRegistry;
 import org.visualcti.server.core.executable.task.TasksPoolUnit;
 import org.visualcti.server.core.system.SubSystem;
-import org.visualcti.server.core.ApplicationServer;
 import org.visualcti.server.task.AbstractTaskPoolsManager;
 import org.visualcti.server.task.AbstractTasksPool;
 import org.visualcti.util.Tools;
@@ -62,9 +60,25 @@ import org.visualcti.util.Tools;
  * @see AbstractTaskPoolsManager
  */
 public class TasksSubSystem implements SubSystem {
-    private static final String TASKS_MANAGER_ROOT_ELEMENT_NAME = "Manager";
     private static final String TASKS_MANAGER_UNIT_NAME = "Tasks Manager";
-    private final MainTaskManager manager = new MainTaskManager();
+    private final MainTaskManager manager;
+
+    public TasksSubSystem() {
+        manager = new MainTaskManager(this);
+    }
+
+    /**
+     * <accessor>
+     * To get the name of the system's element name in the XML
+     *
+     * @return the name of element inside root one
+     * @see #getRootElementName()
+     *
+     */
+    @Override
+    public String getSystemElementName() {
+        return TASKS_SUB_SYSTEM;
+    }
 
     /**
      * <accessor>
@@ -122,15 +136,22 @@ public class TasksSubSystem implements SubSystem {
     @Override
     @SuppressWarnings("unchecked")
     public void setXML(Element xml) throws IOException, DataConversionException, NumberFormatException, NullPointerException {
-        final Element systemElement = xml.getChild(TASKS_SUB_SYSTEM);
+        final Element systemElement = xml.getChild(getSystemElementName());
         if (systemElement == null) {
-            throw new IOException("Wrong root element of [" + TASKS_SUB_SYSTEM + "]");
+            throw new IOException("Wrong root element of [" + getSystemElementName() + "]");
         }
         final Element managerElement = systemElement.getChild(MANAGER_ROOT_ELEMENT);
         if (managerElement == null) {
             throw new IOException("Wrong root element of [" + MANAGER_ROOT_ELEMENT + "]");
         }
-        Tools.out.print(">> " + TASKS_SUB_SYSTEM);
+//        final ServerUnit mngr;
+//        try {
+//            mngr = EngineUnitBuilder.getInstance().build(managerElement, MainTaskManager.class);
+//        } catch (ClassNotFoundException | IllegalAccessException | InstantiationException | NoSuchMethodException |
+//                 InvocationTargetException e) {
+//            throw new IOException("Wrong root element of [" + MANAGER_ROOT_ELEMENT + "]", e);
+//        }
+        Tools.out.print(">> " + getSystemElementName());
         Tools.out.print(": manager .");
         Tools.out.flush();
         // configuring built manager's instance from xml and register it
@@ -151,22 +172,15 @@ public class TasksSubSystem implements SubSystem {
         Tools.print("Done!");
     }
 
-    /**
-     * <accessor>
-     * To get the name of the system's element name in the XML
-     *
-     * @return the name of element inside root one
-     * @see #getRootElementName()
-     *
-     */
-    @Override
-    public String getSystemElementName() {
-        return TASKS_SUB_SYSTEM;
-    }
-
     // inner classes
-    // implementation of sub-system's tasks manager, builder feature of server unit isn't used
+    // implementation of sub-system's tasks manager, builder feature of server unit isn't used here at the moment
     private static class MainTaskManager extends AbstractTaskPoolsManager implements SubSystem.Manager {
+        private final SubSystem owner;
+
+        private MainTaskManager(SubSystem owner) {
+            this.owner = owner;
+        }
+
         @Override
         public String getName() {
             return TASKS_MANAGER_UNIT_NAME;
@@ -179,27 +193,17 @@ public class TasksSubSystem implements SubSystem {
 
         @Override
         public String getRootElementName() {
-            return TASKS_MANAGER_ROOT_ELEMENT_NAME;
+            return MANAGER_ROOT_ELEMENT;
         }
 
         @Override
-        public String getSystemName() {
-            return TASKS_SUB_SYSTEM;
-        }
-
-        @Override
-        public void connectTo(final ApplicationServer server) throws IOException {
-            // unregistering manager from the registry
-            UnitRegistry.unRegister(this);
-            // attach manager to the server for correct unit-messages processing
-            // UnitRegistry.register(this) doing under the hood
-            this.setOwner(server);
+        public SubSystem getSystem() {
+            return owner;
         }
 
         @Override
         public void close() {
-            this.owner = null;
-            this.unitPath = getSystemName();
+            this.unitPath = defaultManagerUnitPath();
         }
 
         @Override
@@ -223,7 +227,7 @@ public class TasksSubSystem implements SubSystem {
         @Override
         protected void beforeRegisterUnit() {
             if (isEmptyString.test(this.unitPath) || TASKS_MANAGER_UNIT_NAME.equals(this.unitPath)) {
-                this.unitPath = TASKS_SUB_SYSTEM;
+                this.unitPath = defaultManagerUnitPath();
             }
         }
 

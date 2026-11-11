@@ -37,17 +37,27 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.system;
 
+import java.io.IOException;
+import org.jdom.DataConversionException;
+import org.jdom.Element;
+import org.visualcti.core.channel.device.adapter.AbstractDevicesManager;
 import org.visualcti.server.core.system.SubSystem;
+import org.visualcti.util.Tools;
 
 /**
  * <SubSystem>
- * The sub-system of the application server which is in charge with hardware
+ * The sub-system of the application server which is in charge with hardware channel-devices
  *
  * @see SubSystem
  */
 public class HardwareSubSystem implements SubSystem {
-    private static final String HARDWARE_MANAGER_ROOT_ELEMENT_NAME = "Manager";
     private static final String HARDWARE_MANAGER_UNIT_NAME = "Hardware Manager";
+    private final MainDevicesManager manager;
+
+    public HardwareSubSystem() {
+        manager = new MainDevicesManager(this);
+    }
+
     /**
      * <accessor>
      * To get the name of the system's element name in the XML
@@ -70,6 +80,110 @@ public class HardwareSubSystem implements SubSystem {
      */
     @Override
     public SubSystem.Manager getSystemManager() {
-        return null;
+        return manager;
+    }
+
+    /**
+     * <converter>
+     * To update the entity's fields from XML
+     *
+     * @param xml possible entity's XML
+     * @throws IOException             if something went wrong
+     * @throws DataConversionException if something went wrong
+     * @throws NumberFormatException   if something went wrong
+     * @throws NullPointerException    if something went wrong
+     * @see Element
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public void setXML(Element xml) throws IOException, DataConversionException, NumberFormatException, NullPointerException {
+        final Element systemElement = xml.getChild(getSystemElementName());
+        if (systemElement == null) {
+            throw new IOException("Wrong root element of [" + getSystemElementName() + "]");
+        }
+        final Element managerElement = systemElement.getChild(MANAGER_ROOT_ELEMENT);
+        if (managerElement == null) {
+            throw new IOException("Wrong root element of [" + MANAGER_ROOT_ELEMENT + "]");
+        }
+//        final ServerUnit mngr;
+//        try {
+//            mngr = EngineUnitBuilder.getInstance().build(managerElement, MainTaskManager.class);
+//        } catch (ClassNotFoundException | IllegalAccessException | InstantiationException | NoSuchMethodException |
+//                 InvocationTargetException e) {
+//            throw new IOException("Wrong root element of [" + MANAGER_ROOT_ELEMENT + "]", e);
+//        }
+        Tools.out.print(">> " + getSystemElementName());
+        Tools.out.print(": manager .");
+        Tools.out.flush();
+        // configuring built manager's instance from xml and register it
+        manager.configure(managerElement);
+        //
+        // building task channel-device-factory units
+//        final List<Element> poolElements = systemElement.getChildren(TASKS_POOL_ROOT_ELEMENT_NAME);
+//        Tools.out.print(" : pools .");
+//        Tools.out.flush();
+//        for (final Element poolElement : poolElements) {
+//            // preparing tasks pool server unit and attach it to the manager
+//            new TasksSubSystem.PoolServerUnit().configure(poolElement);
+//            // printing the dot after successful pool's configuration
+//            Tools.out.print(".");
+//            Tools.out.flush();
+//        }
+        // all task-pools are configured well
+        Tools.print("Done!");
+    }
+
+    // inner classes
+    // implementation of sub-system's channel-devices manager, builder feature of server unit isn't used here at the moment
+    private static class MainDevicesManager extends AbstractDevicesManager implements SubSystem.Manager {
+        private final SubSystem owner;
+
+        private MainDevicesManager(SubSystem owner) {
+            this.owner = owner;
+        }
+
+        @Override
+        public String getName() {
+            return HARDWARE_MANAGER_UNIT_NAME;
+        }
+
+        @Override
+        protected String getUnitDescription() {
+            return " The manager of channel-devices ";
+        }
+
+        @Override
+        public String getRootElementName() {
+            return MANAGER_ROOT_ELEMENT;
+        }
+
+        @Override
+        public SubSystem getSystem() {
+            return owner;
+        }
+
+        @Override
+        public void close() {
+            this.unitPath = defaultManagerUnitPath();
+        }
+
+        @Override
+        protected void settingUpBasePart(Element xml) {
+            // doing nothing, keeps original XML
+            // Here we don't use builder stuff of the server unit
+        }
+
+        @Override
+        protected void beforeRegisterUnit() {
+            if (isEmptyString.test(this.unitPath) || HARDWARE_MANAGER_UNIT_NAME.equals(this.unitPath)) {
+                this.unitPath = defaultManagerUnitPath();
+            }
+        }
+
+        @Override
+        protected boolean updatedUnitConfiguration() {
+            // keeping loaded configuration Element as is after changed branches
+            return true;
+        }
     }
 }

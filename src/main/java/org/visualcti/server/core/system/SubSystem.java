@@ -39,6 +39,7 @@ package org.visualcti.server.core.system;
 
 import java.io.IOException;
 import org.visualcti.core.XmlAware;
+import org.visualcti.server.UnitRegistry;
 import org.visualcti.server.core.ApplicationServer;
 import org.visualcti.server.core.unit.RunnableServerUnit;
 
@@ -97,12 +98,31 @@ public interface SubSystem extends XmlAware {
     interface Manager extends RunnableServerUnit {
         /**
          * <accessor>
+         * To get the sub-system's reference the manager belongs to
+         *
+         * @return the reference to the sub-system-owner of the manager
+         */
+        SubSystem getSystem();
+
+        /**
+         * <accessor>
          * To get the name of sub-system manage is belong to
          *
          * @return sub-system name
          */
-        String getSystemName();
+        default String getSystemName() {
+            return getSystem().getSystemElementName();
+        }
 
+        /**
+         * <accessor>
+         * To get the unit path fot the manager by default
+         *
+         * @return sub-system name
+         */
+        default String defaultManagerUnitPath() {
+            return getSystemName() + "Manager";
+        }
         /**
          * <connect>
          * To connect the manager to the applications server
@@ -110,6 +130,12 @@ public interface SubSystem extends XmlAware {
          * @param server instance to connect
          * @throws IOException if the manager can't connect
          */
-        void connectTo(ApplicationServer server) throws IOException;
+        default void connectTo(ApplicationServer server) throws IOException {
+            // unregistering manager from the registry
+            UnitRegistry.unRegister(this);
+            // attach manager to the server for correct unit-messages processing
+            // UnitRegistry.register(this) doing under the hood
+            this.setOwner(server);
+        }
     }
 }

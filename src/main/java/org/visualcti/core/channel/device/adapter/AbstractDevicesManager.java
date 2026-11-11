@@ -80,7 +80,7 @@ public class AbstractDevicesManager extends RunnableUnitAdapter implements Devic
      */
     @Override
     public String getName() {
-        return "Hardware Devices Manager";
+        return "Devices Manager";
     }
 
     /**
@@ -141,6 +141,7 @@ public class AbstractDevicesManager extends RunnableUnitAdapter implements Devic
      */
     protected ExecutorService buildProviderEventsExecutor() {
         final int cores = Runtime.getRuntime().availableProcessors();
+        // declare threads pool with active tread as cores counter
         return Executors.newScheduledThreadPool(cores);
     }
 }
