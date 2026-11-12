@@ -38,10 +38,15 @@ Fax number: 217-356-3356
 package org.visualcti.server.system;
 
 import java.io.IOException;
+import java.util.List;
+import org.jdom.Comment;
 import org.jdom.DataConversionException;
 import org.jdom.Element;
+import org.visualcti.core.XmlAware;
+import org.visualcti.core.channel.device.Factory;
 import org.visualcti.core.channel.device.adapter.AbstractDevicesManager;
 import org.visualcti.server.core.system.SubSystem;
+import org.visualcti.server.core.unit.EngineUnitBuilder;
 import org.visualcti.util.Tools;
 
 /**
@@ -85,6 +90,27 @@ public class HardwareSubSystem implements SubSystem {
 
     /**
      * <converter>
+     * To represent entity as an XML element
+     *
+     * @return entity's XML
+     * @see Element
+     * @see XmlAware#getXML()
+     * @see #getRootElementName()
+     */
+    @Override
+    public Element getXML() {
+        final Element systemElement = SubSystem.super.getXML();
+        final Element tasksElement = new Element(HARDWARE_SUB_SYSTEM);
+        systemElement.addContent(new Comment(" Server devices control system "));
+        systemElement.addContent(tasksElement);
+        tasksElement.addContent(new Comment(" The manager of channel-devices pools "));
+        tasksElement.addContent((Element) manager.getXML().clone());
+        manager.factories().forEach(factory -> tasksElement.addContent((Element) factory.getXML().clone()));
+        return systemElement;
+    }
+
+    /**
+     * <converter>
      * To update the entity's fields from XML
      *
      * @param xml possible entity's XML
@@ -97,40 +123,35 @@ public class HardwareSubSystem implements SubSystem {
     @Override
     @SuppressWarnings("unchecked")
     public void setXML(Element xml) throws IOException, DataConversionException, NumberFormatException, NullPointerException {
-        final Element systemElement = xml.getChild(getSystemElementName());
-        if (systemElement == null) {
-            throw new IOException("Wrong root element of [" + getSystemElementName() + "]");
-        }
-        final Element managerElement = systemElement.getChild(MANAGER_ROOT_ELEMENT);
-        if (managerElement == null) {
-            throw new IOException("Wrong root element of [" + MANAGER_ROOT_ELEMENT + "]");
-        }
-//        final ServerUnit mngr;
-//        try {
-//            mngr = EngineUnitBuilder.getInstance().build(managerElement, MainTaskManager.class);
-//        } catch (ClassNotFoundException | IllegalAccessException | InstantiationException | NoSuchMethodException |
-//                 InvocationTargetException e) {
-//            throw new IOException("Wrong root element of [" + MANAGER_ROOT_ELEMENT + "]", e);
-//        }
-        Tools.out.print(">> " + getSystemElementName());
-        Tools.out.print(": manager .");
-        Tools.out.flush();
+        // getting manager's configuration XML-Element
+        final Element managerElement = extractSystemManagerElement(xml);
         // configuring built manager's instance from xml and register it
         manager.configure(managerElement);
         //
-        // building task channel-device-factory units
-//        final List<Element> poolElements = systemElement.getChildren(TASKS_POOL_ROOT_ELEMENT_NAME);
-//        Tools.out.print(" : pools .");
-//        Tools.out.flush();
-//        for (final Element poolElement : poolElements) {
-//            // preparing tasks pool server unit and attach it to the manager
-//            new TasksSubSystem.PoolServerUnit().configure(poolElement);
-//            // printing the dot after successful pool's configuration
-//            Tools.out.print(".");
-//            Tools.out.flush();
-//        }
-        // all task-pools are configured well
-        Tools.print("Done!");
+        // building the channel-device-factories
+        final Element systemElement = managerElement.getParent();
+        final List<Element> factoryConfigurationElements = systemElement.getChildren(Factory.XML_ROOT_NAME);
+        Tools.out.print(" : device factories .");
+        Tools.out.flush();
+        for (final Element configuration : factoryConfigurationElements) {
+            // preparing devices factory server-unit and attach it to the manager
+            final Factory<?, ?> factory = (Factory<?, ?>) EngineUnitBuilder.getInstance().build(configuration);
+            // printing the dot after successful factory creation
+            Tools.out.print(".");
+            Tools.out.flush();
+            manager.addDeviceFactory(factory);
+        }
+        Tools.out.println();
+        // all channel-device-factories are configured well reporting
+        Tools.out.println("Done!");
+        Tools.out.println("Report ===>");
+        manager.factories().forEach(factory -> {
+            Tools.out.print("Factory of :");
+            Tools.out.print(factory.getVendor());
+            Tools.out.print(" has devices:");
+            Tools.out.print(factory.devices().count());
+            Tools.out.println();
+        });
     }
 
     // inner classes

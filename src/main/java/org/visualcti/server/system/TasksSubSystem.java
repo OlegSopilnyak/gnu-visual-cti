@@ -136,28 +136,13 @@ public class TasksSubSystem implements SubSystem {
     @Override
     @SuppressWarnings("unchecked")
     public void setXML(Element xml) throws IOException, DataConversionException, NumberFormatException, NullPointerException {
-        final Element systemElement = xml.getChild(getSystemElementName());
-        if (systemElement == null) {
-            throw new IOException("Wrong root element of [" + getSystemElementName() + "]");
-        }
-        final Element managerElement = systemElement.getChild(MANAGER_ROOT_ELEMENT);
-        if (managerElement == null) {
-            throw new IOException("Wrong root element of [" + MANAGER_ROOT_ELEMENT + "]");
-        }
-//        final ServerUnit mngr;
-//        try {
-//            mngr = EngineUnitBuilder.getInstance().build(managerElement, MainTaskManager.class);
-//        } catch (ClassNotFoundException | IllegalAccessException | InstantiationException | NoSuchMethodException |
-//                 InvocationTargetException e) {
-//            throw new IOException("Wrong root element of [" + MANAGER_ROOT_ELEMENT + "]", e);
-//        }
-        Tools.out.print(">> " + getSystemElementName());
-        Tools.out.print(": manager .");
-        Tools.out.flush();
+        // getting manager's configuration XML-Element
+        final Element managerElement = extractSystemManagerElement(xml);
         // configuring built manager's instance from xml and register it
         manager.configure(managerElement);
         //
         // building task pools units
+        final Element systemElement = managerElement.getParent();
         final List<Element> poolElements = systemElement.getChildren(TASKS_POOL_ROOT_ELEMENT_NAME);
         Tools.out.print(" : pools .");
         Tools.out.flush();

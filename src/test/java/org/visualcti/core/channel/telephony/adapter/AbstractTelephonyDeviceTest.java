@@ -57,7 +57,6 @@ import static org.mockito.Mockito.verify;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -2856,7 +2855,7 @@ public class AbstractTelephonyDeviceTest<H> {
                 String.format(DEVICE_CONFIGURATION_XML_PATTERN, telephonyDeviceName) +
                 "</device-vendor>\n";
         Element xml = device.load(new ByteArrayInputStream(configuration.getBytes()));
-        String loadedConfiguration = asString(xml.getChild("device"));
+        String loadedConfiguration = device.asString(xml.getChild("device"));
         device.setXML(xml);
 
         // acting
@@ -2865,19 +2864,10 @@ public class AbstractTelephonyDeviceTest<H> {
         // check the behavior
         // check results
         assertThat(deviceXml).isNotNull();
-        assertThat(asString(deviceXml)).isEqualTo(loadedConfiguration);
+        assertThat(device.asString(deviceXml)).isEqualTo(loadedConfiguration);
     }
 
     /// private methods
-    // represent xml-element as string
-    private String asString(Element xml) throws IOException {
-        try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-            device.store(xml, baos, false);
-            return baos.toString()
-                    .replace("<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + System.lineSeparator(), "");
-        }
-    }
-
     // allowing fax feature
     private void switchFaxPartOn() {
         FaxMachineEngine.Parameter allowed = FaxMachineEngine.Parameter.FAX_ALLOWED;

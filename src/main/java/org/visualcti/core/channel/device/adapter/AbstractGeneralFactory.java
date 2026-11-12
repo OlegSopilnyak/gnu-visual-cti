@@ -265,10 +265,13 @@ public abstract class AbstractGeneralFactory<H, D extends Device<?, ?>>
      * @see #vendorDevicesConfigurationDocument
      */
     public void setVendor(String vendorName) {
+        final String exVendorName = this.vendorName;
         // updating the vendor's name
         this.vendorName = vendorName;
         // updating the name of devices-configuration root-xml
         vendorDevicesConfigurationDocument.getRootElement().setName(vendorName);
+        // updating the path to unit in the unist registry
+        unitPath = unitPath.replace(exVendorName, vendorName);
     }
 
     /**

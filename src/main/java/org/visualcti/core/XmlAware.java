@@ -39,6 +39,7 @@ package org.visualcti.core;
 
 import static org.visualcti.util.Tools.CRLF;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -88,6 +89,7 @@ public interface XmlAware extends Serializable {
     default String getRootElementName() {
         return getClass().getSimpleName();
     }
+
     /**
      * <converter>
      * To represent entity as an XML element
@@ -113,6 +115,23 @@ public interface XmlAware extends Serializable {
      */
     default void setXML(Element xml) throws IOException, DataConversionException, NumberFormatException, NullPointerException {
         throw new UnsupportedOperationException("Not supported yet. Should be override in child.");
+    }
+
+    /**
+     * <view>
+     * To convert the xml-element to the human-oriented text
+     *
+     * @param xml xml-element to view
+     * @return the human-oriented text
+     * @throws IOException if something went wrong
+     */
+    default String asString(Element xml) throws IOException {
+        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+            this.store(xml, outputStream, false);
+            return outputStream.toString()
+                    .replace("<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + System.lineSeparator(), "")
+                    .replace(System.lineSeparator(), "\n");
+        }
     }
 
     /**
@@ -230,11 +249,11 @@ public interface XmlAware extends Serializable {
      */
     default XMLOutputter documentXmlOutputter() {
         final XMLOutputter xmlOutStream = new XMLOutputter();
-        xmlOutStream.setTextNormalize( true );
-        xmlOutStream.setLineSeparator( CRLF );
-        xmlOutStream.setNewlines( true );
-        xmlOutStream.setIndent( "\t" );
-        xmlOutStream.setIndent( true );
+        xmlOutStream.setTextNormalize(true);
+        xmlOutStream.setLineSeparator(CRLF);
+        xmlOutStream.setNewlines(true);
+        xmlOutStream.setIndent("\t");
+        xmlOutStream.setIndent(true);
         return xmlOutStream;
     }
 

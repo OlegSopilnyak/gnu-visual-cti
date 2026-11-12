@@ -38,10 +38,12 @@ Fax number: 217-356-3356
 package org.visualcti.server.core.system;
 
 import java.io.IOException;
+import org.jdom.Element;
 import org.visualcti.core.XmlAware;
 import org.visualcti.server.UnitRegistry;
 import org.visualcti.server.core.ApplicationServer;
 import org.visualcti.server.core.unit.RunnableServerUnit;
+import org.visualcti.util.Tools;
 
 /**
  * <SubSystem>
@@ -80,6 +82,35 @@ public interface SubSystem extends XmlAware {
      */
     String getSystemElementName();
 
+    /**
+     * <accessor>
+     * To extract manager's xml-configuration-element from sub-system's configuration
+     *
+     * @param xml the sub-system's configuration xml-element
+     * @return the manager's xml-configuration-element
+     * @throws IOException if something went wrong during extraction
+     */
+    default Element extractSystemManagerElement(Element xml) throws IOException {
+        final Element systemElement = xml.getChild(getSystemElementName());
+        if (systemElement == null) {
+            throw new IOException("Wrong root element of [" + getSystemElementName() + "]");
+        }
+        final Element managerElement = systemElement.getChild(MANAGER_ROOT_ELEMENT);
+        if (managerElement == null) {
+            throw new IOException("Wrong root element of [" + MANAGER_ROOT_ELEMENT + "]");
+        }
+//        final ServerUnit mngr;
+//        try {
+//            mngr = EngineUnitBuilder.getInstance().build(managerElement, MainTaskManager.class);
+//        } catch (ClassNotFoundException | IllegalAccessException | InstantiationException | NoSuchMethodException |
+//                 InvocationTargetException e) {
+//            throw new IOException("Wrong root element of [" + MANAGER_ROOT_ELEMENT + "]", e);
+//        }
+        Tools.out.print(">> " + getSystemElementName());
+        Tools.out.print(": manager .");
+        Tools.out.flush();
+        return managerElement;
+    }
     /**
      * <accessor>
      * To get the reference to main sub-system manager unit

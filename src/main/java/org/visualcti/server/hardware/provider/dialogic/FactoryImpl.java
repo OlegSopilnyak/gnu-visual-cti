@@ -64,6 +64,7 @@ import org.visualcti.core.channel.telephony.TelephonyChannel;
 import org.visualcti.core.channel.telephony.TelephonyServiceProvider;
 import org.visualcti.core.channel.telephony.adapter.AbstractTelephonyFactory;
 import org.visualcti.core.channel.telephony.operation.Result;
+import org.visualcti.server.core.unit.ServerUnit;
 import org.visualcti.util.Tools;
 
 /**
@@ -90,9 +91,21 @@ public class FactoryImpl<H extends Integer, D extends DialogicDevice<H, ?>> exte
         super(provider);
     }
 
+    @Override
+    public Class<? extends ServerUnit> getUnitClass() {
+        return FactoryImpl.class;
+    }
+
+    @Override
+    public String getUnitBuilderMethodName() {
+        return "getInstance";
+    }
+
     /**
-     <producer>
-     To get access to FactoryImpl instance
+     * <producer>
+     * To get access to FactoryImpl instance as the singleton
+     *
+     * @return the singleton of the factory
      */
     public static FactoryImpl<?, ?> getInstance() {
         if (instance == null) {

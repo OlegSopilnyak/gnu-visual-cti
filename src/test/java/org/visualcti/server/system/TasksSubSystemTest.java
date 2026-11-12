@@ -43,6 +43,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import org.jdom.DataConversionException;
 import org.jdom.Element;
+import org.junit.Before;
 import org.junit.Test;
 import org.visualcti.core.XmlAware;
 import org.visualcti.server.UnitRegistry;
@@ -52,8 +53,12 @@ import org.visualcti.server.core.unit.exception.ServerUnitException;
 import org.visualcti.server.task.AbstractTaskPoolsManager;
 
 public class TasksSubSystemTest {
-
     TasksSubSystem system =  new TasksSubSystem();
+
+    @Before
+    public void setUp() throws Exception {
+        UnitRegistry.clear();
+    }
 
     @Test
     public void shouldGetTasksSubSystemXML() {
@@ -82,7 +87,8 @@ public class TasksSubSystemTest {
     @Test
     public void shouldSetTasksSubSystemXML_fromXmlString() throws IOException, DataConversionException, ServerUnitException {
         // preparing test data
-        String xmlString = "    <system>\n" +
+        String xmlString =
+                "    <system>\n" +
                 "      <Tasks>\n" +
                 "        <!-- Server tasks control system -->\n" +
                 "        <!-- The manage of tasks pools -->\n" +

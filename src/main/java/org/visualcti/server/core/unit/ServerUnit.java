@@ -40,7 +40,6 @@ package org.visualcti.server.core.unit;
 import java.io.Closeable;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.rmi.registry.Registry;
 import java.util.Arrays;
 import java.util.Map;
@@ -546,6 +545,8 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
                 final T unit = unitBuilderXML == null
                         ? unitClass.getDeclaredConstructor().newInstance()
                         : build(unitBuilderXML, unitExtendsClass);
+                // detaching the owner if any, if the built unit is a singleton
+                unit.setOwner(null);
                 // configuring created server unit instance
                 unit.configure(configuration);
                 // returns built and configured server unit
@@ -583,14 +584,11 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
             final Class<T> builderClass = (Class<T>) Class.forName(builderClassName, true, extendsClass.getClassLoader());
             // build-instance-method name
             final String builderMethod = xml.getAttributeValue(UNIT_BUILDER_METHOD_ATTRIBUTE);
-            final T unit;
-            if (isEmptyString.test(builderMethod)) {
-                // just create
-                unit = builderClass.getDeclaredConstructor().newInstance();
-            } else {
-                final Method theMethod = builderClass.getMethod(builderMethod);
-                unit = (T) theMethod.invoke(builderClass);
-            }
+            final T unit = isEmptyString.test(builderMethod)
+                    // just creating the new instance by constructor
+                    ? builderClass.getDeclaredConstructor().newInstance()
+                    // creating te new instance using builder method
+                    : (T) builderClass.getMethod(builderMethod).invoke(builderClass);
             if (extendsClass.isInstance(unit)) {
                 return unit;
             }
