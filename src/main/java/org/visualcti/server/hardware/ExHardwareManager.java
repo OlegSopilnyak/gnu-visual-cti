@@ -46,7 +46,9 @@ import org.visualcti.server.core.unit.message.command.UnknownCommandException;
 /**
 <manager>
 Manager of all hardware factories
+ @deprecated
 */
+@Deprecated
 public final class ExHardwareManager
                         extends org.visualcti.server.groupUnitAdapter
                         implements Manager

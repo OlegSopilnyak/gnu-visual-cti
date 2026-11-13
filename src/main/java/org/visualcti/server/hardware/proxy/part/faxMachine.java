@@ -46,7 +46,9 @@ package org.visualcti.server.hardware.proxy.part;
  *
  * @author Sopilnyak Oleg
  * @version 3.01
+ * @deprecated
  */
+@Deprecated
 public interface faxMachine extends faxReceiver, faxTransmitter {
     /**
      * <accessor>

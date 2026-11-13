@@ -52,7 +52,9 @@ import org.visualcti.server.hardware.*;
  * <p>Company: Prominic Ukraine Co.</p>
  * @author Sopilnyak Oleg
  * @version 3.01
+ * @deprecated
  */
+@Deprecated
 public class stubDeviceFactory extends groupUnitAdapter implements deviceFactory
 {
 /**

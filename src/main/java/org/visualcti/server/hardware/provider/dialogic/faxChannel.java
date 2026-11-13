@@ -52,8 +52,9 @@ import org.visualcti.server.hardware.proxy.part.*;
  * <p>Company: Prominic Ukraine Co.</p>
  * @author Sopilnyak Oleg
  * @version 3.01
+ * @deprecated
  */
-
+@Deprecated
 abstract class faxChannel extends voxChannel implements faxMachine
 {
 /**

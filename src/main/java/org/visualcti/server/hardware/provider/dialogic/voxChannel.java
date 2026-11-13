@@ -54,7 +54,9 @@ import org.visualcti.server.hardware.proxy.part.*;
  * <p>Company: Prominic Ukraine Co.</p>
  * @author Sopilnyak Oleg
  * @version 3.01
+ * @deprecated
  */
+@Deprecated
 abstract class voxChannel extends networkChannel
                           implements Player,Recorder,ToneDetector,ToneGenerator
 {

@@ -47,8 +47,9 @@ import org.visualcti.server.hardware.*;
  * <p>Company: Prominic Ukraine Co.</p>
  * @author Sopilnyak Oleg
  * @version 3.01
+ * @deprecated
  */
-
+@Deprecated
 abstract class genericChannel extends faxChannel implements generalDeviceProxy
 {
   /* constructor */
