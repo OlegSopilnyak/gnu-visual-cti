@@ -151,6 +151,23 @@ public class PhoneNumber implements PhoneCall.Number {
     }
 
     @Override
+    public final boolean equals(Object o) {
+        if (!(o instanceof PhoneNumber)) return false;
+
+        PhoneNumber that = (PhoneNumber) o;
+        return countryCode == that.countryCode && areaCode == that.areaCode && number == that.number && extension == that.extension;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = countryCode;
+        result = 31 * result + areaCode;
+        result = 31 * result + number;
+        result = 31 * result + extension;
+        return result;
+    }
+
+    @Override
     public String toString() {
         final StringBuilder sb = new StringBuilder();
         if (countryCode > 0) {

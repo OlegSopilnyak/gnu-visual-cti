@@ -508,9 +508,9 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
             }
             // calculating timeout for native event polling and native event getting
             final long timeout = during / 2;
-            final DeviceEvent<H> nativeDeviceEvent;
+            final DeviceEvent<H> deviceEvent;
             try {
-                nativeDeviceEvent = nativeEvents.poll(timeout, TimeUnit.MILLISECONDS);
+                deviceEvent = nativeEvents.poll(timeout, TimeUnit.MILLISECONDS);
             } catch (InterruptedException e) {
                 Tools.error("Interrupted while waiting for native event polling.");
                 e.printStackTrace(Tools.err);
@@ -522,13 +522,15 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
             // returning the device event
             final UnaryOperator<DeviceEvent<H>> deviceEventOf =
                     // according to polled event, whether it is null or not, we return allowed device-event
-                    // or allowed device-event getting from the native
-                    pooledEvent -> pooledEvent == null ? nativeGetEvent(timeout) : pooledEvent;
-            return nativeDeviceEvent == DeviceEvent.EMPTY
+                    pooledEvent -> pooledEvent != null
+                            // or allowed device-event which is getting from the native
+                            ? pooledEvent
+                            : nativeGetEvent(timeout);
+            return deviceEvent == DeviceEvent.EMPTY
                     // end of polled events flow (the last event detected)
                     ? null
                     // the allowed device-event instance
-                    : allowedEvent(deviceEventOf.apply(nativeDeviceEvent));
+                    : allowedEvent(deviceEventOf.apply(deviceEvent));
         }));
     }
 
@@ -549,28 +551,27 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * <checker>
      * To check the event's allowance and return it if allowed
      *
-     * @param event the event to check
+     * @param deviceEvent the event to check
      * @return the input event if it's allowed or null otherwise
      * @see #getEvent(long)
      */
-    protected DeviceEvent<H> allowedEvent(final DeviceEvent<H> event) {
-        if (event == null) {
+    protected DeviceEvent<H> allowedEvent(final DeviceEvent<H> deviceEvent) {
+        if (deviceEvent == null) {
             // event is null
             return null;
         }
         // analyzing the event's device handle
-        final H deviceHandle = event.getDeviceHandle();
+        final H deviceHandle = deviceEvent.getDeviceHandle();
         if (isOpened(deviceHandle)) {
             // analyzing the reason of the event's occurrence to decide whether to return the event or not
-            return event.<OperationResultValue>getOption(DeviceEvent.Option.REASON)
+            return deviceEvent.<OperationResultValue>getOption(DeviceEvent.Option.REASON)
                     .filter(allowedEventTypesFor(deviceHandle)::contains)
-                    .map(reason -> event)
+                    .map(reason -> deviceEvent)
                     .orElse(null);
         } else {
             // event's handle of device ain't opened
             return null;
         }
-
     }
 
     /**
@@ -581,6 +582,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * @param deviceEvent device event for further processing
      * @return true if the event was put successfully
      */
+    @Override
     public boolean putEvent(final DeviceEvent<H> deviceEvent) {
         return safeEventOperation(() -> nativeEvents.offer(deviceEvent));
     }
@@ -1323,6 +1325,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
                 // put the updated set of enabled event types back into the map
                 resourceEventTypes.put(handle, enabledEventTypes);
             }
+            // doing it in the native part of the provider
             nativeDisableEvents(handle, type.getValue());
         }
     }

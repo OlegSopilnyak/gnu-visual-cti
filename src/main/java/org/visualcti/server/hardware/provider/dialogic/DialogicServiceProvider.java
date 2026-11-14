@@ -61,6 +61,7 @@ import org.visualcti.core.channel.device.operation.OperationResultValue;
 import org.visualcti.core.channel.telephony.adapter.AbstractTelephonyServiceProvider;
 import org.visualcti.core.channel.telephony.operation.PhoneCall;
 import org.visualcti.core.channel.telephony.operation.adapter.PhoneCallSession;
+import org.visualcti.core.channel.telephony.operation.adapter.PhoneNumber;
 import org.visualcti.core.channel.telephony.operation.adapter.TelephonyTone;
 import org.visualcti.core.channel.telephony.part.MultimediaEngine;
 import org.visualcti.media.Audio;
@@ -79,8 +80,6 @@ import org.visualcti.util.Tools;
 public class DialogicServiceProvider<H extends Integer> extends AbstractTelephonyServiceProvider<H> {
     // the state of handset true = handset is off false = handset is on
     private final AtomicBoolean handsetOff = new AtomicBoolean(true);
-    // reference to the sound-card phone number as singleton
-    private final AtomicReference<PhoneCall.Number> callerId = new AtomicReference<>(PhoneCall.Number.EMPTY);
     // raw audio input stream holder
     private final AtomicReference<AudioInputStream> playbackStreamHolder = new AtomicReference<>(null);
     // raw audio output stream holder
@@ -161,7 +160,7 @@ public class DialogicServiceProvider<H extends Integer> extends AbstractTelephon
 
     @Override
     protected PhoneCall.Number nativeCallerID(H handle) {
-        return isOpened(handle) ? callerId.get() : PhoneCall.Number.EMPTY;
+        return PhoneNumber.of(Hardware.getCallerID(handle));
     }
 
     @Override
@@ -193,7 +192,7 @@ public class DialogicServiceProvider<H extends Integer> extends AbstractTelephon
     }
 
     @Override
-    protected H nativeFaxResourceOpen(String name) throws IOException {
+    protected H nativeFaxResourceOpen(String name) {
         final H resourceHandle = (H) Integer.valueOf(Hardware.openFax(name));
         //
         // post-processing after resource handle's getting
