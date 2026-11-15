@@ -132,9 +132,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * @throws IOException if the channel's resource cannot be opened or activated
      * @see #openResource(String)
      */
-    protected H nativeResourceOpen(String name) throws IOException {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
+    protected abstract H nativeResourceOpen(String name) throws IOException;
 
     /**
      * <native-call>
@@ -704,9 +702,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      * @throws IOException if the channel's resource cannot be opened or activated
      * @see #openFaxResource(String)
      */
-    protected H nativeFaxResourceOpen(String name) throws IOException {
-        return null;
-    }
+    protected abstract H nativeFaxResourceOpen(String name) throws IOException;
 
     /**
      * <action>

@@ -100,6 +100,11 @@ public class VirtualDeviceProvider<H extends UUID> extends AbstractTelephonyServ
         return (H) UUID.randomUUID();
     }
 
+    @Override
+    protected H nativeFaxResourceOpen(String name) throws IOException {
+        return nativeResourceOpen(name);
+    }
+
     @Deprecated
     @Override
     protected boolean isValid(H handle) {

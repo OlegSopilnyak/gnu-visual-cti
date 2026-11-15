@@ -82,6 +82,11 @@ public class AbstractTelephonyServiceProviderTest<H> {
             protected Object nativeResourceOpen(String name) {
                 return null;
             }
+
+            @Override
+            protected Object nativeFaxResourceOpen(String name) {
+                return null;
+            }
         });
     }
 

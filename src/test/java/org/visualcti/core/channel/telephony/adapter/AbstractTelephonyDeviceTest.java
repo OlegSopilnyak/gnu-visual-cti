@@ -2985,6 +2985,11 @@ public class AbstractTelephonyDeviceTest<H> {
         }
 
         @Override
+        protected H nativeFaxResourceOpen(String name) {
+            return null;
+        }
+
+        @Override
         protected boolean isReadyToPlay(H handle) {
             return true;
         }
