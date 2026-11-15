@@ -111,5 +111,5 @@ public interface DevicesManager extends RunnableServerUnit {
      * @return threads pool for device events processing
      * @see DeviceEventsProcessor#grabProviderEvents()
      */
-    Executor deviceEventExecutor();
+    Executor eventsServiceExecutor();
 }

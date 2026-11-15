@@ -82,6 +82,7 @@ import org.visualcti.workflow.hardware.javasound.ui.SoundCardUI;
  * @author Sopilnyak Oleg
  * @version 3.2
  * @see AbstractTelephonyDevice
+ * @see SoundCardHandle
  */
 @SuppressWarnings("unchecked")
 public class SoundCardDevice<H extends SoundCardHandle, F extends SoundCardDeviceFactory<H, ?>>

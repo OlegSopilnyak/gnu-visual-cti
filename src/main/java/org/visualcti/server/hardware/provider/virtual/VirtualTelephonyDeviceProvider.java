@@ -57,26 +57,26 @@ import org.visualcti.media.Audio;
 
 /**
  * <p>Title: Visual CTI Java Telephony Server</p>
- * <p>Description: VisualCTI WorkFlow, <br>
+ * <p>Description: VisualCTI Applications Server,<br>
  * Virtual telephony service provider</p>
  *
+ * @param <H> the type of device's handle
  * @author Sopilnyak Oleg
  * @version 3.2
  * @see AbstractTelephonyServiceProvider
+ * @see UUID
  */
 @SuppressWarnings("unchecked")
-public class VirtualDeviceProvider<H extends UUID> extends AbstractTelephonyServiceProvider<H> {
+public class VirtualTelephonyDeviceProvider<H extends UUID> extends AbstractTelephonyServiceProvider<H> {
     public static final String DEVICE_FACTORY_VENDOR = "VisualCTI";
     private static final PhoneCall.Number CALLER_ID = PhoneNumber.of("1234567890");
     private volatile transient String deviceNamePrefix = "virtual_";
     private volatile transient int devicesCount = 0;
     private final Predicate<String> isInvalidDeviceName =
             name -> name == null || name.trim().isEmpty() || !name.startsWith(deviceNamePrefix);
-    // executor for scheduling device activities tasks
-    private final ScheduledExecutorService scheduler;
 
-    public VirtualDeviceProvider(ScheduledExecutorService scheduler) {
-        this.scheduler = scheduler;
+    public VirtualTelephonyDeviceProvider(ScheduledExecutorService scheduler) {
+        super(scheduler);
     }
 
     public void setDeviceNamePrefix(String deviceNamePrefix) {
@@ -150,8 +150,9 @@ public class VirtualDeviceProvider<H extends UUID> extends AbstractTelephonyServ
         return () -> putEvent(timeoutEvent);
     }
 
+    @Deprecated
     @Override
-    protected void schedulePostponedAction(H handle, Runnable action, long after, TimeUnit unit) {
-        scheduler.schedule(action, after, unit);
+    protected void schedulePostponedActivity(H handle, Runnable action, long after, TimeUnit unit) {
+        super.schedulePostponedActivity(handle, action, after, unit);
     }
 }

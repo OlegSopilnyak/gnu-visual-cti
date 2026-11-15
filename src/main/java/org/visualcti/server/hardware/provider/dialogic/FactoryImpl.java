@@ -51,9 +51,12 @@ import static org.visualcti.server.hardware.provider.dialogic.HardwareConst.TFX_
 import static org.visualcti.server.hardware.provider.dialogic.HardwareConst.TFX_FAXRECV;
 import static org.visualcti.server.hardware.provider.dialogic.HardwareConst.TFX_FAXSEND;
 
+import java.io.IOException;
 import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.visualcti.core.channel.AbstractTelephonyChannel;
@@ -71,10 +74,11 @@ import org.visualcti.util.Tools;
  * <singleton>
  * <p>Title: Visual CTI Java Telephony Server</p>
  * <p>Description: VisualCTI Applications Server,<br>
- * The factory for a Dialogic's devices</p>
+ * The factory for the Dialogic's devices</p>
  * <p>Copyright: Copyright (c) 2002 Prominic Technologies, Inc. & Prominic Ukraine Co.</p>
  * <p>Company: Prominic Ukraine Co.</p>
  *
+ * @param <H> the type of device's handle
  * @author Sopilnyak Oleg
  * @version 3.2
  * @see DialogicDevice
@@ -102,8 +106,8 @@ public class FactoryImpl<H extends Integer, D extends DialogicDevice<H, ?>> exte
     }
 
     /**
-     * <producer>
-     * To get access to FactoryImpl instance as the singleton
+     * <builder>
+     * To get access to the Dialogic Factory Instance as a singleton
      *
      * @return the singleton of the factory
      */
@@ -111,11 +115,36 @@ public class FactoryImpl<H extends Integer, D extends DialogicDevice<H, ?>> exte
         if (instance == null) {
             synchronized (FactoryImpl.class) {
                 if (instance == null) {
-                    instance = new FactoryImpl<>(new DialogicServiceProvider<>());
+                    final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+                    instance = new FactoryImpl<>(new DialogicServiceProvider<>(scheduler));
                 }
             }
         }
         return instance;
+    }
+
+    /**
+     * <builder>
+     * To build the telephony device's instance
+     *
+     * @param deviceName the name of device to build
+     * @param serviceProvider the provider of the devices factory's services
+     * @return built device's instance
+     * @throws IOException if it cannot build the device
+     * @see Device
+     * @see Device.ServiceProvider
+     * @see DialogicServiceProvider
+     */
+    @Override
+    public Device<H, ?> buildDevice(
+            final String deviceName, final Device.ServiceProvider<H> serviceProvider
+    ) throws IOException {
+        // trying to build the telephony device's instance
+        try {
+            return new DialogicDevice<>(deviceName, serviceProvider);
+        } catch (ClassCastException e) {
+            throw new IOException("The service provider must be an instance of DialogicServiceProvider", e);
+        }
     }
 
     @Override
@@ -169,7 +198,9 @@ public class FactoryImpl<H extends Integer, D extends DialogicDevice<H, ?>> exte
         }
     }
 
+    ///
     /// private methods
+    ///
     // to get and process Dialogic's events
     private void dialogicEventProcessing(CountDownLatch processingStarted) {
         dialogicWorkingThreadHolder.getAndSet(Thread.currentThread());

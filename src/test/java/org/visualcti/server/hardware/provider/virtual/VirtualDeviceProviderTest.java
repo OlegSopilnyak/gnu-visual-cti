@@ -69,12 +69,12 @@ import org.visualcti.media.Audio;
 @SuppressWarnings("unchecked")
 public class VirtualDeviceProviderTest {
     ScheduledExecutorService scheduler;
-    VirtualDeviceProvider<UUID> provider;
+    VirtualTelephonyDeviceProvider<UUID> provider;
 
     @Before
     public void setUp() throws Exception {
         scheduler = Executors.newSingleThreadScheduledExecutor();
-        provider = spy(new VirtualDeviceProvider<>(scheduler));
+        provider = spy(new VirtualTelephonyDeviceProvider<>(scheduler));
     }
 
     @After
@@ -346,7 +346,7 @@ public class VirtualDeviceProviderTest {
 
         // check the behavior
         verify(provider).sendTimeoutEventFor(handle, action);
-        verify(provider).schedulePostponedAction(eq(handle), any(Runnable.class), eq(after), eq(unit));
+        verify(provider).schedulePostponedActivity(eq(handle), any(Runnable.class), eq(after), eq(unit));
         // check results
     }
 
@@ -371,7 +371,7 @@ public class VirtualDeviceProviderTest {
         // check the behavior
         ArgumentCaptor<DeviceEvent<UUID>> eventArgumentCaptor = ArgumentCaptor.forClass(DeviceEvent.class);
         verify(provider).sendTimeoutEventFor(handle, action);
-        verify(provider).schedulePostponedAction(eq(handle), any(Runnable.class), eq(after), eq(unit));
+        verify(provider).schedulePostponedActivity(eq(handle), any(Runnable.class), eq(after), eq(unit));
         verify(provider).putEvent(eventArgumentCaptor.capture());
         // check results
         DeviceEvent<UUID> event = eventArgumentCaptor.getValue();

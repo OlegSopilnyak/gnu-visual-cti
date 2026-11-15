@@ -178,7 +178,7 @@ public class AbstractTelephonyDeviceTest<H> {
 
     @Before
     public void setUp() throws Exception {
-        provider = spy(new TestTelephonyProvider());
+        provider = spy(new TestTelephonyProvider(Executors.newSingleThreadScheduledExecutor()));
         // preparing device's parts spies
         calls = spy(new AbstractCallsPortEngine() {
         });
@@ -2979,6 +2979,10 @@ public class AbstractTelephonyDeviceTest<H> {
         private volatile ScheduledFuture<?> playAudioActivity = null;
         private volatile ScheduledFuture<?> recordAudioActivity = null;
 
+        protected TestTelephonyProvider(ScheduledExecutorService scheduler) {
+            super(scheduler);
+        }
+
         @Override
         protected H nativeResourceOpen(String name) {
             return deviceHandle;
@@ -3000,7 +3004,7 @@ public class AbstractTelephonyDeviceTest<H> {
         }
 
         @Override
-        protected void schedulePostponedAction(H handle, Runnable action, long after, TimeUnit unit) {
+        protected void schedulePostponedActivity(H handle, Runnable action, long after, TimeUnit unit) {
             shadowExecutor.schedule(action, after, unit);
         }
 

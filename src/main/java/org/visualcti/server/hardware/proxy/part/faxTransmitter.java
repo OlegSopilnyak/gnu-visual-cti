@@ -49,6 +49,7 @@ import org.visualcti.media.*;
  * @author Sopilnyak Oleg
  * @version 3.01
  */
+@Deprecated
 public interface faxTransmitter
 {
 /**

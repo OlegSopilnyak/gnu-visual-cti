@@ -59,6 +59,7 @@ import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
@@ -108,6 +109,12 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
     private final Lock nativeEventsAccessLock = new ReentrantLock(true);
     // the blocking queue of the native events
     private final BlockingQueue<DeviceEvent<H>> nativeEvents = new LinkedBlockingQueue<>();
+    // executor for scheduling device activities tasks
+    private final ScheduledExecutorService scheduler;
+
+    protected AbstractTelephonyServiceProvider(ScheduledExecutorService scheduler) {
+        this.scheduler = scheduler;
+    }
 
     /**
      * <action>
@@ -1030,7 +1037,7 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
      */
     @Override
     public void timeoutEventIn(H handle, String actionName, long after, TimeUnit unit) {
-        schedulePostponedAction(handle, sendTimeoutEventFor(handle, actionName), after, unit);
+        schedulePostponedActivity(handle, sendTimeoutEventFor(handle, actionName), after, unit);
     }
 
 
@@ -1048,27 +1055,27 @@ public abstract class AbstractTelephonyServiceProvider<H> implements TelephonySe
 
     /**
      * <action>
-     * To schedule postponed action which will be executed in some seconds
+     * To schedule postponed activity which must be executed in some seconds
      *
      * @param handle       the telephony device opened handle
      * @param action       the action to be executed after delay
      * @param runInSeconds which delay (in seconds) should be before the action be executed
      */
     protected void schedulePostponedAction(H handle, Runnable action, int runInSeconds) {
-        schedulePostponedAction(handle, action, runInSeconds, TimeUnit.SECONDS);
+        schedulePostponedActivity(handle, action, runInSeconds, TimeUnit.SECONDS);
     }
 
     /**
      * <action>
-     * To schedule postponed action which will be executed in some seconds
+     * To schedule postponed activity which must be executed in some seconds
      *
      * @param handle the telephony device opened handle
-     * @param action the action to be executed after delay
+     * @param activity the action to be executed after delay
      * @param after  the duration value
      * @param unit   the duration type
      */
-    protected void schedulePostponedAction(H handle, Runnable action, long after, TimeUnit unit) {
-        throw new UnsupportedOperationException("Please implement it further.");
+    protected void schedulePostponedActivity(H handle, Runnable activity, long after, TimeUnit unit) {
+        scheduler.schedule(activity, after, unit);
     }
 
     /**

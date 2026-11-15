@@ -40,6 +40,7 @@ package org.visualcti.server.hardware.provider.dialogic;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.Collection;
+import java.util.concurrent.Executors;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -48,7 +49,7 @@ public class DialogicServiceProviderTest {
 
     @Before
     public void setUp() throws Exception {
-        provider = new DialogicServiceProvider<>();
+        provider = new DialogicServiceProvider<>(Executors.newSingleThreadScheduledExecutor());
     }
 
     @Test

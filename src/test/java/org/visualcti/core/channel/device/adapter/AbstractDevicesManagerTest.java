@@ -73,7 +73,7 @@ public class AbstractDevicesManagerTest {
         reset(manager);
 
         // acting
-        Executor executor = manager.deviceEventExecutor();
+        Executor executor = manager.eventsServiceExecutor();
 
         // check the behavior
         // check results
@@ -87,7 +87,7 @@ public class AbstractDevicesManagerTest {
         reset(manager);
 
         // acting
-        Executor executor = manager.deviceEventExecutor();
+        Executor executor = manager.eventsServiceExecutor();
 
         // check the behavior
         // check results
@@ -102,7 +102,7 @@ public class AbstractDevicesManagerTest {
         reset(manager);
 
         // acting
-        Executor executor = manager.deviceEventExecutor();
+        Executor executor = manager.eventsServiceExecutor();
 
         // check the behavior
         // check results
@@ -112,7 +112,7 @@ public class AbstractDevicesManagerTest {
     @Test
     public void shouldStartUnitRunnable() throws IOException {
         // preparing test data
-        assertThat(manager.deviceEventExecutor()).isNull();
+        assertThat(manager.eventsServiceExecutor()).isNull();
         Factory<?,?> factory = mock(Factory.class);
         manager.addDeviceFactory(factory);
 
@@ -122,7 +122,7 @@ public class AbstractDevicesManagerTest {
         // check the behavior
         verify(manager).startUnitRunnable();
         // check results
-        assertThat(manager.deviceEventExecutor()).isNotNull();
+        assertThat(manager.eventsServiceExecutor()).isNotNull();
     }
 
     @Test
@@ -131,7 +131,7 @@ public class AbstractDevicesManagerTest {
         Factory<?,?> factory = mock(Factory.class);
         manager.addDeviceFactory(factory);
         manager.Start();
-        assertThat(manager.deviceEventExecutor()).isNotNull();
+        assertThat(manager.eventsServiceExecutor()).isNotNull();
         reset(manager);
 
         // acting
@@ -140,7 +140,7 @@ public class AbstractDevicesManagerTest {
         // check the behavior
         verify(manager).stopUnitRunnable();
         // check results
-        assertThat(manager.deviceEventExecutor()).isNull();
+        assertThat(manager.eventsServiceExecutor()).isNull();
     }
 
     @Test
@@ -218,7 +218,7 @@ public class AbstractDevicesManagerTest {
         verify(factory).Start();
         // check results
         assertThat(manager.isStarted()).isTrue();
-        assertThat(manager.deviceEventExecutor()).isNotNull();
+        assertThat(manager.eventsServiceExecutor()).isNotNull();
     }
 
     @Test
@@ -229,7 +229,7 @@ public class AbstractDevicesManagerTest {
         assertThat(manager.factories().findAny()).isPresent().contains(factory);
         manager.Start();
         assertThat(manager.isStopped()).isFalse();
-        assertThat(manager.deviceEventExecutor()).isNotNull();
+        assertThat(manager.eventsServiceExecutor()).isNotNull();
         reset(manager);
 
         // acting
@@ -244,6 +244,6 @@ public class AbstractDevicesManagerTest {
         verify(factory).Stop();
         // check results
         assertThat(manager.isStopped()).isTrue();
-        assertThat(manager.deviceEventExecutor()).isNull();
+        assertThat(manager.eventsServiceExecutor()).isNull();
     }
 }

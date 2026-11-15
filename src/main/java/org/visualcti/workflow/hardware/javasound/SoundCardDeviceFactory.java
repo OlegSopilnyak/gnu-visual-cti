@@ -63,6 +63,8 @@ import org.visualcti.util.Tools;
  * @param <H> sound-card device handle type
  * @author Sopilnyak Oleg
  * @version 3.2
+ * @see AbstractTelephonyFactory
+ * @see SoundCardHandle
  */
 @SuppressWarnings("unchecked")
 public class SoundCardDeviceFactory<H extends SoundCardHandle, D extends SoundCardDevice<H, ?>>

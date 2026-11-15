@@ -40,6 +40,7 @@ package org.visualcti.core.channel.device.adapter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collection;
@@ -98,35 +99,18 @@ public abstract class AbstractGeneralFactory<H, D extends Device<?, ?>>
         super(serviceProvider, eventListenersHub);
     }
 
-    @Override
-    public boolean equals(Object o) {
-        return o instanceof AbstractGeneralFactory && equals((AbstractGeneralFactory<H, D>) o);
-    }
-
-    public boolean equals(AbstractGeneralFactory<H, D> that) {
-        return Objects.equals(vendorName, that.vendorName)
-                && Objects.equals(vendorVersion, that.vendorVersion)
-                && Objects.equals(configurationFileName, that.configurationFileName)
-                && super.equals(that);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(vendorName, vendorVersion, configurationFileName, super.hashCode());
-    }
-
     /**
      * <accessor>
      * To get channel-device events processing executor
      *
      * @return executor declared in devices manager
-     * @see DevicesManager#deviceEventExecutor()
+     * @see DevicesManager#eventsServiceExecutor()
      * @see Optional
      * @see Executor
      */
     @Override
     protected Optional<Executor> eventsProcessingExecutor() {
-        return manager().map(DevicesManager::deviceEventExecutor);
+        return manager().map(DevicesManager::eventsServiceExecutor);
     }
 
     /**
@@ -301,9 +285,10 @@ public abstract class AbstractGeneralFactory<H, D extends Device<?, ?>>
      * to get the configuration file
      *
      * @return configuration file instance
+     * @see Paths#get(String, String...)
+     * @see Path#toFile()
      * @see File
-     * @see #getVendor()
-     * @see #CONFIG_FILE_SUFFIX
+     * @see #configurationFilePath()
      * @see #saveFactoryConfiguration()
      * @see #loadFactoryConfiguration()
      */
@@ -312,6 +297,15 @@ public abstract class AbstractGeneralFactory<H, D extends Device<?, ?>>
         return Paths.get(configurationFilePath()).toFile();
     }
 
+    /**
+     * <accessor>
+     * To get a configuration file path
+     *
+     * @return the value of configuration file path
+     * @see #getVendor()
+     * @see #CONFIG_FILE_SUFFIX
+     * @see #configurationFile()
+     */
     protected String configurationFilePath() {
         return configurationFileName == null
                 ? "./conf/" + getVendor().toLowerCase() + CONFIG_FILE_SUFFIX
@@ -375,5 +369,22 @@ public abstract class AbstractGeneralFactory<H, D extends Device<?, ?>>
      * @see DeviceEvent.Listener.Hub
      */
     public static class DefaultDeviceEventListenersHub extends AbstractEventListenersHub {
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        return o instanceof AbstractGeneralFactory && equals((AbstractGeneralFactory<H, D>) o);
+    }
+
+    public boolean equals(AbstractGeneralFactory<H, D> that) {
+        return Objects.equals(vendorName, that.vendorName)
+                && Objects.equals(vendorVersion, that.vendorVersion)
+                && Objects.equals(configurationFileName, that.configurationFileName)
+                && super.equals(that);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(vendorName, vendorVersion, configurationFileName, super.hashCode());
     }
 }

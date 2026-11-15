@@ -48,6 +48,7 @@ import org.visualcti.server.hardware.*;
  * @author Sopilnyak Oleg
  * @version 3.01
  */
+@Deprecated
 public interface CallControl
 {
 /**

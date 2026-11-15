@@ -67,13 +67,15 @@ import org.visualcti.server.core.unit.ServerUnit;
  * Device of the Telephony Channel: The root device through which task communicate with computer telephony equipment
  *
  * @param <H> the type of the telephony device's low-level operations handle
- * @param <F> the type of the devices factory
+ * @param <TF> the type of the telephony devices factory
  * @see TelephonyFactory
  * @see Device
  * @see CallsPortEngine
  * @see TonesEngine
+ * @see MultimediaEngine
+ * @see FaxMachineEngine
  */
-public interface TelephonyDevice<H, F extends TelephonyFactory<H, ?>> extends Device<H, F>,
+public interface TelephonyDevice<H, TF extends TelephonyFactory<H, ?>> extends Device<H, TF>,
         // core stuff of the telephony device
         TelephonyDeviceCore<H>,
         // phone calls control engine

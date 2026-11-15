@@ -57,6 +57,7 @@ import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Optional;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import org.assertj.core.util.Files;
 import org.junit.Before;
@@ -77,7 +78,7 @@ public class AbstractTelephonyServiceProviderTest<H> {
 
     @Before
     public void setUp() {
-        provider = spy(new AbstractTelephonyServiceProvider() {
+        provider = spy(new AbstractTelephonyServiceProvider(Executors.newSingleThreadScheduledExecutor()) {
             @Override
             protected Object nativeResourceOpen(String name) {
                 return null;
@@ -1281,7 +1282,7 @@ public class AbstractTelephonyServiceProviderTest<H> {
         doAnswer(invocation -> {
             invocation.getArgument(1, Runnable.class).run();
             return null;
-        }).when(provider).schedulePostponedAction(eq(handle), any(Runnable.class), anyLong(), any(TimeUnit.class));
+        }).when(provider).schedulePostponedActivity(eq(handle), any(Runnable.class), anyLong(), any(TimeUnit.class));
 
         // acting
         provider.timeoutEventIn(handle, actionName, duration, unit);
@@ -1289,7 +1290,7 @@ public class AbstractTelephonyServiceProviderTest<H> {
         // check the behavior
         verify(provider, never()).isOpened(handle);
         verify(provider).sendTimeoutEventFor(handle, actionName);
-        verify(provider).schedulePostponedAction(handle, sendTimeout, duration, unit);
+        verify(provider).schedulePostponedActivity(handle, sendTimeout, duration, unit);
         verify(sendTimeout).run();
         // check results
     }

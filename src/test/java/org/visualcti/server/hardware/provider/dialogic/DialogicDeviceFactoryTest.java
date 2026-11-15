@@ -74,7 +74,7 @@ public class DialogicDeviceFactoryTest<H extends Integer> {
     @Before
     public void setUp() throws Exception {
         executor = Executors.newSingleThreadExecutor();
-        provider = spy(new DialogicServiceProvider<>());
+        provider = spy(new DialogicServiceProvider<>(Executors.newSingleThreadScheduledExecutor()));
         factory = spy(new FactoryImpl<>(provider));
     }
 

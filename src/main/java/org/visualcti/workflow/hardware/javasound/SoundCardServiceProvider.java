@@ -105,6 +105,7 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
     private final Map<H, ScheduledFuture<?>> deviceActivity = new ConcurrentHashMap<>();
 
     public SoundCardServiceProvider(ScheduledExecutorService scheduler) {
+        super(scheduler);
         this.scheduler = scheduler;
     }
 
@@ -373,7 +374,7 @@ public class SoundCardServiceProvider<H extends SoundCardHandle> extends Abstrac
     }
 
     @Override
-    protected void schedulePostponedAction(H handle, Runnable action, long after, TimeUnit unit) {
+    protected void schedulePostponedActivity(H handle, Runnable action, long after, TimeUnit unit) {
         schedulePostponedActivity(handle, action, runActionIn(after, unit));
     }
 

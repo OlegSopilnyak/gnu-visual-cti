@@ -81,7 +81,7 @@ import org.visualcti.server.unit.ServerUnitAdapter;
  * <p> <b>Computer Telephony Equipment</b>
  *
  * @param <H> the type of the device's low-level operations handle
- * @param <T> the type of the devices factory
+ * @param <TF> the type of the devices telephony factory
  * @see AbstractDevice
  * @see TelephonyDevice
  * @see TelephonyFactory
@@ -91,8 +91,8 @@ import org.visualcti.server.unit.ServerUnitAdapter;
  * @see FaxMachineEngine
  */
 @SuppressWarnings("unchecked")
-public abstract class AbstractTelephonyDevice<H, T extends TelephonyFactory<H, ?>>
-        extends AbstractDevice<H, T> implements TelephonyDevice<H, T> {
+public abstract class AbstractTelephonyDevice<H, TF extends TelephonyFactory<H, ?>>
+        extends AbstractDevice<H, TF> implements TelephonyDevice<H, TF> {
     //
     // predicate to test whether device handle value is valid or not
     private final transient Predicate<H> validResourceHandle =
@@ -953,7 +953,7 @@ public abstract class AbstractTelephonyDevice<H, T extends TelephonyFactory<H, ?
      * @see #applyDeviceMediaParameters(Element)
      */
     @Override
-    public Device<H, T> applyDeviceParameters(final Element vendorSpecificDeviceConfiguration) throws IOException {
+    public Device<H, TF> applyDeviceParameters(final Element vendorSpecificDeviceConfiguration) throws IOException {
         if (vendorSpecificDeviceConfiguration != null) {
             // clearing cached unit-configuration
             this.unitConfiguration = null;

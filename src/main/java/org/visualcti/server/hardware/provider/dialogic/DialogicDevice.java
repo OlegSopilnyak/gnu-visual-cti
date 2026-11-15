@@ -39,36 +39,26 @@ package org.visualcti.server.hardware.provider.dialogic;
 
 import static org.visualcti.server.hardware.provider.dialogic.Hardware.DX_ERROR;
 
-import org.visualcti.core.channel.telephony.TelephonyServiceProvider;
 import org.visualcti.core.channel.telephony.adapter.AbstractTelephonyDevice;
-import org.visualcti.core.channel.telephony.part.CallsPortEngine;
-import org.visualcti.core.channel.telephony.part.FaxMachineEngine;
-import org.visualcti.core.channel.telephony.part.MultimediaEngine;
-import org.visualcti.core.channel.telephony.part.TonesEngine;
 
 /**
  * <p>Title: Visual CTI Java Telephony Server</p>
  * <p>Description: VisualCTI Applications Server,<br>
- * generic class of the device</p>
+ * the telephony device from Dialogic(C) </p>
  * <p>Copyright: Copyright (c) 2002 Prominic Technologies, Inc. & Prominic Ukraine Co.</p>
  * <p>Company: Prominic Ukraine Co.</p>
+ *
+ * @param <H> the type of device's handle
  * @author Sopilnyak Oleg
  * @version 3.2
  * @see FactoryImpl
  * @see AbstractTelephonyDevice
  */
 @SuppressWarnings("unchecked")
-public class DialogicDevice<H extends Integer, F extends FactoryImpl<H, ?>>
-        extends AbstractTelephonyDevice<H, F> {
+public class DialogicDevice<H extends Integer, F extends FactoryImpl<H, ?>> extends AbstractTelephonyDevice<H, F> {
 
-    public DialogicDevice(String name, DialogicServiceProvider<H> provider) {
-        super(name, provider);
-    }
-
-    protected DialogicDevice(String name, TelephonyServiceProvider<H> provider,
-                             CallsPortEngine<H> calls, TonesEngine<H> tones,
-                             MultimediaEngine<H> media, FaxMachineEngine<H> faxes) {
-        super(name, provider, calls, tones, media, faxes);
+    public DialogicDevice(String deviceName, ServiceProvider<H> serviceProvider) {
+        super(deviceName, (DialogicServiceProvider<H>) serviceProvider);
     }
 
     @Override

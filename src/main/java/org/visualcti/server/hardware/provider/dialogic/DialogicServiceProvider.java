@@ -51,6 +51,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.StringTokenizer;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -69,9 +70,10 @@ import org.visualcti.util.Tools;
 
 /**
  * <p>Title: Visual CTI Java Telephony Server</p>
- * <p>Description: VisualCTI WorkFlow, <br>
+ * <p>Description: VisualCTI Applications Server,<br>
  * Dialogic service provider of the telephony device features</p>
  *
+ * @param <H> the type of device's handle
  * @author Sopilnyak Oleg
  * @version 3.2
  * @see AbstractTelephonyServiceProvider
@@ -84,6 +86,10 @@ public class DialogicServiceProvider<H extends Integer> extends AbstractTelephon
     private final AtomicReference<AudioInputStream> playbackStreamHolder = new AtomicReference<>(null);
     // raw audio output stream holder
     private final AtomicReference<OutputStream> recordStreamHolder = new AtomicReference<>(null);
+
+    DialogicServiceProvider(ScheduledExecutorService scheduler) {
+        super(scheduler);
+    }
 
 
     @Override

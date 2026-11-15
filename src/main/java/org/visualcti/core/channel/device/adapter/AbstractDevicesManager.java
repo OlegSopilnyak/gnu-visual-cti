@@ -91,7 +91,7 @@ public class AbstractDevicesManager extends RunnableUnitAdapter implements Devic
      * @see DeviceEventsProcessor#grabProviderEvents()
      */
     @Override
-    public Executor deviceEventExecutor() {
+    public Executor eventsServiceExecutor() {
         return providerEventsExecutorHolder.get();
     }
 
