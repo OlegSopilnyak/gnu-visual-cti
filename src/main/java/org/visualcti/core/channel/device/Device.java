@@ -353,7 +353,9 @@ public interface Device<H, F extends Factory<H, ?>> extends ServerUnit, XmlAware
      * @see Optional#map(Function)
      */
     default Stream<DeviceActivitySession<H>> sessions() {
-        return getFactory().getHub().eventListeners(getName()).filter(DeviceActivitySession.class::isInstance)
+        return getOwner() == null
+                ? Stream.empty()
+                : getFactory().getHub().eventListeners(getName()).filter(DeviceActivitySession.class::isInstance)
                 .map(session -> (DeviceActivitySession<H>) session);
     }
 

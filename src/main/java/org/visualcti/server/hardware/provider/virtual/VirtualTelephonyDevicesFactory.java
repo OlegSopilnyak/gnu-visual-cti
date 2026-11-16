@@ -85,19 +85,20 @@ public class VirtualTelephonyDevicesFactory<H extends UUID, D extends TelephonyD
     private static final String DEVICE_PREFIX = "device prefix";
     // the instance of the factory (singleton)
     private static VirtualTelephonyDevicesFactory<?, ?> instance = null;
-
-    /**
-     * <accessor>
-     * get access to the factory's vendor name
-     *
-     * @return vendor's name
-     * @see Factory#getName()
-     * @see VirtualTelephonyDeviceProvider#DEVICE_FACTORY_VENDOR
-     */
-    @Override
-    public String getVendor() {
-        return VirtualTelephonyDeviceProvider.DEVICE_FACTORY_VENDOR;
-    }
+//
+//    /**
+//     * <accessor>
+//     * get access to the factory's vendor name
+//     *
+//     * @return vendor's name
+//     * @see Factory#getName()
+//     * @see VirtualTelephonyDeviceProvider#DEVICE_FACTORY_VENDOR
+//     */
+//    @Override
+//    public String getVendor() {
+//        return vendorName;
+////        return VirtualTelephonyDeviceProvider.DEVICE_FACTORY_VENDOR;
+//    }
 
     /**
      * <accessor>
@@ -208,6 +209,12 @@ public class VirtualTelephonyDevicesFactory<H extends UUID, D extends TelephonyD
             default:
                 break;
         }
+    }
+
+    @Deprecated
+    @Override
+    protected void applyUnitParameter(ConfigurationParameter parameter) {
+        super.applyUnitParameter(parameter);
     }
 
     /**

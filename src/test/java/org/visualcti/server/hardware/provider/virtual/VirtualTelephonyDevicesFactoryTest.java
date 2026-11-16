@@ -67,8 +67,8 @@ public class VirtualTelephonyDevicesFactoryTest<H extends UUID> {
     String configurationXml = "<factory package=\"org.visualcti.server.hardware.provider.virtual\" class=\"VirtualTelephonyDevicesFactory\" extends=\"org.visualcti.core.channel.telephony.TelephonyFactory\">\n" +
             "  <!-- The implementation of Virtual telephony devices factory features -->\n" +
             "  <builder package=\"org.visualcti.server.hardware.provider.virtual\" class=\"VirtualTelephonyDevicesFactory\" method=\"getInstance\" />\n" +
-            "  <parameter name=\"vendor\" type=\"string\" value=\"VisualCTI\" />\n" +
-            "  <parameter name=\"url\" type=\"string\" value=\"file:./conf/visualcti.configuration.xml\" />\n" +
+            "  <parameter name=\"vendor\" type=\"string\" value=\"VirtualTelephony\" />\n" +
+            "  <parameter name=\"url\" type=\"string\" value=\"file:./conf/virtualtelephony.configuration.xml\" />\n" +
             "  <parameter name=\"device count\" type=\"number\" value=\"2\" />\n" +
             "  <parameter name=\"device prefix\" type=\"string\" value=\"stub_\" />\n" +
             "</factory>\n\n";
@@ -192,6 +192,7 @@ public class VirtualTelephonyDevicesFactoryTest<H extends UUID> {
         // preparing test data
         int devices = 2;
         String prefix = "stub_";
+        factory.applyUnitParameter(ConfigurationParameter.of("vendor", "VirtualTelephony"));
         factory.applyFactoryParameter(ConfigurationParameter.of("device count", devices));
         factory.applyFactoryParameter(ConfigurationParameter.of("device prefix", prefix));
 

@@ -48,6 +48,7 @@ import org.junit.Test;
 import org.visualcti.core.XmlAware;
 import org.visualcti.core.channel.device.DevicesManager;
 import org.visualcti.core.channel.device.Factory;
+import org.visualcti.core.channel.telephony.TelephonyFactory;
 import org.visualcti.server.UnitRegistry;
 import org.visualcti.server.core.system.SubSystem;
 import org.visualcti.server.core.unit.exception.ServerUnitException;
@@ -62,6 +63,14 @@ public class HardwareSubSystemTest {
             "      <!-- Not used for unit's building here only parameters applying -->\n" +
             "      <parent package=\"org.visualcti.server.hardware\" class=\"HardwareManager\" method=\"getManager\">The implementation of hardware manager's features</parent>\n" +
             "    </Manager>\n" +
+            "    <factory package=\"org.visualcti.server.hardware.provider.virtual\" class=\"VirtualTelephonyDevicesFactory\" extends=\"org.visualcti.core.channel.telephony.TelephonyFactory\">\n" +
+            "      <!-- The implementation of Virtual telephony devices factory features -->\n" +
+            "      <builder package=\"org.visualcti.server.hardware.provider.virtual\" class=\"VirtualTelephonyDevicesFactory\" method=\"getInstance\" />\n" +
+            "      <parameter name=\"vendor\" type=\"string\" value=\"VirtualTelephony\" />\n" +
+            "      <parameter name=\"url\" type=\"string\" value=\"file:./conf/visualcti.configuration.xml\" />\n" +
+            "      <parameter name=\"device count\" type=\"number\" value=\"2\" />\n" +
+            "      <parameter name=\"device prefix\" type=\"string\" value=\"stub_\" />\n" +
+            "    </factory>\n" +
             "    <factory package=\"org.visualcti.server.hardware.provider.dialogic\" class=\"FactoryImpl\" extends=\"org.visualcti.core.channel.telephony.TelephonyFactory\">\n" +
             "      <builder package=\"org.visualcti.server.hardware.provider.dialogic\" class=\"FactoryImpl\" method=\"getInstance\">The implementation of Dialogic telephony hardware factory features</builder>\n" +
             "      <parameter name=\"vendor\" type=\"string\" value=\"Dialogic\" />\n" +
@@ -89,10 +98,15 @@ public class HardwareSubSystemTest {
         // check results
         assertThat(system.getSystemManager()).isInstanceOf(SubSystem.Manager.class)
                 .isInstanceOf(DevicesManager.class);
-        assertThat(UnitRegistry.lookup(SubSystem.Manager.class)).isNotNull().isInstanceOf(DevicesManager.class);
+        assertThat(UnitRegistry.lookup(SubSystem.Manager.class)).isInstanceOf(DevicesManager.class);
         assertThat(UnitRegistry.lookup(DevicesManager.class).factories().count()).isNotZero();
-        UnitRegistry.lookup(DevicesManager.class).factories()
-                .forEach(factory -> assertThat(factory).isInstanceOf(Factory.class));
+        UnitRegistry.lookup(DevicesManager.class).factories().forEach(factory ->
+                assertThat(factory).isInstanceOf(Factory.class)
+        );
+        assertThat(UnitRegistry.lookup("HardwareManager/provider/Dialogic", TelephonyFactory.class))
+                .isInstanceOf(org.visualcti.server.hardware.provider.dialogic.FactoryImpl.class);
+        assertThat(UnitRegistry.lookup("HardwareManager/provider/VirtualTelephony", TelephonyFactory.class))
+                .isInstanceOf(org.visualcti.server.hardware.provider.virtual.VirtualTelephonyDevicesFactory.class);
     }
 
     @Test

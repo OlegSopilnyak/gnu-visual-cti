@@ -661,7 +661,7 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
      */
     @Override
     public Stream<ServerUnit> children() {
-        return branches.stream();
+        return new ArrayList<>(branches).stream();
     }
 
     /**

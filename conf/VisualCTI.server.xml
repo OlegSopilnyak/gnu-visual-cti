@@ -122,15 +122,20 @@ Fax number: 217-356-3356
       <Hardware>
         <Manager package="org.visualcti.server.hardware" class="Manager" extends="org.visualcti.server.core.executable.Engine">
           <!-- Not used for unit's building here only parameters applying -->
-          <parent package="org.visualcti.server.hardware" class="HardwareManager" method="getManager">The implementation of hardware manager's features</parent>
+          <!-- The implementation of hardware manager's features -->
+          <builder package="org.visualcti.server.hardware" class="HardwareManager" method="getManager" />
         </Manager>
-        <!--          <factory package="org.visualcti.server.hardware.provider" class="stubDeviceFactory"-->
-        <!--                   extends="org.visualcti.server.hardware.deviceFactory">-->
-        <!--              <parameter name="device count" type="number" value="4"/>-->
-        <!--              <parameter name="device prefix" type="string" value="stub_"/>-->
-        <!--          </factory>-->
+        <factory package="org.visualcti.server.hardware.provider.virtual" class="VirtualTelephonyDevicesFactory" extends="org.visualcti.core.channel.telephony.TelephonyFactory">
+          <!-- The implementation of Virtual telephony devices factory features -->
+          <builder package="org.visualcti.server.hardware.provider.virtual" class="VirtualTelephonyDevicesFactory" method="getInstance" />
+          <parameter name="vendor" type="string" value="VirtualTelephony" />
+          <parameter name="url" type="string" value="file:./conf/visualcti.configuration.xml" />
+          <parameter name="device count" type="number" value="2" />
+          <parameter name="device prefix" type="string" value="stub_" />
+        </factory>
         <factory package="org.visualcti.server.hardware.provider.dialogic" class="FactoryImpl" extends="org.visualcti.core.channel.telephony.TelephonyFactory">
-          <parent package="org.visualcti.server.hardware.provider.dialogic" class="FactoryImpl" method="getInstance">The implementation of Dialogic telephony hardware factory features</parent>
+          <!-- The implementation of Dialogic telephony hardware factory features -->
+          <builder package="org.visualcti.server.hardware.provider.dialogic" class="FactoryImpl" method="getInstance" />
           <parameter name="vendor" type="string" value="Dialogic" />
           <parameter name="url" type="string" value="file:./conf/dialogic.configuration.xml" />
         </factory>

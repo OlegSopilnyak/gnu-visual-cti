@@ -119,6 +119,7 @@ public abstract class AbstractTelephonyFactory<H, T extends TelephonyDevice<H, ?
             case VENDOR_PARAMETER_NAME:
                 // the configuration parameter of the vendor's name
                 setVendor(parameter.getValue());
+                unitPath = getName();
                 break;
             case CONFIGURATION_URL_PARAMETER_NAME:
                 // the configuration parameter of the devices-configurations-file URL from the vendor
