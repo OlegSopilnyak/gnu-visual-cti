@@ -60,6 +60,7 @@ import org.visualcti.core.XmlAware;
 import org.visualcti.core.channel.device.Device;
 import org.visualcti.core.channel.device.DevicesManager;
 import org.visualcti.core.channel.telephony.TelephonyChannel;
+import org.visualcti.core.channel.telephony.TelephonyDevice;
 import org.visualcti.server.UnitRegistry;
 
 public class VirtualTelephonyDevicesFactoryTest<H extends UUID> {
@@ -74,7 +75,7 @@ public class VirtualTelephonyDevicesFactoryTest<H extends UUID> {
 
     DevicesManager manager;
     VirtualTelephonyDeviceProvider<H> serviceProvider;
-    VirtualTelephonyDevicesFactory<H, ?> factory;
+    VirtualTelephonyDevicesFactory<H, TelephonyDevice<H, ?>> factory;
 
     @Before
     public void setUp() throws Exception {
@@ -84,12 +85,13 @@ public class VirtualTelephonyDevicesFactoryTest<H extends UUID> {
         serviceProvider = spy(new VirtualTelephonyDeviceProvider<>(Executors.newSingleThreadScheduledExecutor()));
         factory = spy(new VirtualTelephonyDevicesFactory<>(serviceProvider));
         factory.setOwner(manager);
-        assertThat(UnitRegistry.lookup(VirtualTelephonyDevicesFactory.class)).isNotNull();
+        assertThat(UnitRegistry.lookup("Manager/VisualCTI", VirtualTelephonyDevicesFactory.class)).isNotNull();
     }
 
     @After
     public void tearDown() throws Exception {
         UnitRegistry.unRegister(factory);
+        factory.Stop();
     }
 
     @Test
@@ -227,5 +229,27 @@ public class VirtualTelephonyDevicesFactoryTest<H extends UUID> {
         assertThat(factory.devices().count()).isEqualTo(devices);
         assertThat(serviceProvider.getDeviceNamePrefix()).isEqualTo(prefix);
         assertThat(serviceProvider.getDevicesCount()).isEqualTo(devices);
+    }
+
+    @Test
+    public void shouldStartFactory() throws IOException, DataConversionException {
+        // preparing test data
+        int devices = 2;
+        Element xml = new XmlAware() {
+        }.load(new ByteArrayInputStream(configurationXml.getBytes()));
+        factory.setOwner(null);
+        factory.configure(xml);
+        assertThat(factory.devices().count()).isEqualTo(devices);
+        assertThat(factory.channels()).isEmpty();
+
+        // acting
+        factory.Start();
+
+        // check the behavior
+        verify(factory).canStartUnit();
+        verify(factory, times(devices)).makeChannelFor(any(Device.class));
+        // check results
+        assertThat(factory.isStarted()).isTrue();
+        assertThat(factory.channels()).hasSize(devices);
     }
 }
