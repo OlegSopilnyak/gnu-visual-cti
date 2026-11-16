@@ -226,10 +226,10 @@ public class AbstractTelephonyFactoryTest<H> {
             verify(factory).addDevice(device);
             verify(device, atLeastOnce()).applyDeviceParameters(any(Element.class));
         }
-        verify(factory).loadFactoryConfiguration();
+        verify(factory, atLeastOnce()).loadFactoryConfiguration();
         verify(factory, times(2)).saveFactoryConfiguration();
         verify(factory, atLeastOnce()).configurationFile();
-        verify(factory).restoreDocumentFrom(any(InputStream.class));
+        verify(factory, atLeastOnce()).restoreDocumentFrom(any(InputStream.class));
         // check results
         assertThat(factory.getVendor()).isEqualTo(vendorName);
         assertThat(factory.getConfigurationDocument().getRootElement().getName())

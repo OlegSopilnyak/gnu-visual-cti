@@ -95,6 +95,11 @@ public abstract class AbstractGeneralFactory<H, D extends Device<?, ?>>
         this(serviceProvider, new DefaultDeviceEventListenersHub());
     }
 
+    @Override
+    public String getRootElementName() {
+        return Factory.XML_ROOT_NAME;
+    }
+
     protected AbstractGeneralFactory(Device.ServiceProvider<H> serviceProvider, DeviceEvent.Listener.Hub eventListenersHub) {
         super(serviceProvider, eventListenersHub);
     }
@@ -154,6 +159,11 @@ public abstract class AbstractGeneralFactory<H, D extends Device<?, ?>>
         // to clean the tree of devices of the factory
         cleanUnitsTree();
         //
+        // adjusting by xml-configuration the factory as a server unit
+        // configuring provider before devices adding
+        //
+        super.setXML(devicesFactoryXml);
+        //
         // building & adding factory's devices for allowed device-names
         final Device.ServiceProvider<H> provider = getProvider();
         for (final String deviceName : provider.allowedDevices()) {
@@ -161,6 +171,7 @@ public abstract class AbstractGeneralFactory<H, D extends Device<?, ?>>
         }
         //
         // adjusting by xml-configuration the factory as a server unit
+        // configuring added devices
         //
         super.setXML(devicesFactoryXml);
     }

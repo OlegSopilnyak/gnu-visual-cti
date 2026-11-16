@@ -236,7 +236,7 @@ public class SoundCardDevicesFactoryTest<H extends SoundCardHandle> {
         verify(factory).configure(xmlCapture.capture());
         Element xmlConfig = xmlCapture.getValue();
         verify(factory).setXML(xmlConfig);
-        verify(factory, times(2)).devices();
+        verify(factory, times(3)).devices();
         verify(factory).cleanUnitsTree();
         verify(factory, times(2)).getProvider();
         verify(serviceProvider).allowedDevices();
@@ -244,11 +244,11 @@ public class SoundCardDevicesFactoryTest<H extends SoundCardHandle> {
         ArgumentCaptor<Device<H, ?>> deviceArgumentCaptor = ArgumentCaptor.forClass(Device.class);
         verify(factory).addDevice(deviceArgumentCaptor.capture());
         Device<H, ?> device = deviceArgumentCaptor.getValue();
-        verify(factory).settingUpBasePart(xmlConfig);
-        verify(factory).settingUpMainPart(xmlConfig);
+        verify(factory, atLeastOnce()).settingUpBasePart(xmlConfig);
+        verify(factory, atLeastOnce()).settingUpMainPart(xmlConfig);
         verify(factory, atLeastOnce()).applyUnitParameter(any(ConfigurationParameter.class));
-        verify(factory).setVendor(anyString());
-        verify(factory).loadFactoryConfiguration();
+        verify(factory, atLeastOnce()).setVendor(anyString());
+        verify(factory, atLeastOnce()).loadFactoryConfiguration();
         ArgumentCaptor<Element> xmlDeviceCapture = ArgumentCaptor.forClass(Element.class);
         verify(device).setXML(xmlDeviceCapture.capture());
         assertThat(xmlDeviceCapture.getValue().getName()).isEqualTo("JavaSound");

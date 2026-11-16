@@ -39,17 +39,25 @@ package org.visualcti.server.hardware.provider.virtual;
 
 
 import java.io.IOException;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import org.jdom.Element;
+import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.core.channel.AbstractTelephonyChannel;
 import org.visualcti.core.channel.device.Device;
+import org.visualcti.core.channel.device.Factory;
 import org.visualcti.core.channel.telephony.TelephonyChannel;
+import org.visualcti.core.channel.telephony.TelephonyDevice;
+import org.visualcti.core.channel.telephony.TelephonyFactory;
 import org.visualcti.core.channel.telephony.TelephonyServiceProvider;
+import org.visualcti.core.channel.telephony.adapter.AbstractTelephonyDevice;
 import org.visualcti.core.channel.telephony.adapter.AbstractTelephonyFactory;
 import org.visualcti.server.core.unit.ServerUnit;
 import org.visualcti.server.hardware.provider.dialogic.DialogicDevice;
 import org.visualcti.server.hardware.provider.dialogic.FactoryImpl;
+import org.visualcti.server.unit.ServerUnitAdapter;
 
 /**
  * <singleton>
@@ -67,10 +75,49 @@ import org.visualcti.server.hardware.provider.dialogic.FactoryImpl;
  * @see AbstractTelephonyFactory
  */
 @SuppressWarnings("unchecked")
-public class VirtualTelephonyDevicesFactory<H extends UUID, D extends VirtualTelephonyDevice<H, ?>> extends AbstractTelephonyFactory<H, D> {
+public class VirtualTelephonyDevicesFactory<H extends UUID, D extends TelephonyDevice<H, ?>>
+        extends AbstractTelephonyFactory<H, D> {
+    // the value of type of the factory as a server unit
+    public static final String DEVICES_FACTORY_UNIT_TYPE = "[virtual:telephony-channel-devices-board]";
+    // devices count configuration parameter
+    private static final String DEVICE_COUNT = "device count";
+    // device names prefix configuration parameter
+    private static final String DEVICE_PREFIX = "device prefix";
     // the instance of the factory (singleton)
     private static VirtualTelephonyDevicesFactory<?, ?> instance = null;
 
+    /**
+     * <accessor>
+     * get access to the factory's vendor name
+     *
+     * @return vendor's name
+     * @see Factory#getName()
+     * @see VirtualTelephonyDeviceProvider#DEVICE_FACTORY_VENDOR
+     */
+    @Override
+    public String getVendor() {
+        return VirtualTelephonyDeviceProvider.DEVICE_FACTORY_VENDOR;
+    }
+
+    /**
+     * <accessor>
+     * To get the Type of unit as string (service, manager, subsystem, etc.)
+     *
+     * @return the value
+     * @see #DEVICES_FACTORY_UNIT_TYPE
+     */
+    @Override
+    public String getType() {
+        return DEVICES_FACTORY_UNIT_TYPE;
+    }
+
+    /**
+     * <accessor>
+     * To get main class of the unit
+     *
+     * @return the type of the unit value
+     * @see VirtualTelephonyDevicesFactory
+     */
     @Override
     public Class<? extends ServerUnit> getUnitClass() {
         return VirtualTelephonyDevicesFactory.class;
@@ -99,15 +146,11 @@ public class VirtualTelephonyDevicesFactory<H extends UUID, D extends VirtualTel
         return instance;
     }
 
-    protected VirtualTelephonyDevicesFactory(TelephonyServiceProvider<H> provider) {
-        super(provider);
-    }
-
     /**
      * <builder>
      * To build the telephony device's instance
      *
-     * @param deviceName the name of device to build
+     * @param deviceName      the name of device to build
      * @param serviceProvider the provider of the devices factory's services
      * @return built device's instance
      * @throws IOException if it cannot build the device
@@ -121,7 +164,7 @@ public class VirtualTelephonyDevicesFactory<H extends UUID, D extends VirtualTel
     ) throws IOException {
         // trying to build the telephony device's instance
         try {
-            return new VirtualTelephonyDevice<>(deviceName, serviceProvider);
+            return new TelephonyDevice<>(deviceName, serviceProvider);
         } catch (ClassCastException e) {
             throw new IOException("The service provider must be an instance of VirtualTelephonyDeviceProvider", e);
         }
@@ -136,13 +179,104 @@ public class VirtualTelephonyDevicesFactory<H extends UUID, D extends VirtualTel
      */
     @Override
     protected TelephonyChannel<D> makeChannelFor(Device<?, ?> device) {
-        return new VirtualDeviceChannel((D) device);
+        return new DeviceChannel((D) device);
     }
 
+    /**
+     * <applier>
+     * To apply not processed configuration parameter of the devices factory
+     *
+     * @param parameter the factory parameter to apply
+     * @see ConfigurationParameter
+     * @see #applyUnitParameter(ConfigurationParameter)
+     */
+    @Override
+    protected void applyFactoryParameter(final ConfigurationParameter parameter) {
+        switch (parameter.getName()) {
+            case DEVICE_COUNT:
+                // the configuration parameter of the virtual devices count
+                getDeviceProvider().ifPresent(provider ->
+                        provider.setDevicesCount(parameter.<Number>getValue().intValue())
+                );
+                break;
+            case DEVICE_PREFIX:
+                // the configuration parameter of the virtual device name prefix
+                getDeviceProvider().ifPresent(provider ->
+                        provider.setDeviceNamePrefix(parameter.getValue())
+                );
+                break;
+            default:
+                break;
+        }
+    }
 
-    // inner classes
-    private class VirtualDeviceChannel extends AbstractTelephonyChannel<D> {
-        protected VirtualDeviceChannel(D device) {
+    /**
+     * <converter>
+     * To represent the parameters of the unit as an XML element
+     * Here managed the icon of the server unit
+     *
+     * @param rootElement building from unit XML Element
+     * @see AbstractTelephonyFactory#prepareUnitParametersXML(Element)
+     */
+    @Override
+    protected void prepareUnitParametersXML(Element rootElement) {
+        super.prepareUnitParametersXML(rootElement);
+        // representing virtual devices factory parameters
+        getDeviceProvider().ifPresent(provider -> {
+            // saving the virtual devices count
+            rootElement.addContent(ConfigurationParameter.of(DEVICE_COUNT, provider.getDevicesCount()).getXml());
+            // saving the virtual device name prefix
+            rootElement.addContent(ConfigurationParameter.of(DEVICE_PREFIX, provider.getDeviceNamePrefix()).getXml());
+        });
+    }
+
+    /**
+     * <accessor>
+     * To get virtual telephony device provider or empty
+     *
+     * @return device provider
+     * @see VirtualTelephonyDeviceProvider
+     * @see #getProvider()
+     * @see Optional
+     */
+    protected Optional<VirtualTelephonyDeviceProvider<H>> getDeviceProvider() {
+        return Optional.ofNullable(getProvider())
+                .filter(VirtualTelephonyDeviceProvider.class::isInstance)
+                .map(VirtualTelephonyDeviceProvider.class::cast);
+    }
+
+    /**
+     * <accessor>
+     * To get the description of the unit
+     *
+     * @see ServerUnitAdapter#buildUnitRootElement()
+     */
+    @Override
+    protected String getUnitDescription() {
+        return " The implementation of Virtual telephony devices factory features ";
+    }
+
+    /// private methods
+    ///
+    // private constructor
+    VirtualTelephonyDevicesFactory(TelephonyServiceProvider<H> provider) {
+        super(provider);
+        vendorName = VirtualTelephonyDeviceProvider.DEVICE_FACTORY_VENDOR;
+        unitPath = VirtualTelephonyDeviceProvider.DEVICE_FACTORY_VENDOR;
+    }
+
+    /// inner classes
+    ///
+    // the virtual channel-device implementation
+    class TelephonyDevice<F extends TelephonyFactory<H, ?>> extends AbstractTelephonyDevice<H, F> {
+        protected TelephonyDevice(String deviceName, ServiceProvider<H> serviceProvider) {
+            super(deviceName, (VirtualTelephonyDeviceProvider<H>) serviceProvider);
+        }
+    }
+
+    // the virtual device's channel implementation
+    class DeviceChannel extends AbstractTelephonyChannel<D> {
+        protected DeviceChannel(D device) {
             super(device);
         }
     }

@@ -86,6 +86,16 @@ public class SoundCardDeviceFactory<H extends SoundCardHandle, D extends SoundCa
         super(provider);
     }
 
+    @Override
+    public String getVendor() {
+        return SoundCardServiceProvider.DEVICE_FACTORY_VENDOR;
+    }
+
+    @Override
+    public String getType() {
+        return DEVICES_FACTORY_UNIT_TYPE;
+    }
+
     /**
      * <action>
      * To open the factory (prepare for the further work)
@@ -123,16 +133,6 @@ public class SoundCardDeviceFactory<H extends SoundCardHandle, D extends SoundCa
     @Override
     protected Optional<Executor> eventsProcessingExecutor() {
         return Optional.ofNullable(eventsProcessingExecuterService);
-    }
-
-    @Override
-    public String getVendor() {
-        return SoundCardServiceProvider.DEVICE_FACTORY_VENDOR;
-    }
-
-    @Override
-    public String getType() {
-        return DEVICES_FACTORY_UNIT_TYPE;
     }
 
     @Override

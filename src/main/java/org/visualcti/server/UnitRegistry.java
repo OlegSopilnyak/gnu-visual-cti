@@ -81,7 +81,7 @@ public final class UnitRegistry {
 
     /**
      * <mutator>
-     * to register serverUnit
+     * to register the server unit
      *
      * @see ServerUnit#getPath()
      */

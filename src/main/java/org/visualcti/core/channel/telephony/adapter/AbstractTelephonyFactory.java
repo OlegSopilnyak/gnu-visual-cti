@@ -76,7 +76,7 @@ import org.visualcti.server.unit.ServerUnitAdapter;
  * The parent factory of any type of telephony devices factory.
  * <p>
  *
- * @param <H>  the type of the device's low-level operations handle
+ * @param <H> the type of the device's low-level operations handle
  * @param <T> the type of factory's telephony device
  * @see TelephonyDevice
  * @see TelephonyFactory
@@ -125,13 +125,28 @@ public abstract class AbstractTelephonyFactory<H, T extends TelephonyDevice<H, ?
                 loadVendorConfigurationFrom(parameter.getValue());
                 break;
             case VENDOR_FACTORY_VERSION_PARAMETER_NAME:
+                // the configuration parameter of the vendor's version
                 vendorVersion = parameter.getValue();
                 break;
             default:
-                return;
+                // not processed factory's configuration parameter
+                applyFactoryParameter(parameter);
+                break;
         }
         // cleaning cached unit xml-configuration for enumerated parameter names
         this.unitConfiguration = null;
+    }
+
+    /**
+     * <applier>
+     * To apply not processed configuration parameter of the devices factory
+     *
+     * @param parameter the factory parameter to apply
+     * @see ConfigurationParameter
+     * @see #applyUnitParameter(ConfigurationParameter)
+     */
+    protected void applyFactoryParameter(ConfigurationParameter parameter) {
+        // doing nothing here
     }
 
     /**

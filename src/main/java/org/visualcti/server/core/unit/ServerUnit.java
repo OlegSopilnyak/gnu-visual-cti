@@ -467,6 +467,8 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
     /**
      * <accessor>
      * To get main class of the unit
+     *
+     * @return the type of the unit value
      */
     default Class<? extends ServerUnit> getUnitClass() {
         throw new UnsupportedOperationException("Not supported yet. Should be override in child.");

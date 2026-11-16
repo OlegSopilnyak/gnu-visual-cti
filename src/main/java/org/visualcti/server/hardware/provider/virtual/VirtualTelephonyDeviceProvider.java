@@ -44,7 +44,6 @@ import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.visualcti.core.channel.device.DeviceEvent;
@@ -72,11 +71,17 @@ public class VirtualTelephonyDeviceProvider<H extends UUID> extends AbstractTele
     private static final PhoneCall.Number CALLER_ID = PhoneNumber.of("1234567890");
     private volatile transient String deviceNamePrefix = "virtual_";
     private volatile transient int devicesCount = 0;
-    private final Predicate<String> isInvalidDeviceName =
-            name -> name == null || name.trim().isEmpty() || !name.startsWith(deviceNamePrefix);
 
     public VirtualTelephonyDeviceProvider(ScheduledExecutorService scheduler) {
         super(scheduler);
+    }
+
+    public String getDeviceNamePrefix() {
+        return deviceNamePrefix;
+    }
+
+    public int getDevicesCount() {
+        return devicesCount;
     }
 
     public void setDeviceNamePrefix(String deviceNamePrefix) {
@@ -94,10 +99,14 @@ public class VirtualTelephonyDeviceProvider<H extends UUID> extends AbstractTele
 
     @Override
     protected H nativeResourceOpen(String name) throws IOException {
-        if (isOpened(name) || isInvalidDeviceName.test(name)) {
+        if (isOpened(name) || isInvalidDeviceName(name)) {
             throw new IOException("Device :" + name + ": is already opened or has invalid name");
         }
         return (H) UUID.randomUUID();
+    }
+
+    private boolean isInvalidDeviceName(String name) {
+        return name == null || name.trim().isEmpty() || !name.startsWith(deviceNamePrefix);
     }
 
     @Override
