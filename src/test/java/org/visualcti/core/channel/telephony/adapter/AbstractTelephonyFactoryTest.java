@@ -270,5 +270,15 @@ public class AbstractTelephonyFactoryTest<H> {
         public TestDevice(String name, TelephonyServiceProvider<H> provider) {
             super(name, provider);
         }
+
+        @Override
+        protected H wrongHandle() {
+            return null;
+        }
+
+        @Override
+        protected H errorHandle() {
+            return null;
+        }
     }
 }

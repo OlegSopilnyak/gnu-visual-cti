@@ -106,20 +106,6 @@ public abstract class AbstractGeneralFactory<H, D extends Device<?, ?>>
 
     /**
      * <accessor>
-     * To get channel-device events processing executor
-     *
-     * @return executor declared in devices manager
-     * @see DevicesManager#eventsServiceExecutor()
-     * @see Optional
-     * @see Executor
-     */
-    @Override
-    protected Optional<Executor> eventsProcessingExecutor() {
-        return manager().map(DevicesManager::eventsServiceExecutor);
-    }
-
-    /**
-     * <accessor>
      * To get access to the device's events provider
      *
      * @return the device's events provider reference
@@ -268,17 +254,6 @@ public abstract class AbstractGeneralFactory<H, D extends Device<?, ?>>
 
     /**
      * <accessor>
-     * To get the description of the unit
-     *
-     * @see ServerUnitAdapter#buildUnitRootElement()
-     */
-    @Override
-    protected String getUnitDescription() {
-        return null;
-    }
-
-    /**
-     * <accessor>
      * get access to factory's version
      *
      * @return the version
@@ -286,6 +261,31 @@ public abstract class AbstractGeneralFactory<H, D extends Device<?, ?>>
     @Override
     public String getVersion() {
         return vendorVersion;
+    }
+
+    /**
+     * <accessor>
+     * To get channel-device events processing executor
+     *
+     * @return executor declared in devices manager
+     * @see DevicesManager#eventsServiceExecutor()
+     * @see Optional
+     * @see Executor
+     */
+    @Override
+    protected Optional<Executor> eventsProcessingExecutor() {
+        return manager().map(DevicesManager::eventsServiceExecutor);
+    }
+
+    /**
+     * <accessor>
+     * To get the description of the unit
+     *
+     * @see ServerUnitAdapter#buildUnitRootElement()
+     */
+    @Override
+    protected String getUnitDescription() {
+        return null;
     }
 
     /**
@@ -318,6 +318,18 @@ public abstract class AbstractGeneralFactory<H, D extends Device<?, ?>>
         return configurationFileName == null
                 ? "./conf/" + getVendor().toLowerCase() + CONFIG_FILE_SUFFIX
                 : configurationFileName;
+    }
+
+    /**
+     * <checker>
+     * To check is unit can start according the internal state
+     * Is factory has devices?
+     *
+     * @return true if unit can start
+     */
+    @Override
+    public boolean canStartUnit() {
+        return devices().findAny().isPresent();
     }
 
     /**

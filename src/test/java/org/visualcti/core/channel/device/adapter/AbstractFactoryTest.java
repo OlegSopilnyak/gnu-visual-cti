@@ -181,7 +181,7 @@ public class AbstractFactoryTest<H> {
         // preparing test data
         factory.add(device);
         factory.Start();
-        verify(factory, times(2)).children();
+        verify(factory, times(3)).children();
 
         // acting
         Channel<?>[] factoryChannels = factory.channels().toArray(new Channel[0]);

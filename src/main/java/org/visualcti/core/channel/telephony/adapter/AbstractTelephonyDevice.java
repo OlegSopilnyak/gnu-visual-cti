@@ -248,9 +248,10 @@ public abstract class AbstractTelephonyDevice<H, TF extends TelephonyFactory<H, 
      * @return the value for a handle of the unopened device
      * @see #isInvalidHandle(H)
      */
-    protected H wrongHandle() {
-        return null;
-    }
+    protected abstract H wrongHandle();
+//    {
+//        return null;
+//    }
 
     /**
      * <accessor>
@@ -259,9 +260,10 @@ public abstract class AbstractTelephonyDevice<H, TF extends TelephonyFactory<H, 
      * @return the value for a handle of the corrupted device
      * @see #isInvalidHandle(H)
      */
-    protected H errorHandle() {
-        return null;
-    }
+    protected abstract H errorHandle();
+//    {
+//        return null;
+//    }
 
     /**
      * <accessor>
@@ -509,14 +511,27 @@ public abstract class AbstractTelephonyDevice<H, TF extends TelephonyFactory<H, 
      *                {@link PhoneCallSession#operationResult()} equals {@link Result.CALL.Analysis#NO_ANSWER} will be returned.
      * @return true if operation complete successfully
      * @see PhoneCallSession
-     * @see PhoneCallSession#operationResult()
-     * @see Result.CALL.Analysis
      * @see PhoneCall.Number
      * @see #isOpened()
+     * @see CallsPortEngine#makeCall(PhoneCallSession, PhoneCall.Number, int)
      */
     @Override
     public boolean makeCall(PhoneCallSession<H> session, PhoneCall.Number number, int timeout) {
         return isOpened() && calls.makeCall(session, number, timeout);
+    }
+
+    /**
+     * <accessor>
+     * To check, whether device can be used in operations of connections (conference)
+     * This flag, the factory may set in properties of the device
+     *
+     * @return true if device can be shared for another device
+     * @see #isOpened()
+     * @see CallsPortEngine#canBeConnected()
+     */
+    @Override
+    public boolean canBeConnected() {
+        return isOpened() && calls.canBeConnected();
     }
 
     /**

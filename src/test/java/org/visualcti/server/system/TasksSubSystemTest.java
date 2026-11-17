@@ -43,6 +43,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import org.jdom.DataConversionException;
 import org.jdom.Element;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.visualcti.core.XmlAware;
@@ -53,11 +54,23 @@ import org.visualcti.server.core.unit.exception.ServerUnitException;
 import org.visualcti.server.task.AbstractTaskPoolsManager;
 
 public class TasksSubSystemTest {
+    final String testXml = "tasks.xml";
+    String configurationXmlString;
+    final XmlAware xmlEngine = new XmlAware() {
+    };
     TasksSubSystem system =  new TasksSubSystem();
 
     @Before
     public void setUp() throws Exception {
+        Element xml = xmlEngine.load(TasksSubSystem.class.getResourceAsStream(testXml));
+        // preparing default sub-system Xml configuration text
+        configurationXmlString = xmlEngine.asString(xml);
         UnitRegistry.clear();
+    }
+
+    @After
+    public void tearDown() throws Exception {
+        system.getSystemManager().Stop();
     }
 
     @Test
@@ -87,41 +100,43 @@ public class TasksSubSystemTest {
     @Test
     public void shouldSetTasksSubSystemXML_fromXmlString() throws IOException, DataConversionException, ServerUnitException {
         // preparing test data
-        String xmlString =
-                "    <system>\n" +
-                "      <Tasks>\n" +
-                "        <!-- Server tasks control system -->\n" +
-                "        <!-- The manage of tasks pools -->\n" +
-                "        <Manager package=\"org.visualcti.server.task\" class=\"Manager\" extends=\"org.visualcti.server.core.executable.Engine\">\n" +
-                "          <parent package=\"org.visualcti.server.task\" class=\"TaskManager\" method=\"getManager\">The realization of tasks controls manager</parent>\n" +
-                "          <parameter name=\"directory\" type=\"string\" value=\"work/tasks\" />\n" +
-                "        </Manager>\n" +
-                "        <!-- Pool of public tasks -->\n" +
-                "        <pool type=\"public\" name=\"library\" file=\"public.tasks.pool\" />\n" +
-                "        <!-- Pool of concrete device's tasks -->\n" +
-                "        <pool type=\"local\" name=\"stub_9\" file=\"stub_9.tasks.pool\" />\n" +
-                "        <pool type=\"local\" name=\"VisualCTI/stub_1\" file=\"stub_1.tasks.pool\" />\n" +
-                "        <pool type=\"local\" name=\"VisualCTI/stub_2\" file=\"stub_2.tasks.pool\" />\n" +
-                "        <pool type=\"local\" name=\"VisualCTI/stub_3\" file=\"stub_3.tasks.pool\" />\n" +
-                "        <pool type=\"local\" name=\"VisualCTI/stub_4\" file=\"stub_4.tasks.pool\" />\n" +
-                "        <pool type=\"local\" name=\"Dialogic/dxxxB1C1\" file=\"dxxxB1C1.tasks.pool\" />\n" +
-                "        <pool type=\"local\" name=\"Dialogic/dxxxB1C2\" file=\"dxxxB1C2.tasks.pool\" />\n" +
-                "        <pool type=\"local\" name=\"Dialogic/dxxxB1C3\" file=\"dxxxB1C3.tasks.pool\" />\n" +
-                "        <pool type=\"local\" name=\"Dialogic/dxxxB1C4\" file=\"dxxxB1C4.tasks.pool\" />\n" +
-                "      </Tasks>\n" +
-                "    </system>\n";
-        Element xml = new XmlAware() {
-        }.load(new ByteArrayInputStream(xmlString.getBytes()));
+        Element xml = xmlEngine.load(new ByteArrayInputStream(configurationXmlString.getBytes()));
 
         // acting
         system.setXML(xml);
 
         // check results
-        assertThat(system.getSystemManager()).isInstanceOf(SubSystem.Manager.class)
-                .isInstanceOf(TaskPoolsManager.class);
+        assertThat(system.getSystemManager()).isInstanceOf(SubSystem.Manager.class).isInstanceOf(TaskPoolsManager.class);
+        assertThat(UnitRegistry.lookup(SubSystem.Manager.class)).isInstanceOf(TaskPoolsManager.class);
         TaskPoolsManager manager = (TaskPoolsManager)system.getSystemManager();
         assertThat(manager.getRoot()).exists().isDirectory();
         assertThat(UnitRegistry.lookup(SubSystem.Manager.class)).isNotNull();
         assertThat(manager.publicTaskPool().getName()).isEqualTo("library");
+        assertThat(xmlEngine.asString(system.getXML())).isEqualTo(configurationXmlString);
+    }
+
+    @Test
+    public void shouldStartSystem() throws IOException, DataConversionException {
+        // preparing test data
+        assertThat(system.getSystemManager()).isInstanceOf(TaskPoolsManager.class);
+        Element xml = xmlEngine.load(new ByteArrayInputStream(configurationXmlString.getBytes()));
+        assertThat(system.getSystemManager().canStartUnit()).isFalse();
+        system.setXML(xml);
+        assertThat(system.getSystemManager().canStartUnit()).isTrue();
+
+        // acting
+        system.getSystemManager().Start();
+
+        // check results
+        assertThat(system.getSystemManager().isStarted()).isTrue();
+        TaskPoolsManager manager = (TaskPoolsManager) system.getSystemManager();
+        assertThat(manager.publicTaskPool().isStarted()).isTrue();
+        manager.localTaskPoolStream().forEach(pool -> {
+            if (pool.canStartUnit()) {
+                assertThat(pool.isStarted()).isTrue();
+            } else {
+                System.out.println("=== Tasks Pool :[" + pool.getName() + "] can't start");
+            }
+        });
     }
 }

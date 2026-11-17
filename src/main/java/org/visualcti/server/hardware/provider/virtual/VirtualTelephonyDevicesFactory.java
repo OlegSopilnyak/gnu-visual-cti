@@ -47,7 +47,6 @@ import org.jdom.Element;
 import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.core.channel.AbstractTelephonyChannel;
 import org.visualcti.core.channel.device.Device;
-import org.visualcti.core.channel.device.Factory;
 import org.visualcti.core.channel.telephony.TelephonyChannel;
 import org.visualcti.core.channel.telephony.TelephonyDevice;
 import org.visualcti.core.channel.telephony.TelephonyFactory;
@@ -278,6 +277,16 @@ public class VirtualTelephonyDevicesFactory<H extends UUID, D extends TelephonyD
     class TelephonyDevice<F extends TelephonyFactory<H, ?>> extends AbstractTelephonyDevice<H, F> {
         protected TelephonyDevice(String deviceName, ServiceProvider<H> serviceProvider) {
             super(deviceName, (VirtualTelephonyDeviceProvider<H>) serviceProvider);
+        }
+
+        @Override
+        protected H wrongHandle() {
+            return null;
+        }
+
+        @Override
+        protected H errorHandle() {
+            return wrongHandle();
         }
     }
 

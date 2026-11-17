@@ -106,7 +106,7 @@ Fax number: 217-356-3356
             <!--FormerFactory for make, send, receive e-mail messages-->
             <factory name="EMAIL" package="org.visualcti.server.message.email" class="Factory" extends="org.visualcti.server.message.MessageFactory" persistent="work/persistent.messages">
               E-Mail
-              <!-- Define protocols for factory -->
+              <!-- Define protocols for the factory -->
               <protocol in="POP3,IMAP" out="SMTP" />
             </factory>
           </Messenger>
@@ -121,7 +121,7 @@ Fax number: 217-356-3356
     <system>
       <Hardware>
         <Manager package="org.visualcti.server.hardware" class="Manager" extends="org.visualcti.server.core.executable.Engine">
-          <!-- Not used for unit's building here only parameters applying -->
+          <!-- Not used for unit's builder here only parameters applying -->
           <!-- The implementation of hardware manager's features -->
           <builder package="org.visualcti.server.hardware" class="HardwareManager" method="getManager" />
         </Manager>
@@ -130,7 +130,7 @@ Fax number: 217-356-3356
           <builder package="org.visualcti.server.hardware.provider.virtual" class="VirtualTelephonyDevicesFactory" method="getInstance" />
           <parameter name="vendor" type="string" value="VirtualTelephony" />
           <parameter name="url" type="string" value="file:./conf/visualcti.configuration.xml" />
-          <parameter name="device count" type="number" value="2" />
+          <parameter name="device count" type="number" value="4" />
           <parameter name="device prefix" type="string" value="stub_" />
         </factory>
         <factory package="org.visualcti.server.hardware.provider.dialogic" class="FactoryImpl" extends="org.visualcti.core.channel.telephony.TelephonyFactory">

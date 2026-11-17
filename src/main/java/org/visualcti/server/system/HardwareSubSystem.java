@@ -134,11 +134,15 @@ public class HardwareSubSystem implements SubSystem {
         Tools.out.print(" : device factories .");
         Tools.out.flush();
         for (final Element configuration : factoryConfigurationElements) {
+            //
             // preparing devices factory server-unit and attach it to the manager
             final Factory<?, ?> factory = (Factory<?, ?>) EngineUnitBuilder.getInstance().build(configuration);
+            //
             // printing the dot after successful factory creation
             Tools.out.print(".");
             Tools.out.flush();
+            //
+            // adding built factory to the manager
             manager.addDeviceFactory(factory);
         }
         Tools.out.println();
@@ -146,9 +150,9 @@ public class HardwareSubSystem implements SubSystem {
         Tools.out.println("Done!");
         Tools.out.println("Report ===>");
         manager.factories().forEach(factory -> {
-            Tools.out.print("Factory of :");
+            Tools.out.print("Factory of :[");
             Tools.out.print(factory.getVendor());
-            Tools.out.print(" has devices:");
+            Tools.out.print("] has devices:");
             Tools.out.print(factory.devices().count());
             Tools.out.println();
         });
@@ -161,6 +165,17 @@ public class HardwareSubSystem implements SubSystem {
 
         private MainDevicesManager(SubSystem owner) {
             this.owner = owner;
+        }
+
+        /**
+         * <checker>
+         * To check is unit can start according the internal state
+         *
+         * @return true if unit can start
+         */
+        @Override
+        public boolean canStartUnit() {
+            return super.canStartUnit();
         }
 
         @Override

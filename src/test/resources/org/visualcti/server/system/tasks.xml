@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+##############################################################################
+##
+##  DO NOT REMOVE THIS LICENSE AND COPYRIGHT NOTICE FOR ANY REASON
+##
+##############################################################################
+
+GNU VisualCTI - A Java multi-platform Computer Telephony Application Server
+Copyright (C) 2002 by Oleg Sopilnyak.
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+
+Contact oleg.sopilnyak@gmail.com or gennady@visualcti.org for more information.
+
+Ukraine point of contact: Oleg Sopilnyak - oleg.sopilnyak@gmail.com
+Home Phone:	+380-63-8420220 (russian)
+
+USA point of contact: Justin Kuntz - jkuntz@prominic.com
+Prominic Technologies, Inc.
+PO Box 3233
+Champaign, IL 61826-3233
+Fax number: 217-356-3356
+##############################################################################
+
+-->
+<system>
+    <!-- Server tasks control system -->
+    <Tasks>
+        <!-- The manager of tasks pools -->
+        <Manager package="org.visualcti.server.unit" class="ServerUnitAdapter" extends="org.visualcti.server.core.unit.ServerUnit">
+            <!-- The manager of tasks pools -->
+            <parameter name="directory" type="string" value="work/tasks" />
+        </Manager>
+        <!-- Pool of public tasks (server's tasks library) -->
+        <pool type="public" name="library" file="public.tasks.pool" />
+        <!-- Pool of concrete device's tasks -->
+        <pool type="local" name="stub_9" file="stub_9.tasks.pool" />
+        <pool type="local" name="VisualCTI/stub_1" file="stub_1.tasks.pool" />
+        <pool type="local" name="VisualCTI/stub_2" file="stub_2.tasks.pool" />
+        <pool type="local" name="VisualCTI/stub_3" file="stub_3.tasks.pool" />
+        <pool type="local" name="VisualCTI/stub_4" file="stub_4.tasks.pool" />
+        <pool type="local" name="Dialogic/dxxxB1C1" file="dxxxB1C1.tasks.pool" />
+        <pool type="local" name="Dialogic/dxxxB1C2" file="dxxxB1C2.tasks.pool" />
+        <pool type="local" name="Dialogic/dxxxB1C3" file="dxxxB1C3.tasks.pool" />
+        <pool type="local" name="Dialogic/dxxxB1C4" file="dxxxB1C4.tasks.pool" />
+    </Tasks>
+</system>

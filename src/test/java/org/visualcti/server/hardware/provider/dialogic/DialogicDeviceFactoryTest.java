@@ -41,6 +41,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
@@ -96,6 +97,7 @@ public class DialogicDeviceFactoryTest<H extends Integer> {
         // preparing test data
         factory.setXML(factory.load(new ByteArrayInputStream(configurationXml.getBytes())));
         reset(factory);
+        doReturn(true).when(factory).canStartUnit();
 
         // acting
         factory.Start();
@@ -114,6 +116,7 @@ public class DialogicDeviceFactoryTest<H extends Integer> {
     public void shouldStopDeviceEventProcessing() throws IOException, DataConversionException {
         // preparing test data
         factory.setXML(factory.load(new ByteArrayInputStream(configurationXml.getBytes())));
+        doReturn(true).when(factory).canStartUnit();
         factory.Start();
         assertThat(factory.isStarted()).isTrue();
         reset(factory);

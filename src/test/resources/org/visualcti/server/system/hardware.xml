@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+##############################################################################
+##
+##  DO NOT REMOVE THIS LICENSE AND COPYRIGHT NOTICE FOR ANY REASON
+##
+##############################################################################
+
+GNU VisualCTI - A Java multi-platform Computer Telephony Application Server
+Copyright (C) 2002 by Oleg Sopilnyak.
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+
+Contact oleg.sopilnyak@gmail.com or gennady@visualcti.org for more information.
+
+Ukraine point of contact: Oleg Sopilnyak - oleg.sopilnyak@gmail.com
+Home Phone:	+380-63-8420220 (russian)
+
+USA point of contact: Justin Kuntz - jkuntz@prominic.com
+Prominic Technologies, Inc.
+PO Box 3233
+Champaign, IL 61826-3233
+Fax number: 217-356-3356
+##############################################################################
+
+-->
+<system>
+    <!-- Server devices control system -->
+    <Hardware>
+        <!-- The manager of channel-devices pools -->
+        <Manager package="org.visualcti.server.hardware" class="Manager" extends="org.visualcti.server.core.executable.Engine">
+            <!-- Not used for unit's building here only parameters applying -->
+            <parent package="org.visualcti.server.hardware" class="HardwareManager" method="getManager">The implementation of hardware manager's features</parent>
+        </Manager>
+        <factory package="org.visualcti.server.hardware.provider.virtual" class="VirtualTelephonyDevicesFactory" extends="org.visualcti.core.channel.telephony.TelephonyFactory">
+            <!-- The implementation of Virtual telephony devices factory features -->
+            <builder package="org.visualcti.server.hardware.provider.virtual" class="VirtualTelephonyDevicesFactory" method="getInstance" />
+            <parameter name="vendor" type="string" value="VirtualTelephony" />
+            <parameter name="url" type="string" value="file:./conf/visualcti.configuration.xml" />
+            <parameter name="device count" type="number" value="2" />
+            <parameter name="device prefix" type="string" value="stub_" />
+        </factory>
+        <factory package="org.visualcti.server.hardware.provider.dialogic" class="FactoryImpl" extends="org.visualcti.core.channel.telephony.TelephonyFactory">
+            <!-- The implementation of Dialogic telephony hardware factory features -->
+            <builder package="org.visualcti.server.hardware.provider.dialogic" class="FactoryImpl" method="getInstance"/>
+            <parameter name="vendor" type="string" value="Dialogic" />
+            <parameter name="url" type="string" value="file:./conf/dialogic.configuration.xml" />
+        </factory>
+    </Hardware>
+</system>

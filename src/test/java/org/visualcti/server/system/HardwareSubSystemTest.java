@@ -38,82 +38,84 @@ Fax number: 217-356-3356
 package org.visualcti.server.system;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import org.jdom.DataConversionException;
 import org.jdom.Element;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.visualcti.core.XmlAware;
+import org.visualcti.core.channel.device.Device;
+import org.visualcti.core.channel.device.DeviceActivitySession;
 import org.visualcti.core.channel.device.DevicesManager;
-import org.visualcti.core.channel.device.Factory;
 import org.visualcti.core.channel.telephony.TelephonyFactory;
 import org.visualcti.server.UnitRegistry;
 import org.visualcti.server.core.system.SubSystem;
 import org.visualcti.server.core.unit.exception.ServerUnitException;
 
-public class HardwareSubSystemTest {
-    // preparing default sub-system Xml configuration
-    final static String configurationXmlString = "<system>\n" +
-            "  <!-- Server devices control system -->\n" +
-            "  <Hardware>\n" +
-            "    <!-- The manager of channel-devices pools -->\n" +
-            "    <Manager package=\"org.visualcti.server.hardware\" class=\"Manager\" extends=\"org.visualcti.server.core.executable.Engine\">\n" +
-            "      <!-- Not used for unit's building here only parameters applying -->\n" +
-            "      <parent package=\"org.visualcti.server.hardware\" class=\"HardwareManager\" method=\"getManager\">The implementation of hardware manager's features</parent>\n" +
-            "    </Manager>\n" +
-            "    <factory package=\"org.visualcti.server.hardware.provider.virtual\" class=\"VirtualTelephonyDevicesFactory\" extends=\"org.visualcti.core.channel.telephony.TelephonyFactory\">\n" +
-            "      <!-- The implementation of Virtual telephony devices factory features -->\n" +
-            "      <builder package=\"org.visualcti.server.hardware.provider.virtual\" class=\"VirtualTelephonyDevicesFactory\" method=\"getInstance\" />\n" +
-            "      <parameter name=\"vendor\" type=\"string\" value=\"VirtualTelephony\" />\n" +
-            "      <parameter name=\"url\" type=\"string\" value=\"file:./conf/visualcti.configuration.xml\" />\n" +
-            "      <parameter name=\"device count\" type=\"number\" value=\"2\" />\n" +
-            "      <parameter name=\"device prefix\" type=\"string\" value=\"stub_\" />\n" +
-            "    </factory>\n" +
-            "    <factory package=\"org.visualcti.server.hardware.provider.dialogic\" class=\"FactoryImpl\" extends=\"org.visualcti.core.channel.telephony.TelephonyFactory\">\n" +
-            "      <builder package=\"org.visualcti.server.hardware.provider.dialogic\" class=\"FactoryImpl\" method=\"getInstance\">The implementation of Dialogic telephony hardware factory features</builder>\n" +
-            "      <parameter name=\"vendor\" type=\"string\" value=\"Dialogic\" />\n" +
-            "      <parameter name=\"url\" type=\"string\" value=\"file:./conf/dialogic.configuration.xml\" />\n" +
-            "    </factory>\n" +
-            "  </Hardware>\n" +
-            "</system>\n\n";
-    HardwareSubSystem system = new HardwareSubSystem();
+@SuppressWarnings("unchecked")
+public class HardwareSubSystemTest<H> {
+    final String testXml = "hardware.xml";
+    String configurationXmlString;
+    final XmlAware xmlEngine = new XmlAware() {
+    };
+    final HardwareSubSystem system = new HardwareSubSystem();
 
     @Before
     public void setUp() throws Exception {
+        Element xml = xmlEngine.load(HardwareSubSystem.class.getResourceAsStream(testXml));
+        // preparing default sub-system Xml configuration text
+        configurationXmlString = xmlEngine.asString(xml);
         UnitRegistry.clear();
+    }
+
+    @After
+    public void tearDown() throws Exception {
+        system.getSystemManager().Stop();
     }
 
     @Test
     public void shouldSetHardwareSubSystemXML() throws IOException, DataConversionException, ServerUnitException {
         // preparing test data
-        Element xml = new XmlAware() {
-        }.load(new ByteArrayInputStream(configurationXmlString.getBytes()));
+        Element xml = xmlEngine.load(new ByteArrayInputStream(configurationXmlString.getBytes()));
         assertThat(system.asString(xml)).isEqualTo(configurationXmlString);
 
         // acting
         system.setXML(xml);
 
         // check results
-        assertThat(system.getSystemManager()).isInstanceOf(SubSystem.Manager.class)
-                .isInstanceOf(DevicesManager.class);
+        assertThat(system.getSystemManager()).isInstanceOf(SubSystem.Manager.class).isInstanceOf(DevicesManager.class);
         assertThat(UnitRegistry.lookup(SubSystem.Manager.class)).isInstanceOf(DevicesManager.class);
-        assertThat(UnitRegistry.lookup(DevicesManager.class).factories().count()).isNotZero();
-        UnitRegistry.lookup(DevicesManager.class).factories().forEach(factory ->
-                assertThat(factory).isInstanceOf(Factory.class)
-        );
+        DevicesManager hardwareManager = (DevicesManager) UnitRegistry.lookup("HardwareManager", DevicesManager.class);
         assertThat(UnitRegistry.lookup("HardwareManager/provider/Dialogic", TelephonyFactory.class))
                 .isInstanceOf(org.visualcti.server.hardware.provider.dialogic.FactoryImpl.class);
         assertThat(UnitRegistry.lookup("HardwareManager/provider/VirtualTelephony", TelephonyFactory.class))
                 .isInstanceOf(org.visualcti.server.hardware.provider.virtual.VirtualTelephonyDevicesFactory.class);
+        assertThat(hardwareManager.factories().count()).isNotZero();
+        hardwareManager.devices().forEach(device -> {
+                    assertThat(device).isInstanceOf(Device.class);
+                    try {
+                        DeviceActivitySession<H> session = (DeviceActivitySession<H>) device.startSession();
+                        assertThat(session).isNotNull();
+                        assertThat(session.isOpened()).isTrue();
+                        assertThat(device.isOpened()).isTrue();
+                        ((Device<H, ?>)device).detachAndClose(session);
+                        assertThat(device.isOpened()).isFalse();
+                        assertThat(session.isOpened()).isFalse();
+                    } catch (IOException e) {
+                        fail("Cannot start the session", e);
+                    }
+                }
+        );
     }
 
     @Test
     public void shouldGetHardwareSubSystemXML() throws IOException, DataConversionException {
         // preparing test data
-        Element xml = new XmlAware() {
-        }.load(new ByteArrayInputStream(configurationXmlString.getBytes()));
+        Element xml = xmlEngine.load(new ByteArrayInputStream(configurationXmlString.getBytes()));
         system.setXML(xml);
 
         // acting
@@ -126,7 +128,31 @@ public class HardwareSubSystemTest {
         assertThat(hardware).isNotNull();
         Element manager = hardware.getChild("Manager");
         assertThat(manager).isNotNull();
-        String textXml = system.asString(systemXml);
+        String textXml = xmlEngine.asString(systemXml);
         assertThat(textXml).isEqualTo(configurationXmlString);
+    }
+
+    @Test
+    public void shouldStartSystem() throws IOException, DataConversionException {
+        // preparing test data
+        assertThat(system.getSystemManager()).isInstanceOf(DevicesManager.class);
+        Element xml = xmlEngine.load(new ByteArrayInputStream(configurationXmlString.getBytes()));
+        assertThat(system.getSystemManager().canStartUnit()).isFalse();
+        system.setXML(xml);
+        assertThat(system.getSystemManager().canStartUnit()).isTrue();
+
+        // acting
+        system.getSystemManager().Start();
+
+        // check results
+        assertThat(system.getSystemManager().isStarted()).isTrue();
+        DevicesManager manager = (DevicesManager) system.getSystemManager();
+        manager.factories().forEach(factory -> {
+            if (factory.canStartUnit()) {
+                assertThat(factory.isStarted()).isTrue();
+            } else {
+                System.out.println("=== Factory :[" + factory.getName() + "] can't start");
+            }
+        });
     }
 }

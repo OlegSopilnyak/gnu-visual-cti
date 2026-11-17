@@ -280,7 +280,7 @@ public class SoundCardDevicesFactoryTest<H extends SoundCardHandle> {
         verify(factory, atLeastOnce()).isStarted();
         verify(factory).canStartUnit();
         verify(factory).startUnitRunnable();
-        verify(factory).devices();
+        verify(factory, atLeastOnce()).devices();
         ArgumentCaptor<Device<H, ?>> deviceArgumentCaptor = ArgumentCaptor.forClass(Device.class);
         verify(factory).makeChannelFor(deviceArgumentCaptor.capture());
         verify(factory, never()).startUnitChild(any(RunnableServerUnit.class));

@@ -112,7 +112,7 @@ public class TasksSubSystem implements SubSystem {
         final TasksPoolUnit publicTasksPool = manager.publicTaskPool();
         if (publicTasksPool != null) {
             // public pool adding
-            tasksElement.addContent(new Comment(" Pool of public tasks "));
+            tasksElement.addContent(new Comment(" Pool of public tasks (server's tasks library) "));
             tasksElement.addContent((Element)publicTasksPool.getXML().clone());
         }
         // local pools adding
@@ -148,7 +148,11 @@ public class TasksSubSystem implements SubSystem {
         Tools.out.flush();
         for (final Element poolElement : poolElements) {
             // preparing tasks pool server unit and attach it to the manager
-            new PoolServerUnit().configure(poolElement);
+            final TasksPoolUnit tasksPool = new PoolServerUnit();
+            // configuring created tasks pool
+            tasksPool.configure(poolElement);
+            // attach it to the manager
+            tasksPool.setOwner(manager);
             // printing the dot after successful pool's configuration
             Tools.out.print(".");
             Tools.out.flush();

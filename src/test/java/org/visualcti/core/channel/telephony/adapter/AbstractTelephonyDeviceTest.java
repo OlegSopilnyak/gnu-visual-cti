@@ -195,6 +195,16 @@ public class AbstractTelephonyDeviceTest<H> {
             }
 
             @Override
+            protected Object wrongHandle() {
+                return null;
+            }
+
+            @Override
+            protected Object errorHandle() {
+                return null;
+            }
+
+            @Override
             public boolean canBeConnected() {
                 return false;
             }
@@ -212,6 +222,16 @@ public class AbstractTelephonyDeviceTest<H> {
             @Override
             public DeviceActivitySession createSessionFor(Object openedDeviceHandle) {
                 return spy(super.createSessionFor(openedDeviceHandle));
+            }
+
+            @Override
+            protected Object wrongHandle() {
+                return null;
+            }
+
+            @Override
+            protected Object errorHandle() {
+                return null;
             }
         });
         deviceEventExecutor = mock(Executor.class);
