@@ -178,7 +178,7 @@ public class AbstractTelephonyFactoryTest<H> {
 
         // check the behavior
         verify(factory).getVendor();
-        verify(factory).getVersion();
+        verify(factory, atLeastOnce()).getVersion();
         reset(factory);
         // repeating xml-getting
         factory.getXML();

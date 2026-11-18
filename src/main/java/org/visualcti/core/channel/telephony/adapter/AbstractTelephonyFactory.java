@@ -45,6 +45,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -185,27 +186,28 @@ public abstract class AbstractTelephonyFactory<H, T extends TelephonyDevice<H, ?
      * @param rootElement building from unit XML Element
      * @see Element
      * @see ServerUnitAdapter#prepareUnitParametersXML(Element)
+     * @see #getXML()
      */
     @Override
     protected void prepareUnitParametersXML(Element rootElement) {
         // saving default unit parameters
         super.prepareUnitParametersXML(rootElement);
+        //
+        // preparing add to root configured parameter's xml-element consumer
+        final Consumer<ConfigurationParameter> saving = parameter -> rootElement.addContent(parameter.getXml());
+        //
         // saving the vendor's name parameter
-        rootElement.addContent(ConfigurationParameter.of(VENDOR_PARAMETER_NAME, getVendor()).getXml());
+        saving.accept(ConfigurationParameter.of(VENDOR_PARAMETER_NAME, getVendor()));
+        //
         // saving the vendor's configuration file url parameter
-        rootElement.addContent(
-                ConfigurationParameter.of(CONFIGURATION_URL_PARAMETER_NAME, "file:" + configurationFilePath()).getXml()
-        );
-        // checking the vendor's devices-factory version
-        final String vendorFactoryVersion = getVersion();
-        if (Objects.equals(vendorFactoryVersion, VENDOR_FACTORY_DEFAULT_VERSION)) {
-            // vendor's devices-factory version is default
-            return;
+        final String configurationUrl = "file:" + configurationFilePath();
+        saving.accept(ConfigurationParameter.of(CONFIGURATION_URL_PARAMETER_NAME, configurationUrl));
+        //
+        // comparing the vendor's devices-factory version with default one
+        if (!Objects.equals(getVersion(), VENDOR_FACTORY_DEFAULT_VERSION)) {
+            // saving the new value of vendor's devices-factory version
+            saving.accept(ConfigurationParameter.of(VENDOR_FACTORY_VERSION_PARAMETER_NAME, getVersion()));
         }
-        // saving the vendor's devices-factory version
-        rootElement.addContent(
-                ConfigurationParameter.of(VENDOR_FACTORY_VERSION_PARAMETER_NAME, vendorFactoryVersion).getXml()
-        );
     }
 
     /**
@@ -219,7 +221,7 @@ public abstract class AbstractTelephonyFactory<H, T extends TelephonyDevice<H, ?
     public void shareDevice(final PhoneCallSession<H> session) {
         if (session.getDevice().canBeConnected()) {
             // device session can be shared
-            safeOperation(() -> {
+            safeSessionsOperation(() -> {
                 if (sharedDeviceSessions().stream().noneMatch(session::equals)) {
                     // adding not exists session to shared sessions holder
                     sharedDeviceSessions().add(session);
@@ -241,7 +243,7 @@ public abstract class AbstractTelephonyFactory<H, T extends TelephonyDevice<H, ?
      */
     @Override
     public void unShareDevice(PhoneCallSession<H> session) {
-        safeOperation(() -> {
+        safeSessionsOperation(() -> {
             properties.replace(Device.Parameter.SHARED.value(), sharedDeviceSessions().stream()
                     .filter(s -> !s.equals(session))
                     .collect(Collectors.toCollection(LinkedHashSet::new))
@@ -254,7 +256,7 @@ public abstract class AbstractTelephonyFactory<H, T extends TelephonyDevice<H, ?
      * <finder>
      * To find a shared telephony device session for the connection feature
      *
-     * @param callableNumber the number to connect to
+     * @param callableNumber the phone number to connect with
      * @param master         the session that will capture and join the connectable session
      * @return the ready for connection session or empty if not exists
      * @see Optional
@@ -263,9 +265,10 @@ public abstract class AbstractTelephonyFactory<H, T extends TelephonyDevice<H, ?
      * @see TelephonyDevice#connect(PhoneCallSession, PhoneCall.Number, int, Sound)
      */
     @Override
-    public Optional<PhoneCallSession<H>> findConnectableFor(final PhoneCall.Number callableNumber,
-                                                            final PhoneCallSession<H> master) {
-        return Optional.ofNullable(safeOperation(() -> lookUpForPhoneNumber(callableNumber, master)));
+    public Optional<PhoneCallSession<H>> findConnectableFor(
+            final PhoneCall.Number callableNumber, final PhoneCallSession<H> master
+    ) {
+        return Optional.ofNullable(safeSessionsOperation(() -> lookUpForPhoneNumber(callableNumber, master)));
     }
 
     /**
@@ -406,7 +409,7 @@ public abstract class AbstractTelephonyFactory<H, T extends TelephonyDevice<H, ?
     }
 
     // to do safe the related to sessions collection operation
-    private PhoneCallSession<H> safeOperation(Supplier<PhoneCallSession<H>> operation) {
+    private PhoneCallSession<H> safeSessionsOperation(Supplier<PhoneCallSession<H>> operation) {
         // trying to lock the access shared sessions collection
         sessionsLock.lock();
         try {
@@ -425,8 +428,9 @@ public abstract class AbstractTelephonyFactory<H, T extends TelephonyDevice<H, ?
     }
 
     // looking for the shared session which can allow to play as second one for the telephony call by phone call connection feature
-    private PhoneCallSession<H> lookUpForPhoneNumber(final PhoneCall.Number targetPhoneNumber,
-                                                     final PhoneCallSession<H> master) {
+    private PhoneCallSession<H> lookUpForPhoneNumber(
+            final PhoneCall.Number targetPhoneNumber, final PhoneCallSession<H> master
+    ) {
         // looking for session among live sessions
         final PhoneCallSession<H> aliveSession = aliveSessionWithPhoneNumber(targetPhoneNumber);
         if (Optional.ofNullable(aliveSession).isPresent()) {

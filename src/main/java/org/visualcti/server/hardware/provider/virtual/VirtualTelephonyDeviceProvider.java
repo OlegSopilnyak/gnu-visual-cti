@@ -105,13 +105,12 @@ public class VirtualTelephonyDeviceProvider<H extends UUID> extends AbstractTele
         return (H) UUID.randomUUID();
     }
 
-    private boolean isInvalidDeviceName(String name) {
-        return name == null || name.trim().isEmpty() || !name.startsWith(deviceNamePrefix);
-    }
-
     @Override
     protected H nativeFaxResourceOpen(String name) throws IOException {
-        return nativeResourceOpen(name);
+        if (isInvalidDeviceName(name)) {
+            throw new IOException("Device :" + name + ": has invalid name");
+        }
+        return (H) UUID.randomUUID();
     }
 
     @Deprecated
@@ -163,5 +162,11 @@ public class VirtualTelephonyDeviceProvider<H extends UUID> extends AbstractTele
     @Override
     protected void schedulePostponedActivity(H handle, Runnable action, long after, TimeUnit unit) {
         super.schedulePostponedActivity(handle, action, after, unit);
+    }
+
+    // private methods
+    // to validate device name to open
+    private boolean isInvalidDeviceName(String name) {
+        return name == null || name.trim().isEmpty() || !name.startsWith(deviceNamePrefix);
     }
 }

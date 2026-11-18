@@ -146,9 +146,9 @@ public abstract class AbstractGeneralFactory<H, D extends Device<?, ?>>
         cleanUnitsTree();
         //
         // adjusting by xml-configuration the factory as a server unit
-        // configuring provider before devices adding
+        // configuring the factory's provider before devices adding
         //
-        super.setXML(devicesFactoryXml);
+        beforeDevicesAdding(devicesFactoryXml);
         //
         // building & adding factory's devices for allowed device-names
         final Device.ServiceProvider<H> provider = getProvider();
@@ -160,6 +160,17 @@ public abstract class AbstractGeneralFactory<H, D extends Device<?, ?>>
         // configuring added devices
         //
         super.setXML(devicesFactoryXml);
+    }
+
+    /**
+     * <converter>
+     * To update the factory-provider's fields from XML
+     *
+     * @param devicesFactoryXml possible factory-unit's XML
+     * @see #setXML(Element)
+     */
+    protected void beforeDevicesAdding(Element devicesFactoryXml) {
+        // doing nothing here
     }
 
     /**

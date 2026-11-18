@@ -223,7 +223,7 @@ public class VirtualTelephonyDevicesFactoryTest<H extends UUID> {
 
         // check the behavior
         verify(factory).setXML(xml);
-        verify(factory, times(4)).applyFactoryParameter(any(ConfigurationParameter.class));
+        verify(factory, times(6)).applyFactoryParameter(any(ConfigurationParameter.class));
         verify(serviceProvider, atLeastOnce()).setDevicesCount(devices);
         verify(serviceProvider, atLeastOnce()).setDeviceNamePrefix(prefix);
         // check results

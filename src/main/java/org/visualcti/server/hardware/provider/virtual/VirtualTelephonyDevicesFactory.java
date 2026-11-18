@@ -39,20 +39,25 @@ package org.visualcti.server.hardware.provider.virtual;
 
 
 import java.io.IOException;
+import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.function.Consumer;
 import org.jdom.Element;
 import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.core.channel.AbstractTelephonyChannel;
 import org.visualcti.core.channel.device.Device;
+import org.visualcti.core.channel.device.adapter.AbstractGeneralFactory;
 import org.visualcti.core.channel.telephony.TelephonyChannel;
 import org.visualcti.core.channel.telephony.TelephonyDevice;
 import org.visualcti.core.channel.telephony.TelephonyFactory;
 import org.visualcti.core.channel.telephony.TelephonyServiceProvider;
 import org.visualcti.core.channel.telephony.adapter.AbstractTelephonyDevice;
 import org.visualcti.core.channel.telephony.adapter.AbstractTelephonyFactory;
+import org.visualcti.core.channel.telephony.part.FaxMachineEngine;
 import org.visualcti.server.core.unit.ServerUnit;
 import org.visualcti.server.hardware.provider.dialogic.DialogicDevice;
 import org.visualcti.server.hardware.provider.dialogic.FactoryImpl;
@@ -84,20 +89,6 @@ public class VirtualTelephonyDevicesFactory<H extends UUID, D extends TelephonyD
     private static final String DEVICE_PREFIX = "device prefix";
     // the instance of the factory (singleton)
     private static VirtualTelephonyDevicesFactory<?, ?> instance = null;
-//
-//    /**
-//     * <accessor>
-//     * get access to the factory's vendor name
-//     *
-//     * @return vendor's name
-//     * @see Factory#getName()
-//     * @see VirtualTelephonyDeviceProvider#DEVICE_FACTORY_VENDOR
-//     */
-//    @Override
-//    public String getVendor() {
-//        return vendorName;
-////        return VirtualTelephonyDeviceProvider.DEVICE_FACTORY_VENDOR;
-//    }
 
     /**
      * <accessor>
@@ -183,12 +174,30 @@ public class VirtualTelephonyDevicesFactory<H extends UUID, D extends TelephonyD
     }
 
     /**
+     * <builder>
+     * To prepare the network xml-section of the telephony device
+     *
+     * @return prepared telephony device network configuration-xml-section
+     * @see super#defaultNetworkXml()
+     * @see Element#addContent(Element)
+     */
+    @Override
+    protected Element defaultNetworkXml() {
+        return super.defaultNetworkXml().addContent(
+                ConfigurationParameter.of(FaxMachineEngine.Parameter.FAX_ALLOWED.value(), true).getXml()
+        );
+    }
+
+    /**
      * <applier>
      * To apply not processed configuration parameter of the devices factory
      *
      * @param parameter the factory parameter to apply
      * @see ConfigurationParameter
-     * @see #applyUnitParameter(ConfigurationParameter)
+     * @see AbstractGeneralFactory#setXML(Element)
+     * @see ServerUnitAdapter#settingUpMainPart(Element)
+     * @see ServerUnitAdapter#processParameter(ConfigurationParameter)
+     * @see AbstractTelephonyFactory#applyFactoryParameter(ConfigurationParameter)
      */
     @Override
     protected void applyFactoryParameter(final ConfigurationParameter parameter) {
@@ -210,6 +219,24 @@ public class VirtualTelephonyDevicesFactory<H extends UUID, D extends TelephonyD
         }
     }
 
+    /**
+     * <converter>
+     * To update the factory-provider's fields from XML
+     *
+     * @param devicesFactoryXml possible factory-unit's XML
+     * @see super#beforeDevicesAdding(Element)
+     * @see #applyFactoryParameter(ConfigurationParameter)
+     */
+    @Override
+    protected void beforeDevicesAdding(final Element devicesFactoryXml) {
+        // the container for parsed from XML parameter
+        final List<Element> parameters = devicesFactoryXml.getChildren(ConfigurationParameter.ELEMENT);
+        // processing the parameters of the root unit XML elements
+        parameters.stream()
+                .map(ConfigurationParameter::of).filter(Objects::nonNull)
+                .forEach(this::applyFactoryParameter);
+    }
+
     @Deprecated
     @Override
     protected void applyUnitParameter(ConfigurationParameter parameter) {
@@ -222,17 +249,21 @@ public class VirtualTelephonyDevicesFactory<H extends UUID, D extends TelephonyD
      * Here managed the icon of the server unit
      *
      * @param rootElement building from unit XML Element
+     * @see AbstractTelephonyFactory#getXML()
      * @see AbstractTelephonyFactory#prepareUnitParametersXML(Element)
      */
     @Override
-    protected void prepareUnitParametersXML(Element rootElement) {
+    protected void prepareUnitParametersXML(final Element rootElement) {
+        // doing preparation by default
         super.prepareUnitParametersXML(rootElement);
+        // preparing add to root configured parameter's xml-element consumer
+        final Consumer<ConfigurationParameter> saving = parameter -> rootElement.addContent(parameter.getXml());
         // representing virtual devices factory parameters
         getDeviceProvider().ifPresent(provider -> {
             // saving the virtual devices count
-            rootElement.addContent(ConfigurationParameter.of(DEVICE_COUNT, provider.getDevicesCount()).getXml());
+            saving.accept(ConfigurationParameter.of(DEVICE_COUNT, provider.getDevicesCount()));
             // saving the virtual device name prefix
-            rootElement.addContent(ConfigurationParameter.of(DEVICE_PREFIX, provider.getDeviceNamePrefix()).getXml());
+            saving.accept(ConfigurationParameter.of(DEVICE_PREFIX, provider.getDeviceNamePrefix()));
         });
     }
 

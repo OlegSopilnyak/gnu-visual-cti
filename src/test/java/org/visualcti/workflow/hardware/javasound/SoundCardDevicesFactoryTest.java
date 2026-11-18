@@ -236,7 +236,7 @@ public class SoundCardDevicesFactoryTest<H extends SoundCardHandle> {
         verify(factory).configure(xmlCapture.capture());
         Element xmlConfig = xmlCapture.getValue();
         verify(factory).setXML(xmlConfig);
-        verify(factory, times(3)).devices();
+        verify(factory, times(2)).devices();
         verify(factory).cleanUnitsTree();
         verify(factory, times(2)).getProvider();
         verify(serviceProvider).allowedDevices();
