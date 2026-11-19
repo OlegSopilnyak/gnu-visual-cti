@@ -59,7 +59,7 @@ Fax number: 217-356-3356
         </service>
         <!--This is the security manager -->
         <service>
-          <SecurityManager package="org.visualcti.server.security" class="Manager" extends="org.visualcti.server.service.Service">
+          <SecurityManager package="org.visualcti.server.security" class="Manager" extends="org.visualcti.server.service.ExService">
             <parent package="org.visualcti.server.security.impl" class="ServerSecurityManager" method="getManager">Security manager of Server, he will create the Manager</parent>
             <security>conf/ServerSecurity.xml</security>
           </SecurityManager>
@@ -75,7 +75,7 @@ Fax number: 217-356-3356
         </service>
         <!--This is the Server Log system-->
         <service>
-          <Logger home="work/log" package="org.visualcti.server.log" class="Log" extends="org.visualcti.server.service.Service">
+          <Logger home="work/log" package="org.visualcti.server.log" class="Log" extends="org.visualcti.server.service.ExService">
             <parent package="org.visualcti.server.log.impl" class="LogImpl">This is Logger implementation</parent>
             <filter default="allowed">
               <!--Filter for Log System-->
@@ -97,7 +97,7 @@ Fax number: 217-356-3356
             <remote class="org.visualcti.server.message.MessengerHandle" host="sun.com" port="2887" name="Messenger/Handle2" check="false">remote messenger's handle properties</remote>
             <message>
               <!--factory of messages, features: create, send, receive-->
-              <MessageFactory package="org.visualcti.server.message" class="MessageFactory" extends="org.visualcti.server.service.Service" />
+              <MessageFactory package="org.visualcti.server.message" class="MessageFactory" extends="org.visualcti.server.service.ExService" />
               <!--Abstract unified message-->
               <Message package="org.visualcti.server.message" class="Message" extends="MessageHeader" />
               <!--The abstract unified message header-->
@@ -112,7 +112,7 @@ Fax number: 217-356-3356
           </Messenger>
         </service>
         <service>
-          <Database package="org.visualcti.server.database" class="Database" extends="org.visualcti.server.service.Service">
+          <Database package="org.visualcti.server.database" class="Database" extends="org.visualcti.server.service.ExService">
             <parent package="org.visualcti.server.database" class="DataManager">The parent of manager, he will create the Manager</parent>
           </Database>
         </service>

@@ -329,7 +329,7 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
      */
     @Override
     default boolean add(ServerUnit unit) {
-        if (unit != null && !isChild(unit)) {
+        if (unit != null && !isChild(unit) && isChildrenEnabled()) {
             try {
                 // attaching child to units registry
                 unit.setOwner(this);
@@ -367,7 +367,7 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
      */
     @Override
     default boolean remove(ServerUnit unit) {
-        if (isChild(unit)) {
+        if (isChild(unit) && isChildrenEnabled()) {
             try {
                 // detaching child unit from units composite units tree
                 unit.setOwner(null);

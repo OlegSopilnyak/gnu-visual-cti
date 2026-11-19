@@ -79,7 +79,7 @@ to Start links factory
    public void Start() throws IOException
    {
         if ( this.isStarted() ) return;// service already started
-        this.state = Service.State.START;// setting up new state
+        this.state = ExService.State.START;// setting up new state
         (this.mng = new manager()).start();// to start factory manager
         this.checkSecurity();// to check security reference
         super.dispatch(new unitEvent(this,unitAction.START_ID));
@@ -92,7 +92,7 @@ to Stop links factory
     public void Stop() throws IOException
     {
         if ( this.isStopped() ) return;
-        this.state = Service.State.STOP;// setting up new state
+        this.state = ExService.State.STOP;// setting up new state
         if ( !this.isStopFromManager )
         {
           this.mng.close();try{this.mng.join();}catch(Exception e){}

@@ -46,8 +46,8 @@ public class ServiceMaker
     /**
     To create service, using XML element
     */
-    public static Service make(org.jdom.Element xml)
+    public static ExService make(org.jdom.Element xml)
     {
-        return (Service)serverUnitMaker.make( xml, Service.class );
+        return (ExService)serverUnitMaker.make( xml, ExService.class );
     }
 }

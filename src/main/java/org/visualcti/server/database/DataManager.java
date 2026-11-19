@@ -82,7 +82,7 @@ to Start database service
    public final void Start() throws IOException
    {
         if ( this.isStarted() ) return;
-        this.state = Service.State.START;// setting up new state
+        this.state = ExService.State.START;// setting up new state
         dispatch(new unitEvent(this,unitEvent.START_ID));
    }
 
@@ -93,7 +93,7 @@ to Stop database service
     public final void Stop() throws IOException
     {
         if ( this.isStopped() ) return;
-        this.state = Service.State.STOP;// setting up new state
+        this.state = ExService.State.STOP;// setting up new state
         dispatch(new unitEvent(this,unitEvent.STOP_ID));
     }
     /**

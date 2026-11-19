@@ -151,7 +151,7 @@ to Start security manager
    {
         if ( this.isStarted() ) return;// service already started
         if (this.security == null) throw new IOException("Not loaded security information");
-        this.state = Service.State.START;// setting up new state
+        this.state = ExService.State.START;// setting up new state
         this.dispatch(new unitEvent(this,serverAction.START_ID));
    }
    /**
@@ -161,7 +161,7 @@ to Stop security manager
     public void Stop() throws IOException
     {
         if ( this.isStopped() ) return;
-        this.state = Service.State.STOP;// setting up new state
+        this.state = ExService.State.STOP;// setting up new state
         this.dispatch(new unitEvent(this,serverAction.STOP_ID));
     }
    /**

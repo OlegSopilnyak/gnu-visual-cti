@@ -107,7 +107,7 @@ to HashMap properties
         {
             Element e = (Element)i.next();
 //Config.out.println("Install links factory: "+e.getTextNormalize()+"...");
-            Service service = ServiceMaker.make( e );// to make factory, as service and configure(xml)
+            ExService service = ServiceMaker.make( e );// to make factory, as service and configure(xml)
             if (service instanceof LinkFactory)
             {
                 LinkFactory factory = (LinkFactory)service;

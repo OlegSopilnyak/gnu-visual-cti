@@ -38,10 +38,7 @@ Fax number: 217-356-3356
 package org.visualcti.server.system;
 
 import org.jdom.*;
-
-import java.io.*;
 import java.util.*;
-import java.rmi.*;
 import java.rmi.registry.*;
 
 import org.visualcti.util.*;
@@ -67,7 +64,7 @@ public final class Services
             Element service = Config.getPrimaryEntry( (Element)i.next() );
             String serviceName = service.getName();
             Tools.out.print(".");Tools.out.flush();
-            Service srv = ServiceMaker.make(service);
+            ExService srv = ServiceMaker.make(service);
             if ( srv == null) Tools.error("Can't install service "+serviceName);
             else {
                 Tools.out.print(".");Tools.out.flush();
@@ -81,7 +78,7 @@ public final class Services
             // get registered service.Manager from registry
             Class mngClass = org.visualcti.server.service.Manager.class;
             // get registered root Class of services system
-            Service service = (Service)UnitRegistry.lookupOld("/Service", mngClass);
+            ExService service = (ExService)UnitRegistry.lookupOld("/Service", mngClass);
             srvs = (org.visualcti.server.service.Manager)service;
             if (srvs == null) throw new ClassCastException();
             // store services to Server
@@ -93,7 +90,7 @@ public final class Services
         }
         // To subordinate all services to master service
         for(Iterator i = services.values().iterator();i.hasNext(); ) {
-            srvs.addSlaveService((Service)i.next());
+            srvs.addSlaveService((ExService)i.next());
         }
         // to direct services events flow to server
         srvs.setOwner( server );
@@ -103,7 +100,7 @@ public final class Services
             // get registered log.Log from registry
             Class logClass = org.visualcti.server.log.Log.class;
             // get registered root Class of services system
-            Service service = (Service)UnitRegistry.lookupOld("/Service/Log", logClass);
+            ExService service = (ExService)UnitRegistry.lookupOld("/Service/Log", logClass);
             log = (org.visualcti.server.log.Log)service;
             if (log == null) throw new ClassCastException();
             server.setLogger(log);
@@ -124,7 +121,7 @@ public final class Services
             // get registered connector.Manager from registry
             Class connectClass = org.visualcti.server.connector.Manager.class;
             // get registered root Class of services system
-            Service service = (Service)UnitRegistry.lookupOld("/Service/Connector", connectClass);
+            ExService service = (ExService)UnitRegistry.lookupOld("/Service/Connector", connectClass);
             connectors = (org.visualcti.server.connector.Manager)service;
             if (connectors == null) throw new ClassCastException();
             server.setConnectorsManager(connectors);

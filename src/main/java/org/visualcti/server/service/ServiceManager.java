@@ -95,7 +95,7 @@ To get Type of unit
             // to iterate entry names
             for (int i=0;i < list.length;i++)
             {
-                Service service = (Service)UnitRegistry.lookupOld(list[i],Service.class);
+                ExService service = (ExService)UnitRegistry.lookupOld(list[i], ExService.class);
                 if ( !service.isDependsFrom( this ) ) {
                     // Service Manager not owner of this service
                     String mistake = "Service ["+

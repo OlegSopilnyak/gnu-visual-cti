@@ -68,6 +68,18 @@ public interface UnitsComposite {
     void setOwner(ServerUnit owner) throws IOException;
 
     /**
+     * <accessor>
+     * To check if operations with children are enabled
+     *
+     * @return true if operations with children are enabled
+     * @see #add(ServerUnit)
+     * @see #remove(ServerUnit) (ServerUnit)
+     */
+    default boolean isChildrenEnabled() {
+        return true;
+    }
+
+    /**
      * <mutator>
      * to add child to the composite units tree
      *

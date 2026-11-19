@@ -39,7 +39,9 @@ package org.visualcti.server.service;
 
 /**
 Interface for service manager, registered in server kernel
+ @deprecated
 */
+@Deprecated
 public interface Manager
                     extends
 //        Engine,

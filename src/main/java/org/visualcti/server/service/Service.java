@@ -37,110 +37,64 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.service;
 
-import org.visualcti.server.serverUnit;
-import org.visualcti.server.action.event.unitEventListener;
-
-import java.io.*;
+import java.util.Optional;
+import org.visualcti.server.core.unit.RunnableServerUnit;
 
 /**
-Parent of any Service of Server
-*/
-@Deprecated
-public interface Service extends 
-                            serverUnit,
-                            unitEventListener
-{
-   
-   /**
-   <enum>
-   class for service state constants
-   */
-   public static final class State
-   {
-        public State(){}// constructor
-        /**
-        const for started service state
-        */
-        public static final short START = 1;
-           
-        /**
-        const for stopped service state
-        */
-        public static final short STOP = 0;
-   }
-   
-   /**
-<action>
-to Start service
-if service can't start, throws IOException
-   */
-   void Start() throws IOException;
-   /**
-<accessor>
-is Service have START state
-   */
-   boolean isStarted();
-   
-   /**
-<action>
-to Stop service
-if service can't stop, throws IOException
-   */
-   void Stop() throws IOException;
-   /**
-<accessor>
-is Service have STOP state
-   */
-   boolean isStopped();
-   
-   /**
-<accessor>
-access to service name
-   */
-   String getName();
-   
-   /**
-<accessor>
-current service state
-   */
-   short getState();
-   
-   /**
-<accessor>
-current service's ThreadGroup
-   */
-   ThreadGroup getThreadGroup();
-   
-////////////////// INHERITING PART /////////////////
-   /**
-<accessor>
-Access to service owner
-The one whom this service is subordinate
-   */
-   Service getServiceOwner();
+ * <service-facade>
+ * <p>Title: Visual CTI Java Telephony Server</p>
+ * <p>Description: VisualCTI Applications Server,<br>
+ * Facade: The parent of any Service of the Server</p>
+ * <p>Copyright: Copyright (c) 2002 Prominic Technologies, Inc. & Prominic Ukraine Co.</p>
+ * <p>Company: Prominic Ukraine Co.</p>
+ *
+ * @see RunnableServerUnit
+ */
+public interface Service extends RunnableServerUnit {
+    /**
+     * <accessor>
+     * To get Type of unit as string (service, manager, subsystem, etc.)
+     *
+     * @return the value
+     */
+    @Override
+    default String getType() {
+        return "[service]";
+    }
 
-   /**
-<mutator>
-Setting up service owner
-The one whom this service is subordinate
-   */
-   void setServiceOwner(Service owner);
-   
-   /**
-<accessor>
-The check, is service depends on master service
-   */
-   boolean isDependsFrom(Service master);
-   
-///////// UNIT EVENTS PART //////////////////
-   /**
-<mutator>
-to add unitEventListener
-   */
-   void addUnitEventListener(unitEventListener listener);
-   /**
-<mutator>
-to remove unitEventListener
-   */
-   void removeUnitEventListener(unitEventListener listener);
+    /**
+     * <accessor>
+     * To get the service's owner
+     * The one whom this service is subordinate
+     *
+     * @return the service-owner of the service
+     */
+    default Service getServiceOwner() {
+        return Optional.ofNullable(getOwner()).filter(Service.class::isInstance)
+                .map(Service.class::cast)
+                .orElse(null);
+    }
+
+    /**
+     * <accessor>
+     * To check is service depends on the master-service
+     *
+     * @param master potential owner of the service
+     * @return true if service depends on the master
+     */
+    default boolean isDependsOn(final Service master) {
+        return master != null && (this.equals(master) || isServiceOwner(getServiceOwner(), master));
+    }
+
+    /**
+     * <walker>
+     * To check is service depends on the master-service
+     *
+     * @param owner potential owner of the service
+     * @param master the owner of the service to check
+     * @return true if service depends on the master
+     */
+    static boolean isServiceOwner(final Service owner, final Service master) {
+        return owner != null && (master.equals(owner) || isServiceOwner(owner.getServiceOwner(), master));
+    }
 }

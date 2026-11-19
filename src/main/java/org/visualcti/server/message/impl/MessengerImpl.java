@@ -117,13 +117,13 @@ Stop messenger
 Append MessageFactory, as slave service,
 Called when maked MessageFactory
    */
-   public final void addSlaveService(Service service) {
+   public final void addSlaveService(ExService service) {
         if (service instanceof MessageFactory) super.addSlaveService( service );
    }
    /**
 remove MessageFactory from available list
    */
-   public final void removeSlaveService(Service service) {
+   public final void removeSlaveService(ExService service) {
         if (service instanceof MessageFactory) super.removeSlaveService( service );
    }
     /**
@@ -144,7 +144,7 @@ remove MessageFactory from available list
             Tools.out.print(".");Tools.out.flush();
             this.needSaveXML = this.needSaveXML || Dir==null;
             if (Dir == null) e.setAttribute(new Attribute("persistent","./persistent.messages"));
-            Service factory = ServiceMaker.make( e );// to make factory, as service
+            ExService factory = ServiceMaker.make( e );// to make factory, as service
             if (factory instanceof MessageFactory) {
                 Tools.out.print(".");Tools.out.flush();
                 this.addSlaveService(factory);

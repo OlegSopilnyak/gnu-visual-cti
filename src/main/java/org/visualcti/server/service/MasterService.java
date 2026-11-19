@@ -40,19 +40,19 @@ package org.visualcti.server.service;
 /**
 Service, can manage other services
 */
-public interface MasterService extends Service {
+public interface MasterService extends ExService {
 
    /**
 <mutator>
 To add the subordinated service. At start of this service, will start all subordinated
    */
-   void addSlaveService(Service service);
+   void addSlaveService(ExService service);
 
    /**
 <mutator>
 To remove the subordinated service.
    */
-   void removeSlaveService(Service service);
+   void removeSlaveService(ExService service);
 
    /**
 <accessor>
@@ -65,5 +65,5 @@ Listing subordinate services
 <accessor>
 To get access to slave service reference, by service name
    */
-   Service getService(String name);
+   ExService getService(String name);
 }

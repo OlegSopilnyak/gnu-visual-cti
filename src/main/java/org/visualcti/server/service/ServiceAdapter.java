@@ -52,7 +52,7 @@ class-adapter for Service
 */
 public abstract class ServiceAdapter
                 extends serverUnitAdapter
-                implements Service
+                implements ExService
                 {
     /**
     Empty constructor
@@ -65,7 +65,7 @@ public abstract class ServiceAdapter
 State of service
 The descendant may have access to this attribute
 */
-protected volatile short state = Service.State.STOP;
+protected volatile short state = ExService.State.STOP;
    /**
 <action>
 to Start service (abstract)
@@ -75,7 +75,7 @@ abstract public void Start() throws IOException;
    <accessor>
    is Service have START state
    */
-   public final boolean isStarted(){return this.state != Service.State.STOP;}
+   public final boolean isStarted(){return this.state != ExService.State.STOP;}
 
    /**
 <action>
@@ -86,7 +86,7 @@ abstract public void Stop() throws IOException;
    <accessor>
    is Service have STOP state
    */
-   public final boolean isStopped(){return this.state == Service.State.STOP;}
+   public final boolean isStopped(){return this.state == ExService.State.STOP;}
 
    /**
 <accessor>
@@ -112,9 +112,9 @@ Get access to Service state String
     {
         switch( this.state )
         {
-            case Service.State.START:
+            case ExService.State.START:
                 return "Started";
-            case Service.State.STOP:
+            case ExService.State.STOP:
                 return "Stopped";
             default:
                 return null;
@@ -132,10 +132,10 @@ Access to service owner
 The one whom this service is subordinate
 default no owner (null)
    */
-   public final Service getServiceOwner()
+   public final ExService getServiceOwner()
    {
         try {// to return owner as Service
-            return (Service)super.getOwner();
+            return (ExService)super.getOwner();
         }catch(ClassCastException ce){
             return null;// owner not service
         }
@@ -144,22 +144,22 @@ default no owner (null)
 <mutator>
 to setting up service owner
     */
-    public void setServiceOwner(Service owner)
+    public void setServiceOwner(ExService owner)
     {
         super.setOwner( owner );// store and register owner
         this.removeUnitEventListener(this);// remove itself from listeners
     }
    /**
 <accessor>
-The check, is service depended from master
+The check, is service depended on the master
    */
-   public final boolean isDependsFrom(Service master)
+   public final boolean isDependsFrom(ExService master)
    {
         if ( this.equals(master) ) return true;
         for(
-            Service service = this.getServiceOwner();
-            service != null;
-            service = service.getServiceOwner()
+                ExService service = this.getServiceOwner();
+                service != null;
+                service = service.getServiceOwner()
             )
         {
             if ( service.equals(master) ) return true;

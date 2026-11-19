@@ -42,13 +42,11 @@ import java.util.*;
 
 import org.jdom.*;
 import org.visualcti.server.service.*;
-import org.visualcti.util.Queue;
 import org.visualcti.server.unitEvent;
 import org.visualcti.server.unitError;
 
 import org.visualcti.server.message.Message;
 import org.visualcti.server.message.MessageException;
-import org.visualcti.server.message.SendMessageException;
 import org.visualcti.server.message.MessageFactory;
 
 /**
@@ -82,7 +80,7 @@ to Start factory's sending
             dispatch(new unitError(this,error));
             throw error;
         }
-        this.state = Service.State.START;
+        this.state = ExService.State.START;
         this.restoreQueue();// to restore persistent messages
         this.startDeliver();// to start messages deliver process
    }
@@ -92,7 +90,7 @@ to Stop factory's sending
    */
    public void Stop() throws IOException
    {
-        this.state = Service.State.STOP;
+        this.state = ExService.State.STOP;
         this.stopDeliver();// to stop message deliver process
         this.storeQueue();// to store persistent messages
    }

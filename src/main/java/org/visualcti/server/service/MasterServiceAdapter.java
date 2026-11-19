@@ -43,7 +43,7 @@ import java.io.*;
 import org.visualcti.util.Queue;
 import org.visualcti.server.*;
 import org.visualcti.server.action.serverAction;
-import org.visualcti.server.action.serverActionAdapter;
+
 /**
 class-adapter for MasterService
 */
@@ -66,9 +66,9 @@ to Start master service
         // to start children
         for (Iterator i = this.slaveServices(); i.hasNext(); )
         {
-            ((Service)i.next()).Start();
+            ((ExService)i.next()).Start();
         }
-        this.state = Service.State.START;// setting up new state
+        this.state = ExService.State.START;// setting up new state
         // to start event and command processors
         this.startProcessors();
    }
@@ -83,9 +83,9 @@ to Stop master service
             // to stop children
             for (Iterator i = this.slaveServices(); i.hasNext(); )
             {
-                ((Service)i.next()).Stop();
+                ((ExService)i.next()).Stop();
             }
-            this.state = Service.State.STOP;// setting up new state
+            this.state = ExService.State.STOP;// setting up new state
             // to stop event and command processors
             this.stopProcessors();
     }
@@ -100,7 +100,7 @@ To set new owner of this unit (null for root unit)
         this.removeUnitEventListener(this);// remove itself from listeners
         for (Iterator i = this.slaveServices();i.hasNext();)
         {
-            Service srv = (Service)i.next();
+            ExService srv = (ExService)i.next();
             srv.setServiceOwner( this );
         }
    }
@@ -108,12 +108,12 @@ To set new owner of this unit (null for root unit)
 <mutator>
 to setting up service owner
     */
-    public final void setServiceOwner(Service owner)
+    public final void setServiceOwner(ExService owner)
     {
         super.setServiceOwner( owner );
         for (Iterator i = this.slaveServices();i.hasNext();)
         {
-            Service srv = (Service)i.next();
+            ExService srv = (ExService)i.next();
             srv.setServiceOwner( this );
         }
     }
@@ -125,12 +125,12 @@ protected final HashMap services = new HashMap();
 <accessor>
 To get access to slave service reference, by service name
    */
-   public final Service getService(String name)
+   public final ExService getService(String name)
    {
         if (name == null) return null;
         synchronized( this.services ){// to iterate services list
             for(Iterator i=this.services.values().iterator();i.hasNext();) {
-                Service service = (Service)i.next();
+                ExService service = (ExService)i.next();
                 if ( name.equalsIgnoreCase(service.getName()) ) return service;
             }
         }
@@ -141,7 +141,7 @@ To get access to slave service reference, by service name
 <mutator>
 To add the subordinated service. At start of this service, will start all subordinated
    */
-   public void addSlaveService(Service service)
+   public void addSlaveService(ExService service)
    {
         try {// to setup itself as owner of service (prepare to integration)
             service.setServiceOwner( this );
@@ -163,11 +163,11 @@ To add the subordinated service. At start of this service, will start all subord
 <mutator>
 To remove the subordinated service.
    */
-   public void removeSlaveService(Service service)
+   public void removeSlaveService(ExService service)
    {
         if (service == null) return;
         String serviceName = service.getName();
-        Service old_service = this.getService(serviceName);
+        ExService old_service = this.getService(serviceName);
         if ( old_service != null && old_service.equals(service) )
         {   
             synchronized(this.services)

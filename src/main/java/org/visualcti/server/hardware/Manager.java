@@ -41,7 +41,9 @@ import org.visualcti.server.core.executable.Engine;
 
 /**
 Interface for hardware manager, registered in server kernel
+ @deprecated
 */
+@Deprecated
 public interface Manager 
                     extends
         Engine,

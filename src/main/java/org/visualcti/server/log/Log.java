@@ -40,11 +40,11 @@ package org.visualcti.server.log;
 import java.text.DateFormat;
 import org.visualcti.server.action.serverAction;
 import org.visualcti.server.security.Filter;
-import org.visualcti.server.service.Service;
+import org.visualcti.server.service.ExService;
 /**
 Service for log all serverActions
 */
-public interface Log extends Service {
+public interface Log extends ExService {
     /**
     <accessor>
     to get Log serverAction's Filter

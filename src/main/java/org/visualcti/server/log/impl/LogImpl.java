@@ -123,7 +123,7 @@ to Start log service
    {
         if ( !this.isStarted() )
         {
-            this.state = Service.State.START;// setting up new state
+            this.state = ExService.State.START;// setting up new state
         }
         if ( !this.home.exists() ) this.home.mkdirs();
         dispatch(new unitEvent(this,unitEvent.START_ID));
