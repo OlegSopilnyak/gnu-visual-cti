@@ -51,6 +51,9 @@ import org.visualcti.server.core.unit.RunnableServerUnit;
  * @see RunnableServerUnit
  */
 public interface Service extends RunnableServerUnit {
+    // The name of root configuration xml-element
+    String XML_ROOT_NAME = "service";
+
     /**
      * <accessor>
      * To get Type of unit as string (service, manager, subsystem, etc.)
@@ -90,7 +93,7 @@ public interface Service extends RunnableServerUnit {
      * <walker>
      * To check is service depends on the master-service
      *
-     * @param owner potential owner of the service
+     * @param owner  potential owner of the service
      * @param master the owner of the service to check
      * @return true if service depends on the master
      */

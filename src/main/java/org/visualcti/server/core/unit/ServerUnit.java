@@ -478,7 +478,7 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
      * <accessor>
      * To get the parent class of the main class of the unit
      *
-     * @see #getUnitClass()
+     * @see ServerUnit#getUnitExtendsClass()
      */
     default Class<? extends ServerUnit> getUnitExtendsClass() {
         return ServerUnit.class;

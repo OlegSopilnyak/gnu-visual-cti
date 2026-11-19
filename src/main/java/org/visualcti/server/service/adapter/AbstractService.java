@@ -37,9 +37,18 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.service.adapter;
 
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.function.Predicate;
+import org.jdom.Comment;
+import org.jdom.DataConversionException;
+import org.jdom.Element;
+import org.visualcti.core.XmlAware;
+import org.visualcti.server.core.unit.ServerUnit;
 import org.visualcti.server.core.unit.part.UnitsComposite;
 import org.visualcti.server.service.Service;
 import org.visualcti.server.unit.RunnableUnitAdapter;
+import org.visualcti.server.unit.ServerUnitAdapter;
 
 /**
  * <service-facade>
@@ -52,18 +61,134 @@ import org.visualcti.server.unit.RunnableUnitAdapter;
  * @see RunnableUnitAdapter
  * @see Service
  */
+@SuppressWarnings("unchecked")
 public abstract class AbstractService extends RunnableUnitAdapter implements Service {
+    /**
+     * <accessor>
+     * To get main class of the unit
+     *
+     * @return class-implementation of base server unit type
+     * @see ServerUnit#getUnitClass()
+     */
+    @Override
+    public Class<? extends ServerUnit> getUnitClass() {
+        return AbstractService.class;
+    }
+
+    /**
+     * <accessor>
+     * To get the parent class of the main class of the unit
+     *
+     * @return the instance of class which extends server unit main class
+     * @see ServerUnit#getUnitExtendsClass()
+     */
+    @Override
+    public Class<? extends ServerUnit> getUnitExtendsClass() {
+        return Service.class;
+    }
+
+    /**
+     * <accessor>
+     * To get the name of the root element name in XML result
+     *
+     * @return the name of the unit's root element
+     * @see XmlAware#getRootElementName()
+     * @see XmlAware#getXML()
+     */
+    @Override
+    public String getRootElementName() {
+        return Service.XML_ROOT_NAME;
+    }
+
+    /**
+     * <converter>
+     * To represent entity as an XML element
+     *
+     * @return entity's XML
+     * @see Element
+     * @see XmlAware#getXML()
+     */
+    @Override
+    public Element getXML() {
+        final Element xml = new Element(getRootElementName());
+        // adding service description as XML comment
+        addServiceDescription(xml);
+        // making the XML element of the unit by default and adding it to the XML
+        return xml.addContent(super.getXML().setName(getName()));
+    }
+
+    /**
+     * <converter>
+     * To build parameters of the root XML element of the unit (for unit building)
+     *
+     * @return built the root unit's XML element
+     * @see ServerUnitAdapter#buildUnitRootElement()
+     * @see #getXML()
+     */
+    @Override
+    protected Element buildUnitRootElement() {
+        // building the root element of the unit by default
+        final Element rootElement = super.buildUnitRootElement();
+        final Predicate<Object> isComment = Comment.class::isInstance;
+        // removing comments from element's content
+        final Object[] children = rootElement.getContent().stream().filter(isComment.negate()).toArray();
+        // putting content without comments
+        return super.buildUnitRootElement().setContent(Arrays.asList(children));
+    }
+
+    /**
+     * <converter>
+     * To represent base parameters of unit as an XML element<BR/>
+     * Here we are filling service related stuff as XML-Element
+     *
+     * @param rootElement the unit configuration root xml-element
+     * @see Element
+     * @see ServerUnitAdapter#prepareBaseUnitXML(Element)
+     * @see #getXML()
+     */
+    @Override
+    protected abstract void prepareBaseUnitXML(Element rootElement);
+
+    /**
+     * <converter>
+     * To update the entity's fields from XML
+     *
+     * @param xml possible entity's XML
+     * @throws IOException             if something went wrong
+     * @throws DataConversionException if something went wrong
+     * @throws NumberFormatException   if something went wrong
+     * @throws NullPointerException    if something went wrong
+     * @see Element
+     * @see #configure(Element)
+     * @see #settingUpBasePart(Element)
+     * @see #settingUpMainPart(Element)
+     */
+    @Override
+    public void setXML(Element xml) throws IOException, DataConversionException, NumberFormatException, NullPointerException {
+        super.setXML(xml);
+    }
+
     /**
      * <accessor>
      * To check if operations with children are enabled
      *
      * @return true if operations with children are enabled
-     * @see UnitsComposite#isChildrenEnabled()
      * @apiNote The operations are disabled for the simple service type
+     * @see UnitsComposite#isChildrenEnabled()
      */
     @Override
     public boolean isChildrenEnabled() {
         return false;
     }
 
+    /// private methods
+    // to add service description as XML comment above service's content XML
+    private void addServiceDescription(Element xml) {
+        // adding unit description as XML comment
+        final String description = getUnitDescription();
+        // to check the value of the unit's description
+        if (isEmptyString.negate().test(description)) {
+            xml.addContent(new Comment(" " + description.trim() + " "));
+        }
+    }
 }

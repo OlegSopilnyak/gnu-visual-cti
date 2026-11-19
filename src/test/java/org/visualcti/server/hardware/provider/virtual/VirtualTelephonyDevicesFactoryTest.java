@@ -48,6 +48,7 @@ import static org.mockito.Mockito.verify;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import org.jdom.DataConversionException;
@@ -92,6 +93,7 @@ public class VirtualTelephonyDevicesFactoryTest<H extends UUID> {
     public void tearDown() throws Exception {
         UnitRegistry.unRegister(factory);
         factory.Stop();
+        Paths.get("./conf/virtualtelephony.configuration.xml").toFile().delete();
     }
 
     @Test

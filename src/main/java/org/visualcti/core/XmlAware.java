@@ -82,7 +82,7 @@ public interface XmlAware extends Serializable {
      * <accessor>
      * To get the name of the root element name in XML result
      *
-     * @return the name of root element
+     * @return the name of the unit's root element
      * @see #getXML()
      * @see Class#getSimpleName()
      */

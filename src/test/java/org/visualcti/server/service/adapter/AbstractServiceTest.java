@@ -38,6 +38,8 @@ Fax number: 217-356-3356
 package org.visualcti.server.service.adapter;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -45,20 +47,31 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
 import java.io.IOException;
+import org.jdom.Element;
 import org.junit.Before;
 import org.junit.Test;
 import org.visualcti.server.core.unit.RunnableServerUnit;
 import org.visualcti.server.service.Service;
 
 public class AbstractServiceTest {
-    Service service;
+    AbstractService service;
 
     @Before
     public void setUp() throws Exception {
         service = spy(new AbstractService() {
             @Override
+            protected void prepareBaseUnitXML(Element rootElement) {
+
+            }
+
+            @Override
+            protected String getUnitDescription() {
+                return "Testing abstract service";
+            }
+
+            @Override
             public String getName() {
-                return "Test";
+                return "TestService";
             }
         });
     }
@@ -247,5 +260,24 @@ public class AbstractServiceTest {
         // check results
         assertThat(service.currentUnitState()).isSameAs(RunnableServerUnit.UnitState.PASSIVE);
         assertThat(service.isStopped()).isTrue();
+    }
+
+    @Test
+    public void shouldGetXml() throws IOException {
+        // preparing test data
+
+        // acting
+        Element xml = service.getXML();
+
+        // check the behavior
+        verify(service, atLeastOnce()).getRootElementName();
+        verify(service).buildUnitRootElement();
+        verify(service).prepareBaseUnitXML(any(Element.class));
+        // check results
+        assertThat(xml).isNotNull();
+        assertThat(xml.getName()).isEqualTo("service");
+        assertThat(xml.getChild(service.getName())).isNotNull();
+        String xmlString = service.asString(xml);
+        assertThat(xmlString).isNotEmpty();
     }
 }
