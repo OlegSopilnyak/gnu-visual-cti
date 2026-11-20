@@ -48,6 +48,8 @@ import org.visualcti.server.unit.RunnableUnitAdapter;
  * <p>Copyright: Copyright (c) 2002 Prominic Technologies, Inc. & Prominic Ukraine Co.</p>
  * <p>Company: Prominic Ukraine Co.</p>
  *
+ * @author Sopilnyak Oleg
+ * @version 3.2
  * @see RunnableUnitAdapter
  * @see ServicesManager
  */

@@ -38,6 +38,7 @@ Fax number: 217-356-3356
 package org.visualcti.server.service.adapter;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doReturn;
@@ -46,14 +47,22 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import org.jdom.DataConversionException;
 import org.jdom.Element;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 import org.visualcti.server.core.unit.RunnableServerUnit;
 import org.visualcti.server.service.Service;
 
 public class AbstractServiceTest {
+    private static final String abstractConfigurationXml =
+            "<service>\n" +
+                    "  <!-- Testing abstract service -->\n" +
+                    "  <TestService package=\"org.visualcti.server.service.adapter\" class=\"AbstractService\" extends=\"org.visualcti.server.service.Service\" />\n" +
+                    "</service>\n";
     AbstractService service;
 
     @Before
@@ -279,5 +288,84 @@ public class AbstractServiceTest {
         assertThat(xml.getChild(service.getName())).isNotNull();
         String xmlString = service.asString(xml);
         assertThat(xmlString).isNotEmpty();
+    }
+
+    @Test
+    public void shouldExtractServiceFrom() throws IOException {
+        // preparing test data
+        Element xml = service.load(new ByteArrayInputStream(abstractConfigurationXml.getBytes()));
+
+        // acting
+        Element serviceXml = service.extractServiceFrom(xml);
+
+        // check the behavior
+        // check results
+        assertThat(serviceXml).isNotNull();
+        assertThat(serviceXml.getName()).isEqualTo(service.getName());
+    }
+
+    @Test
+    public void shouldNotExtractServiceFrom_NotService() {
+        // preparing test data
+        Element xml = new Element("notService");
+
+        // acting
+        Exception e = assertThrows(Exception.class, () -> service.extractServiceFrom(xml));
+
+        // check the behavior
+        // check results
+        assertThat(e).isInstanceOf(IOException.class);
+        assertThat(e.getMessage()).isEqualTo("The configuration xml-element is not a service");
+    }
+
+    @Test
+    public void shouldNotExtractServiceFrom_WrongStructure() {
+        // preparing test data
+        Element xml = new Element("service")
+                .addContent(new Element("FirstService"))
+                .addContent(new Element("SecondService"));
+
+        // acting
+        Exception e = assertThrows(Exception.class, () -> service.extractServiceFrom(xml));
+
+        // check the behavior
+        // check results
+        assertThat(e).isInstanceOf(IOException.class);
+        assertThat(e.getMessage()).isEqualTo("The service's configuration xml-element has wrong structure");
+    }
+
+    @Test
+    public void shouldSetXml() throws IOException, DataConversionException {
+        // preparing test data
+        Element xml = service.load(new ByteArrayInputStream(abstractConfigurationXml.getBytes()));
+
+        // acting
+        service.setXML(xml);
+
+        // check the behavior
+        verify(service).extractServiceFrom(xml);
+        ArgumentCaptor<Element> xmlCaptor = ArgumentCaptor.forClass(Element.class);
+        verify(service).settingUpMainPart(xmlCaptor.capture());
+        Element serviceXml = xmlCaptor.getValue();
+        verify(service).settingUpPropertiesPart(serviceXml);
+        // check results
+        assertThat(serviceXml.getName()).isEqualTo(service.getName());
+    }
+
+    @Test
+    public void shouldNotSetXml_WrongConfigurationXml() throws IOException {
+        // preparing test data
+        Element xml = new Element("notService");
+
+        // acting
+        Exception e = assertThrows(Exception.class, () -> service.setXML(xml));
+
+        // check the behavior
+        verify(service).extractServiceFrom(xml);
+        verify(service, never()).settingUpMainPart(any(Element.class));
+        verify(service, never()).settingUpPropertiesPart(any(Element.class));
+        // check results
+        assertThat(e).isInstanceOf(IOException.class);
+        assertThat(e.getMessage()).isEqualTo("The configuration xml-element is not a service");
     }
 }

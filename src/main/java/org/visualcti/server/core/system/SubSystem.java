@@ -99,13 +99,6 @@ public interface SubSystem extends XmlAware {
         if (managerElement == null) {
             throw new IOException("Wrong root element of [" + MANAGER_ROOT_ELEMENT + "]");
         }
-//        final ServerUnit mngr;
-//        try {
-//            mngr = EngineUnitBuilder.getInstance().build(managerElement, MainTaskManager.class);
-//        } catch (ClassNotFoundException | IllegalAccessException | InstantiationException | NoSuchMethodException |
-//                 InvocationTargetException e) {
-//            throw new IOException("Wrong root element of [" + MANAGER_ROOT_ELEMENT + "]", e);
-//        }
         Tools.out.print(">> " + getSystemElementName());
         Tools.out.print(": manager .");
         Tools.out.flush();

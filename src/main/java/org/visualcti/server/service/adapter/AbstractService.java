@@ -58,6 +58,8 @@ import org.visualcti.server.unit.ServerUnitAdapter;
  * <p>Copyright: Copyright (c) 2002 Prominic Technologies, Inc. & Prominic Ukraine Co.</p>
  * <p>Company: Prominic Ukraine Co.</p>
  *
+ * @author Sopilnyak Oleg
+ * @version 3.2
  * @see RunnableUnitAdapter
  * @see Service
  */
@@ -159,13 +161,41 @@ public abstract class AbstractService extends RunnableUnitAdapter implements Ser
      * @throws NumberFormatException   if something went wrong
      * @throws NullPointerException    if something went wrong
      * @see Element
-     * @see #configure(Element)
+     * @see Service#extractServiceFrom(Element)
+     * @see ServerUnitAdapter#setXML(Element)
      * @see #settingUpBasePart(Element)
      * @see #settingUpMainPart(Element)
      */
     @Override
     public void setXML(Element xml) throws IOException, DataConversionException, NumberFormatException, NullPointerException {
-        super.setXML(xml);
+        super.setXML(extractServiceFrom(xml));
+    }
+
+    /**
+     * <converter>
+     * To prepare the main parameters of the unit using configuration as XML Element
+     *
+     * @param xml the XML Element of the unit
+     * @throws IOException if something went wrong
+     * @see Element
+     * @see ServerUnitAdapter#settingUpMainPart(Element)
+     */
+    @Override
+    protected void settingUpMainPart(Element xml) throws IOException {
+        super.settingUpMainPart(xml);
+    }
+
+    /**
+     * <converter>
+     * To prepare properties of the unit using XML Element
+     *
+     * @param xml the root XML Element of the unit
+     * @see Element
+     * @see ServerUnitAdapter#settingUpPropertiesPart(Element)
+     */
+    @Override
+    protected void settingUpPropertiesPart(Element xml) {
+        super.settingUpPropertiesPart(xml);
     }
 
     /**
