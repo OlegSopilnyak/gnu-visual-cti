@@ -57,6 +57,18 @@ import org.visualcti.server.core.unit.ServerUnit;
 public interface ServicesManager extends Service {
     // The unit's path of the manager by default
     String UNIT_PATH = "Service";
+
+    /**
+     * <accessor>
+     * To get Name of the unit to show in UI
+     *
+     * @return the value
+     */
+    @Override
+    default String getName() {
+        return "Application Server's Services";
+    }
+
     /**
      * <accessor>
      * To get Type of unit as string (service, manager, subsystem, etc.)
@@ -75,11 +87,12 @@ public interface ServicesManager extends Service {
      * The same way at the service stop.
      *
      * @param service the service to add
+     * @return true if it's succeeded
      * @see Service
-     * @see ServerUnit#add(ServerUnit)
+     * @see #add(ServerUnit)
      */
-    default void addService(final Service service) {
-        add(service);
+    default boolean addService(final Service service) {
+        return add(service);
     }
 
     /**
@@ -90,8 +103,8 @@ public interface ServicesManager extends Service {
      * @see Service
      * @see ServerUnit#remove(ServerUnit)
      */
-    default void removeService(final Service service) {
-        remove(service);
+    default boolean removeService(final Service service) {
+        return remove(service);
     }
 
     /**

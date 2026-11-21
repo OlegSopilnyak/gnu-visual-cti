@@ -51,6 +51,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import org.jdom.DataConversionException;
 import org.jdom.Element;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
@@ -58,11 +59,10 @@ import org.visualcti.server.core.unit.RunnableServerUnit;
 import org.visualcti.server.service.Service;
 
 public class AbstractServiceTest {
-    private static final String abstractConfigurationXml =
-            "<service>\n" +
-                    "  <!-- Testing abstract service -->\n" +
-                    "  <TestService package=\"org.visualcti.server.service.adapter\" class=\"AbstractService\" extends=\"org.visualcti.server.service.Service\" />\n" +
-                    "</service>\n";
+    private static final String abstractConfigurationXml = "<service>\n" +
+            "  <!-- Testing abstract service -->\n" +
+            "  <TestService package=\"org.visualcti.server.service.adapter\" class=\"AbstractService\" extends=\"org.visualcti.server.service.Service\" />\n" +
+            "</service>\n";
     AbstractService service;
 
     @Before
@@ -83,6 +83,11 @@ public class AbstractServiceTest {
                 return "TestService";
             }
         });
+    }
+
+    @After
+    public void tearDown() throws Exception {
+        service.Stop();
     }
 
     @Test
@@ -237,7 +242,7 @@ public class AbstractServiceTest {
     }
 
     @Test
-    public void shouldStart() throws IOException {
+    public void shouldStartService() throws IOException {
         // preparing test data
         assertThat(service.currentUnitState()).isSameAs(RunnableServerUnit.UnitState.PASSIVE);
         assertThat(service.isStarted()).isFalse();
@@ -254,7 +259,7 @@ public class AbstractServiceTest {
     }
 
     @Test
-    public void shouldStop() throws IOException {
+    public void shouldStopService() throws IOException {
         // preparing test data
         service.Start();
         assertThat(service.currentUnitState()).isSameAs(RunnableServerUnit.UnitState.ACTIVE);

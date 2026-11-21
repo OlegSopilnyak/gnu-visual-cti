@@ -46,7 +46,9 @@ import org.visualcti.server.*;
 import org.visualcti.server.service.*;
 /**
 Class for made the Services system
+ @deprecated
 */
+@Deprecated
 public final class Services
 {
     /**

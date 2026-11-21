@@ -45,6 +45,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
 import org.jdom.DataConversionException;
 import org.jdom.Document;
 import org.jdom.Element;
@@ -115,6 +117,31 @@ public interface XmlAware extends Serializable {
      */
     default void setXML(Element xml) throws IOException, DataConversionException, NumberFormatException, NullPointerException {
         throw new UnsupportedOperationException("Not supported yet. Should be override in child.");
+    }
+
+    /**
+     * <accessor>
+     * To extract entity's configuration from xml-element (wrapped Element by the entity's xml-element)
+     *
+     * @param xml the sub-system xml-element
+     * @param entityName the entity's name in the xml-element
+     * @return the entity's configuration xml-element
+     * @throws IOException if something went wrong with the entity's configuration xml-element
+     */
+    @SuppressWarnings("unchecked")
+    default Element extractEntityFrom(final Element xml, final String entityName) throws IOException {
+        if (xml == null || !Objects.equals(xml.getName(), entityName)) {
+            // The configuration xml-element is not an entity
+            throw new IOException("The configuration xml-element is not a " + entityName);
+        }
+        // analyzing the content of xml-element
+        final List<Object> content = xml.getContent();
+        final Element[] entityElements = content.stream().filter(Element.class::isInstance).toArray(Element[]::new);
+        if (entityElements.length != 1) {
+            // The content of the entity's configuration has the wrong structure
+            throw new IOException("The "+entityName +"'s configuration xml-element has wrong structure");
+        }
+        return entityElements[0];
     }
 
     /**

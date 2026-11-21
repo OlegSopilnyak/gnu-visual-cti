@@ -47,7 +47,9 @@ import org.visualcti.server.unitEvent;
 /**
 <Singleton>
 Manager of services of VisualCTI Server
+ @deprecated
 */
+@Deprecated
 public final class ServiceManager 
                         extends MasterServiceAdapter
                         implements Manager

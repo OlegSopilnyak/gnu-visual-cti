@@ -37,8 +37,15 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.service.adapter;
 
+import java.io.IOException;
+import java.util.Optional;
+import org.jdom.DataConversionException;
+import org.jdom.Element;
+import org.visualcti.server.core.unit.ServerUnit;
+import org.visualcti.server.service.Service;
 import org.visualcti.server.service.ServicesManager;
 import org.visualcti.server.unit.RunnableUnitAdapter;
+import org.visualcti.server.unit.ServerUnitAdapter;
 
 /**
  * <services-manager-facade>
@@ -53,8 +60,55 @@ import org.visualcti.server.unit.RunnableUnitAdapter;
  * @see RunnableUnitAdapter
  * @see ServicesManager
  */
-public abstract class AbstractServicesManager extends RunnableUnitAdapter implements ServicesManager {
+public class AbstractServicesManager extends RunnableUnitAdapter implements ServicesManager {
     protected AbstractServicesManager() {
-        unitPath = UNIT_PATH;
+        this.unitPath = UNIT_PATH;
+    }
+
+    /**
+     * <converter>
+     * To update the entity's fields from XML
+     *
+     * @param xml possible entity's XML
+     * @throws IOException             if something went wrong
+     * @throws DataConversionException if something went wrong
+     * @throws NumberFormatException   if something went wrong
+     * @throws NullPointerException    if something went wrong
+     * @see Element
+     * @see Service#extractServiceFrom(Element)
+     * @see ServerUnitAdapter#setXML(Element)
+     * @see #settingUpBasePart(Element)
+     * @see #settingUpMainPart(Element)
+     */
+    @Override
+    public void setXML(Element xml) throws IOException, DataConversionException, NumberFormatException, NullPointerException {
+        super.setXML(extractServiceFrom(xml));
+    }
+
+    /**
+     * <checker>
+     * To check is unit can start according the internal state
+     *
+     * @return true if unit can start
+     */
+    @Override
+    public boolean canStartUnit() {
+        return services().findAny().isPresent();
+    }
+
+    /**
+     * <mutator>
+     * to add child to the server unit composite units tree<BR/>
+     * set up the owner for the child unit current unit
+     * Works for Service units only
+     *
+     * @param unit the unit to add
+     * @return true if it's succeeded
+     * @see ServerUnitAdapter#add(ServerUnit)
+     * @see Service
+     */
+    @Override
+    public boolean add(ServerUnit unit) {
+        return Optional.ofNullable(unit).filter(Service.class::isInstance).map(super::add).orElse(false);
     }
 }

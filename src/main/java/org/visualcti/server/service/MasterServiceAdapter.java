@@ -46,7 +46,9 @@ import org.visualcti.server.action.serverAction;
 
 /**
 class-adapter for MasterService
+ @deprecated
 */
+@Deprecated
 public abstract class MasterServiceAdapter
                             extends ServiceAdapter
                             implements MasterService

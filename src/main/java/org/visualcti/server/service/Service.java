@@ -38,10 +38,9 @@ Fax number: 217-356-3356
 package org.visualcti.server.service;
 
 import java.io.IOException;
-import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import org.jdom.Element;
+import org.visualcti.core.XmlAware;
 import org.visualcti.server.core.unit.RunnableServerUnit;
 
 /**
@@ -56,7 +55,6 @@ import org.visualcti.server.core.unit.RunnableServerUnit;
  * @version 3.2
  * @see RunnableServerUnit
  */
-@SuppressWarnings("unchecked")
 public interface Service extends RunnableServerUnit {
     // The name of root configuration xml-element
     String XML_ROOT_NAME = "service";
@@ -68,20 +66,10 @@ public interface Service extends RunnableServerUnit {
      * @param xml the sub-system xml-element
      * @return the service's configuration xml-element
      * @throws IOException if something went wrong with the service's configuration xml-element
+     * @see XmlAware#extractEntityFrom(Element, String)
      */
     default Element extractServiceFrom(final Element xml) throws IOException {
-        if (xml == null || !Objects.equals(xml.getName(), XML_ROOT_NAME)) {
-            // The configuration xml-element is not a service
-            throw new IOException("The configuration xml-element is not a service");
-        }
-        // analyzing the content of xml-element
-        final List<Object> content = xml.getContent();
-        final Element[] serviceElements = content.stream().filter(Element.class::isInstance).toArray(Element[]::new);
-        if (serviceElements.length != 1) {
-            // The content of the service's configuration has the wrong structure
-            throw new IOException("The service's configuration xml-element has wrong structure");
-        }
-        return serviceElements[0];
+        return extractEntityFrom(xml, XML_ROOT_NAME);
     }
 
     /**
