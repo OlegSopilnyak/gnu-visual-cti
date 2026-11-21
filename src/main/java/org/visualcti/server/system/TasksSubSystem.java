@@ -45,28 +45,30 @@ import org.jdom.Comment;
 import org.jdom.DataConversionException;
 import org.jdom.Element;
 import org.visualcti.core.XmlAware;
+import org.visualcti.server.UnitRegistry;
 import org.visualcti.server.core.executable.task.TasksPoolUnit;
 import org.visualcti.server.core.system.SubSystem;
+import org.visualcti.server.core.unit.EngineUnitBuilder;
+import org.visualcti.server.core.unit.exception.ServerUnitException;
+import org.visualcti.server.system.manager.TasksManager;
 import org.visualcti.server.task.AbstractTaskPoolsManager;
 import org.visualcti.server.task.AbstractTasksPool;
 import org.visualcti.util.Tools;
 
 /**
- * <SubSystem>
- * The sub-system of the application server which is in charge with application tasks
+ * <System>
+ * <p>Title: Visual CTI Java Telephony Server</p>
+ * <p>Description: VisualCTI Applications Server,<br>
+ * System: The sub-system of the application server which is in charge with application tasks</p>
  *
+ * @author Sopilnyak Oleg
+ * @version 3.2
  * @see SubSystem
  * @see AbstractTasksPool
  * @see AbstractTaskPoolsManager
  */
+@SuppressWarnings("unchecked")
 public class TasksSubSystem implements SubSystem {
-    private static final String TASKS_MANAGER_UNIT_NAME = "Tasks Manager";
-    private final MainTaskManager manager;
-
-    public TasksSubSystem() {
-        manager = new MainTaskManager(this);
-    }
-
     /**
      * <accessor>
      * To get the name of the system's element name in the XML
@@ -88,8 +90,13 @@ public class TasksSubSystem implements SubSystem {
      * @see Manager
      */
     @Override
-    public SubSystem.Manager getSystemManager() {
-        return manager;
+    public TasksManager getSystemManager() {
+        try {
+            return UnitRegistry.lookup(TasksManager.class);
+        } catch (ServerUnitException e) {
+            e.printStackTrace(Tools.err);
+            return null;
+        }
     }
 
     /**
@@ -103,6 +110,7 @@ public class TasksSubSystem implements SubSystem {
      */
     @Override
     public Element getXML() {
+        final TasksManager manager = getSystemManager();
         final Element systemElement = SubSystem.super.getXML();
         systemElement.addContent(new Comment(" Server tasks control system "));
         final Element tasksElement = new Element(TASKS_SUB_SYSTEM);
@@ -113,12 +121,12 @@ public class TasksSubSystem implements SubSystem {
         if (publicTasksPool != null) {
             // public pool adding
             tasksElement.addContent(new Comment(" Pool of public tasks (server's tasks library) "));
-            tasksElement.addContent((Element)publicTasksPool.getXML().clone());
+            tasksElement.addContent((Element) publicTasksPool.getXML().clone());
         }
         // local pools adding
         tasksElement.addContent(new Comment(" Pool of concrete device's tasks "));
         manager.localTaskPoolStream()
-                .forEach(poolUnit -> tasksElement.addContent((Element)poolUnit.getXML().clone()));
+                .forEach(poolUnit -> tasksElement.addContent((Element) poolUnit.getXML().clone()));
         return systemElement;
     }
 
@@ -138,8 +146,13 @@ public class TasksSubSystem implements SubSystem {
     public void setXML(Element xml) throws IOException, DataConversionException, NumberFormatException, NullPointerException {
         // getting manager's configuration XML-Element
         final Element managerElement = extractSystemManagerElement(xml);
+        // building and configuring manager's instance from xml and register it
+        final TasksManager manager = (TasksManager) EngineUnitBuilder.getInstance()
+                .build(managerElement, mgr -> ((TasksManager) mgr).setSystem(this));
+//        manager.setSystem(this);
+//        final TasksManager manager = getSystemManager();
         // configuring built manager's instance from xml and register it
-        manager.configure(managerElement);
+//        manager.configure(managerElement);
         //
         // building task pools units
         final Element systemElement = managerElement.getParent();
@@ -148,7 +161,7 @@ public class TasksSubSystem implements SubSystem {
         Tools.out.flush();
         for (final Element poolElement : poolElements) {
             // preparing tasks pool server unit and attach it to the manager
-            final TasksPoolUnit tasksPool = new PoolServerUnit();
+            final TasksPoolUnit tasksPool = new TasksManager.Pool();
             // configuring created tasks pool
             tasksPool.configure(poolElement);
             // attach it to the manager
@@ -159,80 +172,5 @@ public class TasksSubSystem implements SubSystem {
         }
         // all task-pools are configured well
         Tools.print("Done!");
-    }
-
-    // inner classes
-    // implementation of sub-system's tasks manager, builder feature of server unit isn't used here at the moment
-    private static class MainTaskManager extends AbstractTaskPoolsManager implements SubSystem.Manager {
-        private final SubSystem owner;
-
-        private MainTaskManager(SubSystem owner) {
-            this.owner = owner;
-        }
-
-        @Override
-        public String getName() {
-            return TASKS_MANAGER_UNIT_NAME;
-        }
-
-        @Override
-        protected String getUnitDescription() {
-            return " The manager of tasks pools ";
-        }
-
-        @Override
-        public String getRootElementName() {
-            return MANAGER_ROOT_ELEMENT;
-        }
-
-        @Override
-        public SubSystem getSystem() {
-            return owner;
-        }
-
-        @Override
-        public void close() {
-            this.unitPath = defaultManagerUnitPath();
-        }
-
-        @Override
-        public TasksPoolUnit createTaskPool(String name, String factory) {
-            final TasksPoolUnit poolUnit = new TasksSubSystem.PoolServerUnit().localPoolFor(name, factory);
-            try {
-                poolUnit.loadOrCreateTasksList();
-            } catch (IOException e) {
-                dispatchError(e, "Could not load or create tasks list");
-                return null;
-            }
-            return poolUnit;
-        }
-
-        @Override
-        protected void settingUpBasePart(Element xml) {
-            // doing nothing, keeps original XML
-            // Here we don't use builder stuff of the server unit
-        }
-
-        @Override
-        protected void beforeRegisterUnit() {
-            if (isEmptyString.test(this.unitPath) || TASKS_MANAGER_UNIT_NAME.equals(this.unitPath)) {
-                this.unitPath = defaultManagerUnitPath();
-            }
-        }
-
-        @Override
-        protected boolean updatedUnitConfiguration() {
-            // keeping loaded configuration Element as is after changed branches
-            return true;
-        }
-    }
-
-    // implementation of sub-system's tasks pool, builder feature of server unit isn't used
-    private static class PoolServerUnit extends AbstractTasksPool {
-        @Override
-        protected void settingUpBasePart(Element xml) {
-            // doing nothing, keeps original XML
-            // Here we don't use builder stuff of the server unit
-        }
     }
 }

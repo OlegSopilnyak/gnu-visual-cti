@@ -111,7 +111,7 @@ public interface SubSystem extends XmlAware {
      * @return instance of the manager
      * @see Manager
      */
-    Manager getSystemManager();
+    <M extends Manager> M getSystemManager();
 
     /**
      * <SystemManager>

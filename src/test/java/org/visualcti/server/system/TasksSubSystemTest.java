@@ -51,6 +51,7 @@ import org.visualcti.server.UnitRegistry;
 import org.visualcti.server.core.executable.task.TaskPoolsManager;
 import org.visualcti.server.core.system.SubSystem;
 import org.visualcti.server.core.unit.exception.ServerUnitException;
+import org.visualcti.server.system.manager.TasksManager;
 import org.visualcti.server.task.AbstractTaskPoolsManager;
 
 public class TasksSubSystemTest {
@@ -74,11 +75,12 @@ public class TasksSubSystemTest {
     }
 
     @Test
-    public void shouldGetTasksSubSystemXML() {
+    public void shouldGetTasksSubSystemXML() throws IOException {
         // preparing test data
+        UnitRegistry.register(TasksManager.getInstance());
         String managerRootDirectoryName = "root-directory";
         assertThat(system.getSystemManager()).isInstanceOf(AbstractTaskPoolsManager.class);
-        ((AbstractTaskPoolsManager)system.getSystemManager()).setRootDirectoryName(managerRootDirectoryName);
+        system.getSystemManager().setRootDirectoryName(managerRootDirectoryName);
 
         // acting
         Element xml = system.getXML();
@@ -108,7 +110,7 @@ public class TasksSubSystemTest {
         // check results
         assertThat(system.getSystemManager()).isInstanceOf(SubSystem.Manager.class).isInstanceOf(TaskPoolsManager.class);
         assertThat(UnitRegistry.lookup(SubSystem.Manager.class)).isInstanceOf(TaskPoolsManager.class);
-        TaskPoolsManager manager = (TaskPoolsManager)system.getSystemManager();
+        TaskPoolsManager manager = system.getSystemManager();
         assertThat(manager.getRoot()).exists().isDirectory();
         assertThat(UnitRegistry.lookup(SubSystem.Manager.class)).isNotNull();
         assertThat(manager.publicTaskPool().getName()).isEqualTo("library");
@@ -118,10 +120,9 @@ public class TasksSubSystemTest {
     @Test
     public void shouldStartSystem() throws IOException, DataConversionException {
         // preparing test data
-        assertThat(system.getSystemManager()).isInstanceOf(TaskPoolsManager.class);
         Element xml = xmlEngine.load(new ByteArrayInputStream(configurationXmlString.getBytes()));
-        assertThat(system.getSystemManager().canStartUnit()).isFalse();
         system.setXML(xml);
+        assertThat(system.getSystemManager()).isInstanceOf(TaskPoolsManager.class);
         assertThat(system.getSystemManager().canStartUnit()).isTrue();
 
         // acting
@@ -129,7 +130,7 @@ public class TasksSubSystemTest {
 
         // check results
         assertThat(system.getSystemManager().isStarted()).isTrue();
-        TaskPoolsManager manager = (TaskPoolsManager) system.getSystemManager();
+        TaskPoolsManager manager = system.getSystemManager();
         assertThat(manager.publicTaskPool().isStarted()).isTrue();
         manager.localTaskPoolStream().forEach(pool -> {
             if (pool.canStartUnit()) {

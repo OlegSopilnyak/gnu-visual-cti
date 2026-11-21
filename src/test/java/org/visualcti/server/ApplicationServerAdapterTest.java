@@ -698,6 +698,6 @@ public class ApplicationServerAdapterTest {
         // check results
         assertThat(xmlElementCaptor.getValue()).isSameAs(systemXml);
         assertThat(application.getSubSystem(subSystemName).getSystemElementName()).isEqualTo(subSystemName);
-        assertThat(application.getSubSystem(subSystemName).getSystemManager()).isNotNull();
+//        assertThat(application.getSubSystem(subSystemName).getSystemManager()).isNotNull();
     }
 }

@@ -524,9 +524,23 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
          * @param configuration XML configuration of the server unit
          * @return built server unit instance
          * @throws IOException if something wrong in the XML-document
+         * @see #build(Element, Consumer)
+         */
+        default T build(final Element configuration) throws IOException {
+            return build(configuration, unit -> {});
+        }
+
+        /**
+         * <builder method>
+         * To build the instance of the server unit from XML Element
+         *
+         * @param configuration XML configuration of the server unit
+         * @param afterCreate action to do after unit's building
+         * @return built server unit instance
+         * @throws IOException if something wrong in the XML-document
          */
         @SuppressWarnings("unchecked")
-        default T build(Element configuration) throws IOException {
+        default T build(final Element configuration, final Consumer<T> afterCreate) throws IOException {
             final String unitPackage = configuration.getAttributeValue(UNIT_TYPE_PACKAGE);
             final String unitClassName = className.apply(unitPackage, configuration.getAttributeValue(UNIT_TYPE_CLASS));
             final String unitExtendsClassName =
@@ -547,6 +561,8 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
                 final T unit = unitBuilderXML == null
                         ? unitClass.getDeclaredConstructor().newInstance()
                         : build(unitBuilderXML, unitExtendsClass);
+                // to do action after unit's building
+                afterCreate.accept(unit);
                 // detaching the owner if any, if the built unit is a singleton
                 unit.setOwner(null);
                 // configuring created server unit instance
