@@ -41,6 +41,7 @@ import static org.visualcti.server.core.executable.task.TasksPoolUnit.TASKS_POOL
 
 import java.io.IOException;
 import java.util.List;
+import java.util.function.Consumer;
 import org.jdom.Comment;
 import org.jdom.DataConversionException;
 import org.jdom.Element;
@@ -111,23 +112,24 @@ public class TasksSubSystem implements SubSystem {
     @Override
     public Element getXML() {
         final TasksManager manager = getSystemManager();
-        final Element systemElement = SubSystem.super.getXML();
-        systemElement.addContent(new Comment(" Server tasks control system "));
-        final Element tasksElement = new Element(TASKS_SUB_SYSTEM);
-        systemElement.addContent(tasksElement);
-        tasksElement.addContent(new Comment(" The manager of tasks pools "));
-        tasksElement.addContent((Element) manager.getXML().clone());
+        // preparing TasksSubSystem's XML-element
+        final Element rootTasksElement = new Element(TASKS_SUB_SYSTEM);
+        rootTasksElement.addContent((Element) manager.getXML().clone());
         final TasksPoolUnit publicTasksPool = manager.publicTaskPool();
         if (publicTasksPool != null) {
             // public pool adding
-            tasksElement.addContent(new Comment(" Pool of public tasks (server's tasks library) "));
-            tasksElement.addContent((Element) publicTasksPool.getXML().clone());
+            rootTasksElement.addContent(new Comment(" Pool of public tasks (server's tasks library) "));
+            rootTasksElement.addContent((Element) publicTasksPool.getXML().clone());
         }
         // local pools adding
-        tasksElement.addContent(new Comment(" Pool of concrete device's tasks "));
-        manager.localTaskPoolStream()
-                .forEach(poolUnit -> tasksElement.addContent((Element) poolUnit.getXML().clone()));
-        return systemElement;
+        rootTasksElement.addContent(new Comment(" Pool of concrete device's tasks "));
+        manager.localTaskPoolStream().forEach(tasksPoolUnit ->
+                rootTasksElement.addContent((Element) tasksPoolUnit.getXML().clone())
+        );
+        // adding tasks xml-element to the root of sub-system and return it
+        return SubSystem.super.getXML()
+                .addContent(new Comment(" Server tasks control system "))
+                .addContent(rootTasksElement);
     }
 
     /**
@@ -144,26 +146,22 @@ public class TasksSubSystem implements SubSystem {
     @Override
     @SuppressWarnings("unchecked")
     public void setXML(Element xml) throws IOException, DataConversionException, NumberFormatException, NullPointerException {
-        // getting manager's configuration XML-Element
+        // getting sub-system's manager's configuration xml-element
         final Element managerElement = extractSystemManagerElement(xml);
         // building and configuring manager's instance from xml and register it
-        final TasksManager manager = (TasksManager) EngineUnitBuilder.getInstance()
-                .build(managerElement, mgr -> ((TasksManager) mgr).setSystem(this));
-//        manager.setSystem(this);
-//        final TasksManager manager = getSystemManager();
-        // configuring built manager's instance from xml and register it
-//        manager.configure(managerElement);
+        final Consumer<TasksManager> afterManagerCreate = manager -> manager.setSystem(this);
+        final TasksManager manager = EngineUnitBuilder.getInstance().build(managerElement, afterManagerCreate);
         //
-        // building task pools units
-        final Element systemElement = managerElement.getParent();
-        final List<Element> poolElements = systemElement.getChildren(TASKS_POOL_ROOT_ELEMENT_NAME);
+        // iterating by xml-elements of the tasks pools
+        // building tasks pools units as well
+        final List<Element> poolElements = managerElement.getParent().getChildren(TASKS_POOL_ROOT_ELEMENT_NAME);
         Tools.out.print(" : pools .");
         Tools.out.flush();
-        for (final Element poolElement : poolElements) {
+        for (final Element tasksPoolConfigurationXml : poolElements) {
             // preparing tasks pool server unit and attach it to the manager
             final TasksPoolUnit tasksPool = new TasksManager.Pool();
             // configuring created tasks pool
-            tasksPool.configure(poolElement);
+            tasksPool.configure(tasksPoolConfigurationXml);
             // attach it to the manager
             tasksPool.setOwner(manager);
             // printing the dot after successful pool's configuration

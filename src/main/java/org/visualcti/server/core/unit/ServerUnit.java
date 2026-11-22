@@ -521,52 +521,63 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
          * <builder method>
          * To build the instance of the server unit from XML Element
          *
-         * @param configuration XML configuration of the server unit
+         * @param xml XML configuration of the server unit
          * @return built server unit instance
+         * @param <U>                  the type of the server unit to build
          * @throws IOException if something wrong in the XML-document
          * @see #build(Element, Consumer)
          */
-        default T build(final Element configuration) throws IOException {
-            return build(configuration, unit -> {});
+        default <U extends T> U build(final Element xml) throws IOException {
+            return build(xml, unit -> {
+            });
+        }
+
+        static String unitClass(final String packageName, final Element xml, final String attributeName) {
+            return className.apply(packageName, xml.getAttributeValue(attributeName));
         }
 
         /**
          * <builder method>
          * To build the instance of the server unit from XML Element
          *
-         * @param configuration XML configuration of the server unit
-         * @param afterCreate action to do after unit's building
+         * @param unitConfigurationXml XML configuration of the server unit
+         * @param afterCreate          action to do after unit's building
          * @return built server unit instance
+         * @param <U>                  the type of the server unit to build
          * @throws IOException if something wrong in the XML-document
          */
         @SuppressWarnings("unchecked")
-        default T build(final Element configuration, final Consumer<T> afterCreate) throws IOException {
-            final String unitPackage = configuration.getAttributeValue(UNIT_TYPE_PACKAGE);
-            final String unitClassName = className.apply(unitPackage, configuration.getAttributeValue(UNIT_TYPE_CLASS));
-            final String unitExtendsClassName =
-                    className.apply(unitPackage, configuration.getAttributeValue(UNIT_TYPE_EXTENDS_CLASS));
+        default <U extends T> U build(final Element unitConfigurationXml, final Consumer<U> afterCreate) throws IOException {
+            final String unitPackage = unitConfigurationXml.getAttributeValue(UNIT_TYPE_PACKAGE);
+            // building unit's canonical class name
+            final String unitClassName = unitClass(unitPackage, unitConfigurationXml, UNIT_TYPE_CLASS);
+            // building unit's parent (extends) canonical class name
+            final String unitInheritsClassName = unitClass(unitPackage, unitConfigurationXml, UNIT_TYPE_EXTENDS_CLASS);
             try {
+                // prepare the unit's classloader
                 final ClassLoader unitClassloader = ServerUnit.class.getClassLoader();
-                // to make the class extends server unit
-                final Class<?> unitExtendsClass = Class.forName(unitExtendsClassName, true, unitClassloader);
-                // to make the class of server unit
-                final Class<T> unitClass = (Class<T>) Class.forName(unitClassName, true, unitClassloader);
-                // to check is class extends declared correct
-                if (!unitExtendsClass.isAssignableFrom(unitClass)) {
+                // building by name and classloader the class of the unit
+                final Class<U> unitClass = (Class<U>) Class.forName(unitClassName, true, unitClassloader);
+                // building by name and classloader the class which the unit is inherited
+                final Class<?> unitInheritsClass = Class.forName(unitInheritsClassName, true, unitClassloader);
+                // to check is the unit's class inherit the class correctly
+                if (!unitInheritsClass.isAssignableFrom(unitClass)) {
                     // wrong declared inheritance
-                    throw new IOException("Class " + unitExtendsClassName + " is not extending " + unitClassName);
+                    throw new IOException("Class " + unitInheritsClassName + " is not extending " + unitClassName);
                 }
                 // creating the instance of server unit
-                final Element unitBuilderXML = getBuilderElement(configuration);
-                final T unit = unitBuilderXML == null
+                final Element unitBuilderXML = getBuilderElement(unitConfigurationXml);
+                final U unit = unitBuilderXML == null
+                        // using the default constructor (no builder stuff in xml found)
                         ? unitClass.getDeclaredConstructor().newInstance()
-                        : build(unitBuilderXML, unitExtendsClass);
+                        // using the builder from xml
+                        : byBuilder(unitBuilderXML, unitInheritsClass);
                 // to do action after unit's building
                 afterCreate.accept(unit);
-                // detaching the owner if any, if the built unit is a singleton
+                // detaching the owner if any, for example if the built unit is a singleton
                 unit.setOwner(null);
                 // configuring created server unit instance
-                unit.configure(configuration);
+                unit.configure(unitConfigurationXml);
                 // returns built and configured server unit
                 return unit;
             } catch (ClassNotFoundException e) {
@@ -581,9 +592,10 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
          * <builder method>
          * To build the instance of server unit using builder XML Element
          *
-         * @param xml          builder XML-element
-         * @param extendsClass the unit-class should be extended
+         * @param unitBuilderXML builder XML-element
+         * @param inhertitsClass the unit-class should be extended
          * @return built server instance
+         * @param <U>                  the type of the server unit to build
          * @throws ClassNotFoundException    if something went wrong
          * @throws IllegalAccessException    if something went wrong
          * @throws InstantiationException    if something went wrong
@@ -593,24 +605,27 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
          * @see #build(Element)
          */
         @SuppressWarnings("unchecked")
-        default T build(Element xml, Class<?> extendsClass) throws
+        default <U extends T> U byBuilder(final Element unitBuilderXML, final Class<?> inhertitsClass) throws
                 ClassNotFoundException, IllegalAccessException, InstantiationException, NoSuchMethodException,
                 InvocationTargetException, IOException {
-            final String builderClassName =
-                    className.apply(xml.getAttributeValue(UNIT_TYPE_PACKAGE), xml.getAttributeValue(UNIT_TYPE_CLASS));
+            final String builderClassName = className.apply(unitBuilderXML.getAttributeValue(UNIT_TYPE_PACKAGE), unitBuilderXML.getAttributeValue(UNIT_TYPE_CLASS));
             // creating the class of the builder
-            final Class<T> builderClass = (Class<T>) Class.forName(builderClassName, true, extendsClass.getClassLoader());
+            final Class<U> builderClass =
+                    (Class<U>) Class.forName(builderClassName, true, inhertitsClass.getClassLoader());
             // build-instance-method name
-            final String builderMethod = xml.getAttributeValue(UNIT_BUILDER_METHOD_ATTRIBUTE);
-            final T unit = isEmptyString.test(builderMethod)
-                    // just creating the new instance by constructor
+            final String builderMethod = unitBuilderXML.getAttributeValue(UNIT_BUILDER_METHOD_ATTRIBUTE);
+            final U unit = isEmptyString.test(builderMethod)
+                    // just creating the new instance by builder's constructor
                     ? builderClass.getDeclaredConstructor().newInstance()
                     // creating te new instance using builder method
-                    : (T) builderClass.getMethod(builderMethod).invoke(builderClass);
-            if (extendsClass.isInstance(unit)) {
-                return unit;
+                    : (U) builderClass.getMethod(builderMethod).invoke(builderClass);
+            // analyzing creation's result
+            if (!inhertitsClass.isInstance(unit)) {
+                // wrong inheritance
+                throw new IOException("Built unit is not an instance of " + inhertitsClass.getName());
             }
-            throw new IOException("Built unit is not an instance of " + extendsClass.getName());
+            // returns the built and valid the server unit's instance
+            return unit;
         }
     }
 
@@ -621,13 +636,13 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
      * <accessor>
      * To get builder XML-element from unit's configuration XML-element
      *
-     * @param configuration unit's configuration XML-element
+     * @param unitConfigurationXml unit's configuration XML-element
      * @return unit's builder XML-element
      */
-    static Element getBuilderElement(Element configuration) {
-        final Element element = configuration.getChild(UNIT_BUILDER_ELEMENT_NAME);
+    static Element getBuilderElement(final Element unitConfigurationXml) {
+        final Element element = unitConfigurationXml.getChild(UNIT_BUILDER_ELEMENT_NAME);
         // for backward compatibility of old sever XML format
-        return element != null ? element : configuration.getChild("parent");
+        return element != null ? element : unitConfigurationXml.getChild("parent");
     }
 
     /**

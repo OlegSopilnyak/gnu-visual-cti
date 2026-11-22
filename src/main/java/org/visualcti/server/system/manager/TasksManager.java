@@ -58,7 +58,7 @@ import org.visualcti.server.task.AbstractTasksPool;
 public class TasksManager extends AbstractTaskPoolsManager implements SubSystem.Manager {
     private static final String TASKS_MANAGER_UNIT_NAME = "Tasks Manager";
     private static TasksManager instance;
-    private SubSystem owner;
+    private SubSystem subSystem;
 
     /**
      * <builder>
@@ -94,11 +94,11 @@ public class TasksManager extends AbstractTaskPoolsManager implements SubSystem.
 
     @Override
     public SubSystem getSystem() {
-        return owner;
+        return subSystem;
     }
 
-    public void setSystem(SubSystem owner) {
-        this.owner = owner;
+    public void setSystem(SubSystem subSystem) {
+        this.subSystem = subSystem;
     }
 
     @Override

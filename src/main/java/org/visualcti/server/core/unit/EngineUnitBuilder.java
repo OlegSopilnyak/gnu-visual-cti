@@ -44,12 +44,13 @@ import org.jdom.Element;
  * <builder>
  * Implementation: The builder of the instance of the server unit, unsing XML Element from scratch
  *
- * @see ServerUnit.Builder#build(Element, Class)
+ * @see ServerUnit.Builder#byBuilder(Element, Class)
  * @see org.visualcti.core.XmlAware#setXML(Element)
  */
-public final class EngineUnitBuilder implements ServerUnit.Builder<ServerUnit> {
+@SuppressWarnings("unchecked")
+public final class EngineUnitBuilder<T extends ServerUnit> implements ServerUnit.Builder<T> {
     // one instance of builder in the class-loader
-    private static volatile EngineUnitBuilder instance;
+    private static volatile EngineUnitBuilder<?> instance;
 
     /**
      * <accessor>
@@ -57,16 +58,16 @@ public final class EngineUnitBuilder implements ServerUnit.Builder<ServerUnit> {
      *
      * @return the instance
      */
-    public static EngineUnitBuilder getInstance() {
+    public static <T extends ServerUnit> EngineUnitBuilder<T> getInstance() {
         if (instance != null) {
-            return instance;
+            return (EngineUnitBuilder<T>) instance;
         }
         synchronized (EngineUnitBuilder.class) {
             if (instance == null) {
-                instance = new EngineUnitBuilder();
+                instance = new EngineUnitBuilder<>();
             }
         }
-        return instance;
+        return (EngineUnitBuilder<T>) instance;
     }
 
     private EngineUnitBuilder() {
