@@ -47,34 +47,65 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
+import org.jdom.Element;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.visualcti.core.XmlAware;
 import org.visualcti.server.UnitRegistry;
 import org.visualcti.server.core.ApplicationServer;
 import org.visualcti.server.core.executable.task.TaskPoolsManager;
 import org.visualcti.server.core.executable.task.TasksPoolUnit;
 import org.visualcti.server.core.system.SubSystem;
+import org.visualcti.server.core.unit.EngineUnitBuilder;
 import org.visualcti.server.core.unit.exception.ServerUnitException;
 import org.visualcti.server.task.AbstractTasksPool;
 
 @SuppressWarnings("unchecked")
 public class TasksManagerTest {
+    String configurationXml = "<Manager package=\"org.visualcti.server.system.manager\" class=\"TasksManager\" extends=\"org.visualcti.server.core.executable.task.TaskPoolsManager\">\n" +
+            "    <builder package=\"org.visualcti.server.system.manager\" class=\"TasksManager\" method=\"getInstance\" />\n" +
+            "    <!-- The manager of tasks pools -->\n" +
+            "    <parameter name=\"directory\" type=\"string\" value=\"work/tasks\" />\n" +
+            "</Manager>\n";
+    XmlAware xmlEngine;
     TasksManager tasksManager;
+    String tasksSubSystemName = "Tasks";
+    SubSystem tasksSubSystem;
 
     @Before
     public void setUp() throws Exception {
+        xmlEngine = new XmlAware() {
+        };
         tasksManager = TasksManager.getInstance();
+        tasksManager.resetUnitPath();
+        tasksSubSystem = mock(SubSystem.class);
+        doReturn(tasksSubSystemName).when(tasksSubSystem).getSystemElementName();
     }
 
     @After
     public void tearDown() throws Exception {
         tasksManager.Stop();
         tasksManager.setSystem(null);
+        tasksManager.setOwner(null);
+        UnitRegistry.clear();
+    }
+
+    @Test
+    public void shouldBuildManagerUnit() throws IOException {
+        // preparing test data
+        Element xml = xmlEngine.load(new ByteArrayInputStream(configurationXml.getBytes()));
+
+        // acting
+        TasksManager manager = EngineUnitBuilder.getInstance().build(xml, mng -> mng.setSystem(tasksSubSystem));
+
+        // check results
+        assertThat(manager).isSameAs(tasksManager);
     }
 
     @Test
@@ -150,11 +181,12 @@ public class TasksManagerTest {
         // preparing test data
         String poolName = "testPool";
         String factoryName = "testFactory";
-        String managerUnitPath = "TestTasksManager";
-        File managerRoot = new File(".");
+        tasksManager.setSystem(tasksSubSystem);
+        tasksManager.configure(xmlEngine.load(new ByteArrayInputStream(configurationXml.getBytes())));
+        String managerUnitPath = tasksManager.getPath();
+        File managerRoot = tasksManager.getRoot();
+        UnitRegistry.unRegister(tasksManager);
         TaskPoolsManager taskPoolsManager = spy(tasksManager);
-        doReturn(managerUnitPath).when(taskPoolsManager).getPath();
-        doReturn(managerRoot).when(taskPoolsManager).getRoot();
         UnitRegistry.register(taskPoolsManager);
         File tasksPoolFile = new File(managerRoot, poolName + ".tasks.pool");
         tasksPoolFile.deleteOnExit();
@@ -173,15 +205,14 @@ public class TasksManagerTest {
     }
 
     @Test
-    public void shouldDoBeforeRegisterUnit() {
+    public void shouldDoBeforeRegisterUnit() throws IOException {
         // preparing test data
-        String systemName = "TasksSystem";
-        SubSystem tasks = mock(SubSystem.class);
-        doReturn(systemName).when(tasks).getSystemElementName();
-        tasksManager.setSystem(tasks);
+        tasksManager.setSystem(tasksSubSystem);
+        tasksManager.configure(xmlEngine.load(new ByteArrayInputStream(configurationXml.getBytes())));
+        UnitRegistry.unRegister(tasksManager);
         TasksManager spied = spy(tasksManager);
-        assertThat(spied.getPath()).isEmpty();
-
+        UnitRegistry.register(spied);
+        spied.resetUnitPath();
         // acting
         spied.beforeRegisterUnit();
 
@@ -189,9 +220,9 @@ public class TasksManagerTest {
         verify(spied).defaultManagerUnitPath();
         verify(spied).getSystemName();
         verify(spied).getSystem();
-        verify(tasks).getSystemElementName();
+        verify(tasksSubSystem, atLeastOnce()).getSystemElementName();
         // check results
-        assertThat(spied.getPath()).isEqualTo(systemName + "Manager");
+        assertThat(spied.getPath()).isEqualTo(tasksSubSystem.getSystemElementName() + "Manager");
     }
 
     @Test
@@ -199,7 +230,7 @@ public class TasksManagerTest {
         // preparing test data
         SubSystem tasks = mock(SubSystem.class);
         TasksManager spied = spy(tasksManager);
-        assertThat(spied.getPath()).isEmpty();
+        assertThat(spied.getPath()).isSameAs(tasksManager.getName());
 
         // acting
         Exception e = assertThrows(Exception.class, spied::beforeRegisterUnit);
@@ -211,18 +242,14 @@ public class TasksManagerTest {
         verify(tasks, never()).getSystemElementName();
         // check results
         assertThat(e).isInstanceOf(NullPointerException.class);
-        assertThat(spied.getPath()).isEmpty();
+        assertThat(spied.getPath()).isSameAs(tasksManager.getName());
     }
 
     @Test
     public void shouldBuildDefaultManagerUnitPath() {
         // preparing test data
-        String systemName = "TasksSystem";
-        SubSystem tasks = mock(SubSystem.class);
-        doReturn(systemName).when(tasks).getSystemElementName();
-        tasksManager.setSystem(tasks);
+        tasksManager.setSystem(tasksSubSystem);
         TasksManager spied = spy(tasksManager);
-        assertThat(spied.getPath()).isEmpty();
 
         // acting
         String defaultPath = spied.defaultManagerUnitPath();
@@ -230,29 +257,26 @@ public class TasksManagerTest {
         // check the behavior
         verify(spied).getSystemName();
         verify(spied).getSystem();
-        verify(tasks).getSystemElementName();
+        verify(tasksSubSystem, atLeastOnce()).getSystemElementName();
         // check results
-        assertThat(defaultPath).isEqualTo(systemName + "Manager");
+        assertThat(defaultPath).isEqualTo(tasksSubSystem.getSystemElementName() + "Manager");
     }
 
     @Test
     public void shouldGetSystemName() {
         // preparing test data
-        String systemName = "TasksSystem";
-        SubSystem tasks = mock(SubSystem.class);
-        doReturn(systemName).when(tasks).getSystemElementName();
-        tasksManager.setSystem(tasks);
+        tasksManager.setSystem(tasksSubSystem);
         TasksManager spied = spy(tasksManager);
-        assertThat(spied.getPath()).isEmpty();
+        assertThat(spied.getPath()).isSameAs(tasksManager.getPath());
 
         // acting
         String managerSystemName = spied.getSystemName();
 
         // check the behavior
         verify(spied).getSystem();
-        verify(tasks).getSystemElementName();
+        verify(tasksSubSystem, atLeastOnce()).getSystemElementName();
         // check results
-        assertThat(managerSystemName).isEqualTo(systemName);
+        assertThat(managerSystemName).isEqualTo(tasksSubSystem.getSystemElementName());
     }
 
     @Test
@@ -261,14 +285,12 @@ public class TasksManagerTest {
         String serverPath = "TestServer";
         ApplicationServer server = mock(ApplicationServer.class);
         doReturn(serverPath).when(server).getPath();
-        String systemName = "TasksSystem";
-        SubSystem tasks = mock(SubSystem.class);
-        doReturn(systemName).when(tasks).getSystemElementName();
-        tasksManager.setSystem(tasks);
+        tasksManager.setSystem(tasksSubSystem);
+        tasksManager.configure(xmlEngine.load(new ByteArrayInputStream(configurationXml.getBytes())));
+        UnitRegistry.unRegister(tasksManager);
         TasksManager spied = spy(tasksManager);
-        assertThat(spied.getPath()).isEmpty();
         UnitRegistry.register(spied);
-        assertThat(UnitRegistry.lookup(TasksManager.class).getPath()).isEmpty();
+        assertThat(UnitRegistry.lookup(TasksManager.class).getPath()).isEqualTo(tasksManager.getPath());
 
         // acting
         spied.connectTo(server);
@@ -276,7 +298,7 @@ public class TasksManagerTest {
         // check the behavior
         verify(spied).setOwner(server);
         // check results
-        String connectedTasksManagerPath = serverPath + "/" + systemName + "Manager";
+        String connectedTasksManagerPath = serverPath + "/" + tasksSubSystem.getSystemElementName() + "Manager";
         assertThat(UnitRegistry.lookup(connectedTasksManagerPath, TaskPoolsManager.class)).isSameAs(spied);
         assertThat(UnitRegistry.lookup(TaskPoolsManager.class).getPath()).isEqualTo(connectedTasksManagerPath);
     }
@@ -297,11 +319,12 @@ public class TasksManagerTest {
         // preparing test data
         String poolName = "testPool";
         String factoryName = "testFactory";
-        String managerUnitPath = "TestTasksManager";
-        File managerRoot = new File(".");
+        tasksManager.setSystem(tasksSubSystem);
+        tasksManager.configure(xmlEngine.load(new ByteArrayInputStream(configurationXml.getBytes())));
+        String managerUnitPath = tasksManager.getPath();
+        File managerRoot = tasksManager.getRoot();
+        UnitRegistry.unRegister(tasksManager);
         TaskPoolsManager taskPoolsManager = spy(tasksManager);
-        doReturn(managerUnitPath).when(taskPoolsManager).getPath();
-        doReturn(managerRoot).when(taskPoolsManager).getRoot();
         UnitRegistry.register(taskPoolsManager);
         File tasksPoolFile = new File(managerRoot, poolName + ".tasks.pool");
         tasksPoolFile.deleteOnExit();
@@ -331,11 +354,12 @@ public class TasksManagerTest {
         // preparing test data
         String poolName = "testPool";
         String factoryName = "testFactory";
-        String managerUnitPath = "TestTasksManager";
-        File managerRoot = new File(".");
+        tasksManager.setSystem(tasksSubSystem);
+        tasksManager.configure(xmlEngine.load(new ByteArrayInputStream(configurationXml.getBytes())));
+        String managerUnitPath = tasksManager.getPath();
+        File managerRoot = tasksManager.getRoot();
+        UnitRegistry.unRegister(tasksManager);
         TaskPoolsManager taskPoolsManager = spy(tasksManager);
-        doReturn(managerUnitPath).when(taskPoolsManager).getPath();
-        doReturn(managerRoot).when(taskPoolsManager).getRoot();
         UnitRegistry.register(taskPoolsManager);
         File tasksPoolFile = new File(managerRoot, poolName + ".tasks.pool");
         tasksPoolFile.deleteOnExit();
@@ -358,7 +382,7 @@ public class TasksManagerTest {
         assertThat(localPool.getName()).isEqualTo(factoryName + "/" + poolName);
         assertThat(tasksPoolFile.delete()).isTrue();
         assertThat(UnitRegistry.lookup(managerUnitPath, TaskPoolsManager.class)).isSameAs(taskPoolsManager);
-        assertThat(UnitRegistry.lookup(localPool.getPath(), TasksPoolUnit.class)).isSameAs(localPool);
+        assertThat(UnitRegistry.lookup(localPool.getPath(), TasksPoolUnit.class)).isSameAs(pool);
     }
 
     @Test
@@ -366,11 +390,12 @@ public class TasksManagerTest {
         // preparing test data
         String poolName = "testPool";
         String factoryName = "testFactory";
-        String managerUnitPath = "TestTasksManager";
-        File managerRoot = new File(".");
+        tasksManager.setSystem(tasksSubSystem);
+        tasksManager.configure(xmlEngine.load(new ByteArrayInputStream(configurationXml.getBytes())));
+        String managerUnitPath = tasksManager.getPath();
+        File managerRoot = tasksManager.getRoot();
+        UnitRegistry.unRegister(tasksManager);
         TaskPoolsManager taskPoolsManager = spy(tasksManager);
-        doReturn(managerUnitPath).when(taskPoolsManager).getPath();
-        doReturn(managerRoot).when(taskPoolsManager).getRoot();
         UnitRegistry.register(taskPoolsManager);
         File tasksPoolFile = new File(managerRoot, poolName + ".tasks.pool");
         tasksPoolFile.deleteOnExit();
@@ -399,11 +424,12 @@ public class TasksManagerTest {
         // preparing test data
         String poolName = "testPool";
         String factoryName = "testFactory";
-        String managerUnitPath = "TestTasksManager";
-        File managerRoot = new File(".");
+        tasksManager.setSystem(tasksSubSystem);
+        tasksManager.configure(xmlEngine.load(new ByteArrayInputStream(configurationXml.getBytes())));
+        String managerUnitPath = tasksManager.getPath();
+        File managerRoot = tasksManager.getRoot();
+        UnitRegistry.unRegister(tasksManager);
         TaskPoolsManager taskPoolsManager = spy(tasksManager);
-        doReturn(managerUnitPath).when(taskPoolsManager).getPath();
-        doReturn(managerRoot).when(taskPoolsManager).getRoot();
         UnitRegistry.register(taskPoolsManager);
         File tasksPoolFile = new File(managerRoot, poolName + ".tasks.pool");
         tasksPoolFile.deleteOnExit();
@@ -431,10 +457,74 @@ public class TasksManagerTest {
     }
 
     @Test
-    public void start() {
+    public void shouldStartManager() throws IOException, ServerUnitException {
+        // preparing test data
+        String poolName = "testPool";
+        String factoryName = "testFactory";
+        tasksManager.setSystem(tasksSubSystem);
+        tasksManager.configure(xmlEngine.load(new ByteArrayInputStream(configurationXml.getBytes())));
+        String managerUnitPath = tasksManager.getPath();
+        File managerRoot = tasksManager.getRoot();
+        UnitRegistry.unRegister(tasksManager);
+        TaskPoolsManager taskPoolsManager = spy(tasksManager);
+        UnitRegistry.register(taskPoolsManager);
+        File tasksPoolFile = new File(managerRoot, poolName + ".tasks.pool");
+        tasksPoolFile.deleteOnExit();
+        AbstractTasksPool pool = spy((AbstractTasksPool) tasksManager.createTaskPool(poolName, factoryName));
+        taskPoolsManager.add(pool);
+        assertThat(taskPoolsManager.taskPoolStreamBy(unit -> true).toArray()).contains(pool);
+        assertThat(UnitRegistry.lookup(managerUnitPath, TaskPoolsManager.class)).isSameAs(taskPoolsManager);
+        assertThat(UnitRegistry.lookup(pool.getPath(), TasksPoolUnit.class)).isSameAs(pool);
+
+        // acting
+        taskPoolsManager.Start();
+
+        // check the behavior
+        verify(taskPoolsManager).canStartUnit();
+        verify(taskPoolsManager).startUnitRunnable();
+        verify(taskPoolsManager).runnableChildren();
+        verify(taskPoolsManager).startUnitChild(pool);
+        verify(pool).Start();
+        verify(pool).canStartUnit();
+        verify(pool, never()).startUnitRunnable();
+        // check results
+        assertThat(taskPoolsManager.isStarted()).isTrue();
+        assertThat(pool.isStarted()).isFalse();
     }
 
     @Test
-    public void stop() {
+    public void shouldStopManager() throws ServerUnitException, IOException {
+        // preparing test data
+        String poolName = "testPool";
+        String factoryName = "testFactory";
+        tasksManager.setSystem(tasksSubSystem);
+        tasksManager.configure(xmlEngine.load(new ByteArrayInputStream(configurationXml.getBytes())));
+        String managerUnitPath = tasksManager.getPath();
+        File managerRoot = tasksManager.getRoot();
+        UnitRegistry.unRegister(tasksManager);
+        TaskPoolsManager taskPoolsManager = spy(tasksManager);
+        UnitRegistry.register(taskPoolsManager);
+        File tasksPoolFile = new File(managerRoot, poolName + ".tasks.pool");
+        tasksPoolFile.deleteOnExit();
+        AbstractTasksPool pool = spy((AbstractTasksPool) tasksManager.createTaskPool(poolName, factoryName));
+        taskPoolsManager.add(pool);
+        assertThat(taskPoolsManager.taskPoolStreamBy(unit -> true).toArray()).contains(pool);
+        assertThat(UnitRegistry.lookup(managerUnitPath, TaskPoolsManager.class)).isSameAs(taskPoolsManager);
+        assertThat(UnitRegistry.lookup(pool.getPath(), TasksPoolUnit.class)).isSameAs(pool);
+        taskPoolsManager.Start();
+
+        // acting
+        taskPoolsManager.Stop();
+
+        // check the behavior
+        verify(taskPoolsManager).stopUnitRunnable();
+        verify(taskPoolsManager, atLeastOnce()).runnableChildren();
+        verify(taskPoolsManager).stopUnitChild(pool);
+        verify(pool).Stop();
+        verify(pool).isStopped();
+        verify(pool, never()).stopUnitRunnable();
+        // check results
+        assertThat(taskPoolsManager.isStopped()).isTrue();
+        assertThat(pool.isStopped()).isTrue();
     }
 }

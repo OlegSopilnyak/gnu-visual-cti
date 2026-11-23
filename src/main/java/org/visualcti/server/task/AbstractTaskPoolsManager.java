@@ -101,18 +101,21 @@ public abstract class AbstractTaskPoolsManager extends RunnableUnitAdapter imple
      * <mutator>
      * to add child to the server unit composite units tree<BR/>
      * set up the owner for the child unit current unit
+     * To add child only as tasks pool unit
      *
      * @param unit the unit to add
      * @return true if it's succeeded
-     * @see ServerUnit#add(ServerUnit)
-     * @see TasksPoolUnit
+     * @see #addTasksPool(TasksPoolUnit)
      */
     @Override
-    public boolean add(ServerUnit unit) {
-        return safeAction(() ->
-                unit instanceof TasksPoolUnit && super.add(unit) ? (TasksPoolUnit) unit : null
-        ) != null;
+    public boolean add(final ServerUnit unit) {
+        return safeAction(() -> {
+            final TasksPoolUnit pool = Optional.ofNullable(unit).filter(TasksPoolUnit.class::isInstance)
+                    .map(TasksPoolUnit.class::cast).orElse(null);
+            return pool != null && addTasksPool(pool) ? pool : null;
+        }) != null;
     }
+
 
     /**
      * <mutator>
@@ -284,7 +287,7 @@ public abstract class AbstractTaskPoolsManager extends RunnableUnitAdapter imple
     }
 
     // private methods
-    // to do children manipulation in safest way
+    // to do children manipulation in the safest way
     private TasksPoolUnit safeAction(final Callable<TasksPoolUnit> action) {
         poolLock.lock();
         try {

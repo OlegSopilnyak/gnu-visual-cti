@@ -38,6 +38,8 @@ Fax number: 217-356-3356
 package org.visualcti.server.system.manager;
 
 import java.io.IOException;
+import java.util.Objects;
+import java.util.function.Predicate;
 import org.jdom.Element;
 import org.visualcti.server.core.executable.task.TasksPoolUnit;
 import org.visualcti.server.core.system.SubSystem;
@@ -57,6 +59,8 @@ import org.visualcti.server.task.AbstractTasksPool;
  */
 public class TasksManager extends AbstractTaskPoolsManager implements SubSystem.Manager {
     private static final String TASKS_MANAGER_UNIT_NAME = "Tasks Manager";
+    // is unit's path is current te unit's name
+    private static final Predicate<String> isCurrentUnitName = path -> Objects.equals(path, TASKS_MANAGER_UNIT_NAME);
     private static TasksManager instance;
     private SubSystem subSystem;
 
@@ -71,6 +75,7 @@ public class TasksManager extends AbstractTaskPoolsManager implements SubSystem.
             synchronized (TasksManager.class) {
                 if (instance == null) {
                     instance = new TasksManager();
+                    instance.unitPath = instance.getName();
                 }
             }
         }
@@ -99,6 +104,11 @@ public class TasksManager extends AbstractTaskPoolsManager implements SubSystem.
 
     public void setSystem(SubSystem subSystem) {
         this.subSystem = subSystem;
+        this.unitPath = subSystem == null ? getName() : defaultManagerUnitPath();
+    }
+
+    public void resetUnitPath() {
+        this.unitPath = getName();
     }
 
     @Override
@@ -127,10 +137,19 @@ public class TasksManager extends AbstractTaskPoolsManager implements SubSystem.
         // Here we don't use builder stuff of the server unit
     }
 
+    /**
+     * <action>
+     * To do something before register unit in the units registry<BR>
+     * updating the unit path value by default unit path of the manager if it needs
+     *
+     * @see #unitPath
+     * @see #defaultManagerUnitPath()
+     */
     @Override
     protected void beforeRegisterUnit() {
-        if (isEmptyString.test(this.unitPath) || TASKS_MANAGER_UNIT_NAME.equals(this.unitPath)) {
-            this.unitPath = defaultManagerUnitPath();
+        if (isEmptyString.or(isCurrentUnitName).test(unitPath)) {
+            // updating the unit path value by default manager path
+            unitPath = defaultManagerUnitPath();
         }
     }
 

@@ -41,6 +41,7 @@ import java.io.File;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 import org.visualcti.server.core.unit.RunnableServerUnit;
+import org.visualcti.server.core.unit.ServerUnit;
 
 /**
  * <manager>
@@ -114,6 +115,18 @@ public interface TaskPoolsManager extends RunnableServerUnit {
      * @see TasksPoolUnit
      */
     TasksPoolUnit createTaskPool(String name, String factory);
+
+    /**
+     * <mutator>
+     * To add child as tasks pool unit
+     *
+     * @param poolUnit the tasks pool unit to add
+     * @return true if it's succeeded
+     * @see RunnableServerUnit#add(ServerUnit)
+     */
+    default boolean addTasksPool(final TasksPoolUnit poolUnit) {
+        return RunnableServerUnit.super.add(poolUnit);
+    }
 
     /**
      * <accessor>

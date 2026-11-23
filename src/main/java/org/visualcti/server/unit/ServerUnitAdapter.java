@@ -564,10 +564,10 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
             // removing unit's children
             this.removeAll();
         } else if (isNeedRegistration()) {
-            // preparing new value of unit path
-            this.unitPath = owner.getPath() + UNIT_PATH_DELIMITER + this.unitPath;
             // before registering unit
             beforeRegisterUnit();
+            // preparing new value of unit path
+            this.unitPath = owner.getPath() + UNIT_PATH_DELIMITER + this.unitPath;
             // registering unit with new value of the path
             UnitRegistry.register(this);
         }
