@@ -49,10 +49,10 @@ import org.visualcti.server.task.AbstractTaskPoolsManager;
 import org.visualcti.server.task.AbstractTasksPool;
 
 /**
- * <SystemManagerSingleton>
+ * <SystemManager>
  * <p>Title: Visual CTI Java Telephony Server</p>
  * <p>Description: VisualCTI Applications Server,<br>
- * Manager: The manager of all Server's Application Tasks</p>
+ * Singleton:Manager: The manager of all Server's Application Tasks</p>
  *
  * @author Sopilnyak Oleg
  * @version 3.2
@@ -124,6 +124,14 @@ public class TasksManager extends AbstractTaskPoolsManager implements SubSystem.
         this.unitPath = subSystem == null ? getName() : defaultManagerUnitPath();
     }
 
+    /**
+     * <action>
+     * To reset the unit's path value to default one<BR>
+     * Used only for tests purposes
+     *
+     * @see #unitPath
+     * @see #getName()
+     */
     public void resetUnitPath() {
         this.unitPath = getName();
     }

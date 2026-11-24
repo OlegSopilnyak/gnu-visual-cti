@@ -39,30 +39,32 @@ package org.visualcti.server.system;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.function.Consumer;
 import org.jdom.Comment;
 import org.jdom.DataConversionException;
 import org.jdom.Element;
 import org.visualcti.core.XmlAware;
 import org.visualcti.core.channel.device.Factory;
-import org.visualcti.core.channel.device.adapter.AbstractDevicesManager;
+import org.visualcti.server.UnitRegistry;
 import org.visualcti.server.core.system.SubSystem;
 import org.visualcti.server.core.unit.EngineUnitBuilder;
+import org.visualcti.server.core.unit.exception.ServerUnitException;
+import org.visualcti.server.system.manager.HardwareManager;
 import org.visualcti.util.Tools;
 
 /**
- * <SubSystem>
- * The sub-system of the application server which is in charge with hardware channel-devices
+ * <System>
+ * <p>Title: Visual CTI Java Telephony Server</p>
+ * <p>Description: VisualCTI Applications Server,<br>
+ * System: The sub-system of the application server which is in charge of hardware channel-devices</p>
  *
+ * @author Sopilnyak Oleg
+ * @version 3.2
  * @see SubSystem
+ * @see HardwareManager
  */
+@SuppressWarnings("unchecked")
 public class HardwareSubSystem implements SubSystem {
-    private static final String HARDWARE_MANAGER_UNIT_NAME = "Hardware Manager";
-    private final MainDevicesManager manager;
-
-    public HardwareSubSystem() {
-        manager = new MainDevicesManager(this);
-    }
-
     /**
      * <accessor>
      * To get the name of the system's element name in the XML
@@ -81,11 +83,16 @@ public class HardwareSubSystem implements SubSystem {
      * To get the reference to main sub-system manager unit
      *
      * @return instance of the manager
-     * @see Manager
+     * @see HardwareManager
      */
     @Override
-    public SubSystem.Manager getSystemManager() {
-        return manager;
+    public HardwareManager getSystemManager() {
+        try {
+            return UnitRegistry.lookup(HardwareManager.class);
+        } catch (ServerUnitException e) {
+            e.printStackTrace(Tools.err);
+            return null;
+        }
     }
 
     /**
@@ -103,6 +110,7 @@ public class HardwareSubSystem implements SubSystem {
         final Element tasksElement = new Element(HARDWARE_SUB_SYSTEM);
         systemElement.addContent(new Comment(" Server devices control system "));
         systemElement.addContent(tasksElement);
+        final HardwareManager manager = getSystemManager();
         tasksElement.addContent(new Comment(" The manager of channel-devices pools "));
         tasksElement.addContent((Element) manager.getXML().clone());
         manager.factories().forEach(factory -> tasksElement.addContent((Element) factory.getXML().clone()));
@@ -121,22 +129,26 @@ public class HardwareSubSystem implements SubSystem {
      * @see Element
      */
     @Override
-    @SuppressWarnings("unchecked")
     public void setXML(Element xml) throws IOException, DataConversionException, NumberFormatException, NullPointerException {
         // getting manager's configuration XML-Element
         final Element managerElement = extractSystemManagerElement(xml);
         // configuring built manager's instance from xml and register it
-        manager.configure(managerElement);
+        final Consumer<HardwareManager> afterManagerCreate = manager -> manager.setSystem(this);
+        final HardwareManager manager = EngineUnitBuilder.getInstance().build(managerElement, afterManagerCreate);
+        // removing all devices factories
+        manager.children().forEach(unit -> {
+            UnitRegistry.unRegister(unit);
+            manager.remove(unit);
+        });
         //
         // building the channel-device-factories
-        final Element systemElement = managerElement.getParent();
-        final List<Element> factoryConfigurationElements = systemElement.getChildren(Factory.XML_ROOT_NAME);
+        final List<Element> factoryConfigurationElements = managerElement.getParent().getChildren(Factory.XML_ROOT_NAME);
         Tools.out.print(" : device factories .");
         Tools.out.flush();
         for (final Element configuration : factoryConfigurationElements) {
             //
             // preparing devices factory server-unit and attach it to the manager
-            final Factory<?, ?> factory = (Factory<?, ?>) EngineUnitBuilder.getInstance().build(configuration);
+            final Factory<?, ?> factory = EngineUnitBuilder.getInstance().build(configuration);
             //
             // printing the dot after successful factory creation
             Tools.out.print(".");
@@ -156,70 +168,5 @@ public class HardwareSubSystem implements SubSystem {
             Tools.out.print(factory.devices().count());
             Tools.out.println();
         });
-    }
-
-    // inner classes
-    // implementation of sub-system's channel-devices manager, builder feature of server unit isn't used here at the moment
-    private static class MainDevicesManager extends AbstractDevicesManager implements SubSystem.Manager {
-        private final SubSystem owner;
-
-        private MainDevicesManager(SubSystem owner) {
-            this.owner = owner;
-        }
-
-        /**
-         * <checker>
-         * To check is unit can start according the internal state
-         *
-         * @return true if unit can start
-         */
-        @Override
-        public boolean canStartUnit() {
-            return super.canStartUnit();
-        }
-
-        @Override
-        public String getName() {
-            return HARDWARE_MANAGER_UNIT_NAME;
-        }
-
-        @Override
-        protected String getUnitDescription() {
-            return " The manager of channel-devices ";
-        }
-
-        @Override
-        public String getRootElementName() {
-            return MANAGER_ROOT_ELEMENT;
-        }
-
-        @Override
-        public SubSystem getSystem() {
-            return owner;
-        }
-
-        @Override
-        public void close() {
-            this.unitPath = defaultManagerUnitPath();
-        }
-
-        @Override
-        protected void settingUpBasePart(Element xml) {
-            // doing nothing, keeps original XML
-            // Here we don't use builder stuff of the server unit
-        }
-
-        @Override
-        protected void beforeRegisterUnit() {
-            if (isEmptyString.test(this.unitPath) || HARDWARE_MANAGER_UNIT_NAME.equals(this.unitPath)) {
-                this.unitPath = defaultManagerUnitPath();
-            }
-        }
-
-        @Override
-        protected boolean updatedUnitConfiguration() {
-            // keeping loaded configuration Element as is after changed branches
-            return true;
-        }
     }
 }

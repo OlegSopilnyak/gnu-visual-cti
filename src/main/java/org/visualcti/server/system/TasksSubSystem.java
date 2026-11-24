@@ -52,8 +52,6 @@ import org.visualcti.server.core.system.SubSystem;
 import org.visualcti.server.core.unit.EngineUnitBuilder;
 import org.visualcti.server.core.unit.exception.ServerUnitException;
 import org.visualcti.server.system.manager.TasksManager;
-import org.visualcti.server.task.AbstractTaskPoolsManager;
-import org.visualcti.server.task.AbstractTasksPool;
 import org.visualcti.util.Tools;
 
 /**
@@ -65,8 +63,7 @@ import org.visualcti.util.Tools;
  * @author Sopilnyak Oleg
  * @version 3.2
  * @see SubSystem
- * @see AbstractTasksPool
- * @see AbstractTaskPoolsManager
+ * @see TasksManager
  */
 @SuppressWarnings("unchecked")
 public class TasksSubSystem implements SubSystem {
@@ -88,7 +85,7 @@ public class TasksSubSystem implements SubSystem {
      * To get the reference to main sub-system manager unit
      *
      * @return instance of the manager
-     * @see Manager
+     * @see TasksManager
      */
     @Override
     public TasksManager getSystemManager() {
@@ -144,7 +141,6 @@ public class TasksSubSystem implements SubSystem {
      * @see Element
      */
     @Override
-    @SuppressWarnings("unchecked")
     public void setXML(Element xml) throws IOException, DataConversionException, NumberFormatException, NullPointerException {
         // getting sub-system's manager's configuration xml-element
         final Element managerElement = extractSystemManagerElement(xml);
@@ -156,10 +152,6 @@ public class TasksSubSystem implements SubSystem {
             UnitRegistry.unRegister(unit);
             manager.remove(unit);
         });
-//        manager.removeAll();
-//        if(!manager.removeAll()) {
-//            throw new IOException("Tasks manager can't be cleaned.");
-//        }
         //
         // iterating by xml-elements of the tasks pools
         // building tasks pools units as well
