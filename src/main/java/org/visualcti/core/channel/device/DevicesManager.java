@@ -38,8 +38,10 @@ Fax number: 217-356-3356
 package org.visualcti.core.channel.device;
 
 
+import java.util.Objects;
 import java.util.concurrent.Executor;
 import java.util.stream.Stream;
+import org.visualcti.server.UnitRegistry;
 import org.visualcti.server.core.unit.RunnableServerUnit;
 import org.visualcti.server.core.unit.ServerUnit;
 import org.visualcti.server.unit.RunnableUnitAdapter;
@@ -83,12 +85,20 @@ public interface DevicesManager extends RunnableServerUnit {
      * <mutator>
      * to add the devices factory to manage it further
      *
+     * @param factory the factory unit to add
+     * @return true if it's succeeded
      * @see Factory
-     * @see RunnableServerUnit#add(ServerUnit)
      * @see #factories()
+     * @see RunnableServerUnit#add(ServerUnit)
      */
-    default void addDeviceFactory(Factory<?, ?> factory) {
-        add(factory);
+    default boolean addDeviceFactory(final Factory<?, ?> factory) {
+        // removing exists the same devices factories
+        factories().filter(Objects::nonNull).filter(f -> Objects.equals(f.getVendor(), factory.getVendor()))
+                .forEach(f -> {
+                    UnitRegistry.unRegister(f);
+                    remove(f);
+                });
+        return RunnableServerUnit.super.add(factory);
     }
 
     /**
@@ -100,8 +110,10 @@ public interface DevicesManager extends RunnableServerUnit {
      * @see Factory
      * @see #addDeviceFactory(Factory)
      */
-    default void removeDeviceFactory(Factory<?, ?> factory) {
-        remove(factory);
+    default boolean removeDeviceFactory(final Factory<?, ?> factory) {
+        // unregister the factory from the unit registry
+        UnitRegistry.unRegister(factory);
+        return RunnableServerUnit.super.remove(factory);
     }
 
     /**

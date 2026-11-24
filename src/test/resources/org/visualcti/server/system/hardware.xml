@@ -39,10 +39,9 @@ Fax number: 217-356-3356
 <system>
     <!-- Server devices control system -->
     <Hardware>
-        <!-- The manager of channel-devices pools -->
-        <Manager package="org.visualcti.server.hardware" class="Manager" extends="org.visualcti.server.core.executable.Engine">
-            <!-- Not used for unit's building here only parameters applying -->
-            <parent package="org.visualcti.server.hardware" class="HardwareManager" method="getManager">The implementation of hardware manager's features</parent>
+        <Manager package="org.visualcti.server.system.manager" class="HardwareManager" extends="org.visualcti.core.channel.device.DevicesManagere">
+            <!-- The manager of channel-devices pools -->
+            <builder package="org.visualcti.server.system.manager" class="TasksManager" method="getInstance" />
         </Manager>
         <factory package="org.visualcti.server.hardware.provider.virtual" class="VirtualTelephonyDevicesFactory" extends="org.visualcti.core.channel.telephony.TelephonyFactory">
             <!-- The implementation of Virtual telephony devices factory features -->

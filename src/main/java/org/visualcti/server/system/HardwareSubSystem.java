@@ -111,7 +111,6 @@ public class HardwareSubSystem implements SubSystem {
         systemElement.addContent(new Comment(" Server devices control system "));
         systemElement.addContent(tasksElement);
         final HardwareManager manager = getSystemManager();
-        tasksElement.addContent(new Comment(" The manager of channel-devices pools "));
         tasksElement.addContent((Element) manager.getXML().clone());
         manager.factories().forEach(factory -> tasksElement.addContent((Element) factory.getXML().clone()));
         return systemElement;

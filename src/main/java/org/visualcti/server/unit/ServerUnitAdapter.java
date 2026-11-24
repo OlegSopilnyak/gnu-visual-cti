@@ -648,6 +648,21 @@ public abstract class ServerUnitAdapter implements ServerUnit, XmlAware {
     @Override
     public void cleanUnitsTree() {
         branches.clear();
+        unitConfigurationChanged();
+    }
+
+    /**
+     * <notify>
+     * The unit's configuration changed<BR/>
+     * Reset internal configuration state
+     *
+     * @see #add(ServerUnit)
+     * @see #remove(ServerUnit)
+     * @see #cleanUnitsTree()
+     */
+    @Override
+    public void unitConfigurationChanged() {
+        this.unitConfiguration = null;
     }
 
     /**

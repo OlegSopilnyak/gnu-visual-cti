@@ -96,7 +96,7 @@ public class HardwareManager extends AbstractDevicesManager implements SubSystem
 
     @Override
     protected String getUnitDescription() {
-        return " The manager of channel devices ";
+        return " The manager of channel-devices pools ";
     }
 
     @Override

@@ -38,12 +38,15 @@ Fax number: 217-356-3356
 package org.visualcti.core.channel.device.adapter;
 
 import java.io.IOException;
+import java.util.Optional;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
-import org.visualcti.core.channel.device.DevicesManager;
 import org.visualcti.core.channel.device.DeviceEventsProcessor;
+import org.visualcti.core.channel.device.DevicesManager;
+import org.visualcti.core.channel.device.Factory;
+import org.visualcti.server.core.unit.ServerUnit;
 import org.visualcti.server.unit.RunnableUnitAdapter;
 
 /**
@@ -59,6 +62,39 @@ public class AbstractDevicesManager extends RunnableUnitAdapter implements Devic
 
     protected AbstractDevicesManager() {
         unitPath = "AbstractDevicesManager";
+    }
+
+    /**
+     * <mutator>
+     * to add child to the server unit composite units tree<BR/>
+     * set up the owner for the child unit current unit
+     * To add child only as devices factory unit
+     *
+     * @param unit the unit to add
+     * @return true if it's succeeded
+     * @see #addDeviceFactory(Factory)
+     */
+    @Override
+    public boolean add(final ServerUnit unit) {
+        return Optional.ofNullable(unit).filter(Factory.class::isInstance).map(Factory.class::cast)
+                .map(this::addDeviceFactory).orElse(false);
+    }
+
+    /**
+     * <mutator>
+     * to remove child from the server unit composite units tree
+     * set up the null as owner for the current unit
+     * To remove child only as devices factory unit
+     *
+     * @param unit the unit to remove
+     * @return true if it's succeeded
+     * @see ServerUnit
+     * @see #removeDeviceFactory(Factory)
+     */
+    @Override
+    public boolean remove(final ServerUnit unit) {
+        return Optional.ofNullable(unit).filter(Factory.class::isInstance).map(Factory.class::cast)
+                .map(this::removeDeviceFactory).orElse(false);
     }
 
     /**

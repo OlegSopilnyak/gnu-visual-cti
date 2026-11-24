@@ -335,6 +335,8 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
                 unit.setOwner(this);
                 // adding child to unit's tree
                 addBranch(unit);
+                // the unit's configuration changed
+                unitConfigurationChanged();
             } catch (IOException e) {
                 e.printStackTrace(Tools.err);
             }
@@ -375,6 +377,8 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
                 removeBranch(unit);
                 // closing detached unit
                 unit.close();
+                // the unit's configuration changed
+                unitConfigurationChanged();
             } catch (IOException e) {
                 e.printStackTrace(Tools.err);
             }
@@ -392,6 +396,16 @@ public interface ServerUnit extends UnitMessageExchange, UnitsComposite, UnitBas
      * @see #remove(ServerUnit)
      */
     void removeBranch(ServerUnit branch);
+
+    /**
+     * <notify>
+     * The unit's configuration changed<BR/>
+     * Reset internal configuration state
+     *
+     * @see #add(ServerUnit)
+     * @see #remove(ServerUnit)
+     */
+    void unitConfigurationChanged();
 
     /**
      * <mutator>
