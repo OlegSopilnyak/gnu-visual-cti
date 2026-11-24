@@ -38,14 +38,17 @@ Fax number: 217-356-3356
 package org.visualcti.server.core.executable.task;
 
 import java.io.File;
+import java.util.Objects;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
+import org.visualcti.server.UnitRegistry;
 import org.visualcti.server.core.unit.RunnableServerUnit;
 import org.visualcti.server.core.unit.ServerUnit;
 
 /**
  * <manager>
  * UnitFacade: The parent of the tasks manager
+ *
  * @see RunnableServerUnit
  */
 public interface TaskPoolsManager extends RunnableServerUnit {
@@ -125,6 +128,14 @@ public interface TaskPoolsManager extends RunnableServerUnit {
      * @see RunnableServerUnit#add(ServerUnit)
      */
     default boolean addTasksPool(final TasksPoolUnit poolUnit) {
+        // removing exists the same tasks pools
+        final Predicate<TasksPoolUnit> condition = p ->
+                Objects.equals(p.getPoolName(),poolUnit.getPoolName())
+                        && Objects.equals(p.getPoolGroup(),poolUnit.getPoolGroup());
+        taskPoolStreamBy(condition).forEach(pool -> {
+            UnitRegistry.unRegister(pool);
+            remove(pool);
+        });
         return RunnableServerUnit.super.add(poolUnit);
     }
 

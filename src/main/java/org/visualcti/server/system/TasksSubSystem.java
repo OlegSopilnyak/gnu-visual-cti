@@ -151,6 +151,15 @@ public class TasksSubSystem implements SubSystem {
         // building and configuring manager's instance from xml and register it
         final Consumer<TasksManager> afterManagerCreate = manager -> manager.setSystem(this);
         final TasksManager manager = EngineUnitBuilder.getInstance().build(managerElement, afterManagerCreate);
+        // removing all tasks pools
+        manager.children().forEach(unit -> {
+            UnitRegistry.unRegister(unit);
+            manager.remove(unit);
+        });
+//        manager.removeAll();
+//        if(!manager.removeAll()) {
+//            throw new IOException("Tasks manager can't be cleaned.");
+//        }
         //
         // iterating by xml-elements of the tasks pools
         // building tasks pools units as well

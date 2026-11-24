@@ -40,8 +40,8 @@ Fax number: 217-356-3356
     <!-- Server tasks control system -->
     <Tasks>
         <Manager package="org.visualcti.server.system.manager" class="TasksManager" extends="org.visualcti.server.core.executable.task.TaskPoolsManager">
-            <builder package="org.visualcti.server.system.manager" class="TasksManager" method="getInstance" />
             <!-- The manager of tasks pools -->
+            <builder package="org.visualcti.server.system.manager" class="TasksManager" method="getInstance" />
             <parameter name="directory" type="string" value="work/tasks" />
         </Manager>
         <!-- Pool of public tasks (server's tasks library) -->

@@ -45,6 +45,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import java.io.ByteArrayInputStream;
@@ -69,10 +70,10 @@ import org.visualcti.server.task.AbstractTasksPool;
 @SuppressWarnings("unchecked")
 public class TasksManagerTest {
     String configurationXml = "<Manager package=\"org.visualcti.server.system.manager\" class=\"TasksManager\" extends=\"org.visualcti.server.core.executable.task.TaskPoolsManager\">\n" +
-            "    <builder package=\"org.visualcti.server.system.manager\" class=\"TasksManager\" method=\"getInstance\" />\n" +
-            "    <!-- The manager of tasks pools -->\n" +
-            "    <parameter name=\"directory\" type=\"string\" value=\"work/tasks\" />\n" +
-            "</Manager>\n";
+            "  <!-- The manager of tasks pools -->\n" +
+            "  <builder package=\"org.visualcti.server.system.manager\" class=\"TasksManager\" method=\"getInstance\" />\n" +
+            "  <parameter name=\"directory\" type=\"string\" value=\"work/tasks\" />\n" +
+            "</Manager>\n\n";
     XmlAware xmlEngine;
     TasksManager tasksManager;
     String tasksSubSystemName = "Tasks";
@@ -94,6 +95,23 @@ public class TasksManagerTest {
         tasksManager.setSystem(null);
         tasksManager.setOwner(null);
         UnitRegistry.clear();
+    }
+
+    @Test
+    public void shouldGetXML() throws IOException {
+        // preparing test data
+        tasksManager.setRootDirectoryName("work/tasks");
+        TasksManager manager = spy(tasksManager);
+
+        // acting
+        Element managerXml = manager.getXML();
+
+        // check the behavior
+        verify(manager).getRootElementName();
+        verify(manager).getUnitDescription();
+        // check results
+        assertThat(managerXml).isNotNull();
+        assertThat(xmlEngine.asString(managerXml)).isEqualTo(configurationXml);
     }
 
     @Test
@@ -336,8 +354,8 @@ public class TasksManagerTest {
         TasksPoolUnit publicPool = taskPoolsManager.publicTaskPool();
 
         // check the behavior
-        verify(taskPoolsManager).taskPoolStreamBy(any(Predicate.class));
-        verify(taskPoolsManager).children();
+        verify(taskPoolsManager, times(2)).taskPoolStreamBy(any(Predicate.class));
+        verify(taskPoolsManager, times(2)).children();
         // check results
         assertThat(publicPool).isNotNull();
         assertThat(publicPool.isPublic()).isTrue();
@@ -370,8 +388,8 @@ public class TasksManagerTest {
         Stream<TasksPoolUnit> localPools = taskPoolsManager.localTaskPoolStream();
 
         // check the behavior
-        verify(taskPoolsManager).taskPoolStreamBy(any(Predicate.class));
-        verify(taskPoolsManager).children();
+        verify(taskPoolsManager, times(2)).taskPoolStreamBy(any(Predicate.class));
+        verify(taskPoolsManager, times(2)).children();
         // check results
         assertThat(localPools).isNotNull();
         TasksPoolUnit localPool = localPools.findFirst().orElse(null);
@@ -406,8 +424,8 @@ public class TasksManagerTest {
         TasksPoolUnit localPool = taskPoolsManager.getTaskPool(poolName, factoryName);
 
         // check the behavior
-        verify(taskPoolsManager).taskPoolStreamBy(any(Predicate.class));
-        verify(taskPoolsManager).children();
+        verify(taskPoolsManager, times(2)).taskPoolStreamBy(any(Predicate.class));
+        verify(taskPoolsManager, times(2)).children();
         // check results
         assertThat(localPool).isNotNull();
         assertThat(localPool.isPublic()).isFalse();

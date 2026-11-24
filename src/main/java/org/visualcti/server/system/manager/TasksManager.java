@@ -41,8 +41,10 @@ import java.io.IOException;
 import java.util.Objects;
 import java.util.function.Predicate;
 import org.jdom.Element;
+import org.visualcti.server.core.executable.task.TaskPoolsManager;
 import org.visualcti.server.core.executable.task.TasksPoolUnit;
 import org.visualcti.server.core.system.SubSystem;
+import org.visualcti.server.core.unit.ServerUnit;
 import org.visualcti.server.task.AbstractTaskPoolsManager;
 import org.visualcti.server.task.AbstractTasksPool;
 
@@ -80,6 +82,21 @@ public class TasksManager extends AbstractTaskPoolsManager implements SubSystem.
             }
         }
         return instance;
+    }
+
+    @Override
+    public Class<? extends ServerUnit> getUnitClass() {
+        return TasksManager.class;
+    }
+
+    @Override
+    public Class<? extends ServerUnit> getUnitExtendsClass() {
+        return TaskPoolsManager.class;
+    }
+
+    @Override
+    public String getUnitBuilderMethodName() {
+        return "getInstance";
     }
 
     @Override

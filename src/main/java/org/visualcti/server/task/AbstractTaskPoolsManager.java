@@ -95,6 +95,7 @@ public abstract class AbstractTaskPoolsManager extends RunnableUnitAdapter imple
     public void setRootDirectoryName(String rootDirectoryName) {
         this.rootDirectoryName = rootDirectoryName;
         this.rootDirectory = new File(rootDirectoryName);
+        this.unitConfiguration = null;
     }
 
     /**

@@ -107,7 +107,7 @@ public interface UnitsComposite {
      * @see #remove(ServerUnit)
      */
     default boolean removeAll() {
-        return children().anyMatch(this::remove);
+        return children().map(this::remove).reduce(Boolean.TRUE, Boolean::logicalAnd);
     }
 
     /**
