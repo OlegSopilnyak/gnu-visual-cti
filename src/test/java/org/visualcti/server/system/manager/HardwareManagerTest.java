@@ -244,6 +244,7 @@ public class HardwareManagerTest<H> {
         HardwareManager spied = spy(devicesManager);
         UnitRegistry.register(spied);
         spied.resetUnitPath();
+
         // acting
         spied.beforeRegisterUnit();
 

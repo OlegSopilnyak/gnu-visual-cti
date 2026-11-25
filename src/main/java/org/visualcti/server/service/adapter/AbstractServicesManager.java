@@ -51,7 +51,7 @@ import org.visualcti.server.unit.ServerUnitAdapter;
  * <services-manager-facade>
  * <p>Title: Visual CTI Java Telephony Server</p>
  * <p>Description: VisualCTI Applications Server,<br>
- * Facade:Implementation: The manager of all Services of the Server</p>
+ * Facade:Implementation: The manager of All Services of the Applications Server</p>
  * <p>Copyright: Copyright (c) 2002 Prominic Technologies, Inc. & Prominic Ukraine Co.</p>
  * <p>Company: Prominic Ukraine Co.</p>
  *
@@ -63,6 +63,42 @@ import org.visualcti.server.unit.ServerUnitAdapter;
 public class AbstractServicesManager extends RunnableUnitAdapter implements ServicesManager {
     protected AbstractServicesManager() {
         this.unitPath = UNIT_PATH;
+    }
+
+    /**
+     * <mutator>
+     * to add child to the server unit composite units tree<BR/>
+     * set up the owner for the child unit current unit
+     * To add child only as server's service unit
+     *
+     * @param unit the unit to add
+     * @return true if it's succeeded
+     * @see ServerUnit
+     * @see Service
+     * @see #addService(Service)
+     */
+    @Override
+    public boolean add(final ServerUnit unit) {
+        return Optional.ofNullable(unit).filter(Service.class::isInstance).map(Service.class::cast)
+                .map(this::addService).orElse(false);
+    }
+
+    /**
+     * <mutator>
+     * to remove child from the server unit composite units tree
+     * set up the null as owner for the current unit
+     * To remove child only as server's service unit
+     *
+     * @param unit the unit to remove
+     * @return true if it's succeeded
+     * @see ServerUnit
+     * @see Service
+     * @see #removeService(Service)
+     */
+    @Override
+    public boolean remove(final ServerUnit unit) {
+        return Optional.ofNullable(unit).filter(Service.class::isInstance).map(Service.class::cast)
+                .map(this::removeService).orElse(false);
     }
 
     /**
@@ -93,22 +129,6 @@ public class AbstractServicesManager extends RunnableUnitAdapter implements Serv
      */
     @Override
     public boolean canStartUnit() {
-        return services().findAny().isPresent();
-    }
-
-    /**
-     * <mutator>
-     * to add child to the server unit composite units tree<BR/>
-     * set up the owner for the child unit current unit
-     * Works for Service units only
-     *
-     * @param unit the unit to add
-     * @return true if it's succeeded
-     * @see ServerUnitAdapter#add(ServerUnit)
-     * @see Service
-     */
-    @Override
-    public boolean add(ServerUnit unit) {
-        return Optional.ofNullable(unit).filter(Service.class::isInstance).map(super::add).orElse(false);
+        return services().anyMatch(service -> service.isDependsOn(this));
     }
 }

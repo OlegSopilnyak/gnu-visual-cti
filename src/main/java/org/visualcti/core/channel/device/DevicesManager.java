@@ -95,6 +95,7 @@ public interface DevicesManager extends RunnableServerUnit {
         // removing exists the same devices factories
         factories().filter(Objects::nonNull).filter(f -> Objects.equals(f.getVendor(), factory.getVendor()))
                 .forEach(f -> {
+                    // unregistering former factory
                     UnitRegistry.unRegister(f);
                     remove(f);
                 });

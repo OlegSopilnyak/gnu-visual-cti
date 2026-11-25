@@ -128,8 +128,7 @@ public class HardwareSubSystemTest<H> {
         assertThat(hardware).isNotNull();
         Element manager = hardware.getChild("Manager");
         assertThat(manager).isNotNull();
-        String textXml = xmlEngine.asString(systemXml);
-        assertThat(textXml).isEqualTo(configurationXmlString);
+        assertThat(xmlEngine.asString(systemXml)).isEqualTo(configurationXmlString);
     }
 
     @Test

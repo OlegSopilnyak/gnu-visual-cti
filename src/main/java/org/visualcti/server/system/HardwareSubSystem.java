@@ -107,7 +107,7 @@ public class HardwareSubSystem implements SubSystem {
     @Override
     public Element getXML() {
         final Element systemElement = SubSystem.super.getXML();
-        final Element tasksElement = new Element(HARDWARE_SUB_SYSTEM);
+        final Element tasksElement = new Element(getSystemElementName());
         systemElement.addContent(new Comment(" Server devices control system "));
         systemElement.addContent(tasksElement);
         final HardwareManager manager = getSystemManager();

@@ -40,6 +40,7 @@ package org.visualcti.server.service;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Stream;
+import org.visualcti.server.UnitRegistry;
 import org.visualcti.server.core.unit.ServerUnit;
 
 /**
@@ -92,7 +93,15 @@ public interface ServicesManager extends Service {
      * @see #add(ServerUnit)
      */
     default boolean addService(final Service service) {
-        return add(service);
+        // removing exists the same registered services
+        services().filter(Objects::nonNull).filter(srv -> Objects.equals(srv.getName(), service.getName()))
+                .forEach(srv -> {
+                    // unregistering former service
+                    UnitRegistry.unRegister(srv);
+                    remove(srv);
+                });
+        // add service as server unit
+        return Service.super.add(service);
     }
 
     /**
@@ -104,7 +113,9 @@ public interface ServicesManager extends Service {
      * @see ServerUnit#remove(ServerUnit)
      */
     default boolean removeService(final Service service) {
-        return remove(service);
+        // unregister the service from the unit registry
+        UnitRegistry.unRegister(service);
+        return Service.super.remove(service);
     }
 
     /**

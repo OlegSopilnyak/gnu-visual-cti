@@ -110,7 +110,7 @@ public class TasksSubSystem implements SubSystem {
     public Element getXML() {
         final TasksManager manager = getSystemManager();
         // preparing TasksSubSystem's XML-element
-        final Element rootTasksElement = new Element(TASKS_SUB_SYSTEM);
+        final Element rootTasksElement = new Element(getSystemElementName());
         rootTasksElement.addContent((Element) manager.getXML().clone());
         final TasksPoolUnit publicTasksPool = manager.publicTaskPool();
         if (publicTasksPool != null) {
