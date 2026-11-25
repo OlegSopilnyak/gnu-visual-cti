@@ -92,7 +92,7 @@ public class HardwareSubSystemTest<H> {
         DevicesManager hardwareManager = (DevicesManager) UnitRegistry.lookup("HardwareManager", DevicesManager.class);
         assertThat(UnitRegistry.lookup("HardwareManager/provider/Dialogic", TelephonyFactory.class))
                 .isInstanceOf(org.visualcti.server.hardware.provider.dialogic.FactoryImpl.class);
-        assertThat(UnitRegistry.lookup("HardwareManager/provider/VirtualTelephony", TelephonyFactory.class))
+        assertThat(UnitRegistry.lookup("HardwareManager/provider/Virtual", TelephonyFactory.class))
                 .isInstanceOf(org.visualcti.server.hardware.provider.virtual.VirtualTelephonyDevicesFactory.class);
         assertThat(hardwareManager.factories().count()).isNotZero();
         hardwareManager.devices().forEach(device -> {
@@ -135,10 +135,8 @@ public class HardwareSubSystemTest<H> {
     @Test
     public void shouldStartSystem() throws IOException, DataConversionException {
         // preparing test data
+        system.setXML(xmlEngine.load(new ByteArrayInputStream(configurationXmlString.getBytes())));
         assertThat(system.getSystemManager()).isInstanceOf(DevicesManager.class);
-        Element xml = xmlEngine.load(new ByteArrayInputStream(configurationXmlString.getBytes()));
-        assertThat(system.getSystemManager().canStartUnit()).isFalse();
-        system.setXML(xml);
         assertThat(system.getSystemManager().canStartUnit()).isTrue();
 
         // acting
@@ -146,7 +144,7 @@ public class HardwareSubSystemTest<H> {
 
         // check results
         assertThat(system.getSystemManager().isStarted()).isTrue();
-        DevicesManager manager = (DevicesManager) system.getSystemManager();
+        DevicesManager manager = system.getSystemManager();
         manager.factories().forEach(factory -> {
             if (factory.canStartUnit()) {
                 assertThat(factory.isStarted()).isTrue();

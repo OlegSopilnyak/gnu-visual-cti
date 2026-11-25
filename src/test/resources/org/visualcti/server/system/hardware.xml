@@ -39,14 +39,14 @@ Fax number: 217-356-3356
 <system>
     <!-- Server devices control system -->
     <Hardware>
-        <Manager package="org.visualcti.server.system.manager" class="HardwareManager" extends="org.visualcti.core.channel.device.DevicesManagere">
+        <Manager package="org.visualcti.server.system.manager" class="HardwareManager" extends="org.visualcti.core.channel.device.DevicesManager">
             <!-- The manager of channel-devices pools -->
-            <builder package="org.visualcti.server.system.manager" class="TasksManager" method="getInstance" />
+            <builder package="org.visualcti.server.system.manager" class="HardwareManager" method="getInstance" />
         </Manager>
         <factory package="org.visualcti.server.hardware.provider.virtual" class="VirtualTelephonyDevicesFactory" extends="org.visualcti.core.channel.telephony.TelephonyFactory">
             <!-- The implementation of Virtual telephony devices factory features -->
             <builder package="org.visualcti.server.hardware.provider.virtual" class="VirtualTelephonyDevicesFactory" method="getInstance" />
-            <parameter name="vendor" type="string" value="VirtualTelephony" />
+            <parameter name="vendor" type="string" value="Virtual" />
             <parameter name="url" type="string" value="file:./conf/visualcti.configuration.xml" />
             <parameter name="device count" type="number" value="2" />
             <parameter name="device prefix" type="string" value="stub_" />
