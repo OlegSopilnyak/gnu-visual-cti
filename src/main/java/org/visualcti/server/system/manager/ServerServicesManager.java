@@ -189,7 +189,7 @@ public class ServerServicesManager extends AbstractServicesManager implements Su
     public Element getXML() {
         return new Element(Service.XML_ROOT_NAME)
                 .addContent(new Comment(getUnitDescription()))
-                .addContent(super.getXML());
+                .addContent((Element) super.getXML().clone());
     }
 
     /**

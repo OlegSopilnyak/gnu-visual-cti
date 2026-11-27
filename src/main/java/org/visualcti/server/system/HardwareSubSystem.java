@@ -157,7 +157,7 @@ public class HardwareSubSystem implements SubSystem {
             manager.addDeviceFactory(factory);
         }
         Tools.out.println();
-        // all channel-device-factories are configured well reporting
+        // all channel-device-factories are configured well, reporting about it
         Tools.out.println("Done!");
         Tools.out.println("Report ===>");
         manager.factories().forEach(factory -> {

@@ -37,15 +37,11 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.service.adapter;
 
-import java.io.IOException;
 import java.util.Optional;
-import org.jdom.DataConversionException;
-import org.jdom.Element;
 import org.visualcti.server.core.unit.ServerUnit;
 import org.visualcti.server.service.Service;
 import org.visualcti.server.service.ServicesManager;
 import org.visualcti.server.unit.RunnableUnitAdapter;
-import org.visualcti.server.unit.ServerUnitAdapter;
 
 /**
  * <services-manager-facade>
@@ -101,25 +97,25 @@ public class AbstractServicesManager extends RunnableUnitAdapter implements Serv
                 .map(this::removeService).orElse(false);
     }
 
-    /**
-     * <converter>
-     * To update the entity's fields from XML
-     *
-     * @param xml possible entity's XML
-     * @throws IOException             if something went wrong
-     * @throws DataConversionException if something went wrong
-     * @throws NumberFormatException   if something went wrong
-     * @throws NullPointerException    if something went wrong
-     * @see Element
-     * @see Service#extractServiceFrom(Element)
-     * @see ServerUnitAdapter#setXML(Element)
-     * @see #settingUpBasePart(Element)
-     * @see #settingUpMainPart(Element)
-     */
-    @Override
-    public void setXML(Element xml) throws IOException, DataConversionException, NumberFormatException, NullPointerException {
-        super.setXML(extractServiceFrom(xml));
-    }
+//    /**
+//     * <converter>
+//     * To update the entity's fields from XML
+//     *
+//     * @param xml possible entity's XML
+//     * @throws IOException             if something went wrong
+//     * @throws DataConversionException if something went wrong
+//     * @throws NumberFormatException   if something went wrong
+//     * @throws NullPointerException    if something went wrong
+//     * @see Element
+//     * @see Service#extractServiceFrom(Element)
+//     * @see ServerUnitAdapter#setXML(Element)
+//     * @see #settingUpBasePart(Element)
+//     * @see #settingUpMainPart(Element)
+//     */
+//    @Override
+//    public void setXML(Element xml) throws IOException, DataConversionException, NumberFormatException, NullPointerException {
+//        super.setXML(extractServiceFrom(xml));
+//    }
 
     /**
      * <checker>

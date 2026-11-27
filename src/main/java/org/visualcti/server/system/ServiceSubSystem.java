@@ -37,19 +37,24 @@ Fax number: 217-356-3356
 */
 package org.visualcti.server.system;
 
+import static org.visualcti.server.core.unit.ServerUnit.UNIT_TYPE_CLASS;
+import static org.visualcti.server.core.unit.ServerUnit.UNIT_TYPE_EXTENDS_CLASS;
+import static org.visualcti.server.core.unit.ServerUnit.UNIT_TYPE_PACKAGE;
+
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Consumer;
 import org.jdom.Comment;
 import org.jdom.DataConversionException;
 import org.jdom.Element;
 import org.visualcti.core.XmlAware;
-import org.visualcti.core.channel.device.Factory;
 import org.visualcti.server.UnitRegistry;
 import org.visualcti.server.core.system.SubSystem;
 import org.visualcti.server.core.unit.EngineUnitBuilder;
+import org.visualcti.server.core.unit.ServerUnit;
 import org.visualcti.server.core.unit.exception.ServerUnitException;
-import org.visualcti.server.system.manager.HardwareManager;
+import org.visualcti.server.service.Service;
+import org.visualcti.server.system.manager.ServerServicesManager;
 import org.visualcti.util.Tools;
 
 /**
@@ -61,10 +66,15 @@ import org.visualcti.util.Tools;
  * @author Sopilnyak Oleg
  * @version 3.2
  * @see SubSystem
- * @see HardwareManager
+ * @see ServerServicesManager
  */
 @SuppressWarnings("unchecked")
 public class ServiceSubSystem implements SubSystem {
+    // The basics of the services system
+    private final Basics base = new Basics();
+    // The services registered in the system
+    private final List<Service> services = new ArrayList<>();
+
     /**
      * <accessor>
      * To get the name of the system's element name in the XML
@@ -83,12 +93,12 @@ public class ServiceSubSystem implements SubSystem {
      * To get the reference to main sub-system manager unit
      *
      * @return instance of the manager
-     * @see HardwareManager
+     * @see ServerServicesManager
      */
     @Override
-    public HardwareManager getSystemManager() {
+    public ServerServicesManager getSystemManager() {
         try {
-            return UnitRegistry.lookup(HardwareManager.class);
+            return UnitRegistry.lookup(ServerServicesManager.class);
         } catch (ServerUnitException e) {
             e.printStackTrace(Tools.err);
             return null;
@@ -101,19 +111,32 @@ public class ServiceSubSystem implements SubSystem {
      *
      * @return entity's XML
      * @see Element
-     * @see XmlAware#getXML()
-     * @see #getRootElementName()
+     * @see SubSystem#getXML()
+     * @see #getSystemElementName()
      */
     @Override
     public Element getXML() {
-        final Element systemElement = SubSystem.super.getXML();
-        final Element tasksElement = new Element(getRootElementName());
-        systemElement.addContent(new Comment(" Server's services control system "));
-        systemElement.addContent(tasksElement);
-        final HardwareManager manager = getSystemManager();
-        tasksElement.addContent((Element) manager.getXML().clone());
-        manager.factories().forEach(factory -> tasksElement.addContent((Element) factory.getXML().clone()));
-        return systemElement;
+        final Element systemRootXml = SubSystem.super.getXML();
+        final Element rootServicesXml = new Element(getSystemElementName());
+        systemRootXml.addContent(rootServicesXml);
+        // base part of Services System configuration
+        basePartFor(rootServicesXml);
+        // services part of Services System configuration
+        servicesPartFor(rootServicesXml);
+//        final ServerServicesManager manager = getSystemManager();
+//        rootServicesXml.addContent((Element) manager.getXML().clone());
+//        manager.services().forEach(service -> rootServicesXml.addContent((Element) service.getXML().clone()));
+        return systemRootXml;
+    }
+
+    private void basePartFor(final Element rootServicesXml) {
+        rootServicesXml
+                .addContent(new Comment("Base components of any service"))
+                .addContent(base.getXML());
+    }
+
+    private void servicesPartFor(final Element rootServicesXml) {
+        services.forEach(service -> rootServicesXml.addContent((Element) service.getXML().clone()));
     }
 
     /**
@@ -129,43 +152,208 @@ public class ServiceSubSystem implements SubSystem {
      */
     @Override
     public void setXML(Element xml) throws IOException, DataConversionException, NumberFormatException, NullPointerException {
-        // getting manager's configuration XML-Element
-        final Element managerElement = extractSystemManagerElement(xml);
-        // configuring built manager's instance from xml and register it
-        final Consumer<HardwareManager> afterManagerCreate = manager -> manager.setSystem(this);
-        final HardwareManager manager = EngineUnitBuilder.getInstance().build(managerElement, afterManagerCreate);
-        // removing all devices factories
-        manager.children().forEach(unit -> {
-            UnitRegistry.unRegister(unit);
-            manager.remove(unit);
-        });
-        //
-        // building the channel-device-factories
-        final List<Element> factoryConfigurationElements = managerElement.getParent().getChildren(Factory.XML_ROOT_NAME);
-        Tools.out.print(" : device factories .");
+        // getting root services configuration XML-Element
+        final Element servicesXml = xml.getChild(SERVICES_SUB_SYSTEM);
+        // base part of Services System configuration
+        configureBasePart(servicesXml);
+        // services part of Services System configuration
+        configureServicesPart(servicesXml);
+        // finalization
+        adjustingSystemManager();
+    }
+
+    /// private methods
+    private void configureBasePart(final Element servicesXml) throws IOException, DataConversionException {
+        // getting base system's configuration XML-Element and update it
+        base.setXML(servicesXml.getChild(Basics.BASIC_ROOT_NAME));
+        // unregistering all services
+        services.forEach(UnitRegistry::unRegister);
+        services.clear();
+        Tools.out.print(">> " + getSystemElementName() +" : services .");
         Tools.out.flush();
-        for (final Element configuration : factoryConfigurationElements) {
+    }
+
+    private void configureServicesPart(final Element servicesXml) throws IOException {
+        // building the services from services' configuration XML-Element
+        final List<Element> serviceConfigurationElements = servicesXml.getChildren(Service.XML_ROOT_NAME);
+        //
+        // preparing the engine unit builder
+        final EngineUnitBuilder<ServerUnit> unitBuilder = EngineUnitBuilder.getInstance();
+        //
+        // iterating through the services configurations
+        for (final Element configurationXml : serviceConfigurationElements) {
             //
-            // preparing devices factory server-unit and attach it to the manager
-            final Factory<?, ?> factory = EngineUnitBuilder.getInstance().build(configuration);
+            // preparing server's service server-unit and attach it to the services list
+            final Element serviceXml = base.extractEntityFrom(configurationXml, Service.XML_ROOT_NAME);
+            // making service using engine unit builder
+            final Service service = unitBuilder.build(serviceXml);
+            // checking built service instance
+            if (service == null || !base.basic.serviceType().isAssignableFrom(service.getClass())) {
+                // service is null or has wrong type ¯\_(ツ)_/¯
+                throw new IOException("Wrong type of built service " + service);
+            }
             //
-            // printing the dot after successful factory creation
+            // printing the dot after successful service's creation
             Tools.out.print(".");
             Tools.out.flush();
             //
-            // adding built factory to the manager
-            manager.addDeviceFactory(factory);
+            // adding built service to the services list
+            services.add(service);
         }
-        Tools.out.println();
-        // all channel-device-factories are configured well reporting
+        // services creation is done
         Tools.out.println("Done!");
-        Tools.out.println("Report ===>");
-        manager.factories().forEach(factory -> {
-            Tools.out.print("Factory of :[");
-            Tools.out.print(factory.getVendor());
-            Tools.out.print("] has devices:");
-            Tools.out.print(factory.devices().count());
-            Tools.out.println();
-        });
+        Tools.out.println();
+    }
+
+    private void adjustingSystemManager() throws IOException {
+        // getting registered services manager
+        final ServerServicesManager manager = this.getSystemManager();
+        // checking built services manager instance
+        if (manager != null && base.master.serviceType().isAssignableFrom(manager.getClass())) {
+            // configuring services manager
+            services.stream().filter(service -> service != manager).forEach(manager::add);
+            // all services are configured well, reporting about it
+            Tools.out.println(manager.getName() + ":Report ===>");
+            manager.services().forEach(service -> {
+                Tools.out.print("Service :[");
+                Tools.out.print(service.getName());
+                Tools.out.println("]");
+            });
+        } else if (manager != null && !base.master.serviceType().isAssignableFrom(manager.getClass())) {
+            // manager has wrong type ¯\_(ツ)_/¯
+            throw new IOException("Wrong type of built services manager");
+        } else {
+            // manager is not registered yet ¯\_(ツ)_/¯
+            throw new IOException("Cannot get services manager");
+        }
+    }
+
+    // inner classes
+    // The basics of the services system
+    static class Basics implements XmlAware {
+        final static String BASIC_ROOT_NAME = "base";
+        final static String MASTER_SERVICE_ROOT_NAME = "ServicesManager";
+        final static String BASIC_SERVICE_ROOT_NAME = "Service";
+        final ServiceMeta master = new ServiceMeta("org.visualcti.server.service",
+                "ServicesManager",
+                "Service");
+        final ServiceMeta basic = new ServiceMeta("org.visualcti.server.service",
+                "Service",
+                "org.visualcti.server.core.unit.RunnableServerUnit");
+
+        @Override
+        public String getRootElementName() {
+            return BASIC_ROOT_NAME;
+        }
+
+        @Override
+        public Element getXML() {
+            final Element rootElement = XmlAware.super.getXML();
+            rootElement.addContent(new Comment("This is the main interface of the services manager"));
+            rootElement.addContent(masterXml());
+            rootElement.addContent(new Comment("This is the main interface of any service"));
+            rootElement.addContent(basicXml());
+            return rootElement;
+        }
+
+        private Element masterXml() {
+            final Element rootElement = new Element(MASTER_SERVICE_ROOT_NAME);
+            master.toXml(rootElement);
+            return rootElement;
+        }
+
+        private Element basicXml() {
+            final Element rootElement = new Element(BASIC_SERVICE_ROOT_NAME);
+            basic.toXml(rootElement);
+            return rootElement;
+        }
+
+        @Override
+        public void setXML(final Element xml) throws IOException, DataConversionException, NumberFormatException, NullPointerException {
+            master.fromXml(xml.getChild(MASTER_SERVICE_ROOT_NAME));
+            basic.fromXml(xml.getChild(BASIC_SERVICE_ROOT_NAME));
+        }
+
+        boolean isValid() {
+            return master.isValid() && basic.isValid() && basic.serviceType().isAssignableFrom(master.serviceType());
+        }
+    }
+
+    // The meta-info of the service
+    static class ServiceMeta {
+        static final String PACKAGE_NAME = UNIT_TYPE_PACKAGE;
+        static final String CLASS_NAME = UNIT_TYPE_CLASS;
+        static final String INHERITANCE_NAME = UNIT_TYPE_EXTENDS_CLASS;
+        String packageValue;
+        String classValue;
+        String inheritanceValue;
+
+        ServiceMeta(String packageValue, String classValue, String inheritanceValue) {
+            this.packageValue = packageValue;
+            this.classValue = classValue;
+            this.inheritanceValue = inheritanceValue;
+        }
+
+        @Override
+        public String toString() {
+            return "ServiceMeta{" +
+                    "packageValue='" + packageValue + '\'' +
+                    ", classValue='" + classValue + '\'' +
+                    ", inheritanceValue='" + inheritanceValue + '\'' +
+                    '}';
+        }
+
+        boolean isValid() {
+            final Class<?> serviceType = serviceType();
+            if (serviceType == null) {
+                return false;
+            }
+            final Class<?> extendsType = extendsType();
+            if (extendsType == null) {
+                return false;
+            }
+            return extendsType.isAssignableFrom(serviceType);
+        }
+
+        Class<?> serviceType() {
+            final String className = packageValue + "." + classValue;
+            try {
+                return Class.forName(className, true, ServiceSubSystem.class.getClassLoader());
+            } catch (ClassNotFoundException e) {
+                e.printStackTrace(Tools.err);
+                return null;
+            }
+        }
+
+        Class<?> extendsType() {
+            final String className = inheritanceValue.contains(".") ? inheritanceValue : packageValue + "." + inheritanceValue;
+            try {
+                return Class.forName(className, true, ServiceSubSystem.class.getClassLoader());
+            } catch (ClassNotFoundException e) {
+                e.printStackTrace(Tools.err);
+                return null;
+            }
+        }
+
+        void toXml(final Element rootElement) {
+            rootElement
+                    .setAttribute(PACKAGE_NAME, packageValue)
+                    .setAttribute(CLASS_NAME, classValue)
+                    .setAttribute(INHERITANCE_NAME, inheritanceValue);
+        }
+
+        void fromXml(final Element rootElement) {
+            if (rootElement == null)
+                return;
+            if (rootElement.getAttributeValue(PACKAGE_NAME) != null) {
+                packageValue = rootElement.getAttributeValue(PACKAGE_NAME);
+            }
+            if (rootElement.getAttributeValue(CLASS_NAME) != null) {
+                classValue = rootElement.getAttributeValue(CLASS_NAME);
+            }
+            if (rootElement.getAttributeValue(INHERITANCE_NAME) != null) {
+                inheritanceValue = rootElement.getAttributeValue(INHERITANCE_NAME);
+            }
+        }
     }
 }
