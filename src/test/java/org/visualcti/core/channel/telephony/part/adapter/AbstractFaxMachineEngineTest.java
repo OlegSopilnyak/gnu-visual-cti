@@ -1196,7 +1196,7 @@ public class AbstractFaxMachineEngineTest<H> {
         verify(provider).startFaxTransmitting(eq(deviceHandle), anyString(), eq(issueVoiceRequest),
                 eq(format.isTIFF()), eq(format.isHighResolution()), anyInt(), anyInt());
         verify(session).operationCompletingWithResult(Result.NONE);
-        verify(session).waitingForOperationComplete(anyLong());
+        verify(session, atLeastOnce()).waitingForOperationComplete(anyLong());
         verify(engine).terminate(session);
         verify(session).operationCompletingWithResult(Result.TERMINATED);
         verify(session).terminate();

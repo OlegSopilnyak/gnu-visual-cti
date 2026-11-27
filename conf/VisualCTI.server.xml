@@ -44,93 +44,104 @@ Fax number: 217-356-3356
     <rmi port="2888" start="true">local RMI Registry properties</rmi>
     <system>
       <Services>
-        <!--Base components of any service-->
         <base>
-          <!--This is main interface of any service with children-->
-          <MasterService package="org.visualcti.server.service" class="MasterService" extends="Service" />
-          <!--This is main interface of any service-->
-          <Service package="org.visualcti.server.service" class="Service" extends="org.visualcti.server.serverUnit" />
+          <!--This is the main interface of the services manager-->
+          <ServicesManager package="org.visualcti.server.service" class="ServicesManager" extends="Service" />
+          <!--This is the main interface of any service-->
+          <Service package="org.visualcti.server.service" class="Service" extends="org.visualcti.server.core.unit.RunnableServerUnit" />
         </base>
-        <!--This is the manager of all Services system-->
         <service>
-          <Manager package="org.visualcti.server.service" class="Manager" extends="MasterService" Prominic="signed">
-            <parent package="org.visualcti.server.service" class="ServiceManager" method="getManager">The parent of manager, he will create the Manager</parent>
+          <!-- The manager of the server's services -->
+          <Manager package="org.visualcti.server.system.manager" class="ServerServicesManager" extends="org.visualcti.server.service.ServicesManager" Prominic="signed">
+            <builder package="org.visualcti.server.system.manager" class="ServerServicesManager" method="getInstance" />
           </Manager>
         </service>
-        <!--This is the security manager -->
-        <service>
-          <SecurityManager package="org.visualcti.server.security" class="Manager" extends="org.visualcti.server.service.ExService">
-            <parent package="org.visualcti.server.security.impl" class="ServerSecurityManager" method="getManager">Security manager of Server, he will create the Manager</parent>
-            <security>conf/ServerSecurity.xml</security>
-          </SecurityManager>
-        </service>
-        <!--This is the connectors manager -->
-        <service>
-          <Connector package="org.visualcti.server.connector" class="Manager" extends="org.visualcti.server.service.MasterService">
-            <parent package="org.visualcti.server.connector" class="Manager">Connectors manager of Server, it will create the Manager's instance</parent>
-            <!--FormerFactory for control the server via system's console-->
-            <factory name="Console" package="org.visualcti.server.connector.streams" class="ConsoleFactory" extends="org.visualcti.server.connector.LinkFactory">System console connector</factory>
-            <factory port="1888" name="Socket" package="org.visualcti.server.connector.control" class="SocketLinkFactory" extends="org.visualcti.server.connector.LinkFactory">Network Sockets connector</factory>
-          </Connector>
-        </service>
-        <!--This is the Server Log system-->
-        <service>
-          <Logger home="work/log" package="org.visualcti.server.log" class="Log" extends="org.visualcti.server.service.ExService">
-            <parent package="org.visualcti.server.log.impl" class="LogImpl">This is Logger implementation</parent>
-            <filter default="allowed">
-              <!--Filter for Log System-->
-              <rule path="{Server}" type="denied" error="true" event="stop|start|state" command="stop|start|get|set" response="true">
-                <!--Not permissible definition of a rule of a filter-->
-              </rule>
-            </filter>
-          </Logger>
-        </service>
-        <!--The service operates access to the messages-->
-        <service>
-          <Messenger package="org.visualcti.server.message" class="Messenger" extends="org.visualcti.server.service.MasterService" persistent="work/persistent.messages" Prominic="signed">
-            <parent package="org.visualcti.server.message.impl" class="MessengerImpl">The child of messenger, he will create the Messenger</parent>
-            <!--To sharing messenger's handle for remote servers-->
-            <rmi handleName="Messenger/Handle" class="org.visualcti.server.message.Messenger$Handle" extends="org.visualcti.server.message.MessengerHandle">Handle for other severs</rmi>
-            <!--Try to connect to other server for support remote messaging-->
-            <remote class="org.visualcti.server.message.MessengerHandle" host="localhost" port="2888" name="Messenger/Handle" check="false">remote messenger's handle properties</remote>
-            <!--Try to connect to other server for support remote messaging-->
-            <remote class="org.visualcti.server.message.MessengerHandle" host="sun.com" port="2887" name="Messenger/Handle2" check="false">remote messenger's handle properties</remote>
-            <message>
-              <!--factory of messages, features: create, send, receive-->
-              <MessageFactory package="org.visualcti.server.message" class="MessageFactory" extends="org.visualcti.server.service.ExService" />
-              <!--Abstract unified message-->
-              <Message package="org.visualcti.server.message" class="Message" extends="MessageHeader" />
-              <!--The abstract unified message header-->
-              <MessageHeader package="org.visualcti.server.message" extends="javax.jms.Message">MessageHeader</MessageHeader>
-            </message>
-            <!--FormerFactory for make, send, receive e-mail messages-->
-            <factory name="EMAIL" package="org.visualcti.server.message.email" class="Factory" extends="org.visualcti.server.message.MessageFactory" persistent="work/persistent.messages">
-              E-Mail
-              <!-- Define protocols for the factory -->
-              <protocol in="POP3,IMAP" out="SMTP" />
-            </factory>
-          </Messenger>
-        </service>
-        <service>
-          <Database package="org.visualcti.server.database" class="Database" extends="org.visualcti.server.service.ExService">
-            <parent package="org.visualcti.server.database" class="DataManager">The parent of manager, he will create the Manager</parent>
-          </Database>
-        </service>
+        <!--        &lt;!&ndash;Base components of any service&ndash;&gt;-->
+        <!--        <base>-->
+        <!--          &lt;!&ndash;This is main interface of any service with children&ndash;&gt;-->
+        <!--          <MasterService package="org.visualcti.server.service" class="MasterService" extends="Service" />-->
+        <!--          &lt;!&ndash;This is main interface of any service&ndash;&gt;-->
+        <!--          <Service package="org.visualcti.server.service" class="Service" extends="org.visualcti.server.serverUnit" />-->
+        <!--        </base>-->
+        <!--        &lt;!&ndash;This is the manager of all Services system&ndash;&gt;-->
+        <!--        <service>-->
+        <!--          <Manager package="org.visualcti.server.service" class="Manager" extends="MasterService" Prominic="signed">-->
+        <!--            <parent package="org.visualcti.server.service" class="ServiceManager" method="getManager">The parent of manager, he will create the Manager</parent>-->
+        <!--          </Manager>-->
+        <!--        </service>-->
+        <!--        &lt;!&ndash;This is the security manager &ndash;&gt;-->
+        <!--        <service>-->
+        <!--          <SecurityManager package="org.visualcti.server.security" class="Manager" extends="org.visualcti.server.service.ExService">-->
+        <!--            <parent package="org.visualcti.server.security.impl" class="ServerSecurityManager" method="getManager">Security manager of Server, he will create the Manager</parent>-->
+        <!--            <security>conf/ServerSecurity.xml</security>-->
+        <!--          </SecurityManager>-->
+        <!--        </service>-->
+        <!--        &lt;!&ndash;This is the connectors manager &ndash;&gt;-->
+        <!--        <service>-->
+        <!--          <Connector package="org.visualcti.server.connector" class="Manager" extends="org.visualcti.server.service.MasterService">-->
+        <!--            <parent package="org.visualcti.server.connector" class="Manager">Connectors manager of Server, it will create the Manager's instance</parent>-->
+        <!--            &lt;!&ndash;FormerFactory for control the server via system's console&ndash;&gt;-->
+        <!--            <factory name="Console" package="org.visualcti.server.connector.streams" class="ConsoleFactory" extends="org.visualcti.server.connector.LinkFactory">System console connector</factory>-->
+        <!--            <factory port="1888" name="Socket" package="org.visualcti.server.connector.control" class="SocketLinkFactory" extends="org.visualcti.server.connector.LinkFactory">Network Sockets connector</factory>-->
+        <!--          </Connector>-->
+        <!--        </service>-->
+        <!--        &lt;!&ndash;This is the Server Log system&ndash;&gt;-->
+        <!--        <service>-->
+        <!--          <Logger home="work/log" package="org.visualcti.server.log" class="Log" extends="org.visualcti.server.service.ExService">-->
+        <!--            <parent package="org.visualcti.server.log.impl" class="LogImpl">This is Logger implementation</parent>-->
+        <!--            <filter default="allowed">-->
+        <!--              &lt;!&ndash;Filter for Log System&ndash;&gt;-->
+        <!--              <rule path="{Server}" type="denied" error="true" event="stop|start|state" command="stop|start|get|set" response="true">-->
+        <!--                &lt;!&ndash;Not permissible definition of a rule of a filter&ndash;&gt;-->
+        <!--              </rule>-->
+        <!--            </filter>-->
+        <!--          </Logger>-->
+        <!--        </service>-->
+        <!--        &lt;!&ndash;The service operates access to the messages&ndash;&gt;-->
+        <!--        <service>-->
+        <!--          <Messenger package="org.visualcti.server.message" class="Messenger" extends="org.visualcti.server.service.MasterService" persistent="work/persistent.messages" Prominic="signed">-->
+        <!--            <parent package="org.visualcti.server.message.impl" class="MessengerImpl">The child of messenger, he will create the Messenger</parent>-->
+        <!--            &lt;!&ndash;To sharing messenger's handle for remote servers&ndash;&gt;-->
+        <!--            <rmi handleName="Messenger/Handle" class="org.visualcti.server.message.Messenger$Handle" extends="org.visualcti.server.message.MessengerHandle">Handle for other severs</rmi>-->
+        <!--            &lt;!&ndash;Try to connect to other server for support remote messaging&ndash;&gt;-->
+        <!--            <remote class="org.visualcti.server.message.MessengerHandle" host="localhost" port="2888" name="Messenger/Handle" check="false">remote messenger's handle properties</remote>-->
+        <!--            &lt;!&ndash;Try to connect to other server for support remote messaging&ndash;&gt;-->
+        <!--            <remote class="org.visualcti.server.message.MessengerHandle" host="sun.com" port="2887" name="Messenger/Handle2" check="false">remote messenger's handle properties</remote>-->
+        <!--            <message>-->
+        <!--              &lt;!&ndash;factory of messages, features: create, send, receive&ndash;&gt;-->
+        <!--              <MessageFactory package="org.visualcti.server.message" class="MessageFactory" extends="org.visualcti.server.service.ExService" />-->
+        <!--              &lt;!&ndash;Abstract unified message&ndash;&gt;-->
+        <!--              <Message package="org.visualcti.server.message" class="Message" extends="MessageHeader" />-->
+        <!--              &lt;!&ndash;The abstract unified message header&ndash;&gt;-->
+        <!--              <MessageHeader package="org.visualcti.server.message" extends="javax.jms.Message">MessageHeader</MessageHeader>-->
+        <!--            </message>-->
+        <!--            &lt;!&ndash;FormerFactory for make, send, receive e-mail messages&ndash;&gt;-->
+        <!--            <factory name="EMAIL" package="org.visualcti.server.message.email" class="Factory" extends="org.visualcti.server.message.MessageFactory" persistent="work/persistent.messages">-->
+        <!--              E-Mail-->
+        <!--              &lt;!&ndash; Define protocols for the factory &ndash;&gt;-->
+        <!--              <protocol in="POP3,IMAP" out="SMTP" />-->
+        <!--            </factory>-->
+        <!--          </Messenger>-->
+        <!--        </service>-->
+        <!--        <service>-->
+        <!--          <Database package="org.visualcti.server.database" class="Database" extends="org.visualcti.server.service.ExService">-->
+        <!--            <parent package="org.visualcti.server.database" class="DataManager">The parent of manager, he will create the Manager</parent>-->
+        <!--          </Database>-->
+        <!--        </service>-->
       </Services>
     </system>
     <system>
       <Hardware>
-        <Manager package="org.visualcti.server.hardware" class="Manager" extends="org.visualcti.server.core.executable.Engine">
-          <!-- Not used for unit's builder here only parameters applying -->
-          <!-- The implementation of hardware manager's features -->
-          <builder package="org.visualcti.server.hardware" class="HardwareManager" method="getManager" />
+        <Manager package="org.visualcti.server.system.manager" class="HardwareManager" extends="org.visualcti.core.channel.device.DevicesManager">
+          <!-- The manager of channel-devices pools -->
+          <builder package="org.visualcti.server.system.manager" class="HardwareManager" method="getInstance" />
         </Manager>
         <factory package="org.visualcti.server.hardware.provider.virtual" class="VirtualTelephonyDevicesFactory" extends="org.visualcti.core.channel.telephony.TelephonyFactory">
           <!-- The implementation of Virtual telephony devices factory features -->
           <builder package="org.visualcti.server.hardware.provider.virtual" class="VirtualTelephonyDevicesFactory" method="getInstance" />
-          <parameter name="vendor" type="string" value="VirtualTelephony" />
+          <parameter name="vendor" type="string" value="Virtual" />
           <parameter name="url" type="string" value="file:./conf/visualcti.configuration.xml" />
-          <parameter name="device count" type="number" value="4" />
+          <parameter name="device count" type="number" value="2" />
           <parameter name="device prefix" type="string" value="stub_" />
         </factory>
         <factory package="org.visualcti.server.hardware.provider.dialogic" class="FactoryImpl" extends="org.visualcti.core.channel.telephony.TelephonyFactory">
@@ -139,17 +150,41 @@ Fax number: 217-356-3356
           <parameter name="vendor" type="string" value="Dialogic" />
           <parameter name="url" type="string" value="file:./conf/dialogic.configuration.xml" />
         </factory>
+        <!--        <Manager package="org.visualcti.server.hardware" class="Manager" extends="org.visualcti.server.core.executable.Engine">-->
+        <!--          &lt;!&ndash; Not used for unit's builder here only parameters applying &ndash;&gt;-->
+        <!--          &lt;!&ndash; The implementation of hardware manager's features &ndash;&gt;-->
+        <!--          <builder package="org.visualcti.server.hardware" class="HardwareManager" method="getManager" />-->
+        <!--        </Manager>-->
+        <!--        <factory package="org.visualcti.server.hardware.provider.virtual" class="VirtualTelephonyDevicesFactory" extends="org.visualcti.core.channel.telephony.TelephonyFactory">-->
+        <!--          &lt;!&ndash; The implementation of Virtual telephony devices factory features &ndash;&gt;-->
+        <!--          <builder package="org.visualcti.server.hardware.provider.virtual" class="VirtualTelephonyDevicesFactory" method="getInstance" />-->
+        <!--          <parameter name="vendor" type="string" value="VirtualTelephony" />-->
+        <!--          <parameter name="url" type="string" value="file:./conf/visualcti.configuration.xml" />-->
+        <!--          <parameter name="device count" type="number" value="4" />-->
+        <!--          <parameter name="device prefix" type="string" value="stub_" />-->
+        <!--        </factory>-->
+        <!--        <factory package="org.visualcti.server.hardware.provider.dialogic" class="FactoryImpl" extends="org.visualcti.core.channel.telephony.TelephonyFactory">-->
+        <!--          &lt;!&ndash; The implementation of Dialogic telephony hardware factory features &ndash;&gt;-->
+        <!--          <builder package="org.visualcti.server.hardware.provider.dialogic" class="FactoryImpl" method="getInstance" />-->
+        <!--          <parameter name="vendor" type="string" value="Dialogic" />-->
+        <!--          <parameter name="url" type="string" value="file:./conf/dialogic.configuration.xml" />-->
+        <!--        </factory>-->
       </Hardware>
     </system>
     <system>
       <Tasks>
-        <!-- Server tasks control system -->
-        <!-- The manager of the task-pools -->
-        <Manager package="org.visualcti.server.task" class="Manager" extends="org.visualcti.server.core.executable.Engine">
-          <!-- Not used for unit's building here only parameters applying -->
-          <parent package="org.visualcti.server.task" class="TaskManager" method="getManager">The implementation of tasks controls manager</parent>
+        <Manager package="org.visualcti.server.system.manager" class="TasksManager" extends="org.visualcti.server.core.executable.task.TaskPoolsManager">
+          <!-- The manager of tasks pools -->
+          <builder package="org.visualcti.server.system.manager" class="TasksManager" method="getInstance" />
           <parameter name="directory" type="string" value="work/tasks" />
         </Manager>
+        <!-- Server tasks control system -->
+        <!-- The manager of the task-pools -->
+        <!--        <Manager package="org.visualcti.server.task" class="Manager" extends="org.visualcti.server.core.executable.Engine">-->
+        <!--          &lt;!&ndash; Not used for unit's building here only parameters applying &ndash;&gt;-->
+        <!--          <parent package="org.visualcti.server.task" class="TaskManager" method="getManager">The implementation of tasks controls manager</parent>-->
+        <!--          <parameter name="directory" type="string" value="work/tasks" />-->
+        <!--        </Manager>-->
         <!-- Pool of public tasks -->
         <pool type="public" name="public" file="public.tasks.pool" />
         <!-- Pool of concrete device's tasks -->

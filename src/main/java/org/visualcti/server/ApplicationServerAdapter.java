@@ -71,6 +71,8 @@ import org.visualcti.server.core.unit.RunnableServerUnit;
 import org.visualcti.server.core.unit.ServerUnit;
 import org.visualcti.server.core.unit.message.UnitMessage;
 import org.visualcti.server.core.unit.message.command.ServerCommandRequest;
+import org.visualcti.server.system.HardwareSubSystem;
+import org.visualcti.server.system.ServiceSubSystem;
 import org.visualcti.server.system.TasksSubSystem;
 import org.visualcti.server.unit.RunnableUnitAdapter;
 import org.visualcti.util.Tools;
@@ -393,10 +395,10 @@ public class ApplicationServerAdapter extends RunnableUnitAdapter implements App
                 return new TasksSubSystem();
             case SubSystem.SERVICES_SUB_SYSTEM:
                 // services sub system creation
-                return null;
+                return new ServiceSubSystem();
             case SubSystem.HARDWARE_SUB_SYSTEM:
                 // external channels sub system creation
-                return null;
+                return new HardwareSubSystem();
             default:
                 return null;
         }

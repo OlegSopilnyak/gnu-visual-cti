@@ -147,7 +147,8 @@ public class AbstractDevicesManagerTest {
     public void shouldGetFactories() {
         // preparing test data
         Factory<?,?> factory = mock(Factory.class);
-        manager.addDeviceFactory(factory);
+        manager.add(factory);
+        reset(manager);
 
         // acting
         Object[] factories = manager.factories().toArray();
@@ -165,10 +166,10 @@ public class AbstractDevicesManagerTest {
         assertThat(manager.factories().findAny()).isEmpty();
 
         // acting
-        manager.addDeviceFactory(factory);
+        manager.add(factory);
 
         // check the behavior
-        verify(manager).add(factory);
+        verify(manager).addDeviceFactory(factory);
         verify(manager).isChild(factory);
         verify(factory).setOwner(manager);
         verify(manager).addBranch(factory);
@@ -180,16 +181,16 @@ public class AbstractDevicesManagerTest {
     public void shouldRemoveDeviceFactory() throws IOException {
         // preparing test data
         Factory<?,?> factory = mock(Factory.class);
-        manager.addDeviceFactory(factory);
+        manager.add(factory);
         assertThat(manager.factories().findAny()).isPresent().contains(factory);
         reset(manager);
         doReturn(manager).when(factory).getOwner();
 
         // acting
-        manager.removeDeviceFactory(factory);
+        manager.remove(factory);
 
         // check the behavior
-        verify(manager).remove(factory);
+        verify(manager).removeDeviceFactory(factory);
         verify(manager).isChild(factory);
         verify(factory).setOwner(null);
         verify(manager).removeBranch(factory);

@@ -197,7 +197,7 @@ public class ServiceSubSystem implements SubSystem {
             Tools.out.print(".");
             Tools.out.flush();
             //
-            // adding built service to the services list
+            // adding built and registered service to the services list
             services.add(service);
         }
         // services creation is done
@@ -207,21 +207,25 @@ public class ServiceSubSystem implements SubSystem {
 
     private void adjustingSystemManager() throws IOException {
         // getting registered services manager
-        final ServerServicesManager manager = this.getSystemManager();
+        final ServerServicesManager manager = getSystemManager();
         // checking built services manager instance
-        if (manager != null && base.master.serviceType().isAssignableFrom(manager.getClass())) {
-            // configuring services manager
-            services.stream().filter(service -> service != manager).forEach(manager::add);
-            // all services are configured well, reporting about it
-            Tools.out.println(manager.getName() + ":Report ===>");
-            manager.services().forEach(service -> {
-                Tools.out.print("Service :[");
-                Tools.out.print(service.getName());
-                Tools.out.println("]");
-            });
-        } else if (manager != null && !base.master.serviceType().isAssignableFrom(manager.getClass())) {
-            // manager has wrong type ¯\_(ツ)_/¯
-            throw new IOException("Wrong type of built services manager");
+        if (manager != null) {
+            // the system manager is registered
+            if (base.master.serviceType().isAssignableFrom(manager.getClass())) {
+                // configuring services manager
+                manager.setSystem(this);
+                services.stream().filter(service -> service != manager).forEach(manager::add);
+                // all services are configured well, reporting about it
+                Tools.out.println(manager.getName() + ":Report ===>");
+                manager.services().forEach(service -> {
+                    Tools.out.print("Service :[");
+                    Tools.out.print(service.getName());
+                    Tools.out.println("]");
+                });
+            } else {
+                // manager has wrong type ¯\_(ツ)_/¯
+                throw new IOException("Wrong type of built services manager");
+            }
         } else {
             // manager is not registered yet ¯\_(ツ)_/¯
             throw new IOException("Cannot get services manager");
@@ -256,6 +260,17 @@ public class ServiceSubSystem implements SubSystem {
             return rootElement;
         }
 
+        @Override
+        public void setXML(final Element xml) throws IOException, DataConversionException, NumberFormatException, NullPointerException {
+            master.fromXml(xml.getChild(MASTER_SERVICE_ROOT_NAME));
+            basic.fromXml(xml.getChild(BASIC_SERVICE_ROOT_NAME));
+        }
+
+        boolean isValid() {
+            return master.isValid() && basic.isValid() && basic.serviceType().isAssignableFrom(master.serviceType());
+        }
+
+        // private methods
         private Element masterXml() {
             final Element rootElement = new Element(MASTER_SERVICE_ROOT_NAME);
             master.toXml(rootElement);
@@ -266,16 +281,6 @@ public class ServiceSubSystem implements SubSystem {
             final Element rootElement = new Element(BASIC_SERVICE_ROOT_NAME);
             basic.toXml(rootElement);
             return rootElement;
-        }
-
-        @Override
-        public void setXML(final Element xml) throws IOException, DataConversionException, NumberFormatException, NullPointerException {
-            master.fromXml(xml.getChild(MASTER_SERVICE_ROOT_NAME));
-            basic.fromXml(xml.getChild(BASIC_SERVICE_ROOT_NAME));
-        }
-
-        boolean isValid() {
-            return master.isValid() && basic.isValid() && basic.serviceType().isAssignableFrom(master.serviceType());
         }
     }
 

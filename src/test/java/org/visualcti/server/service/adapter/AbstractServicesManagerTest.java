@@ -88,10 +88,10 @@ public class AbstractServicesManagerTest {
         Service service = mock(Service.class);
 
         // acting
-        boolean added = manager.addService(service);
+        boolean added = manager.add(service);
 
         // check the behavior
-        verify(manager).add(service);
+        verify(manager).addService(service);
         // check results
         assertThat(added).isTrue();
         assertThat(manager.services().count()).isEqualTo(1);
@@ -139,10 +139,10 @@ public class AbstractServicesManagerTest {
         reset(manager);
 
         // acting
-        boolean removed = manager.removeService(service);
+        boolean removed = manager.remove(service);
 
         // check the behavior
-        verify(manager).remove(service);
+        verify(manager).removeService(service);
         verify(manager).isChild(service);
         verify(manager).isChildrenEnabled();
         verify(service).setOwner(null);
@@ -158,10 +158,10 @@ public class AbstractServicesManagerTest {
         Service service = mock(Service.class);
 
         // acting
-        boolean removed = manager.removeService(service);
+        boolean removed = manager.remove(service);
 
         // check the behavior
-        verify(manager).remove(service);
+        verify(manager).removeService(service);
         verify(manager).isChild(service);
         verify(manager, never()).isChildrenEnabled();
         // check results
@@ -174,6 +174,7 @@ public class AbstractServicesManagerTest {
         Service service = mock(Service.class);
         assertThat(manager.addService(service)).isTrue();
         doReturn(manager).when(service).getOwner();
+        reset(manager);
 
         // acting
         Stream<Service> services = manager.services();
@@ -228,7 +229,8 @@ public class AbstractServicesManagerTest {
     public void shouldStartServices() throws IOException {
         // preparing test data
         Service service = mock(Service.class);
-        assertThat(manager.addService(service)).isTrue();
+        doReturn(true).when(service).isDependsOn(manager);
+        assertThat(manager.add(service)).isTrue();
         assertThat(manager.currentUnitState()).isSameAs(RunnableServerUnit.UnitState.PASSIVE);
         assertThat(manager.isStarted()).isFalse();
 
@@ -250,7 +252,8 @@ public class AbstractServicesManagerTest {
     public void shouldStopServices() throws IOException {
         // preparing test data
         Service service = mock(Service.class);
-        assertThat(manager.addService(service)).isTrue();
+        doReturn(true).when(service).isDependsOn(manager);
+        assertThat(manager.add(service)).isTrue();
         manager.Start();
         assertThat(manager.currentUnitState()).isSameAs(RunnableServerUnit.UnitState.ACTIVE);
         assertThat(manager.isStarted()).isTrue();

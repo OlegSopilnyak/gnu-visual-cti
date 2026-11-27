@@ -41,7 +41,6 @@ import java.io.File;
 import java.util.Objects;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
-import org.visualcti.server.UnitRegistry;
 import org.visualcti.server.core.unit.RunnableServerUnit;
 import org.visualcti.server.core.unit.ServerUnit;
 
@@ -129,13 +128,9 @@ public interface TaskPoolsManager extends RunnableServerUnit {
      */
     default boolean addTasksPool(final TasksPoolUnit poolUnit) {
         // removing exists the same tasks pools
-        final Predicate<TasksPoolUnit> condition = p ->
-                Objects.equals(p.getPoolName(),poolUnit.getPoolName())
-                        && Objects.equals(p.getPoolGroup(),poolUnit.getPoolGroup());
-        taskPoolStreamBy(condition).forEach(pool -> {
-            UnitRegistry.unRegister(pool);
-            remove(pool);
-        });
+        final Predicate<TasksPoolUnit> condition = p -> Objects.equals(p.getPoolName(), poolUnit.getPoolName())
+                && Objects.equals(p.getPoolGroup(), poolUnit.getPoolGroup());
+        taskPoolStreamBy(condition).forEach(this::remove);
         return RunnableServerUnit.super.add(poolUnit);
     }
 

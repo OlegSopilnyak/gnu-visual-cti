@@ -64,7 +64,6 @@ import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.visualcti.core.ConfigurationParameter;
 import org.visualcti.server.UnitRegistry;
-import org.visualcti.server.core.executable.task.TaskPoolsManager;
 import org.visualcti.server.core.executable.task.TasksPoolUnit;
 import org.visualcti.server.core.unit.RunnableServerUnit;
 import org.visualcti.server.core.unit.message.MessageFamilyType;
@@ -124,9 +123,11 @@ public class TaskPoolsManagerAdapterTest {
         manager.add(poolUnit);
 
         // check the behavior
-        verify(manager).isChild(poolUnit);
-        verify(poolUnit, never()).setOwner(any(TaskPoolsManager.class));
-        verify(manager, never()).addBranch(any(TasksPoolUnit.class));
+        verify(manager).remove(poolUnit);
+        verify(manager, times(2)).isChild(poolUnit);
+        verify(poolUnit).setOwner(manager);
+        verify(manager).addBranch(poolUnit);
+        verify(manager).removeBranch(poolUnit);
     }
 
     @Test
