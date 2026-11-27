@@ -682,4 +682,31 @@ public class ApplicationServerAdapterTest {
         assertThat(response.getCorrelationID()).isEqualTo(shutdownSystemCommand.getCorrelationID());
         assertThat(response.getDescription()).isEqualTo(shutdownSystemCommand.getDescription());
     }
+
+    @Test
+    @Ignore
+    public void shouldSetXML() throws IOException, DataConversionException {
+        // preparing test data
+        String subSystemName = "Tasks";
+        Element serverXml = new Element("Server");
+        Element tasksXml = new Element(subSystemName);
+        Element systemXml = new Element("system").addContent(tasksXml);
+        serverXml.addContent(systemXml);
+        Element managerConfigXml = new Element("parameter").setAttribute("name", "directory")
+                .setAttribute("type", "string").setAttribute("value", "work/tasks");
+        tasksXml.addContent(new Element("Manager").addContent(managerConfigXml));
+
+        // acting
+        application.setXML(serverXml);
+
+        // check the behavior
+        ArgumentCaptor<Element> xmlElementCaptor = ArgumentCaptor.forClass(Element.class);
+        verify(application).buildSubSystem(xmlElementCaptor.capture());
+        verify(application).getSubSystem(subSystemName);
+        verify(application).createSubSystem(subSystemName);
+        // check results
+        assertThat(xmlElementCaptor.getValue()).isSameAs(systemXml);
+        assertThat(application.getSubSystem(subSystemName).getSystemElementName()).isEqualTo(subSystemName);
+//        assertThat(application.getSubSystem(subSystemName).getSystemManager()).isNotNull();
+    }
 }
